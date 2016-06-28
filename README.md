@@ -43,4 +43,4 @@ For detailed walkthroughs of git submodule usage, see the
 [Git Tools documentation](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
 
 ## Using the Library
-A great way to get started is to use the [Ion cookbook](http://amznlabs.github.io/ion-docs/cookbook.html).
+Ion cookbook for C coming soon!
