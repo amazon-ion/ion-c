@@ -587,6 +587,10 @@ iERR _ion_reader_text_check_for_system_values_to_skip_or_process(ION_READER *pre
 
 enum version_marker_state { START, MAJOR_VERSION, UNDERSCORE, MINOR_VERSION };
 
+static inline int add_digit(int i, char digit) {
+    return 10 * i + (digit - '0');
+}
+
 // Attempts to parse an IVM, returns TRUE if there was an error parsing or FALSE on success
 enum version_marker_result _ion_reader_text_parse_version_marker(ION_STRING* version_marker, int* major_version, int* minor_version)
 {
@@ -650,8 +654,6 @@ enum version_marker_result _ion_reader_text_parse_version_marker(ION_STRING* ver
     *minor_version = minor_version_so_far;
     return SUCCESS;
 }
-
-extern inline int add_digit(int i, char digit);
 
 // checks to see what follows our just finished value. this is done as 
 // we start the next() function. one key bit is this function handles comma's

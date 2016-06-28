@@ -338,10 +338,6 @@ iERR _ion_reader_text_read_lob_bytes            (ION_READER *preader, BOOL accep
 enum version_marker_result { SUCCESS = 0, ERROR = 1 };
 enum version_marker_result _ion_reader_text_parse_version_marker(ION_STRING* version_marker, int* major_version, int* minor_version);
 
-inline int add_digit(int i, char digit) {
-    return 10 * i + (digit - '0');
-}
-
 #ifdef __cplusplus
 }
 #endif
