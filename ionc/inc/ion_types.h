@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
-#include <decnumber/decQuad.h>
+#include <decQuad.h>
 
 #ifdef ION_INIT
   #define GLOBAL    ION_API_EXPORT
