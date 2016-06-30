@@ -4,3 +4,9 @@ CMakeFiles/
 cmake_install.cmake
 */cmake_install.cmake
 Makefile
+decNumber/libdecNumber.a
+ionc/libionc.a
+test/tester
+tools/ionizer/ionizer
+tools/ionsymbols/ionsymbols
+
