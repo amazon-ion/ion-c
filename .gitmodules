@@ -1,7 +1,0 @@
-[submodule "ion-tests"]
-	path = ion-tests
-	url = git@github.com:amznlabs/ion-tests.git
-[submodule "ionc"]
-	path = ionc
-	url = git@github.com:amznlabs/ion-c.git
-	branch = master
