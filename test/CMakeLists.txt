@@ -1,7 +1,10 @@
 add_executable(tester
+  ion_assert.c
+  ion_binary_test.c
+  ion_unit_test.c
+  test_internal.c
   tester.c
   testfiles.c
-  test_internal.c
 )
 set_property(TARGET tester PROPERTY C_STANDARD 99)
 target_include_directories(tester PRIVATE
