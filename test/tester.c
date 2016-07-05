@@ -20,6 +20,7 @@
 #include "tester.h"
 
 #include "ion_binary_test.h"
+#include "ion_cookbook_test.h"
 
 #ifdef YJSDK
 void* yjsdk_malloc(size_t sz, const char* file, size_t line)
@@ -81,6 +82,7 @@ int main(int argc, char **argv)
     if (argc > 1) {
         g_iontests_path = argv[1];
         if (g_no_print == FALSE) printf("TEST_FILES: %s\n", g_iontests_path);
+        RUNTEST(ion_cookbook_test, NULL);
         RUNTEST(ion_binary_test, NULL);
         RUNTEST(test_step_out_nested_s_expressions, NULL);
         RUNTEST(test_reader_good_files, g_iontests_path);
