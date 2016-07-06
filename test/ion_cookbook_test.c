@@ -20,7 +20,7 @@ iERR test_ion_cookbook_hello_world() {
     char* ion_text = "{ hello:\"world\" }";
 
     hREADER reader;
-    ION_READER_OPTIONS options; 
+    ION_READER_OPTIONS options;
     memset(&options, 0, sizeof(options));
 
     IONCHECK(ion_reader_open_buffer(&reader, (BYTE*) ion_text, strlen(ion_text), &options));
