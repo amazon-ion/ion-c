@@ -19,18 +19,6 @@
 #define TESTER_INIT
 #include "tester.h"
 
-
-#ifdef YJSDK
-void* yjsdk_malloc(size_t sz, const char* file, size_t line)
-{
-    return malloc(sz);
-}
-void yjsdk_free(void *pt, const char* file, size_t line)
-{
-    free(pt);
-}
-#endif
-
 BOOL  g_no_print             = TRUE;
 long  g_value_count          = 0;
 long  g_failure_count        = 0;
