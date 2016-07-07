@@ -21,3 +21,11 @@ iERR assert_equals_c_string_ion_string(char* c_string, ION_STRING* ion_string) {
 
     return IERR_OK;
 }
+
+iERR assert_equals_c_string(char* expected, char* actual) {
+    return (strcmp(expected, actual) == 0) ? IERR_OK : IERR_INVALID_ARG;
+}
+
+iERR assert_equals_bytes(BYTE* expected, BYTE* actual, size_t length) {
+    return (strncmp((char*) expected, (char*) actual, length) == 0) ? IERR_OK : IERR_INVALID_ARG;
+}
