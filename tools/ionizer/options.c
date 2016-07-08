@@ -10,8 +10,8 @@
 #include <stdio.h>
 #ifdef WIN
 #include <io.h>
-#endif
 #include <malloc.h>
+#endif
 #include <string.h>
 #include <ctype.h>
 
