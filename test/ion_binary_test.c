@@ -17,10 +17,10 @@ iERR ion_binary_test() {
 iERR test_ion_binary_len_uint_64() {
     iENTER;
 
-    IONCHECK(assert_equals_int(0, ion_binary_len_uint_64(0LL)));
-    IONCHECK(assert_equals_int(1, ion_binary_len_uint_64(1LL)));
-    IONCHECK(assert_equals_int(1, ion_binary_len_uint_64(255LL)));
-    IONCHECK(assert_equals_int(2, ion_binary_len_uint_64(256LL)));
+    IONCHECK(ASSERT_EQUALS_INT(0, ion_binary_len_uint_64(0LL), "Wrong uint64 length"));
+    IONCHECK(ASSERT_EQUALS_INT(1, ion_binary_len_uint_64(1LL), "Wrong uint64 length"));
+    IONCHECK(ASSERT_EQUALS_INT(1, ion_binary_len_uint_64(255LL), "Wrong uint64 length"));
+    IONCHECK(ASSERT_EQUALS_INT(2, ion_binary_len_uint_64(256LL), "Wrong uint64 length"));
 
     iRETURN;
 }
@@ -28,13 +28,13 @@ iERR test_ion_binary_len_uint_64() {
 iERR test_ion_binary_len_int64() {
     iENTER;
 
-    IONCHECK(assert_equals_int(0, ion_binary_len_int64(0LL)));
-    IONCHECK(assert_equals_int(1, ion_binary_len_int64(1LL)));
-    IONCHECK(assert_equals_int(1, ion_binary_len_int64(-1LL)));
-    IONCHECK(assert_equals_int(2, ion_binary_len_int64(255LL)));
-    IONCHECK(assert_equals_int(2, ion_binary_len_int64(-255LL)));
-    IONCHECK(assert_equals_int(2, ion_binary_len_int64(256LL)));
-    IONCHECK(assert_equals_int(2, ion_binary_len_int64(-256LL)));
+    IONCHECK(ASSERT_EQUALS_INT(0, ion_binary_len_int64(0LL), "Wrong int64 length"));
+    IONCHECK(ASSERT_EQUALS_INT(1, ion_binary_len_int64(1LL), "Wrong int64 length"));
+    IONCHECK(ASSERT_EQUALS_INT(1, ion_binary_len_int64(-1LL), "Wrong int64 length"));
+    IONCHECK(ASSERT_EQUALS_INT(2, ion_binary_len_int64(255LL), "Wrong int64 length"));
+    IONCHECK(ASSERT_EQUALS_INT(2, ion_binary_len_int64(-255LL), "Wrong int64 length"));
+    IONCHECK(ASSERT_EQUALS_INT(2, ion_binary_len_int64(256LL), "Wrong int64 length"));
+    IONCHECK(ASSERT_EQUALS_INT(2, ion_binary_len_int64(-256LL), "Wrong int64 length"));
 
     iRETURN;
 }
