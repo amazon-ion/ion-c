@@ -1,3 +1,5 @@
 #include <ion_debug.h>
 
-iERR assert_equals_int(int expected, int actual);
+static inline iERR assert_equals_int(int expected, int actual) {
+    return (expected == actual) ? IERR_OK : IERR_INVALID_ARG;
+}

@@ -1,5 +1,4 @@
 add_executable(tester
-  ion_assert.c
   ion_binary_test.c
   ion_unit_test.c
   test_internal.c
