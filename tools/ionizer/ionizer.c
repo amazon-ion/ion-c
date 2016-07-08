@@ -29,19 +29,6 @@
 #include  <assert.h>
 #include  <time.h>
 
-#ifdef YJSDK
-void* yjsdk_malloc(size_t sz, const char* file, size_t line)
-{
-    return malloc(sz);
-}
-void yjsdk_free(void *pt, const char* file, size_t line)
-{
-    free(pt);
-}
-#endif
-
-
-
 int main(int argc, char **argv)
 {
     iENTER;

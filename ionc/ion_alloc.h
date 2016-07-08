@@ -65,14 +65,6 @@ ION_API_EXPORT void        ion_alloc_free      (void *ptr);
     #define ion_xalloc(x) debug_malloc((x), __FILE__, __LINE__)
     #define ion_xfree(x)  debug_free((x), __FILE__, __LINE__)
 
-#elif defined(YJSDK)
-
-    void* yjsdk_malloc(size_t sz, const char* file, size_t line);
-    void yjsdk_free(void *pt, const char* file, size_t line);
-    
-    #define ion_xalloc(sz)  yjsdk_malloc(sz, __FILE__, __LINE__)
-    #define ion_xfree(ptr)  yjsdk_free(ptr, __FILE__, __LINE__)
-
 #else
 
     #include <stdlib.h>
