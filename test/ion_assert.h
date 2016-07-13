@@ -4,7 +4,7 @@ static int ASSERT_BUFFER_SIZE = 1024;
 
 #define ASSERT_ERROR(message, file, line) fprintf(stderr, "%s (%s:%d)", (message), ion_helper_short_filename((file)), (line))
 
-#define ASSERT_EQUALS_INT(expected, actual, message) _assert_equals_int((expected), (actual), (message), __FILE__, __LINE__)
+#define ASSERT_EQUALS_INT(expected, actual, message) IONCHECK(_assert_equals_int((expected), (actual), (message), __FILE__, __LINE__))
 
 static inline iERR _assert_equals_int(int expected, int actual, char* message, char* file, int line) {
     if (expected == actual) {
