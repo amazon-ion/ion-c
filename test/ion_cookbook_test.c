@@ -28,23 +28,25 @@ iERR test_ion_cookbook_hello_world() {
     ION_TYPE type;
 
     ion_reader_next(reader, &type);
-    IONCHECK(assert_equals_ion_type(tid_STRUCT, type));
+    ASSERT_EQUALS_ION_TYPE(tid_STRUCT, type, NULL);
 
     ion_reader_step_in(reader);
     ion_reader_next(reader, &type);
-    IONCHECK(assert_equals_ion_type(tid_STRING, type));
+    ASSERT_EQUALS_ION_TYPE(tid_STRING, type, NULL);
 
     ION_STRING field_name;
     ion_reader_get_field_name(reader, &field_name);
-    IONCHECK(assert_equals_c_string_ion_string("hello", &field_name));
+    ASSERT_EQUALS_C_STRING_ION_STRING("hello", &field_name, NULL);
 
     ION_STRING field_value;
     ion_reader_read_string(reader, &field_value);
-    IONCHECK(assert_equals_c_string_ion_string("world", &field_value));
+    ASSERT_EQUALS_C_STRING_ION_STRING("world", &field_value, NULL);
 
     ion_reader_step_out(reader);
     ion_reader_next(reader, &type);
-    IONCHECK(assert_equals_ion_type(tid_EOF, type));
+    ASSERT_EQUALS_ION_TYPE(tid_EOF, type, NULL);
+
+    IONCHECK(ion_reader_close(reader));
 
     iRETURN;
 }
