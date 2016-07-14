@@ -20,6 +20,7 @@
 #include "tester.h"
 
 #include "ion_binary_test.h"
+#include "ion_test_utils.h"
 
 BOOL  g_no_print             = TRUE;
 long  g_value_count          = 0;
@@ -768,34 +769,6 @@ iERR test_writer_2(void)
     iRETURN;
 }
 
-static char type_name_temp[100];
-char *test_get_type_name(ION_TYPE t)
-{
-    switch(ION_TYPE_INT(t)) {
-    case tid_none_INT:      return "tid_none";
-    case tid_EOF_INT:       return "tid_EOF";
-    case tid_NULL_INT:      return "tid_NULL";
-    case tid_BOOL_INT:      return "tid_BOOL";
-    case tid_INT_INT:       return "tid_INT";
-    case tid_FLOAT_INT:     return "tid_FLOAT";
-    case tid_DECIMAL_INT:   return "tid_DECIMAL";
-    case tid_TIMESTAMP_INT: return "tid_TIMESTAMP";
-    case tid_STRING_INT:    return "tid_STRING";
-    case tid_SYMBOL_INT:    return "tid_SYMBOL";
-    case tid_CLOB_INT:      return "tid_CLOB";
-    case tid_BLOB_INT:      return "tid_BLOB";
-    case tid_STRUCT_INT:    return "tid_STRUCT";
-    case tid_LIST_INT:      return "tid_LIST";
-    case tid_SEXP_INT:      return "tid_SEXP";
-    case tid_DATAGRAM_INT:  return "tid_DATAGRAM";
-    default:
-        break;
-    }
-
-    sprintf(type_name_temp, "unrecognized type: %d", ION_TYPE_INT(t));
-    return type_name_temp;
-}
-
 char temp_buffer[MAX_TEMP_STRING];
 
 char *test_make_cstr(iSTRING str)
@@ -938,8 +911,8 @@ iERR expect_type(ION_TYPE actual, ION_TYPE expected)
         char buffer[ION_ERROR_MESSAGE_MAX_LENGTH];
         snprintf(buffer, ION_ERROR_MESSAGE_MAX_LENGTH,
             "Expected %s but was %s",
-            test_get_type_name(expected),
-            test_get_type_name(actual));
+            ion_test_get_type_name(expected),
+            ion_test_get_type_name(actual));
         FAILWITHMSG(IERR_INVALID_ARG, buffer);
     }
 
