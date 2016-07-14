@@ -836,7 +836,7 @@ iERR _ion_reader_text_step_out(ION_READER *preader)
             sub_type = IST_LIST;
             break;
         default: {
-            char* error_message[ION_ERROR_MESSAGE_MAX_LENGTH];
+            char error_message[ION_ERROR_MESSAGE_MAX_LENGTH];
             snprintf(error_message, ION_ERROR_MESSAGE_MAX_LENGTH, "Unable to step out of unrecognized container type %s", text->_current_container);
             FAILWITHMSG(IERR_INVALID_STATE, error_message);
         }

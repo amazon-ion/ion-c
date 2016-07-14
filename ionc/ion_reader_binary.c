@@ -368,8 +368,8 @@ iERR _ion_reader_binary_step_out(ION_READER *preader)
         ASSERT(preader->_eof ? (curr_pos == next_start) : (curr_pos <= next_start));  
         to_skip = next_start - curr_pos;
         while (to_skip > 0) {
-            if (to_skip > SIZE_MAX) {
-                one_skip = SIZE_MAX;
+            if (to_skip > MAX_SIZE) {
+                one_skip = MAX_SIZE;
             }
             else {
                 one_skip = (SIZE)to_skip;
@@ -1643,8 +1643,8 @@ iERR _ion_reader_binary_local_load_symbol_table(ION_READER *preader
     if (current_pos < contents_start) {
         to_skip = contents_start - current_pos;
         while (to_skip > 0) {
-            if (to_skip > SIZE_MAX) {
-                one_skip = SIZE_MAX;
+            if (to_skip > MAX_SIZE) {
+                one_skip = MAX_SIZE;
             }
             else {
                 one_skip = (SIZE)to_skip;

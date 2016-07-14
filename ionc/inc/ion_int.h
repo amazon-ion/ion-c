@@ -97,7 +97,7 @@ typedef struct _ion_int {
     int       _signum;       // sign, +1 or -1, or 0
     SIZE    _len;          // number of digits in the _digits array (-1 if null)
     II_DIGIT *_digits;       // array of "digits" in some large base (2^31 currently)
-};
+} _ion_int;
 
 ION_INT_GLOBAL II_DIGIT        g_int_zero_bytes[] 
 #ifdef ION_INT_INIT
