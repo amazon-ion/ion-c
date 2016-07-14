@@ -137,6 +137,7 @@ typedef struct _ion_collection          ION_COLLECTION;
 typedef struct _ion_stream        ION_STREAM;
 
 // decl's for user managed stream
+struct _ion_user_stream;
 typedef iERR (*ION_STREAM_HANDLER)(struct _ion_user_stream *pstream);
 struct _ion_user_stream
 {

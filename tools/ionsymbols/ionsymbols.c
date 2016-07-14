@@ -21,12 +21,14 @@
 
 #define IZ_INITIALIZE
 #include "ionsymbols.h"
-#include "options.h"
+
+#include <assert.h>
+#include <ion_helpers.h>
 #ifdef WIN
 #include "io.h"
 #endif
-#include  <assert.h>
-#include  <time.h>
+#include "options.h"
+#include <time.h>
 
 int main(int argc, char **argv)
 {

@@ -127,7 +127,6 @@ typedef uint32_t  ION_STREAM_FLAG;
 #define FLAG_CAN_WRITE          0x00200
 #define FLAG_RANDOM_ACCESS      0x00400
 #define FLAG_IS_TTY             0x00800
-#define FD_IS_TTY(fd)           _isatty(fd) /* TODO */
 #define FLAG_USER_HANDLING      0x01000
 #define FLAG_IS_FILE_BACKED     0x02000
 #define FLAG_IS_FD_BACKED       0x04000

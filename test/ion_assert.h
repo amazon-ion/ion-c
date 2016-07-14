@@ -1,4 +1,5 @@
 #include <ion_debug.h>
+#include <ion_helpers.h>
 
 static int ASSERT_BUFFER_SIZE = 1024;
 

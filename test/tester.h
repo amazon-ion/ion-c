@@ -167,3 +167,9 @@ iERR test_reader_one_file_file_only             (char *filename);
 iERR test_reader_read_all_just_file             (hREADER hreader);
 iERR test_reader_read_all_just_file_byte_by_byte(hREADER hreader);
 iERR test_stream_handler                        (struct _ion_user_stream *pstream);
+
+iERR test_step_out_nested_s_expressions();
+iERR test_reader_bad_files();
+iERR test_open_string_reader(char* ion_text, hREADER* reader);
+iERR expect_string(char* expected, hREADER reader);
+iERR expect_type(ION_TYPE actual, ION_TYPE expected);

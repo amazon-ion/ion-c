@@ -141,18 +141,21 @@
 #elif defined(ION_PLATFORM_WINDOWS)
   #define LSEEK _lseek
 #else
+  #include <unistd.h>
   #define LSEEK lseek
 #endif
 
 #ifdef ION_PLATFORM_WINDOWS
   #define WRITE _write
 #else
+  #include <unistd.h>
   #define WRITE write
 #endif
 
 #ifdef ION_PLATFORM_WINDOWS
   #define READ _read
 #else
+  #include <unistd.h>
   #define READ read
 #endif
 

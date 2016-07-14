@@ -26,7 +26,7 @@ int ion_binary_len_uint_64(uint64_t value) {
 }
 
 // These field formats are always used in some context that clearly indicates the number of octets in the field.
-int ion_binary_len_int64(int64_t value) {
+int ion_binary_len_int_64(int64_t value) {
     int top_byte, len = 0;
     if (value != 0) {
         uint64_t unsignedValue = abs_int64(value);
@@ -109,7 +109,7 @@ int ion_binary_len_ion_decimal(decQuad *value, decContext *context )
 
     // now we know the pieces so can calculate the overall length
     len  = ion_binary_len_var_int_64(exponent);
-    len += ion_binary_len_int64(mantissa);
+    len += ion_binary_len_int_64(mantissa);
 
     return len;
 }

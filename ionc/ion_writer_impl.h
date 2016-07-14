@@ -135,7 +135,7 @@ typedef struct _ion_writer
         struct _ion_binary_writer binary;
     } _typed_writer;
 
-};
+} _ion_writer;
 
 #define TEXTWRITER(x) (&((x)->_typed_writer.text))
 
