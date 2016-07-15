@@ -12,8 +12,9 @@
  * language governing permissions and limitations under the License.
  */
 
-#include "tester.h"
 #include <ion_internal.h>
+#include "ion_test_utils.h"
+#include "tester.h"
 
 #define READ_ALL_BUFFER_SIZE (80*1024)
 
@@ -82,7 +83,7 @@ iERR test_reader_read_all(hREADER hreader)
             IONDEBUG(test_reader_read_value_no_print(hreader, t), "read & dump value");
         }
         else {
-            char * type_name = test_get_type_name(t);
+            char * type_name = ion_test_get_type_name(t);
             IONDEBUG(test_reader_read_value_print(hreader, t, type_name), "read & dump value");
         }
     }
