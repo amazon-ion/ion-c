@@ -27,7 +27,6 @@ static inline char* ion_test_get_type_name(ION_TYPE t) {
             break;
     }
 
-    memset(type_name_temp, 0, TYPE_NAME_TEMP_SIZE + 1);
     snprintf(type_name_temp, TYPE_NAME_TEMP_SIZE, "unrecognized type: %d", ION_TYPE_INT(t));
     return type_name_temp;
 }
