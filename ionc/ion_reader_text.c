@@ -467,7 +467,7 @@ iERR _ion_reader_text_load_utas(ION_READER *preader, ION_SUB_TYPE *p_ist)
             
             IONCHECK(_ion_scanner_peek_double_colon(&text->_scanner, &is_double_colon));
             if (is_double_colon == FALSE) {
-                if (ist == IST_SYMBOL_QUOTED && text->_scanner._value_image.length == 0) {
+                if (ist == IST_SYMBOL_QUOTED && text->_scanner._value_image.length < 0) {
                     FAILWITH(IERR_INVALID_SYMBOL);
                 }
                 text->_scanner._value_image.value = text->_scanner._value_buffer;
