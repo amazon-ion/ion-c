@@ -126,6 +126,7 @@ iERR _ion_reader_binary_next(ION_READER *preader, ION_TYPE *p_value_type)
     SID               *psid;
     BOOL               is_system_value = FALSE;
     POSITION           annotation_content_start, value_content_start;
+begin:
 
     ASSERT(preader && preader->type == ion_type_binary_reader);
 
@@ -260,6 +261,16 @@ iERR _ion_reader_binary_next(ION_READER *preader, ION_TYPE *p_value_type)
         if (expected_end != actual_end) {
             FAILWITH(IERR_INVALID_BINARY);
         }
+    }
+    else if(getTypeCode(binary->_value_tid) == TID_NULL && getLowNibble(binary->_value_tid) != ION_lnIsNull) {
+        // This is NOP padding.
+        if (binary->_value_len) {
+            if (binary->_value_len > (preader->istream->_limit - preader->istream->_curr)) {
+                FAILWITH(IERR_UNEXPECTED_EOF);
+            }
+            binary->_state = S_BEFORE_CONTENTS; // This forces a skip.
+        }
+        goto begin; // So that the user does not have to 'next' again to skip the padding.
     }
 
     // set the state forward
@@ -1449,11 +1460,6 @@ iERR _ion_reader_binary_local_read_length(ION_READER *preader, int tid, int *p_l
     ASSERT(preader && preader->type == ion_type_binary_reader);
 
     switch (getTypeCode(tid)) {
-    case TID_NULL:      // 0
-        if (getLowNibble(tid) != ION_lnIsNull) {
-            FAILWITH(IERR_INVALID_TOKEN);
-        }
-        // fall through to set length to 0
     case TID_BOOL:   // 1
         len = 0;
         break;
@@ -1467,6 +1473,7 @@ iERR _ion_reader_binary_local_read_length(ION_READER *preader, int tid, int *p_l
             break;
         }
         // fall through to the normal case of ln or varlen
+    case TID_NULL: // Either null.null or NOP padding.
     case TID_POS_INT:
     case TID_NEG_INT:
     case TID_FLOAT:
