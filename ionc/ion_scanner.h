@@ -241,9 +241,48 @@ GLOBAL BOOL  _ion_hex_character_value[256]
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 230 - 239
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 240 - 249
         -1, -1, -1, -1, -1, -1                   // 250 - 255
-} 
+}
 #endif
 ;
+
+#define IS_BINARY_CHAR(x) (_ion_binary_character_value[x] != -1)
+GLOBAL BOOL  _ion_binary_character_value[256]
+#ifdef INIT_STATICS
+= { //   0   1   2   3   4   5   6   7   8   9
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  //   0 -   9
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  //  10 -  19
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  //  20 -  29
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  //  30 -  39
+        -1, -1, -1, -1, -1, -1, -1, -1,  0,  1,  //  40 -  49 // 48-40 '0' and '1'
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  //  50 -  59
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  //  60 -  69
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  //  70 -  79
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  //  80 -  89
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  //  90 -  99
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 100 - 109
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 110 - 119
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 120 - 129
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 130 - 139
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 140 - 149
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 150 - 159
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 160 - 169
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 170 - 179
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 180 - 189
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 190 - 199
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 200 - 209
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 210 - 219
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 220 - 229
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 230 - 239
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 240 - 249
+        -1, -1, -1, -1, -1, -1                   // 250 - 255
+}
+#endif
+;
+
+typedef enum { ION_INT_HEX, ION_INT_BINARY } ION_INT_RADIX;
+
+#define IS_RADIX_CHAR(x, r) ((r == ION_INT_BINARY && IS_BINARY_CHAR(x)) || (r == ION_INT_HEX && IS_HEX_CHAR(x)))
+
 typedef enum { ION_TT_NO,   ION_TT_YES, ION_TT_MAYBE } ION_TERM_TYPE;
 //#define ION_IS_MAYBE_VALUE_TERMINATOR(x)  (( _Ion_value_terminators[(x)] == ON_TT_MAYBE ) \x
 //                                         || (_Ion_value_terminators[(x)] == ON_TT_YES))
@@ -417,7 +456,9 @@ iERR _ion_scanner_read_as_base64                    (ION_SCANNER *scanner, BYTE 
 
 
 iERR _ion_scanner_read_possible_number              (ION_SCANNER *scanner, int c, int sign, ION_SUB_TYPE *p_ist);
+iERR _ion_scanner_read_radix_int                    (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, ION_INT_RADIX radix);
 iERR _ion_scanner_read_hex_int                      (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining);
+iERR _ion_scanner_read_binary_int                   (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining);
 iERR _ion_scanner_read_digits                       (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char);
 iERR _ion_scanner_read_exponent                     (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char);
 iERR _ion_scanner_read_timestamp                    (ION_SCANNER *scanner, int c, BYTE **p_dst, SIZE *p_remaining, ION_SUB_TYPE *p_ist );

@@ -2084,7 +2084,7 @@ iERR _ion_scanner_read_as_base64(ION_SCANNER *scanner, BYTE *buf, SIZE len, SIZE
 
 // when this is called if we read a '-' sign will be -1 otherwise +1
 // c will be the first actual digit (and it must be a digit to get here)
-// at this point we might still see an int, a hex int, a float, a double, a decimal or a timestamp
+// at this point we might still see an int, a hex int, a binary int, a float, a double, a decimal or a timestamp
 // we'll copy bytes into _value_buffer as we process them. they'll be nice and need
 // (and not hold page buffers);
 
@@ -2117,6 +2117,11 @@ iERR _ion_scanner_read_possible_number(ION_SCANNER *scanner, int c, int sign, IO
         PUSH_VALUE_BYTE(c);
         IONCHECK(_ion_scanner_read_hex_int(scanner, &dst, &remaining));
         t = (sign == -1) ? IST_INT_NEG_HEX : IST_INT_POS_HEX;
+    }
+    else if (c == 'b' || c == 'B') {
+        PUSH_VALUE_BYTE(c);
+        IONCHECK(_ion_scanner_read_binary_int(scanner, &dst, &remaining));
+        t = (sign == -1) ? IST_INT_NEG_BINARY : IST_INT_POS_BINARY;
     }
     else {
         // we'll use this to check for a 4 digit year if this is a timestamp, 
@@ -2199,7 +2204,7 @@ iERR _ion_scanner_read_possible_number(ION_SCANNER *scanner, int c, int sign, IO
     iRETURN;
 }
 
-iERR _ion_scanner_read_hex_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining)
+iERR _ion_scanner_read_radix_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, ION_INT_RADIX radix)
 {
     iENTER;
     int   c, remaining = *p_remaining;
@@ -2207,7 +2212,7 @@ iERR _ion_scanner_read_hex_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remai
 
     for (;;) {
         IONCHECK(_ion_scanner_read_char(scanner, &c));
-        if (!IS_1_BYTE_UTF8(c) || !IS_HEX_CHAR(c)) {
+        if (!IS_1_BYTE_UTF8(c) || !IS_RADIX_CHAR(c, radix)) {
             break;
         }
         PUSH_VALUE_BYTE(c);
@@ -2218,6 +2223,20 @@ iERR _ion_scanner_read_hex_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remai
     *p_remaining = remaining;
     *p_dst = dst;
 
+    iRETURN;
+}
+
+iERR _ion_scanner_read_hex_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining)
+{
+    iENTER;
+    IONCHECK(_ion_scanner_read_radix_int(scanner, p_dst, p_remaining, ION_INT_HEX));
+    iRETURN;
+}
+
+iERR _ion_scanner_read_binary_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining)
+{
+    iENTER;
+    IONCHECK(_ion_scanner_read_radix_int(scanner, p_dst, p_remaining, ION_INT_BINARY));
     iRETURN;
 }
 
