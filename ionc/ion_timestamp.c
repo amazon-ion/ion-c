@@ -139,7 +139,7 @@ iERR ion_timestamp_to_string(ION_TIMESTAMP *ptime, char *buffer, SIZE buf_length
     char   *pos = buffer;
     char   *end_of_buffer = pos + buf_length;
     char    temp[DECQUAD_String], *cp;
-    int     offset, offset_hours, offset_mins, count;
+    int     offset, offset_hours, offset_mins, count, i;
 
     if (!buffer)         FAILWITH(IERR_INVALID_ARG);
     if ( buf_length < 1) FAILWITH(IERR_BUFFER_TOO_SMALL);
@@ -223,6 +223,23 @@ iERR ion_timestamp_to_string(ION_TIMESTAMP *ptime, char *buffer, SIZE buf_length
         while (*cp == '0') cp++;  /* there should only be one '0' */
         if ((*cp) == '.') {
             IONCHECK(_ion_timestamp_copy_to_buf(pos, cp, end_of_buffer, &count));
+        }
+        else if ((*cp) == 'E' || (*cp) == 'e') {
+            // This fraction is of the form 0E-N
+            IONCHECK(_ion_timestamp_copy_to_buf(pos, ".", end_of_buffer, &count));
+            pos += count;
+            if (pos >= end_of_buffer) FAILWITH(IERR_BUFFER_TOO_SMALL);
+            for (i = 0; i < -decQuadGetExponent(&ptime->fraction); i++) {
+                IONCHECK(_ion_timestamp_copy_to_buf(pos, "0", end_of_buffer, &count));
+                pos += count;
+                if (pos >= end_of_buffer) FAILWITH(IERR_BUFFER_TOO_SMALL);
+            }
+            count = 0;
+        }
+        else if (decQuadGetExponent(&ptime->fraction) >= 0) {
+            if (!decQuadIsZero(&ptime->fraction)) FAILWITH(IERR_INVALID_TIMESTAMP);
+            // Fractions with zero coefficient and >= 0 exponent are ignored.
+            count = 0;
         }
         else {
             FAILWITHMSG(IERR_INVALID_TIMESTAMP, "Invalid fraction value");
@@ -1043,6 +1060,13 @@ iERR _ion_timestamp_equals_helper(const ION_TIMESTAMP *ptime1, const ION_TIMESTA
     else {
         IONCHECK(ion_timestamp_get_precision(ptime1, &precision1));
         IONCHECK(ion_timestamp_get_precision(ptime2, &precision2));
+        if (precision1 == ION_TS_FRAC && decQuadIsZero(&ptime1->fraction) && decQuadGetExponent(&ptime1->fraction) >= 0) {
+            // Fractions with zero coefficient and >= zero exponent are ignored.
+            precision1 = ION_TS_SEC;
+        }
+        if (precision2 == ION_TS_FRAC && decQuadIsZero(&ptime2->fraction) && decQuadGetExponent(&ptime2->fraction) >= 0) {
+            precision2 = ION_TS_SEC;
+        }
         if (precision1 != precision2) {
             goto is_false;
         }
@@ -1051,7 +1075,7 @@ iERR _ion_timestamp_equals_helper(const ION_TIMESTAMP *ptime1, const ION_TIMESTA
             goto is_false;
         }
         if (precision1 == ION_TS_FRAC) { // Then precision2 is also ION_TS_FRAC.
-            ion_decimal_equals(&(ptime1->fraction), &(ptime2->fraction), pcontext, &decResult);
+            ion_decimal_equals(&ptime1->fraction, &ptime2->fraction, pcontext, &decResult);
             if (!decResult) goto is_false;
         }
         ptime1_compare = *ptime1;
@@ -1266,6 +1290,10 @@ iERR ion_timestamp_binary_read(ION_STREAM *stream, int32_t len, decContext *cont
     // now we read in our actual "milliseconds since the epoch"
     IONCHECK(ion_binary_read_decimal(stream, len, context, &ptime->fraction));
     if (decQuadIsNegative(&ptime->fraction)) FAILWITH(IERR_INVALID_BINARY);
+    if (decQuadGetExponent(&ptime->fraction) >= 0) {
+        if (decQuadIsZero(&ptime->fraction)) goto timestamp_is_finished; // Fraction with zero coefficient and >= zero exponent is ignored.
+        FAILWITH(IERR_INVALID_BINARY);
+    }
     SET_FLAG_ON(ptime->precision, ION_TT_BIT_FRAC);
     goto timestamp_is_finished;
 
