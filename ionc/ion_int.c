@@ -121,7 +121,6 @@ iERR ion_int_is_zero(ION_INT *iint, BOOL *p_bool)
 iERR ion_int_compare(ION_INT *iint1, ION_INT *iint2, int *p_result)
 {
     iENTER;
-    int       diff;
     BOOL      is_null1, is_null2;
     SIZE    bits1, bits2;
     SIZE    count;
@@ -130,22 +129,23 @@ iERR ion_int_compare(ION_INT *iint1, ION_INT *iint2, int *p_result)
 
     if (!iint1) FAILWITH(IERR_INVALID_ARG);
     if (!iint2) FAILWITH(IERR_INVALID_ARG);
+    if (!p_result) FAILWITH(IERR_INVALID_ARG);
     
     if (iint1 == iint2) {
-        diff = 0;
+        *p_result = 0;
         SUCCEED();
     }
 
     IONCHECK(ion_int_is_null(iint1, &is_null1));
     IONCHECK(ion_int_is_null(iint2, &is_null2));
     if (is_null1 || is_null2) {
-        diff = (is_null1 - is_null2);  // TODO : really?
+        *p_result = (is_null1 - is_null2);  // TODO : really?
         SUCCEED();
     }
     
     // check the sign value
-    diff = (iint1->_signum != iint2->_signum);
-    if (diff) goto not_equal;
+    *p_result = (iint1->_signum != iint2->_signum);
+    if (*p_result) goto not_equal;
 
     // sign is the same, we'll clear out the zero case here
     if (iint1->_signum == 0) goto equal;
@@ -153,28 +153,28 @@ iERR ion_int_compare(ION_INT *iint1, ION_INT *iint2, int *p_result)
     // otherwise we look at the  most bits
     bits1 = _ion_int_highest_bit_set_helper(iint1);
     bits2 = _ion_int_highest_bit_set_helper(iint2);
-    diff = bits2 - bits1;
-    if (diff) goto not_equal;
+    *p_result = bits2 - bits1;
+    if (*p_result) goto not_equal;
     
     // finally - we have to actually check the bits themselves
     count = ((bits1 - 1) / II_BITS_PER_II_DIGIT) + 1;
     digits1 = iint1->_digits + (iint1->_len - count);
     digits2 = iint2->_digits + (iint2->_len - count);
-    while(count > 0) {
+    while(count-- > 0) {
         digit1 = *digits1++;
         digit2 = *digits2++;
-        diff = digit2 - digit1;
-        if (diff) goto not_equal;
+        *p_result = digit2 - digit1;
+        if (*p_result) goto not_equal;
     }
     goto equal;
 
 equal:
-    diff = 0;
+    *p_result = 0;
     SUCCEED();
 
 not_equal:
     if (iint1->_signum < 0) {
-        diff = -diff;
+        *p_result = -(*p_result);
     }
     SUCCEED();
 
