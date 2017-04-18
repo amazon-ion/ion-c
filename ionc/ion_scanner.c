@@ -1515,6 +1515,7 @@ iERR _ion_scanner_read_as_string_to_quote(ION_SCANNER *scanner, BYTE *buf, SIZE 
             if (!triple_quote_terminator) {
                 FAILWITH(IERR_NEW_LINE_IN_STRING);
             }
+            c = NEW_LINE_1; // All end of line forms are normalized to LF within quoted text.
             break;
 
         case '\'':
@@ -1673,7 +1674,6 @@ iERR _ion_scanner_read_as_extended_symbol(ION_SCANNER *scanner, BYTE *buf, SIZE 
         case EMPTY_ESCAPE_SEQUENCE2:
         case EMPTY_ESCAPE_SEQUENCE1:
             break;
-
         default:
             if (!IS_1_BYTE_UTF8(c) || !IS_OPERATOR_CHAR(c)) {
                 goto end_of_symbol;
