@@ -1174,38 +1174,6 @@ iERR _ion_stream_flush_helper(ION_STREAM *stream)
   
   if (_ion_stream_is_dirty(stream)) {
     if (_ion_stream_is_file_backed(stream)) {
-      if (_ion_stream_can_random_seek(stream)) {
-        position = _ion_stream_position(stream);
-		if (_ion_stream_is_fd_backed(stream)) {
-		   if (LSEEK((int)stream->_fp, (long)position, SEEK_SET)) {
-			  FAILWITH(IERR_WRITE_ERROR);
-			}
-		}
-		else {
-			ASSERT(_ion_stream_is_file_backed(stream));
-        if (fseek(stream->_fp, (long)position, SEEK_SET)) {
-
-          FAILWITH(IERR_WRITE_ERROR);
-
-        }
-      }
-      // now we either write through the user handler, or directly to the file
-      if (_ion_stream_is_user_controlled(stream)) {
-        user_stream = &(((ION_STREAM_USER_PAGED *)stream)->_user_stream);
-        while (stream->_dirty_length > 0) {
-            available = (SIZE)(user_stream->limit - user_stream->curr);
-            if (available > stream->_dirty_length) {
-                available = stream->_dirty_length;
-        }
-
-            memcpy(user_stream->curr, stream->_dirty_start, available);
-            user_stream->curr += available;
-            IONCHECK((*(user_stream->handler))(user_stream));
-            stream->_dirty_length -= available;
-            stream->_dirty_start += available;
-        }
-      }
-      }
       // now we either write through the user handler, or directly to the file
       if (_ion_stream_is_user_controlled(stream)) {
         user_stream = &(((ION_STREAM_USER_PAGED *)stream)->_user_stream);
