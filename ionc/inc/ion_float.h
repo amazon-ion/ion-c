@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2009-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -12,25 +12,19 @@
  * language governing permissions and limitations under the License.
  */
 
-//
-// public interfaces and definitions
-//
+#ifndef IONC_ION_FLOAT_H
+#define IONC_ION_FLOAT_H
 
-#ifndef ION_H_
-#define ION_H_
+#include "ion_types.h"
 
-#include "ion_types.h"  // ion_types.h includes ion_errors.h
-#include "ion_string.h"
-#include "ion_timestamp.h"
-#include "ion_decimal.h"
-#include "ion_float.h"
-#include "ion_int.h"
-#include "ion_collection.h"
-#include "ion_symbol_table.h"
-#include "ion_stream.h"
-#include "ion_reader.h"
-#include "ion_writer.h"
-#include "ion_catalog.h"
-#include "ion_debug.h"
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+ION_API_EXPORT BOOL ion_float_is_negative_zero(double value);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif //IONC_ION_FLOAT_H

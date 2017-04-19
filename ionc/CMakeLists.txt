@@ -22,6 +22,7 @@ add_library(ionc
   ion_writer.c
   ion_writer_text.c
   ion_decimal.c
+  ion_float.c
 )
 set_property(TARGET ionc PROPERTY C_STANDARD 99)
 target_include_directories(ionc PUBLIC
