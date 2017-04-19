@@ -228,7 +228,7 @@ iERR ion_catalog_find_best_match(hCATALOG hcatalog, iSTRING name, long version, 
 
     catalog = HANDLE_TO_PTR(hcatalog, ION_CATALOG);
 
-    IONCHECK(_ion_catalog_find_best_match_helper(catalog, name, version, &symtab));
+    IONCHECK(_ion_catalog_find_best_match_helper(catalog, name, version, -1, &symtab));
     if (symtab != NULL) {
         *p_symtab = PTR_TO_HANDLE(symtab);
     }
@@ -238,7 +238,7 @@ iERR ion_catalog_find_best_match(hCATALOG hcatalog, iSTRING name, long version, 
     iRETURN;
 }
 
-iERR _ion_catalog_find_best_match_helper(ION_CATALOG *pcatalog, ION_STRING *name, int32_t version, ION_SYMBOL_TABLE **p_psymtab)
+iERR _ion_catalog_find_best_match_helper(ION_CATALOG *pcatalog, ION_STRING *name, int32_t version, int32_t max_id, ION_SYMBOL_TABLE **p_psymtab)
 {
     iENTER;
     ION_SYMBOL_TABLE      **ppsymtab, *psymtab, *best = NULL;
@@ -278,6 +278,13 @@ iERR _ion_catalog_find_best_match_helper(ION_CATALOG *pcatalog, ION_STRING *name
             if (best->version == version) break;
         }
         ION_COLLECTION_CLOSE(symtab_cursor);
+    }
+    if ((version > 0 && max_id <= ION_SYS_SYMBOL_MAX_ID_UNDEFINED) && (!best || best->version != version)) {
+        // This isn't an exact match, and the max_id of the import is undefined.
+        // NOTE: the ionizer APIs treat version == 0 as a special case where the user is requesting the latest
+        // version. When called from other locations where version <= 1 means the version is undefined, the caller
+        // should manually validate that the max_id isn't also undefined.
+        FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "Invalid symbol table import: found undefined max_id without exact match.")
     }
     *p_psymtab = best;
     SUCCEED();

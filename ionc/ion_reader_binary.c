@@ -708,7 +708,7 @@ iERR _ion_reader_binary_get_field_sid(ION_READER *preader, SID *p_sid)
 
     binary = &preader->typed_reader.binary;
 
-    if (binary->_value_field_id == -1) {
+    if (binary->_value_field_id <= UNKNOWN_SID) {
         //FAILWITH(IERR_INVALID_STATE);
         SUCCEED();
     }
@@ -1460,9 +1460,11 @@ iERR _ion_reader_binary_local_read_length(ION_READER *preader, int tid, int *p_l
     case TID_STRUCT:    // 13 D
         if (getLowNibble(tid) == 1) 
         {
-            // if this is an ordered struct (with the magic length
-            // of 1) then fake it as a var length (which is actually is)
-            tid = makeTypeDescriptor(getTypeCode(tid), ION_lnIsVarLen);
+            IONCHECK(ion_binary_read_var_uint_32(preader->istream, &len));
+            if (len < 1) {
+                FAILWITHMSG(IERR_INVALID_BINARY, "Sorted structs must have at least one field.");
+            }
+            break;
         }
         // fall through to the normal case of ln or varlen
     case TID_POS_INT:
@@ -1877,8 +1879,10 @@ iERR _ion_reader_binary_local_load_symbol_table_import(ION_READER *preader, ION_
             break;
         }
     }
-    // (version == -1) means I don't care about the version
-    IONCHECK(_ion_catalog_find_best_match_helper(preader->_catalog, &name, version, &itab));
+    if (version < 1) {
+        version = 1;
+    }
+    IONCHECK(_ion_catalog_find_best_match_helper(preader->_catalog, &name, version, maxid, &itab));
     
     // We're adding the import information to the import_list
     // We are NOT adding what was actually added, but we're adding what was requested

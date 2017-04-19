@@ -979,6 +979,10 @@ iERR _ion_reader_get_field_sid_helper(ION_READER *preader, SID *p_sid)
         FAILWITH(IERR_INVALID_STATE);
     }
 
+    if (*p_sid <= UNKNOWN_SID) {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
+
     iRETURN;
 }
 

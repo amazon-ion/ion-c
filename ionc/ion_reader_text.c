@@ -319,12 +319,42 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
     iRETURN;
 }
 
+iERR _ion_reader_text_intern_symbol(ION_READER *preader, ION_STRING *symbol_name, ION_SYMBOL **psym) {
+    iENTER;
+
+    SID               sid;
+    ION_SYMBOL       *sym;
+    ION_SYMBOL_TABLE *clone;
+    BOOL              is_locked;
+
+    ASSERT(psym);
+
+    IONCHECK(_ion_symbol_table_local_find_by_name(preader->_current_symtab, symbol_name, &sid, &sym));
+    if (!sym || sid <= UNKNOWN_SID) {
+        IONCHECK(_ion_symbol_table_is_locked_helper(preader->_current_symtab, &is_locked));
+        if (is_locked) {
+            IONCHECK(_ion_symbol_table_clone_with_owner_helper(&clone, preader->_current_symtab, preader, preader->_current_symtab->system_symbol_table));
+            preader->_current_symtab = clone;
+            // clear the name and version as this is now a local symbol
+            ION_STRING_INIT(&preader->_current_symtab->name);
+            preader->_current_symtab->version = 0;
+        }
+        IONCHECK(_ion_symbol_table_add_symbol_helper(preader->_current_symtab, symbol_name, &sid));
+        IONCHECK(ion_symbol_table_get_local_symbol(preader->_current_symtab, sid, &sym));
+    }
+
+    *psym = sym;
+
+    iRETURN;
+}
+
 iERR _ion_reader_text_load_fieldname(ION_READER *preader, ION_SUB_TYPE *p_ist)
 {
     iENTER;
     ION_TEXT_READER *text = &preader->typed_reader.text;
     ION_SUB_TYPE     ist = IST_NONE;
     BOOL             eos_encountered = FALSE;
+    ION_SYMBOL      *sym;
 
     ASSERT(preader);
     ASSERT(text);
@@ -361,6 +391,8 @@ iERR _ion_reader_text_load_fieldname(ION_READER *preader, ION_SUB_TYPE *p_ist)
         }
         // this name the field name non-null
         text->_field_name.value = text->_field_name_buffer;
+        IONCHECK(_ion_reader_text_intern_symbol(preader, &text->_field_name, &sym));
+        ION_STRING_ASSIGN(&text->_field_name, &sym->value);
     }
 
     // we need this to see if we hit the end of the struct
@@ -375,6 +407,7 @@ iERR _ion_reader_text_load_utas(ION_READER *preader, ION_SUB_TYPE *p_ist)
     ION_TEXT_READER *text = &preader->typed_reader.text;
     ION_SUB_TYPE     ist = IST_NONE;
     ION_STRING      *str;
+    ION_SYMBOL      *sym;
     SIZE             remaining;
     BYTE            *next_dst;
     BOOL             is_double_colon;
@@ -454,14 +487,18 @@ iERR _ion_reader_text_load_utas(ION_READER *preader, ION_SUB_TYPE *p_ist)
             }
             str = &text->_annotation_string_pool[text->_annotation_count++];
 
+            str->value = text->_scanner._value_buffer;
+            str->length = text->_scanner._value_image.length;
+            IONCHECK(_ion_reader_text_intern_symbol(preader, str, &sym));
+
             // now we check to make sure we have buffer space left for the
             // characters (as bytes of utf8) and a "bonus" null terminator (for safety)
-            if (remaining < text->_scanner._value_image.length) {
+            if (remaining < sym->value.length) {
                FAILWITH(IERR_BUFFER_TOO_SMALL);
             }
             str->value  = next_dst;
-            str->length = text->_scanner._value_image.length;
-            memcpy(next_dst, text->_scanner._value_buffer, str->length);
+            str->length = sym->value.length;
+            memcpy(next_dst, sym->value.value, str->length);
             str->value[str->length] = '\0'; // remember we should be writing into the annotation value buffer
             next_dst  += str->length + 1;   // +1 for the null terminator
             remaining -=  str->length + 1; 
@@ -1106,6 +1143,8 @@ iERR _ion_reader_text_get_field_sid(ION_READER *preader, SID *p_sid)
     if (sid == UNKNOWN_SID) {
         // TODO: if we don't find the symbol, do we want to create an updatable local 
         //       symbol table and add the field name to it?  maybe later.
+
+        // TODO FAIL?
     }
 
     *p_sid = sid;
@@ -1700,7 +1739,7 @@ iERR _ion_reader_text_read_string(ION_READER *preader, ION_STRING *p_user_str)
         // with delegation: IONCHECK(_ion_symbol_table_find_by_name_helper(symbols, user_str, &sid));
         IONCHECK(_ion_symbol_table_local_find_by_name(symbols, user_str, &sid, NULL));
 
-        if (sid <= 0) { // i.e. symbol was not found
+        if (sid <= UNKNOWN_SID) { // i.e. symbol was not found
             IONCHECK(_ion_symbol_table_is_locked_helper(symbols, &is_locked));
             if (is_locked) {
                 IONCHECK(_ion_symbol_table_clone_with_owner_helper(&clone, symbols, preader, symbols->system_symbol_table));
