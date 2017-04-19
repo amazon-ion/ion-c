@@ -916,12 +916,113 @@ BOOL _ion_timestamp_is_leap_year(int y)
     return is_leap_year;
 }
 
+iERR _ion_timestamp_to_utc(const ION_TIMESTAMP *ptime, ION_TIMESTAMP *pout) {
+    iENTER;
+
+    int8_t sign;
+    uint16_t  min_shift, hour_shift = 0;
+    BOOL needs_day = FALSE;
+
+    if (!ptime || !pout) FAILWITH(IERR_INVALID_ARG);
+
+    _ion_timestamp_initialize(pout);
+    pout->year = ptime->year;
+    pout->month = ptime->month;
+    pout->day = ptime->day;
+    pout->hours = ptime->hours;
+    pout->minutes = ptime->minutes;
+    pout->seconds = ptime->seconds;
+    pout->precision = ptime->precision;
+    pout->tz_offset = 0; // The result is in UTC.
+    decQuadCopy(&pout->fraction, &ptime->fraction);
+
+    if (!HAS_TZ_OFFSET(ptime)) SUCCEED();
+    sign = (int8_t)((ptime->tz_offset < 0) ? -1 : 1);
+    min_shift = (uint16_t)(sign * ptime->tz_offset);
+
+    if (min_shift >= 60 * 24) {
+        // Offsets must have a magnitude of less than one day.
+        FAILWITH(IERR_INVALID_TIMESTAMP);
+    }
+    if (min_shift >= 60) {
+        hour_shift = (uint16_t)(min_shift / 60);
+        min_shift = (uint16_t)(min_shift % 60);
+    }
+
+    pout->hours -= (sign * hour_shift);
+    pout->minutes -= (sign * min_shift);
+
+    if ((int16_t)pout->minutes < 0) {
+        pout->hours -= 1;
+        pout->minutes = (uint16_t)(pout->minutes + 60);
+    }
+    else if (pout->minutes > 59) {
+        pout->hours += 1;
+        pout->minutes = (uint16_t)(pout->minutes - 60);
+    }
+
+    if ((int16_t)pout->hours < 0) {
+        pout->day -= 1;
+        pout->hours = (uint16_t)(pout->hours + 24);
+    }
+    else if (pout->hours > 23) {
+        pout->day += 1;
+        pout->hours = (uint16_t)(pout->hours - 24);
+    }
+    else {
+        SUCCEED();
+    }
+
+    if (pout->day < 1) {
+        pout->month -= 1;
+        // Defer assignment of new day until year is known.
+        needs_day = TRUE;
+    }
+    else if (pout->day > JULIAN_DAY_PER_MONTH[_ion_timestamp_is_leap_year(pout->year)][pout->month - 1]) {
+        pout->month += 1;
+        pout->day = 1;
+    }
+    else {
+        SUCCEED();
+    }
+
+    if (pout->month < 1) {
+        pout->year -= 1;
+        pout->month = 11;
+    }
+    else if (pout->month > 12) {
+        pout->year += 1;
+        pout->month = 1;
+    }
+
+    if (needs_day) {
+        pout->day = (uint16_t)JULIAN_DAY_PER_MONTH[_ion_timestamp_is_leap_year(pout->year)][pout->month - 1];
+    }
+
+    if (pout->year < 1 || pout->year > 9999) {
+        FAILWITH(IERR_INVALID_TIMESTAMP);
+    }
+
+    iRETURN;
+}
+
 iERR ion_timestamp_equals(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2, BOOL *is_equal, decContext *pcontext)
 {
+    return _ion_timestamp_equals_helper(ptime1, ptime2, is_equal, pcontext, FALSE);
+}
+
+iERR ion_timestamp_instant_equals(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2, BOOL *is_equal, decContext *pcontext)
+{
+    return _ion_timestamp_equals_helper(ptime1, ptime2, is_equal, pcontext, TRUE);
+}
+
+iERR _ion_timestamp_equals_helper(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2, BOOL *is_equal, decContext *pcontext, BOOL instant_only)
+{
     iENTER;
-    int     precision1, precision2;
-    time_t  t1, t2;
-    decQuad decResult;
+    int             precision1, precision2;
+    BOOL            decResult;
+    decQuad         fraction_trimmed1, fraction_trimmed2;
+    ION_TIMESTAMP   ptime1_compare, ptime2_compare;
 
     if (ptime1 == ptime2) {
         goto is_true;
@@ -930,26 +1031,42 @@ iERR ion_timestamp_equals(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptim
         goto is_false;
     }
 
-    IONCHECK(ion_timestamp_get_precision(ptime1, &precision1));
-    IONCHECK(ion_timestamp_get_precision(ptime2, &precision2));
-    if (precision1 != precision2) {
-        goto is_false;
+    if (instant_only) {
+        // Fractional precision does not matter in this case. Trim any trailing zeros from the fractions, then compare.
+        decQuadReduce(&fraction_trimmed1, &ptime1->fraction, pcontext);
+        decQuadReduce(&fraction_trimmed2, &ptime2->fraction, pcontext);
+        ion_decimal_equals(&fraction_trimmed1, &fraction_trimmed2, pcontext, &decResult);
+        if (!decResult) goto is_false;
+        IONCHECK(_ion_timestamp_to_utc(ptime1, &ptime1_compare));
+        IONCHECK(_ion_timestamp_to_utc(ptime2, &ptime2_compare));
     }
-
-    IONCHECK(ion_timestamp_to_time_t(ptime1, &t1));
-    IONCHECK(ion_timestamp_to_time_t(ptime2, &t2));
-    if (t1 != t2) {
-        goto is_false;
-    }
-
-    if (precision1 == ION_TS_FRAC) {
-        decQuadCompare(&decResult, &(ptime1->fraction), &(ptime2->fraction), pcontext);
-        if (decQuadIsZero(&decResult)) {
-            goto is_true;
-        }
-        else {
+    else {
+        IONCHECK(ion_timestamp_get_precision(ptime1, &precision1));
+        IONCHECK(ion_timestamp_get_precision(ptime2, &precision2));
+        if (precision1 != precision2) {
             goto is_false;
         }
+
+        if (HAS_TZ_OFFSET(ptime1) ^ HAS_TZ_OFFSET(ptime2)) {
+            goto is_false;
+        }
+        if (precision1 == ION_TS_FRAC) { // Then precision2 is also ION_TS_FRAC.
+            ion_decimal_equals(&(ptime1->fraction), &(ptime2->fraction), pcontext, &decResult);
+            if (!decResult) goto is_false;
+        }
+        ptime1_compare = *ptime1;
+        ptime2_compare = *ptime2;
+    }
+
+    if    ((ptime1_compare.year != ptime2_compare.year)
+        || (ptime1_compare.month != ptime2_compare.month)
+        || (ptime1_compare.day != ptime2_compare.day)
+        || (ptime1_compare.hours != ptime2_compare.hours)
+        || (ptime1_compare.minutes != ptime2_compare.minutes)
+        || (ptime1_compare.seconds != ptime2_compare.seconds)
+        || (ptime1_compare.tz_offset != ptime2_compare.tz_offset)
+    ) {
+        goto is_false;
     }
     goto is_true;
 
@@ -1148,6 +1265,7 @@ iERR ion_timestamp_binary_read(ION_STREAM *stream, int32_t len, decContext *cont
 
     // now we read in our actual "milliseconds since the epoch"
     IONCHECK(ion_binary_read_decimal(stream, len, context, &ptime->fraction));
+    if (decQuadIsNegative(&ptime->fraction)) FAILWITH(IERR_INVALID_BINARY);
     SET_FLAG_ON(ptime->precision, ION_TT_BIT_FRAC);
     goto timestamp_is_finished;
 
