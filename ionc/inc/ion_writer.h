@@ -148,6 +148,7 @@ ION_API_EXPORT iERR ion_writer_write_int            (hWRITER hwriter, int value)
 ION_API_EXPORT iERR ion_writer_write_int32          (hWRITER hwriter, int32_t value);
 ION_API_EXPORT iERR ion_writer_write_int64          (hWRITER hwriter, int64_t value);
 ION_API_EXPORT iERR ion_writer_write_long           (hWRITER hwriter, long value);
+ION_API_EXPORT iERR ion_writer_write_ion_int        (hWRITER hwriter, ION_INT *value);
 ION_API_EXPORT iERR ion_writer_write_double         (hWRITER hwriter, double value);
 ION_API_EXPORT iERR ion_writer_write_decimal        (hWRITER hwriter, decQuad *value);
 ION_API_EXPORT iERR ion_writer_write_timestamp      (hWRITER hwriter, iTIMESTAMP value);

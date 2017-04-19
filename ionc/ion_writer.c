@@ -905,6 +905,38 @@ iERR _ion_writer_write_int64_helper(ION_WRITER *pwriter, int64_t value)
     iRETURN;
 }
 
+iERR ion_writer_write_ion_int(hWRITER hwriter, ION_INT *value)
+{
+    iENTER;
+    ION_WRITER *pwriter;
+
+    if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
+    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    IONCHECK(_ion_writer_write_ion_int_helper(pwriter, value));
+
+    iRETURN;
+}
+
+iERR _ion_writer_write_ion_int_helper(ION_WRITER *pwriter, ION_INT *value) {
+    iENTER;
+
+    ASSERT(pwriter);
+
+    switch (pwriter->type) {
+        case ion_type_text_writer:
+            IONCHECK(_ion_writer_text_write_ion_int(pwriter, value));
+            break;
+        case ion_type_binary_writer:
+            IONCHECK(_ion_writer_binary_write_ion_int(pwriter, value));
+            break;
+        default:
+            FAILWITH(IERR_INVALID_ARG);
+    }
+
+    iRETURN;
+}
+
 iERR _ion_writer_write_mixed_int_helper(ION_WRITER *pwriter, ION_READER *preader)
 {
     iENTER;
@@ -1192,7 +1224,7 @@ iERR ion_writer_write_blob(hWRITER hwriter, BYTE *p_buf, SIZE length)
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     // p_buf can be null for a null value
-    if (length < 1) FAILWITH(IERR_INVALID_ARG);
+    if (length < 0) FAILWITH(IERR_INVALID_ARG);
 
     IONCHECK(_ion_writer_write_blob_helper(pwriter, p_buf, length));
 

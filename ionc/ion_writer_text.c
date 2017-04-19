@@ -382,14 +382,15 @@ iERR _ion_writer_text_write_ion_int(ION_WRITER *pwriter, ION_INT *iint)
     char     *int_image = &int_image_local_buffer[0];
     char     *cp, *end;
     int       is_negative = FALSE, decimal_digits;
-    II_DIGIT *digits, remainder;
+    II_DIGIT  small_copy[II_SMALL_DIGIT_ARRAY_LENGTH];
+    II_DIGIT *digits = NULL, remainder;
     SIZE    digits_length;
 
 
     IONCHECK(_ion_writer_text_start_value(pwriter));
 
     decimal_digits = _ion_int_get_char_len_helper(iint);
-    if (iint->_signum < 0) decimal_digits++;
+    if (iint->_signum < 0) decimal_digits++; // TODO duplicated in previous call? Check
     if (decimal_digits < LOCAL_INT_CHAR_BUFFER_LENGTH) {
         end = &int_image_local_buffer[LOCAL_INT_CHAR_BUFFER_LENGTH];
     }
@@ -404,8 +405,12 @@ iERR _ion_writer_text_write_ion_int(ION_WRITER *pwriter, ION_INT *iint)
     *cp = 0;
     cp--;
 
-    digits = iint->_digits;
     digits_length = iint->_len;
+    // don't mutate the user's data.
+    digits = _ion_int_buffer_temp_copy(iint->_digits, digits_length, small_copy, II_SMALL_DIGIT_ARRAY_LENGTH);
+    if (digits == NULL) {
+        FAILWITH(IERR_NO_MEMORY);
+    }
     if (_ion_int_is_zero_bytes(digits, digits_length)) {
         // just dodge the edge case with leading zeros
         *cp = '0';
@@ -439,6 +444,7 @@ fail:
     if (int_image != &int_image_local_buffer[0]) {
         ion_xfree(int_image);
     }
+    _ion_int_free_temp(digits, small_copy);
     RETURN(__file__, __line__, __count__, err);
 }
 
@@ -788,7 +794,7 @@ iERR _ion_writer_text_append_blob_contents(ION_WRITER *pwriter, BYTE *p_buf, SIZ
 
     ASSERT(pwriter);
     ASSERT(p_buf);
-    ASSERT(length > 0);
+    ASSERT(length >= 0);
 
     // we may have some blob contents waiting to close out since
     // the caller shouldn't really be obliged to pass in buffers
