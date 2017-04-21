@@ -272,7 +272,21 @@ iERR read_value_stream_from_string(const char *ion_string, IonEventStream *strea
     options.max_container_depth = 100; // Arbitrarily high; if any test vector exceeds this depth, raise this threshold.
     options.max_annotation_count = 100; // "
 
-    IONCHECK(ion_reader_open_buffer(&reader, (BYTE *)ion_string, strlen(ion_string), &options));
+    IONCHECK(ion_reader_open_buffer(&reader, (BYTE *)ion_string, (SIZE)strlen(ion_string), &options));
+    IONCHECK(read_all(reader, stream));
+    IONCHECK(ion_reader_close(reader));
+    iRETURN;
+}
+
+iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStream *stream) {
+    iENTER;
+    hREADER      reader;
+    ION_READER_OPTIONS options;
+    memset(&options, 0, sizeof(ION_READER_OPTIONS));
+    options.max_container_depth = 100; // Arbitrarily high; if any test vector exceeds this depth, raise this threshold.
+    options.max_annotation_count = 100; // "
+
+    IONCHECK(ion_reader_open_buffer(&reader, (BYTE *)ion_string, len, &options));
     IONCHECK(read_all(reader, stream));
     IONCHECK(ion_reader_close(reader));
     iRETURN;
