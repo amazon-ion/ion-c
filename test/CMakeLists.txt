@@ -13,6 +13,7 @@ add_executable(all_tests
     gather_vectors.cpp
     ion_event_stream.cpp
     ion_assert.cpp
+    ion_test_util.cpp
     test_vectors.cpp
     test_ion_binary.cpp
     test_ion_text.cpp
