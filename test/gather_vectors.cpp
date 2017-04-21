@@ -133,9 +133,6 @@ std::vector<std::string> *skip_list() {
         add_to_skip(good_path, "utf16.ion");
         add_to_skip(good_path, "utf32.ion");
 
-        add_to_skip(good_path, "multipleAnnotations.ion");
-        add_to_skip(good_path, "structAnnotatedOrdered.10n");
-        add_to_skip(good_path, "structFieldAnnotationsUnquotedThenQuoted.ion");
         add_to_skip(good_path, "notVersionMarkers.ion");
         add_to_skip(good_path, "subfieldVarInt.ion");
         add_to_skip(good_path, "subfieldInt.ion");
@@ -158,7 +155,6 @@ std::vector<std::string> *skip_list() {
         add_to_skip(good_path, "symbolEmptyWithLF.ion");
         add_to_skip(good_path, "symbolEmptyWithLFLF.ion");
 
-        add_to_skip(good_equivs_path, "systemSymbolsAsAnnotations.ion");
         add_to_skip(good_equivs_path, "zeroDecimals.ion");
         add_to_skip(good_equivs_path, "zeroFloats.ion");
         add_to_skip(good_equivs_path, "bigInts.ion");
@@ -175,7 +171,6 @@ std::vector<std::string> *skip_list() {
         add_to_skip(good_nonequivs_path, "floatsVsDecimals.ion");
         add_to_skip(good_nonequivs_path, "floats.ion");
         add_to_skip(good_nonequivs_path, "decimals.ion");
-        add_to_skip(good_nonequivs_path, "annotations.ion");
     }
     return &_skip_list;
 }

@@ -235,7 +235,7 @@ begin:
         for (;;) {
             pos = ion_stream_get_position(preader->istream);
             if (pos >= annotation_end) break;
-            psid = (SID *)_ion_collection_push(&binary->_annotation_sids);
+            psid = (SID *)_ion_collection_append(&binary->_annotation_sids);
             if (!psid) FAILWITH(IERR_NO_MEMORY);
             IONCHECK(ion_binary_read_var_uint_32(preader->istream, (uint32_t*)psid));
         }
