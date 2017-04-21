@@ -194,11 +194,12 @@ iERR ionTestRoundtrip(IonEventStream *initial_stream, IonEventStream **roundtrip
     iERR status = IERR_OK;
     if (test_type > READ) {
         BYTE *written = NULL;
-        status = write_value_stream(initial_stream, test_type, catalog, &written);
+        SIZE len;
+        status = write_value_stream(initial_stream, test_type, catalog, &written, &len);
         EXPECT_EQ(IERR_OK, status) << test_name << " FAILED ON WRITE" << std::endl;
         if (IERR_OK != status) goto finish;
         *roundtrip_stream = new IonEventStream();
-        status = read_value_stream(*roundtrip_stream, input_type, filename, catalog);
+        status = read_value_stream_from_bytes(written, len, *roundtrip_stream, catalog);
         EXPECT_EQ(IERR_OK, status) << test_name << " FAILED ON ROUNDTRIP READ" << std::endl;
         if (IERR_OK != status) goto finish;
         status = assertIonEventStreamEq(initial_stream, *roundtrip_stream, ASSERTION_TYPE_NORMAL) ? IERR_OK

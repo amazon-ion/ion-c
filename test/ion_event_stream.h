@@ -108,7 +108,7 @@ size_t valueEventLength(IonEventStream *stream, size_t start_index);
  * Reads IonEvents from the given string of Ion data into the given IonEventStream.
  */
 iERR read_value_stream_from_string(const char *ion_string, IonEventStream *stream);
-iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStream *stream);
+iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStream *stream, ION_CATALOG *catalog);
 
 /**
  * Constructs a reader using the given input type and catalog, then reads IonEvents from the Ion data contained
@@ -119,6 +119,6 @@ iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std
 /**
  * Constructs a writer using the given test type and catalog and uses it to write the given IonEventStream to BYTEs.
  */
-iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_CATALOG *catalog, BYTE **out);
+iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_CATALOG *catalog, BYTE **out, SIZE *len);
 
 #endif //IONC_VALUE_STREAM_H

@@ -261,7 +261,10 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
 }
 
 iERR read_all(hREADER hreader, IonEventStream *stream) {
-    return read_all(hreader, stream, /*in_struct=*/FALSE, /*depth=*/0);
+    iENTER;
+    IONCHECK(read_all(hreader, stream, /*in_struct=*/FALSE, /*depth=*/0));
+    stream->append_new(STREAM_END, tid_none, NULL, NULL, 0, 0);
+    iRETURN;
 }
 
 iERR read_value_stream_from_string(const char *ion_string, IonEventStream *stream) {
@@ -278,13 +281,16 @@ iERR read_value_stream_from_string(const char *ion_string, IonEventStream *strea
     iRETURN;
 }
 
-iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStream *stream) {
+iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStream *stream, ION_CATALOG *catalog) {
     iENTER;
     hREADER      reader;
     ION_READER_OPTIONS options;
     memset(&options, 0, sizeof(ION_READER_OPTIONS));
     options.max_container_depth = 100; // Arbitrarily high; if any test vector exceeds this depth, raise this threshold.
     options.max_annotation_count = 100; // "
+    if (catalog) {
+        options.pcatalog = catalog;
+    }
 
     IONCHECK(ion_reader_open_buffer(&reader, (BYTE *)ion_string, len, &options));
     IONCHECK(read_all(reader, stream));
@@ -349,8 +355,6 @@ iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std
         default:
             FAILWITH(IERR_INVALID_ARG);
     }
-
-    stream->append_new(STREAM_END, tid_none, NULL, NULL, 0, 0);
 fail:
     if (buffer) {
         free(buffer);
@@ -426,11 +430,11 @@ iERR write_event(hWRITER writer, IonEvent *event) {
     iRETURN;
 }
 
-iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_CATALOG *catalog, BYTE **out) {
+iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_CATALOG *catalog, BYTE **out, SIZE *len) {
     // TODO should also have versions of this that don't even need the event stream, and just use ion_writer_write_all_values().
     iENTER;
     ION_STREAM *ion_stream = NULL;
-    POSITION len;
+    POSITION pos;
     IONCHECK(ion_stream_open_memory_only(&ion_stream)); // TODO more types of output streams?
     hWRITER writer;
     ION_WRITER_OPTIONS options;
@@ -445,16 +449,16 @@ iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_
     }
 
     IONCHECK(ion_writer_close(writer));
-    len = ion_stream_get_position(ion_stream);
+    pos = ion_stream_get_position(ion_stream);
     IONCHECK(ion_stream_seek(ion_stream, 0));
-    *out = (BYTE *)(malloc((size_t)len));
+    *out = (BYTE *)(malloc((size_t)pos));
     SIZE bytes_read;
-    IONCHECK(ion_stream_read(ion_stream, *out, (SIZE)len, &bytes_read));
+    IONCHECK(ion_stream_read(ion_stream, *out, (SIZE)pos, &bytes_read));
 
     IONCHECK(ion_stream_close(ion_stream));
-    if (bytes_read != (SIZE)len) {
+    if (bytes_read != (SIZE)pos) {
         FAILWITH(IERR_EOF);
     }
-
+    *len = bytes_read;
     iRETURN;
 }

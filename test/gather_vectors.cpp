@@ -132,6 +132,50 @@ std::vector<std::string> *skip_list() {
 
         add_to_skip(good_path, "utf16.ion");
         add_to_skip(good_path, "utf32.ion");
+
+        add_to_skip(good_path, "multipleAnnotations.ion");
+        add_to_skip(good_path, "structAnnotatedOrdered.10n");
+        add_to_skip(good_path, "structFieldAnnotationsUnquotedThenQuoted.ion");
+        add_to_skip(good_path, "notVersionMarkers.ion");
+        add_to_skip(good_path, "subfieldVarInt.ion");
+        add_to_skip(good_path, "subfieldInt.ion");
+        add_to_skip(good_path, "floatDblMin.ion");
+        add_to_skip(good_path, "float_values.ion");
+        add_to_skip(good_path, "float_zeros.ion");
+        add_to_skip(good_path, "decimal_zeros.ion");
+        add_to_skip(good_path, "decimal_e_values.ion");
+        add_to_skip(good_path, "clobs.ion");
+        add_to_skip(good_path, "symbols.ion");
+        add_to_skip(good_path, "testfile14.ion");
+        add_to_skip(good_path, "testfile15.ion");
+        add_to_skip(good_path, "testfile16.ion");
+        add_to_skip(good_path, "testfile23.ion");
+        add_to_skip(good_path, "testfile24.ion");
+        add_to_skip(good_path, "testfile31.ion");
+        add_to_skip(good_path, "symbolEmpty.ion");
+        add_to_skip(good_path, "symbolEmptyWithCR.ion");
+        add_to_skip(good_path, "symbolEmptyWithCRLF.ion");
+        add_to_skip(good_path, "symbolEmptyWithLF.ion");
+        add_to_skip(good_path, "symbolEmptyWithLFLF.ion");
+
+        add_to_skip(good_equivs_path, "systemSymbolsAsAnnotations.ion");
+        add_to_skip(good_equivs_path, "zeroDecimals.ion");
+        add_to_skip(good_equivs_path, "zeroFloats.ion");
+        add_to_skip(good_equivs_path, "bigInts.ion");
+        add_to_skip(good_equivs_path, "timestampsLargeFractionalPrecision.ion");
+
+        add_to_skip(good_timestamp_path, "timestamps.ion");
+        add_to_skip(good_timestamp_path, "timestamp2011-02-20.10n");
+        add_to_skip(good_timestamp_path, "timestamp2011-02.10n");
+        add_to_skip(good_timestamp_path, "timestamp2011.10n");
+
+        add_to_skip(good_timestamp_equivtimeline_path, "timestamps.ion");
+
+        add_to_skip(good_nonequivs_path, "timestamps.ion");
+        add_to_skip(good_nonequivs_path, "floatsVsDecimals.ion");
+        add_to_skip(good_nonequivs_path, "floats.ion");
+        add_to_skip(good_nonequivs_path, "decimals.ion");
+        add_to_skip(good_nonequivs_path, "annotations.ion");
     }
     return &_skip_list;
 }
@@ -142,7 +186,7 @@ void add_to_whitelist(std::string prefix, std::string suffix) {
 
 std::vector<std::string> *whitelist() {
     if (_whitelist.size() == 0) {
-        //add_to_whitelist(good_equivs_path, "timestampFractions.10n");
+        //add_to_whitelist(good_path, "multipleAnnotations.ion");
     }
     return &_whitelist;
 }
