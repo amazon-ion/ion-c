@@ -1105,7 +1105,7 @@ iERR _ion_writer_text_append_escape_sequence_string(ION_STREAM *poutput, BYTE *c
     int    c, unicode_scalar, ilen;
 
     c = *cp;
-    if (c < 32 || c == '\\' || c == '"') {
+    if (c < 32 || c == '\\' || c == '"' || c == '\'') {
         image = _ion_writer_get_control_escape_string(c);
         IONCHECK(_ion_writer_text_append_ascii_cstr(poutput, image));
         cp++;
