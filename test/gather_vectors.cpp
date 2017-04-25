@@ -133,7 +133,6 @@ std::vector<std::string> *skip_list() {
         add_to_skip(good_path, "utf16.ion");
         add_to_skip(good_path, "utf32.ion");
 
-        add_to_skip(good_path, "notVersionMarkers.ion");
         add_to_skip(good_path, "subfieldVarInt.ion");
         add_to_skip(good_path, "subfieldInt.ion");
         add_to_skip(good_path, "floatDblMin.ion");
@@ -142,18 +141,12 @@ std::vector<std::string> *skip_list() {
         add_to_skip(good_path, "decimal_zeros.ion");
         add_to_skip(good_path, "decimal_e_values.ion");
         add_to_skip(good_path, "clobs.ion");
-        add_to_skip(good_path, "symbols.ion");
         add_to_skip(good_path, "testfile14.ion");
         add_to_skip(good_path, "testfile15.ion");
         add_to_skip(good_path, "testfile16.ion");
         add_to_skip(good_path, "testfile23.ion");
         add_to_skip(good_path, "testfile24.ion");
         add_to_skip(good_path, "testfile31.ion");
-        add_to_skip(good_path, "symbolEmpty.ion");
-        add_to_skip(good_path, "symbolEmptyWithCR.ion");
-        add_to_skip(good_path, "symbolEmptyWithCRLF.ion");
-        add_to_skip(good_path, "symbolEmptyWithLF.ion");
-        add_to_skip(good_path, "symbolEmptyWithLFLF.ion");
 
         add_to_skip(good_equivs_path, "zeroDecimals.ion");
         add_to_skip(good_equivs_path, "zeroFloats.ion");
