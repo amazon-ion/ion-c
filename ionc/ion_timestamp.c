@@ -441,6 +441,7 @@ iERR ion_timestamp_parse(ION_TIMESTAMP *ptime, char *buffer, SIZE buf_length, SI
         else if (*cp == 'T') {
             cp++;        
             month = day = 1;
+            offset = 0;
             goto end_of_days;
         }
         else if (*cp != '-') {
@@ -458,6 +459,7 @@ iERR ion_timestamp_parse(ION_TIMESTAMP *ptime, char *buffer, SIZE buf_length, SI
         else if (*cp == 'T') {
             cp++;
             day = 1;
+            offset = 0;
             goto end_of_days;
         }
         else if (*cp != '-') {
@@ -650,9 +652,7 @@ end_of_days:
         if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_FRAC)) {
             decQuadCopy(&ptime->fraction, &fraction);
         }
-        else {
-            decQuadZero(&ptime->fraction);
-        }
+        // No need to zero ptime->fraction here -- that is taken care of by _ion_timestamp_initialize.
     }
 
     iRETURN;
@@ -1056,6 +1056,16 @@ iERR _ion_timestamp_equals_helper(const ION_TIMESTAMP *ptime1, const ION_TIMESTA
         if (!decResult) goto is_false;
         IONCHECK(_ion_timestamp_to_utc(ptime1, &ptime1_compare));
         IONCHECK(_ion_timestamp_to_utc(ptime2, &ptime2_compare));
+        if    ((ptime1_compare.year != ptime2_compare.year)
+               || (ptime1_compare.month != ptime2_compare.month)
+               || (ptime1_compare.day != ptime2_compare.day)
+               || (ptime1_compare.hours != ptime2_compare.hours)
+               || (ptime1_compare.minutes != ptime2_compare.minutes)
+               || (ptime1_compare.seconds != ptime2_compare.seconds)
+               || (ptime1_compare.tz_offset != ptime2_compare.tz_offset)
+                ) {
+            goto is_false;
+        }
     }
     else {
         IONCHECK(ion_timestamp_get_precision(ptime1, &precision1));
@@ -1074,25 +1084,34 @@ iERR _ion_timestamp_equals_helper(const ION_TIMESTAMP *ptime1, const ION_TIMESTA
         if (HAS_TZ_OFFSET(ptime1) ^ HAS_TZ_OFFSET(ptime2)) {
             goto is_false;
         }
+        if (HAS_TZ_OFFSET(ptime1) && (ptime1->tz_offset != ptime2->tz_offset)) {
+            goto is_false;
+        }
+        if (precision1 >= ION_TS_YEAR) {
+            if (ptime1->year != ptime2->year) {
+                goto is_false;
+            }
+        }
+        else {
+            FAILWITHMSG(IERR_INVALID_TIMESTAMP, "Found timestamp with less than year precision.");
+        }
+        if (precision1 >= ION_TS_MONTH && (ptime1->month != ptime2->month)) {
+            goto is_false;
+        }
+        if (precision1 >= ION_TS_DAY && (ptime1->day != ptime2->day)) {
+            goto is_false;
+        }
+        if (precision1 >= ION_TS_MIN && (ptime1->hours != ptime2->hours || ptime1->minutes != ptime2->minutes)) {
+            goto is_false;
+        }
+        if (precision1 >= ION_TS_SEC && (ptime1->seconds != ptime2->seconds)) {
+            goto is_false;
+        }
         if (precision1 == ION_TS_FRAC) { // Then precision2 is also ION_TS_FRAC.
             ion_decimal_equals(&ptime1->fraction, &ptime2->fraction, pcontext, &decResult);
             if (!decResult) goto is_false;
         }
-        ptime1_compare = *ptime1;
-        ptime2_compare = *ptime2;
     }
-
-    if    ((ptime1_compare.year != ptime2_compare.year)
-        || (ptime1_compare.month != ptime2_compare.month)
-        || (ptime1_compare.day != ptime2_compare.day)
-        || (ptime1_compare.hours != ptime2_compare.hours)
-        || (ptime1_compare.minutes != ptime2_compare.minutes)
-        || (ptime1_compare.seconds != ptime2_compare.seconds)
-        || (ptime1_compare.tz_offset != ptime2_compare.tz_offset)
-    ) {
-        goto is_false;
-    }
-    goto is_true;
 
 is_true:
     *is_equal = TRUE;
@@ -1239,6 +1258,9 @@ iERR ion_timestamp_binary_read(ION_STREAM *stream, int32_t len, decContext *cont
         ptime->year = (ptime->year << 7) + (b & 0x7F);
         if ((b & 0x80) == 0) FAILWITH(IERR_INVALID_BINARY);
     }
+    // If the precision ends at YEAR, month and day are implicitly 1. If it ends at MONTH, day is implicitly 1.
+    ptime->month = 1;
+    ptime->day = 1;
     ptime->precision = ION_TS_YEAR; // our lowest significant option
     if (len == 0) goto timestamp_is_finished; // WAS: 27 aug 2013 if (len == 0) FAILWITH(IERR_INVALID_BINARY);
 
