@@ -542,7 +542,7 @@ iERR _ion_writer_binary_write_ion_int(ION_WRITER *pwriter, ION_INT *iint)
         }
     }
 
-    IONCHECK( _ion_writer_binary_patch_lengths( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
+    IONCHECK( _ion_writer_binary_patch_lengths( pwriter, patch_len + len ));
 
     iRETURN;
 }
