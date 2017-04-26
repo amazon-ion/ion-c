@@ -498,8 +498,9 @@ iERR _ion_writer_text_write_double(ION_WRITER *pwriter, double value)
 #endif
 
         // TODO this is a terrible way to convert this!
-        sprintf(image, "%20g", value);
+        sprintf(image, "%.20g", value);
         assert(strlen(image) < sizeof(image));
+
         mark = strchr(image, 'e');
         if (!mark) {
             strcat(image, "e+0");
