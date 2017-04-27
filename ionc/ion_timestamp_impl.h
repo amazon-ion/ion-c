@@ -63,9 +63,7 @@ iERR _ion_timestamp_copy_to_buf     (char *dst, char *src, char *end_of_buffer, 
 
 iERR _ion_timestamp_parse_int       (int *p_value, int32_t width, int terminator, char *cp, char *end_of_buffer);
 
-int  ion_timestamp_binary_len( ION_TIMESTAMP *ptime, decContext *context );
 iERR ion_timestamp_binary_read( ION_STREAM *pstream, int32_t len, decContext *context, ION_TIMESTAMP *p_value );
-iERR ion_timestamp_binary_write( ION_STREAM *pstream,  ION_TIMESTAMP *value, decContext *context );
 
 /** Initialize to null value.
  *

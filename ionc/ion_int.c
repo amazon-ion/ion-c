@@ -633,7 +633,8 @@ iERR ion_int_from_decimal(ION_INT *iint, const decQuad *p_value)
     decQuad  temp1, temp2;
     int32_t  is_zero;
   
-  
+    _ion_int_init_globals();
+
     IONCHECK(_ion_int_validate_arg_with_ptr(iint, p_value));
     if (!decQuadIsFinite(p_value)) {
         FAILWITH(IERR_INVALID_ARG);
@@ -914,6 +915,8 @@ iERR ion_int_to_decimal(ION_INT *iint, decQuad *p_quad)
     II_DIGIT *digits, *end, digit;
     decQuad   quad_digit;
 
+    _ion_int_init_globals();
+
     IONCHECK(_ion_int_validate_non_null_arg_with_ptr(iint, p_quad));
 
     decQuadZero(p_quad);
@@ -944,7 +947,7 @@ iERR ion_int_to_decimal(ION_INT *iint, decQuad *p_quad)
 //
 ///////////////////////////////////////////////////////////////////
 
-int _int_int_init_globals()
+int _ion_int_init_globals_helper()
 {
     decQuad two;
     int32_t temp;
@@ -956,7 +959,7 @@ int _int_int_init_globals()
     // invariant needed for multiply and add
     ASSERT((UINT64_MAX) >= ( (((II_LONG_DIGIT)II_MAX_DIGIT) * ((II_LONG_DIGIT)II_MAX_DIGIT)) + (((II_LONG_DIGIT)II_MAX_DIGIT)*2) )); 
 
-    decContextDefault(&g_Context, DEC_INIT_BASE);
+    decContextDefault(&g_Context, DEC_INIT_DECQUAD);
 
     decQuadFromInt32(&two, 2);
     temp = (int32_t)(II_BASE / 2);
@@ -967,6 +970,16 @@ int _int_int_init_globals()
     decQuadFromInt32(&g_decQuad_Shift, (int32_t)II_SHIFT);
 
     return 0;
+}
+
+int _ion_int_init_globals()
+{
+    // TODO this is not ideal. Explore whether there is a better or safer way to initialize globals, or if the
+    // globals should simply be locals (taking into account additional runtime cost).
+    if (!g_ion_int_globals_initialized) {
+        g_ion_int_globals_initialized = TRUE;
+        _ion_int_init_globals_helper();
+    }
 }
 
 
@@ -1478,10 +1491,9 @@ iERR _ion_int_to_bytes_helper(ION_INT *iint
     iRETURN;
 }
 
-
-SIZE _ion_int_abs_bytes_length_helper(const ION_INT *iint)
+SIZE _ion_int_abs_bytes_length_helper_helper(const ION_INT *iint, BOOL is_signed)
 {
-    SIZE bits, bytes;
+    SIZE bits, bytes = 0;
 
     ASSERT(iint);
     ASSERT(!_ion_int_is_null_helper(iint));
@@ -1493,9 +1505,24 @@ SIZE _ion_int_abs_bytes_length_helper(const ION_INT *iint)
         bytes = 1;
     }
     else {
-        bytes = ((bits - 1) / 8) + 1;
+        if (is_signed && bits % 8 == 0) {
+            // The highest bit set is the most significant bit in its byte,
+            // so an extra byte is needed to hold the sign.
+            bytes = 1;
+        }
+        bytes += ((bits - 1) / 8) + 1;
     }
     return bytes;
+}
+
+SIZE _ion_int_abs_bytes_length_helper(const ION_INT *iint)
+{
+    return _ion_int_abs_bytes_length_helper_helper(iint, /*is_signed=*/FALSE);
+}
+
+SIZE _ion_int_abs_bytes_signed_length_helper(const ION_INT *iint)
+{
+    return _ion_int_abs_bytes_length_helper_helper(iint, /*is_signed=*/TRUE);
 }
 
 

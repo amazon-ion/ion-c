@@ -220,6 +220,19 @@ iERR ion_timestamp_to_string(ION_TIMESTAMP *ptime, char *buffer, SIZE buf_length
         }
         decQuadToString(&ptime->fraction, temp);
         cp = temp;
+        if (decQuadIsSigned(&ptime->fraction)) {
+            if (decQuadIsZero(&ptime->fraction)) {
+                // Negative-zero fractional seconds are normalized to positive-zero.
+                // NOTE: the binary reader will normalize negative-zero to positive-zero, but this protects
+                // against the user manually constructing an ION_TIMESTAMP with negative-zero fractional seconds.
+                ASSERT((*cp) == '-');
+                cp++;
+            }
+            else {
+                // Any other negative besides negative-zero is an error.
+                FAILWITH(IERR_INVALID_BINARY);
+            }
+        }
         while (*cp == '0') cp++;  /* there should only be one '0' */
         if ((*cp) == '.') {
             IONCHECK(_ion_timestamp_copy_to_buf(pos, cp, end_of_buffer, &count));
@@ -780,7 +793,7 @@ iERR ion_timestamp_for_fraction(ION_TIMESTAMP *ptime,
         }
 
         // Make sure fraction is not true zero
-        if (ion_binary_len_ion_decimal(p_fraction, pcontext) == 0) {
+        if (decQuadIsZero(p_fraction) && decQuadGetExponent(p_fraction) > -1) {
             FAILWITHMSG(IERR_INVALID_ARG, "fraction seconds must have significant digit. 0 or 0. is not valid.");
         }
         decQuadCopy(&ptime->fraction, p_fraction);
@@ -1151,46 +1164,6 @@ if the value includes time hours and minutes will also be present.
 if the value includes seconds they will be present.
 and all bytes included the are beyond seconds are a decimal fracional seconds value.
 */
-
-int ion_timestamp_binary_len( ION_TIMESTAMP *ptime, decContext *context )
-{
-    int len;
-
-    if (NULL == ptime) {
-        // nothing to do for a null.timestamp, it's all in the td byte
-        return 0;
-    }
-    
-    // first we write out the local offset (and we write a -0 if it is not known)
-    if (HAS_TZ_OFFSET(ptime)) {
-        len = ion_binary_len_var_int_64(ptime->tz_offset);
-    }
-    else {
-        len = 1; // len of -0 byte
-    }
-
-    //if the value isn't null we always have year
-    len += ion_binary_len_var_uint_64(ptime->year);
-    if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_MONTH)) {
-        len += 1; // month always fits in 1 byte
-    }
-    if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_DAY)) {
-        len += 1; // day always fits in 1 byte
-    }
-    if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_MIN)) {
-        len += 1; // hours take 1 byte each
-        len += 1; // and minutes take 1 byte each
-    }
-    if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_SEC)) {
-        len += 1; // seconds are also 1 byte each
-    }
-    if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_FRAC)) {
-        // now we figure out how long the decimal "milliseconds since the epoch" will be
-        len += ion_binary_len_ion_decimal( &ptime->fraction, context );
-    }
-
-    return len;
-}
        
 iERR ion_timestamp_binary_read(ION_STREAM *stream, int32_t len, decContext *context, ION_TIMESTAMP *ptime)
 {
@@ -1311,7 +1284,16 @@ iERR ion_timestamp_binary_read(ION_STREAM *stream, int32_t len, decContext *cont
 
     // now we read in our actual "milliseconds since the epoch"
     IONCHECK(ion_binary_read_decimal(stream, len, context, &ptime->fraction));
-    if (decQuadIsNegative(&ptime->fraction)) FAILWITH(IERR_INVALID_BINARY);
+    if (decQuadIsSigned(&ptime->fraction)) {
+        if (decQuadIsZero(&ptime->fraction)) {
+            // Negative-zero fractional seconds are normalized to positive-zero.
+            decQuadCopyNegate(&ptime->fraction, &ptime->fraction);
+        }
+        else {
+            // Any other negative besides negative-zero is an error.
+            FAILWITH(IERR_INVALID_BINARY);
+        }
+    }
     if (decQuadGetExponent(&ptime->fraction) >= 0) {
         if (decQuadIsZero(&ptime->fraction)) goto timestamp_is_finished; // Fraction with zero coefficient and >= zero exponent is ignored.
         FAILWITH(IERR_INVALID_BINARY);
@@ -1325,51 +1307,6 @@ timestamp_is_finished:
         SET_FLAG_ON(ptime->precision, ION_TT_BIT_TZ);
     }
     SUCCEED();
-
-    iRETURN;
-}
-
-iERR ion_timestamp_binary_write( ION_STREAM *ps, ION_TIMESTAMP *ptime, decContext *context )
-{
-    iENTER;
-    ION_STREAM *pstream = (ION_STREAM *)ps;
-
-    ASSERT(pstream != NULL);
-    
-    if (NULL == ptime) {
-        // nothing else to do here - and the timestamp is be NULL
-        SUCCEED();
-    }
-
-    // first we write out the local offset (and we write a -0 if it is not known)
-    if (HAS_TZ_OFFSET(ptime)) {
-        IONCHECK(ion_binary_write_var_int_64(pstream, ptime->tz_offset));
-    }
-    else {
-        ION_PUT( pstream, ION_BINARY_VAR_INT_NEGATIVE_ZERO );
-    }
-
-    if (IS_FLAG_ON(ptime->precision, ION_TS_YEAR)) {
-        // year is from 0001 to 9999
-        // or 0x1 to 0x270F or 14 bits - 1 or 2 bytes
-        IONCHECK(ion_binary_write_var_uint_64(pstream, ptime->year));
-    }
-    if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_MONTH)) {
-        IONCHECK(ion_binary_write_var_uint_64(pstream, ptime->month));
-    }
-    if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_DAY)) {
-        IONCHECK(ion_binary_write_var_uint_64(pstream, ptime->day));
-    }
-    if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_MIN)) {
-        IONCHECK(ion_binary_write_var_uint_64(pstream, ptime->hours));
-        IONCHECK(ion_binary_write_var_uint_64(pstream, ptime->minutes));
-    }
-    if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_SEC)) {
-        IONCHECK(ion_binary_write_var_uint_64(pstream, ptime->seconds));
-    }
-    if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_FRAC)) {
-        IONCHECK(ion_binary_write_decimal_value(pstream, &ptime->fraction, context));
-    }
 
     iRETURN;
 }

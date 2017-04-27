@@ -79,20 +79,15 @@ ION_API_EXPORT int ion_binary_len_var_uint_64(uint64_t value);
  */
 ION_API_EXPORT int ion_binary_len_var_int_64(int64_t value);
 
-/** Get the size of ion binary representation fields of the given decimal value. (mantissa + exponent. 0 for true zero value)
- *
+/** Calculate the length of a binary encoded variable int from the given unsigned value.
+ *  If the highest bit in the most significant byte is set, space for one extra sign byte will be added.
  */
-ION_API_EXPORT int ion_binary_len_ion_decimal(decQuad *value, decContext *context);
+ION_API_EXPORT int ion_binary_len_int_64_unsigned(uint64_t value);
 
 /** Get the size of ion binary representation fields of the given double value. Fixed at sizeof(double)
  *
  */
 ION_API_EXPORT int ion_binary_len_ion_float(double value);
-
-/** Get the size of ion binary representation fields of the given timestamp value.
- *
- */
-ION_API_EXPORT int ion_binary_len_ion_timestamp(ION_TIMESTAMP *value, decContext *context);
 
 ION_API_EXPORT iERR ion_binary_read_var_int_32       (ION_STREAM *pstream, int32_t *p_value);
 ION_API_EXPORT iERR ion_binary_read_var_int_64       (ION_STREAM *pstream, int64_t *p_value);
@@ -110,9 +105,7 @@ ION_API_EXPORT iERR ion_binary_read_decimal        (ION_STREAM *pstream, int32_t
 ION_API_EXPORT iERR ion_binary_read_timestamp      (ION_STREAM *pstream, int32_t len, decContext *context, ION_TIMESTAMP *p_value);
 ION_API_EXPORT iERR ion_binary_read_string         (ION_STREAM *pstream, int32_t len, ION_STRING *p_value);
 
-ION_API_EXPORT iERR ion_binary_write_decimal_value         ( ION_STREAM *pstream, decQuad *value, decContext *context );
 ION_API_EXPORT iERR ion_binary_write_float_value           ( ION_STREAM *pstream, double value );
-ION_API_EXPORT iERR ion_binary_write_timestamp_value       ( ION_STREAM *pstream,  ION_TIMESTAMP *value, decContext *context );
 
 ION_API_EXPORT iERR ion_binary_write_int32_with_field_sid  ( ION_STREAM *pstream, SID field_sid, int32_t value );
 ION_API_EXPORT iERR ion_binary_write_int64_with_field_sid  ( ION_STREAM *pstream, SID sid, int64_t value );
@@ -132,6 +125,11 @@ ION_API_EXPORT iERR ion_binary_write_uint_64(ION_STREAM *pstream, uint64_t value
  *
  */
 ION_API_EXPORT iERR ion_binary_write_int_64(ION_STREAM *pstream, int64_t value, BOOL isNegativeZero);
+
+/**
+ * Write an unsigned magnitude as a binary encoded int with the given sign.
+ */
+ION_API_EXPORT iERR ion_binary_write_int_64_unsigned(ION_STREAM *pstream, uint64_t value, BOOL isNegative);
 
 /** Write out binary encoded variable uint.
  *

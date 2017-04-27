@@ -17,6 +17,10 @@
 #include "ion_internal.h"
 #include <math.h>
 
+// Max uint64_t is 18446744073709551615; decimal digits are retrieved 9 at a time.
+#define UINT64_TOP_2_DIGITS (uint64_t)18
+#define UINT64_BOTTOM_18_DIGITS (uint64_t)446744073709551615L
+
 // is this really faster than 4 if's?
 static int dec_quad_helper_shift_table_for_nibbles[] = {
      0 // 0000
@@ -40,59 +44,46 @@ static int dec_quad_helper_shift_table_for_nibbles[] = {
     ,4 // 1111
 };
 
-void ion_quad_get_digits_and_exponent_from_quad(const decQuad *quad_value,
-        decContext *set, int64_t *p_value, int32_t *p_exp)
+
+void ion_quad_get_exponent_and_shift(const decQuad *quad_value, decContext *set,
+                                     decQuad *p_int_mantissa, int32_t *p_exp)
 {
-    decQuad *pq, one, temp;
-    int32_t  exp;
-    int      is_negative;
+    decQuad scale;
 
-    exp = decQuadGetExponent(quad_value);
+    *p_exp = decQuadGetExponent(quad_value);
 
-    if (exp == 0) {
-        pq = decQuadCopy(&temp, quad_value);
+    // TODO is it possible to normalize some large mantissas so that they can be compressed?
+    // Consider 40<three-hundred zeros>. Is this data-model equivalent to 4e301 ? If so, it could be written in its
+    // compact form.
+    if (*p_exp == 0) {
+        decQuadCopy(p_int_mantissa, quad_value);
     }
     else {
-        decQuadFromInt32(&one, 1);
-        decQuadSetExponent(&one, set, -exp);
-        pq = &temp;
-        decQuadMultiply(pq, &one, quad_value, set);
+        decQuadFromInt32(&scale, -*p_exp);
+        decQuadScaleB(p_int_mantissa, quad_value, &scale, set);
+        ASSERT(decQuadIsInteger(p_int_mantissa)); // The exponent should have been shifted out completely.
     }
-    if ((is_negative = decQuadIsSigned(pq))) {
-        decQuadMinus(pq, pq, set);
-    }
-
-    *p_value = decQuadToInt64(pq, set);
-    if (is_negative) *p_value = -(*p_value);
-
-    *p_exp = exp;
-    
-    return;
 }
 
-void ion_quad_get_quad_from_digits_and_exponent(int64_t value, int32_t exp,
-        decContext *set, BOOL isNegativeZero, decQuad *p_quad)
+void ion_quad_get_quad_from_digits_and_exponent(uint64_t value, int32_t exp,
+        decContext *set, BOOL is_negative, decQuad *p_quad)
 {
     decQuad result, nine_quad_digits;
     decQuad multiplier;
     int32_t nine_digits;
-    int     multiplier_exponent, is_negative;
-    uint64_t unsignedValue;
+    int     multiplier_exponent;
 
     // decDoubleScaleB(r, x, y, set) - This calculates x * 10y and places
     //                                 the result in r.
 
     decQuadZero(&result);
 
-    is_negative = ((value < 0) || ((value == 0) && isNegativeZero));
-    unsignedValue = abs_int64(value);
-
     decQuadFromInt32(&multiplier, 1);
     multiplier_exponent = 0;
-    while (unsignedValue > 0) {
+    while (value > 0) {
         // crack off the lower 9 digits (and removed them from the original)
-        nine_digits = (int)(unsignedValue % BILLION);
-        unsignedValue /= BILLION;
+        nine_digits = (int)(value % BILLION);
+        value /= BILLION;
 
         // turn the 9 digits into a quad (so we can do the right thing later)
         decQuadFromInt32(&nine_quad_digits, nine_digits);
@@ -110,7 +101,7 @@ void ion_quad_get_quad_from_digits_and_exponent(int64_t value, int32_t exp,
 
     // now put the sign and exponent in place, and we should be done
     if (is_negative) {
-        decQuadMinus(&result, &result, set);
+        decQuadCopyNegate(&result, &result);
     }
     decQuadSetExponent(&result, set, exp);
 
@@ -124,43 +115,28 @@ void ion_quad_get_packed_and_exponent_from_quad(const decQuad *quad_value, uint8
 	decQuadToPacked(quad_value, p_exp, p_packed);
 }
 
-
-/* ------------------------------------------------------------------ */
-/* decToInt64 -- local routine to effect ToInteger conversions        */
-/*               done with public functions in decQuad so this        */
-/*               isn't as efficient as it might be with 'native'      */
-/*               routines, but the macros make the code too obscure   */
-/*               Chris Suver, Dec 2008                                */
-/*                                                                    */
-/*   df     is the decFloat to convert                                */
-/*   set    is the context                                            */
-/*                                                                    */
-/*   returns 64-bit result as a int64_t                               */
-/*                                                                    */
-/* ------------------------------------------------------------------ */
-
-int64_t decQuadToInt64(const decQuad *df, decContext *set)
+uint64_t decQuadToUInt64(const decQuad *df, decContext *set, BOOL *p_overflow, BOOL *p_is_negative)
 {
   enum rounding saveround;             // saver
   uint32_t savestatus;                 // ..
   decQuad  zero, billion;              // constants we need as decimal
   decQuad  quad_result, remainder;     // work decimal values
-  int64_t  int64_result;               // ..
-  int64_t  nine_digits;
-  uint8_t  is_negative;
+  uint64_t  int64_result;              // ..
+  uint64_t  nine_digits;
   int      ii, count;
 
 
   // this version is much more limited than the original
   assert(decQuadIsFinite(df));
   assert(decQuadIsInteger(df));
-  assert(!decQuadIsSigned(df));
+
+  *p_overflow = FALSE;
 
   decQuadZero(&zero);                 // make 0E+0
 
   decQuadCopy(&quad_result, df);
 
-  if ((is_negative = decQuadIsSigned(&quad_result))) {
+  if ((*p_is_negative = decQuadIsSigned(&quad_result))) {
     decQuadMinus(&quad_result, &quad_result, set);
   }
 
@@ -189,7 +165,17 @@ int64_t decQuadToInt64(const decQuad *df, decContext *set)
     // since code like toInt32 is very expensive and is zero is comparatively
     // cheap - but it may not be especially likely - hmmm
     if (!decQuadIsZero(&remainder)) {
-      nine_digits = decQuadToInt32(&remainder, set, set->round);
+      nine_digits = (uint64_t)decQuadToInt32(&remainder, set, set->round);
+      if (count >= 2) {
+        if (count > 2 // At least 27 decimal digits have been retrieved, so this overflows 64 bits.
+            || nine_digits > UINT64_TOP_2_DIGITS // At least 18 decimal digits; compare the most significant.
+            || (nine_digits == UINT64_TOP_2_DIGITS && int64_result > UINT64_BOTTOM_18_DIGITS) // Up to 20 digits; compare top two and bottom 18.
+        ) {
+          *p_overflow = TRUE;
+          decQuadZero(&quad_result);
+          break;
+        }
+      }
       for (ii=0; ii<count; ii++) {
         nine_digits *= BILLION;
       }
@@ -200,9 +186,9 @@ int64_t decQuadToInt64(const decQuad *df, decContext *set)
   set->round = saveround;             // restore rounding mode ..
   set->status = savestatus;           // .. and status
 
-  return is_negative ? -int64_result : int64_result;
+  return int64_result;
 
-} // decQuadToInt64
+} // decQuadToUInt64
 
 double decQuadToDouble(const decQuad *dec, decContext *set)
 {
@@ -210,15 +196,12 @@ double decQuadToDouble(const decQuad *dec, decContext *set)
   int64_t value;
   int     exp_base_10, exp_base_2 = 0;
   int     top3_nibbles, shift_nibble, shift;
-  uint8_t is_negative = 0;
+  BOOL is_negative = 0;
+  decQuad mantissa;
+  BOOL overflow;
 
-  ion_quad_get_digits_and_exponent_from_quad(dec, set, &value, &exp_base_10);
-
-  // floating point is sign, magnitude, not 2's complement
-    if (value < 0) {
-      is_negative = 1;
-      value = -value;
-  }
+  ion_quad_get_exponent_and_shift(dec, set, &mantissa, &exp_base_10);
+  value = decQuadToUInt64(&mantissa, set, &overflow, &is_negative);
 
   // shift "value" until we have a sufficiently small number of bits to 
   // fit into the IEEE754 binary float - 64 bit == 53 bit (52 + 1)
