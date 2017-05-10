@@ -85,6 +85,12 @@ iERR _ion_timestamp_get_fraction_with_scale(iTIMESTAMP ptime, int32_t scale,
 iERR _ion_timestamp_equals_helper(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2,
                                   BOOL *is_equal, decContext *pcontext, BOOL instant_only);
 
+/** Compare timestamps for instant equality only (i.e. precision and local offsets need not be equivalent).
+ *  NOTE: if this has any use externally, it could be exposed. If not, it should be removed.
+ */
+iERR ion_timestamp_instant_equals(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2,
+                                  BOOL *is_equal, decContext *pcontext);
+
 #ifdef __cplusplus
 }
 #endif
