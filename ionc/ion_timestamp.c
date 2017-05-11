@@ -951,11 +951,12 @@ iERR _ion_timestamp_to_utc(const ION_TIMESTAMP *ptime, ION_TIMESTAMP *pout) {
 
     int8_t sign;
     uint16_t  min_shift, hour_shift = 0;
+    int16_t offset;
     BOOL needs_day = FALSE;
 
     if (!ptime || !pout) FAILWITH(IERR_INVALID_ARG);
 
-    _ion_timestamp_initialize(pout);
+    offset = ptime->tz_offset;
     pout->year = ptime->year;
     pout->month = ptime->month;
     pout->day = ptime->day;
@@ -967,8 +968,8 @@ iERR _ion_timestamp_to_utc(const ION_TIMESTAMP *ptime, ION_TIMESTAMP *pout) {
     decQuadCopy(&pout->fraction, &ptime->fraction);
 
     if (!HAS_TZ_OFFSET(ptime)) SUCCEED();
-    sign = (int8_t)((ptime->tz_offset < 0) ? -1 : 1);
-    min_shift = (uint16_t)(sign * ptime->tz_offset);
+    sign = (int8_t)((offset < 0) ? -1 : 1);
+    min_shift = (uint16_t)(sign * offset);
 
     if (min_shift >= 60 * 24) {
         // Offsets must have a magnitude of less than one day.
@@ -1067,6 +1068,8 @@ iERR _ion_timestamp_equals_helper(const ION_TIMESTAMP *ptime1, const ION_TIMESTA
         decQuadReduce(&fraction_trimmed2, &ptime2->fraction, pcontext);
         ion_decimal_equals(&fraction_trimmed1, &fraction_trimmed2, pcontext, &decResult);
         if (!decResult) goto is_false;
+        IONCHECK(_ion_timestamp_initialize(&ptime1_compare));
+        IONCHECK(_ion_timestamp_initialize(&ptime2_compare));
         IONCHECK(_ion_timestamp_to_utc(ptime1, &ptime1_compare));
         IONCHECK(_ion_timestamp_to_utc(ptime2, &ptime2_compare));
         if    ((ptime1_compare.year != ptime2_compare.year)
@@ -1305,6 +1308,9 @@ timestamp_is_finished:
     // now we set the "has timezone" bit
     if (has_offset) {
         SET_FLAG_ON(ptime->precision, ION_TT_BIT_TZ);
+        ptime->tz_offset = (int16_t)-offset;
+        IONCHECK(_ion_timestamp_to_utc(ptime, ptime));
+        ptime->tz_offset = (int16_t)offset;
     }
     SUCCEED();
 

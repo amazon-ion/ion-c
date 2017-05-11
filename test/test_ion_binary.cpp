@@ -59,3 +59,38 @@ TEST(IonWriterAddAnnotation, SameInTextAndBinary) {
     ION_ASSERT_OK(read_value_stream_from_bytes(text_data, text_len, &text_stream, NULL));
     assertIonEventStreamEq(&binary_stream, &text_stream, ASSERTION_TYPE_NORMAL);
 }
+
+TEST(IonBinaryTimestampStoredInUTC, WriterConvertsToUTC) {
+    hWRITER writer = NULL;
+    ION_STREAM *ion_stream = NULL;
+    BYTE *result;
+    SIZE result_len;
+    ION_TIMESTAMP timestamp;
+
+    ION_ASSERT_OK(ion_timestamp_for_minute(&timestamp, 2008, 3, 1, 0, 0));
+    ION_ASSERT_OK(ion_timestamp_set_local_offset(&timestamp, 1));
+
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, TRUE));
+    ION_ASSERT_OK(ion_writer_write_timestamp(writer, &timestamp));
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
+
+    // Expected: 2008-02-29T23:59 with offset of +1 minutes.
+    assertBytesEqual("\xE0\x01\x00\xEA\x67\x81\x0F\xD8\x82\x9D\x97\xBB", 12, result, result_len);
+}
+
+TEST(IonBinaryTimestampStoredInUTC, ReaderConvertsFromUTC) {
+    hREADER reader;
+    BYTE *timestamp = (BYTE *)"\xE0\x01\x00\xEA\x67\x81\x0F\xD8\x82\x9D\x97\xBB";
+    ION_TYPE actual_type;
+    ION_TIMESTAMP expected, actual;
+    ION_ASSERT_OK(ion_timestamp_for_minute(&expected, 2008, 3, 1, 0, 0));
+    ION_ASSERT_OK(ion_timestamp_set_local_offset(&expected, 1));
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, timestamp, 12, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &actual_type));
+    ASSERT_EQ(tid_TIMESTAMP, actual_type);
+    ION_ASSERT_OK(ion_reader_read_timestamp(reader, &actual));
+    ION_ASSERT_OK(ion_reader_close(reader));
+
+    ASSERT_TRUE(assertIonTimestampEq(&expected, &actual));
+}

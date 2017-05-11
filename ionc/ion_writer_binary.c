@@ -794,6 +794,7 @@ iERR _ion_writer_binary_write_timestamp_without_fraction_helper(ION_WRITER *pwri
 {
     iENTER;
     ION_STREAM *pstream = pwriter->_typed_writer.binary._value_stream;
+    ION_TIMESTAMP ptime_utc; // Upon UTC conversion, do not overwrite the user input.
 
     ASSERT(pstream != NULL);
 
@@ -805,6 +806,9 @@ iERR _ion_writer_binary_write_timestamp_without_fraction_helper(ION_WRITER *pwri
     // first we write out the local offset (and we write a -0 if it is not known)
     if (HAS_TZ_OFFSET(ptime)) {
         IONCHECK(ion_binary_write_var_int_64(pstream, ptime->tz_offset));
+        IONCHECK(_ion_timestamp_initialize(&ptime_utc));
+        IONCHECK(_ion_timestamp_to_utc(ptime, &ptime_utc)); // Binary timestamps are stored in UTC with local offset intact.
+        ptime = &ptime_utc;
     }
     else {
         ION_PUT( pstream, ION_BINARY_VAR_INT_NEGATIVE_ZERO );
