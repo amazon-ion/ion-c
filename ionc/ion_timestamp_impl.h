@@ -91,6 +91,15 @@ iERR _ion_timestamp_equals_helper(const ION_TIMESTAMP *ptime1, const ION_TIMESTA
 iERR ion_timestamp_instant_equals(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2,
                                   BOOL *is_equal, decContext *pcontext);
 
+/**
+ * Convert ptime to UTC (i.e. the pout's local offset will be +00:00 unless ptime's local offset is unknown,
+ * in which case pout's local offset will be -00:00).
+ * @param ptime - The timestamp to convert to UTC.
+ * @param pout - The resulting UTC timestamp (may be the same reference as ptime).
+ * @return IERR_OK, unless ptime is an invalid timestamp.
+ */
+iERR _ion_timestamp_to_utc(const ION_TIMESTAMP *ptime, ION_TIMESTAMP *pout);
+
 #ifdef __cplusplus
 }
 #endif

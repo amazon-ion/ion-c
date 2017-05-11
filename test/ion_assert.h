@@ -242,4 +242,9 @@ BOOL assertIonEventsEq(IonEventStream *stream_expected, size_t index_expected, I
  */
 BOOL assertIonEventStreamEq(IonEventStream *expected, IonEventStream *actual, ASSERTION_TYPE assertion_type);
 
+/**
+ * Tests that the given bytes are equal.
+ */
+void assertBytesEqual(const char *expected, SIZE expected_len, const BYTE *actual, SIZE actual_len);
+
 #endif
