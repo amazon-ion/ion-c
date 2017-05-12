@@ -48,3 +48,26 @@ iERR ion_string_from_cstr(const char *cstr, ION_STRING *out) {
     out->length = (SIZE)strlen(cstr);
     iRETURN;
 }
+
+iERR ion_test_new_text_reader(const char *ion_text, hREADER *reader) {
+    iENTER;
+
+    size_t buffer_length = strlen(ion_text);
+    BYTE* buffer = (BYTE *)calloc(buffer_length, sizeof(BYTE));
+    memcpy((char *)(&buffer[0]), ion_text, buffer_length);
+
+    ION_READER_OPTIONS options;
+    memset(&options, 0, sizeof(options));
+    options.return_system_values = TRUE;
+
+    IONCHECK(ion_reader_open_buffer(reader, buffer, buffer_length, &options));
+    iRETURN;
+}
+
+iERR ion_read_string_as_chars(hREADER reader, char **out) {
+    iENTER;
+    ION_STRING ion_string;
+    IONCHECK(ion_reader_read_string(reader, &ion_string));
+    *out = ion_string_strdup(&ion_string);
+    iRETURN;
+}

@@ -262,9 +262,10 @@ ION_API_EXPORT iERR ion_timestamp_get_local_offset(ION_TIMESTAMP *ptime, int *p_
 ION_API_EXPORT iERR ion_timestamp_unset_local_offset(ION_TIMESTAMP *ptime);
 
 /**
- * Changes the local offset of a timestamp.
- * Afterwards, ion_timestamp_has_local_offset will be true, and
- * ion_timestamp_get_local_offset will be the given offset..
+ * Changes the local offset of a timestamp. If the timestamp has less than minute precision,
+ * the given offset is ignored and the timestamp is unchanged.
+ * If the timestamp is changed, ion_timestamp_has_local_offset will be true, and
+ * ion_timestamp_get_local_offset will be the given offset.
  *
  * @param ptime the timestamp to alter.
  * @param offset_minutes the new local offset, in (positive or negative)

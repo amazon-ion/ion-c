@@ -853,8 +853,10 @@ iERR ion_timestamp_set_local_offset(ION_TIMESTAMP *ptime, int offset_minutes)
     if (offset_minutes <= -24*60) FAILWITH(IERR_INVALID_ARG);
     if (offset_minutes >=  24*60) FAILWITH(IERR_INVALID_ARG);
 
-    SET_FLAG_ON(ptime->precision, ION_TT_BIT_TZ);
-    ptime->tz_offset = offset_minutes;
+    if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_MIN)) {
+        SET_FLAG_ON(ptime->precision, ION_TT_BIT_TZ);
+        ptime->tz_offset = offset_minutes;
+    }
 
     iRETURN;
 }
@@ -1211,8 +1213,6 @@ iERR ion_timestamp_binary_read(ION_STREAM *stream, int32_t len, decContext *cont
             offset = -offset;
         }
     }
-    // we can store the offset (but we'll need to set the has_timezone flag later
-    ptime->tz_offset = offset;
 
     // right now precision s/b 0 - we'll put values into it as we read fields
     ptime->precision = 0;
@@ -1222,7 +1222,6 @@ iERR ion_timestamp_binary_read(ION_STREAM *stream, int32_t len, decContext *cont
 
     // year is from 0001 to 9999
     // or 0x1 to 0x270F or 14 bits - 1 or 2 bytes
-    //IT_READ_UINT2(ptime->year);
     if (!len--) FAILWITH(IERR_INVALID_BINARY);
     ION_GET(stream, b);
     if (b == EOF) FAILWITH(IERR_INVALID_BINARY);
@@ -1238,17 +1237,21 @@ iERR ion_timestamp_binary_read(ION_STREAM *stream, int32_t len, decContext *cont
     ptime->month = 1;
     ptime->day = 1;
     ptime->precision = ION_TS_YEAR; // our lowest significant option
-    if (len == 0) goto timestamp_is_finished; // WAS: 27 aug 2013 if (len == 0) FAILWITH(IERR_INVALID_BINARY);
+    if (len == 0) {
+        has_offset = FALSE;
+        goto timestamp_is_finished;
+    }
 
-    // IT_READ_UINT1(ptime->month);
     --len;
     ION_GET(stream, b);
     if (b == EOF) FAILWITH(IERR_INVALID_BINARY);
     ptime->month = b & 0x7F;
     SET_FLAG_ON(ptime->precision, ION_TT_BIT_MONTH);
-    if (len == 0) goto timestamp_is_finished; // WAS: 27 aug 2013 if (len == 0) FAILWITH(IERR_INVALID_BINARY);
+    if (len == 0) {
+        has_offset = FALSE;
+        goto timestamp_is_finished;
+    }
 
-    //IT_READ_UINT1(ptime->day);
     ION_GET(stream, b);
     len--;
     if (b == EOF) FAILWITH(IERR_INVALID_BINARY);
@@ -1259,31 +1262,30 @@ iERR ion_timestamp_binary_read(ION_STREAM *stream, int32_t len, decContext *cont
         FAILWITH(IERR_INVALID_BINARY);
     }
 
-    if (len == 0) goto timestamp_is_finished; // WAS: 27 aug 2013 if (len == 0) FAILWITH(IERR_INVALID_BINARY);
+    if (len == 0) {
+        has_offset = FALSE;
+        goto timestamp_is_finished;
+    }
 
     // now we look for hours and minutes
-    //IT_READ_UINT1(ptime->hours);
     ION_GET(stream, b);
     len--;
-    if (b == EOF) FAILWITH(IERR_INVALID_BINARY);
+    if (b == EOF || len == 0) FAILWITH(IERR_INVALID_BINARY);
     ptime->hours = b & 0x7F;
-    if (len == 0) goto timestamp_is_finished; // WAS: 27 aug 2013 if (len == 0) FAILWITH(IERR_INVALID_BINARY);
 
-    //IT_READ_UINT1(ptime->minutes);
     ION_GET(stream, b);
     len--;
     if (b == EOF) FAILWITH(IERR_INVALID_BINARY);
     ptime->minutes = b & 0x7F;
     SET_FLAG_ON(ptime->precision, ION_TT_BIT_MIN);
-    if (len == 0) goto timestamp_is_finished; // WAS: 27 aug 2013 if (len == 0) FAILWITH(IERR_INVALID_BINARY);
+    if (len == 0) goto timestamp_is_finished;
 
-    //IT_READ_UINT1(ptime->seconds);
     ION_GET(stream, b);
     len--;
     if (b == EOF) FAILWITH(IERR_INVALID_BINARY);
     ptime->seconds = b & 0x7F;
     SET_FLAG_ON(ptime->precision, ION_TT_BIT_SEC);
-    if (len == 0) goto timestamp_is_finished; // WAS: 27 aug 2013 if (len == 0) FAILWITH(IERR_INVALID_BINARY);
+    if (len == 0) goto timestamp_is_finished;
 
     // now we read in our actual "milliseconds since the epoch"
     IONCHECK(ion_binary_read_decimal(stream, len, context, &ptime->fraction));
