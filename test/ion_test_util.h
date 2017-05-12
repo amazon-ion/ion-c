@@ -46,4 +46,21 @@ iERR ion_test_writer_get_bytes(hWRITER writer, ION_STREAM *ion_stream, BYTE **ou
  */
 iERR ion_string_from_cstr(const char *cstr, ION_STRING *out);
 
+/**
+ * Initializes and opens a new in-memory reader over the given string of Ion text.
+ * @param ion_text - the Ion text to read.
+ * @param reader - the reader to initialize and open.
+ * @return IERR_OK, unless the reader fails to open.
+ */
+iERR ion_test_new_text_reader(const char *ion_text, hREADER *reader);
+
+/**
+ * Reads the Ion string at the given reader's current position and assigns its contents
+ * to a char *.
+ * @param reader - the reader from which to read the string.
+ * @param out - output parameter for the copied string.
+ * @return IERR_OK, unless the read or the copy fails.
+ */
+iERR ion_read_string_as_chars(hREADER reader, char **out);
+
 #endif //IONC_ION_TEST_UTIL_H
