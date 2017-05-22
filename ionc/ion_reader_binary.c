@@ -521,7 +521,7 @@ iERR _ion_reader_binary_has_annotation(ION_READER *preader, ION_STRING *annotati
     binary = &preader->typed_reader.binary;
 
     // now translate the users string into a local sid (since they gave us a string
-    IONCHECK(_ion_symbol_table_local_find_by_name(preader->_current_symtab, annotation, &user_sid, NULL));
+    IONCHECK(_ion_symbol_table_local_find_by_name(preader->_current_symtab, annotation, &user_sid, NULL, FALSE));
     if (user_sid == UNKNOWN_SID) {
         goto return_value;
     }
@@ -595,6 +595,18 @@ iERR _ion_reader_binary_get_an_annotation_sid(ION_READER *preader, int32_t idx, 
     iRETURN;
 }
 
+iERR _ion_reader_binary_string_copy_or_null(ION_READER *preader, ION_STRING *dst, ION_STRING *src)
+{
+    iENTER;
+    if (src) {
+        IONCHECK(ion_string_copy_to_owner(preader->_temp_entity_pool, dst, src));
+    }
+    else {
+        ION_STRING_INIT(dst);
+    }
+    iRETURN;
+}
+
 iERR _ion_reader_binary_get_an_annotation(ION_READER *preader, int32_t idx, ION_STRING *p_str)
 {
     iENTER;
@@ -603,14 +615,13 @@ iERR _ion_reader_binary_get_an_annotation(ION_READER *preader, int32_t idx, ION_
 
     ASSERT(preader && preader->type == ion_type_binary_reader);
     ASSERT(p_str != NULL);
-    
-    
+
+
     IONCHECK(_ion_reader_binary_get_an_annotation_sid(preader, idx, &sid));
     if (sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
-        
-        
+
     IONCHECK(_ion_symbol_table_find_by_sid_helper(preader->_current_symtab, sid, &pstr));
-    IONCHECK(ion_string_copy_to_owner(preader->_temp_entity_pool, p_str, pstr));
+    IONCHECK(_ion_reader_binary_string_copy_or_null(preader, p_str, pstr));
 
     iRETURN;
 }
@@ -640,8 +651,9 @@ iERR _ion_reader_binary_get_annotations(ION_READER *preader, ION_STRING *p_annot
         ION_COLLECTION_NEXT(cursor, psid);
         if (!psid) break;
         if ((*psid) <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
+
         IONCHECK(_ion_symbol_table_find_by_sid_helper(preader->_current_symtab, *psid, &pstr));
-        IONCHECK(ion_string_copy_to_owner(preader->_temp_entity_pool, &p_annotations[ii], pstr));
+        IONCHECK(_ion_reader_binary_string_copy_or_null(preader, &p_annotations[ii], pstr));
     }
 
     ION_COLLECTION_CLOSE(cursor);
@@ -700,6 +712,7 @@ iERR _ion_reader_binary_get_field_name(ION_READER *preader, ION_STRING **p_pstr)
     if (binary->_in_struct) {
         if (binary->_value_field_id <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
         if (preader->_current_symtab == NULL)       FAILWITH(IERR_INVALID_STATE);
+
         IONCHECK(_ion_symbol_table_find_by_sid_helper(preader->_current_symtab, binary->_value_field_id, p_pstr));
     }
     else {
@@ -719,9 +732,8 @@ iERR _ion_reader_binary_get_field_sid(ION_READER *preader, SID *p_sid)
 
     binary = &preader->typed_reader.binary;
 
-    if (binary->_value_field_id <= UNKNOWN_SID) {
-        //FAILWITH(IERR_INVALID_STATE);
-        SUCCEED();
+    if (binary->_value_field_id <= UNKNOWN_SID && binary->_in_struct) {
+        FAILWITH(IERR_INVALID_STATE);
     }
 
     *p_sid = binary->_value_field_id;
@@ -1209,7 +1221,7 @@ iERR _ion_reader_binary_read_string(ION_READER *preader, ION_STRING *p_str)
             IONCHECK(_ion_reader_binary_read_symbol_sid(preader, &sid));
             if (sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
             IONCHECK(_ion_symbol_table_find_by_sid_helper(preader->_current_symtab, sid, &pstr));
-            IONCHECK(ion_string_copy_to_owner(preader->_temp_entity_pool, p_str, pstr));
+            IONCHECK(_ion_reader_binary_string_copy_or_null(preader, p_str, pstr));
         }
         else {
             FAILWITH(IERR_INVALID_STATE);

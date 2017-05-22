@@ -216,28 +216,44 @@ iERR _ion_symbol_table_get_system_symbol_helper(ION_SYMBOL_TABLE **pp_system_tab
     iRETURN;
 }
 
+void* smallLocalAllocationBlock(char *block, SIZE alloc_size)
+{
+    ION_ALLOCATION_CHAIN *new_block = (ION_ALLOCATION_CHAIN*)block;
+
+    new_block->size     = alloc_size;
+
+    new_block->next     = NULL;
+    new_block->head     = NULL;
+
+    new_block->position = ION_ALLOC_BLOCK_TO_USER_PTR(new_block);
+    new_block->limit    = ((BYTE*)new_block) + alloc_size;
+
+    return new_block->position;
+}
+
+#define kIonSymbolZeroMemorySize (sizeof(ION_ALLOCATION_CHAIN) + sizeof(ION_SYMBOL))
+static char gSymbolZeroMemory[kIonSymbolZeroMemorySize];
+
+// TODO safe initialization. There is nothing thread-safe about this. See _ion_symbol_table_get_system_symbol_helper
+// for another instance of the same problem.
+static ION_SYMBOL *symbol_zero = NULL;
+void _ion_symbol_table_get_symbol_zero(ION_SYMBOL **p_symbol_zero)
+{
+    ASSERT(p_symbol_zero);
+    if (!symbol_zero) {
+        symbol_zero = (ION_SYMBOL *)smallLocalAllocationBlock(gSymbolZeroMemory, kIonSymbolZeroMemorySize);
+        symbol_zero->value = ION_SYMBOL_ZERO_STRING;
+        symbol_zero->add_count++;
+        symbol_zero->psymtab = NULL; // TODO is this allowed?
+        symbol_zero->sid = 0;
+    }
+    *p_symbol_zero = symbol_zero;
+}
+
 
 // currently the system symbol table uses 1304 bytes or so
 #define kIonSystemSymbolMemorySize 2048
 static char gSystemSymbolMemory[kIonSystemSymbolMemorySize];
-
-void* smallLocalAllocationBlock();
-void* smallLocalAllocationBlock()
-{
-    ION_ALLOCATION_CHAIN *new_block = (ION_ALLOCATION_CHAIN*)gSystemSymbolMemory;
-    SIZE                  alloc_size = kIonSystemSymbolMemorySize;
-    
-    new_block->size     = alloc_size;
-    
-    new_block->next     = NULL;
-    new_block->head     = NULL;
-    
-    new_block->position = ION_ALLOC_BLOCK_TO_USER_PTR(new_block);
-    new_block->limit    = ((BYTE*)new_block) + alloc_size;
-    
-    return new_block->position;
-}
-
 
 // HACK - hate this
 iERR _ion_symbol_table_local_make_system_symbol_table_helper(int32_t version)
@@ -250,7 +266,7 @@ iERR _ion_symbol_table_local_make_system_symbol_table_helper(int32_t version)
     ASSERT(p_system_symbol_table_version_1 == NULL);
     
     // need a SMALL block for the system symbol table
-    sysBlock = smallLocalAllocationBlock();
+    sysBlock = smallLocalAllocationBlock(gSystemSymbolMemory, kIonSystemSymbolMemorySize);
     
     IONCHECK(_ion_symbol_table_open_helper(&psymtab, sysBlock, NULL));
 
@@ -258,15 +274,15 @@ iERR _ion_symbol_table_local_make_system_symbol_table_helper(int32_t version)
     ION_STRING_ASSIGN(&psymtab->name, &ION_SYMBOL_ION_STRING);
     psymtab->system_symbol_table = psymtab; // the system symbol table is it's own system symbol table (hmmm)
 
-    IONCHECK(_ion_symbol_table_add_symbol_and_sid_helper(psymtab, &ION_SYMBOL_ION_STRING, ION_SYS_SID_ION, psymtab));
-    IONCHECK(_ion_symbol_table_add_symbol_and_sid_helper(psymtab, &ION_SYMBOL_VTM_STRING, ION_SYS_SID_IVM, psymtab));
-    IONCHECK(_ion_symbol_table_add_symbol_and_sid_helper(psymtab, &ION_SYMBOL_SYMBOL_TABLE_STRING, ION_SYS_SID_SYMBOL_TABLE, psymtab));
-    IONCHECK(_ion_symbol_table_add_symbol_and_sid_helper(psymtab, &ION_SYMBOL_NAME_STRING, ION_SYS_SID_NAME, psymtab));
-    IONCHECK(_ion_symbol_table_add_symbol_and_sid_helper(psymtab, &ION_SYMBOL_VERSION_STRING, ION_SYS_SID_VERSION, psymtab));
-    IONCHECK(_ion_symbol_table_add_symbol_and_sid_helper(psymtab, &ION_SYMBOL_IMPORTS_STRING, ION_SYS_SID_IMPORTS, psymtab));
-    IONCHECK(_ion_symbol_table_add_symbol_and_sid_helper(psymtab, &ION_SYMBOL_SYMBOLS_STRING, ION_SYS_SID_SYMBOLS, psymtab));
-    IONCHECK(_ion_symbol_table_add_symbol_and_sid_helper(psymtab, &ION_SYMBOL_MAX_ID_STRING, ION_SYS_SID_MAX_ID, psymtab));
-    IONCHECK(_ion_symbol_table_add_symbol_and_sid_helper(psymtab, &ION_SYMBOL_SHARED_SYMBOL_TABLE_STRING, ION_SYS_SID_SHARED_SYMBOL_TABLE, psymtab));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_ION_STRING, ION_SYS_SID_ION, psymtab, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_VTM_STRING, ION_SYS_SID_IVM, psymtab, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_SYMBOL_TABLE_STRING, ION_SYS_SID_SYMBOL_TABLE, psymtab, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_NAME_STRING, ION_SYS_SID_NAME, psymtab, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_VERSION_STRING, ION_SYS_SID_VERSION, psymtab, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_IMPORTS_STRING, ION_SYS_SID_IMPORTS, psymtab, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_SYMBOLS_STRING, ION_SYS_SID_SYMBOLS, psymtab, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_MAX_ID_STRING, ION_SYS_SID_MAX_ID, psymtab, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_SHARED_SYMBOL_TABLE_STRING, ION_SYS_SID_SHARED_SYMBOL_TABLE, psymtab, NULL));
 
     IONCHECK(_ion_symbol_table_lock_helper(psymtab));
 
@@ -1142,7 +1158,8 @@ iERR _ion_symbol_table_local_incorporate_symbols(ION_SYMBOL_TABLE *symtab, ION_S
     iRETURN;
 }
 
-iERR _ion_symbol_table_local_find_by_name(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym)
+iERR _ion_symbol_table_local_find_by_name(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym,
+                                          BOOL symbol_identifiers_as_sids)
 {
     iENTER;
     ION_COLLECTION_CURSOR   symbol_cursor;
@@ -1158,6 +1175,33 @@ iERR _ion_symbol_table_local_find_by_name(ION_SYMBOL_TABLE *symtab, ION_STRING *
     ASSERT(symtab);
     ASSERT(p_sid != NULL);
 
+    if (symbol_identifiers_as_sids && name->value[0] == '$' && name->length > 1) {
+        sid = 0;
+        for (ii=1; ii<name->length; ii++) {
+            c = name->value[ii];
+            if (c < '0' || c > '9') {
+                goto not_system_symbol;
+            }
+            sid *= 10;
+            sid += c - '0';
+        }
+        if (sid == 0) {
+            // SID 0 is not in any symbol table, but is available in all symbol table contexts.
+            _ion_symbol_table_get_symbol_zero(&sym);
+            goto done;
+        }
+        IONCHECK(_ion_symbol_table_local_find_by_sid(symtab, sid, &sym));
+        if (!sym) {
+            IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system_table, ION_SYSTEM_VERSION));
+            IONCHECK(_ion_symbol_table_local_find_by_sid(system_table, sid, &sym));
+            if (!sym) {
+                FAILWITH(IERR_INVALID_SYMBOL); // The requested SID is out of range for the current symtab context.
+            }
+        }
+        goto done;
+    }
+
+not_system_symbol:
     if (!INDEX_IS_ACTIVE(symtab) && symtab->max_id > DEFAULT_INDEX_BUILD_THRESHOLD) {
         IONCHECK(_ion_symbol_table_initialize_indices_helper(symtab));
     }
@@ -1178,33 +1222,9 @@ iERR _ion_symbol_table_local_find_by_name(ION_SYMBOL_TABLE *symtab, ION_STRING *
         ION_COLLECTION_CLOSE(symbol_cursor);
 
     }
-    // if we didn't find it when we tried to look it up, see if it's one
-    // of the "$<int> symbols
+
     if (sym) {
         sid = sym->sid;
-    }
-    else if (name->value[0] == '$' && name->length > 1) {
-        sid = 0;
-        for (ii=1; ii<name->length; ii++) {
-            c = name->value[ii];
-            if (c < '0' || c > '9') {
-                sid = UNKNOWN_SID;
-                goto done;
-            }
-            sid *= 10;
-            sid += c - '0';
-        }
-        if (sid == 0) {
-            goto done;
-        }
-        IONCHECK(_ion_symbol_table_local_find_by_sid(symtab, sid, &sym));
-        if (!sym) {
-            IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system_table, ION_SYSTEM_VERSION));
-            IONCHECK(_ion_symbol_table_local_find_by_sid(system_table, sid, &sym));
-            if (!sym) {
-                FAILWITH(IERR_INVALID_SYMBOL); // The requested SID is out of range for the current symtab context.
-            }
-        }
     }
     else {
         sid = UNKNOWN_SID;
@@ -1230,7 +1250,7 @@ iERR ion_symbol_table_find_by_name(hSYMTAB hsymtab, iSTRING name, SID *p_sid)
     symtab = HANDLE_TO_PTR(hsymtab, ION_SYMBOL_TABLE);
 
     // if we were to delegate: IONCHECK(_ion_symbol_table_find_by_name_helper(symtab, name, p_sid));
-    IONCHECK(_ion_symbol_table_local_find_by_name(symtab, name, p_sid, NULL));
+    IONCHECK(_ion_symbol_table_local_find_by_name(symtab, name, p_sid, NULL, FALSE));
 
     iRETURN;
 }
@@ -1340,7 +1360,7 @@ iERR ion_symbol_table_find_by_sid(hSYMTAB hsymtab, SID sid, iSTRING *p_name)
     if (p_name == NULL)     FAILWITH(IERR_INVALID_ARG);
 
     if (sid == UNKNOWN_SID) {
-        p_name = NULL;
+        *p_name = NULL;
     }
     else {
         symtab = HANDLE_TO_PTR(hsymtab, ION_SYMBOL_TABLE);
@@ -1371,9 +1391,28 @@ iERR _ion_symbol_table_find_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID sid, ION
         SUCCEED();
     }
 
-    // we didn't find it - make a scratch string with the $<int> form of the name
+    iRETURN;
+}
+
+iERR _ion_symbol_table_get_unknown_symbol_name(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name)
+{
+    iENTER;
+    int32_t                  len;
+    ION_STRING              *str;
+    char                     temp[1 + MAX_INT32_LENGTH + 1]; // '$' <int> '\0'
+
+    ASSERT(symtab != NULL);
+    ASSERT(p_name != NULL);
+    ASSERT(sid > UNKNOWN_SID);
+    ASSERT(*p_name == NULL);
+
+    if (sid > symtab->by_id_max) {
+        FAILWITHMSG(IERR_INVALID_SYMBOL, "Symbol ID out of range for the current symbol table context.");
+    }
+    // A symbol name was not found, but the SID is within range for the current symbol table context -
+    // make a symbol identifier of the form $<int> to represent the name
     temp[0] = '$';
-    len = (int32_t)strlen(_ion_itoa_10(sid, temp + 1, sizeof(temp)-1)) + 1; // we're writing into the 2nd byte
+    len = (int32_t) strlen(_ion_itoa_10(sid, temp + 1, sizeof(temp) - 1)) + 1; // we're writing into the 2nd byte
     str = ion_alloc_with_owner(symtab->owner, sizeof(ION_STRING));
     if (!str) FAILWITH(IERR_NO_MEMORY);
     str->length = len;
@@ -1381,7 +1420,22 @@ iERR _ion_symbol_table_find_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID sid, ION
     if (!str->value) FAILWITH(IERR_NO_MEMORY);
     memcpy(str->value, temp, len);
     *p_name = str;
+    iRETURN;
+}
 
+/**
+ * Retrieve the text for the given SID. If the text is unknown, return a symbol identifier in the form $<int>.
+ */
+iERR _ion_symbol_table_find_by_sid_force(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name)
+{
+    iENTER;
+
+    ASSERT(p_name != NULL);
+
+    IONCHECK(_ion_symbol_table_find_by_sid_helper(symtab, sid, p_name));
+    if (*p_name == NULL) {
+        IONCHECK(_ion_symbol_table_get_unknown_symbol_name(symtab, sid, p_name));
+    }
     iRETURN;
 }
 
@@ -1410,7 +1464,6 @@ iERR _ion_symbol_table_is_symbol_known_helper(ION_SYMBOL_TABLE *symtab, SID sid,
     ASSERT(p_is_known != NULL);
     IONCHECK(_ion_symbol_table_find_by_sid_helper(symtab, sid, &pname));
 
-    // TODO is this ever FALSE? Also should succeed on IERR_UNKNOWN_SYMBOL
     *p_is_known = (pname != NULL);
 
     iRETURN;
@@ -1467,12 +1520,12 @@ iERR ion_symbol_table_add_symbol(hSYMTAB hsymtab, iSTRING name, SID *p_sid)
 
     symtab = HANDLE_TO_PTR(hsymtab, ION_SYMBOL_TABLE);
 
-    IONCHECK(_ion_symbol_table_add_symbol_helper(symtab, name, p_sid));
+    IONCHECK(_ion_symbol_table_add_symbol_helper(symtab, name, p_sid, FALSE));
 
     iRETURN;
 }
 
-iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid)
+iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, BOOL parse_symbol_identifiers)
 {
     iENTER;
     SID         sid;
@@ -1481,8 +1534,7 @@ iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *n
     ASSERT(symtab != NULL);
     ASSERT(!ION_STRING_IS_NULL(name));
 
-    // with delegate: IONCHECK(_ion_symbol_table_find_by_name_helper(symtab, name, &temp_sid));
-    IONCHECK(_ion_symbol_table_local_find_by_name(symtab, name, &sid, &sym));
+    IONCHECK(_ion_symbol_table_local_find_by_name(symtab, name, &sid, &sym, parse_symbol_identifiers));
     if (sid == UNKNOWN_SID) {
         // make sure it's really ok to add new symbols
         if (symtab->is_locked) FAILWITH(IERR_IS_IMMUTABLE);
@@ -1510,7 +1562,7 @@ iERR _ion_symbol_table_add_symbol_and_sid_helper(ION_SYMBOL_TABLE *symtab, ION_S
 
     if (symtab->is_locked) FAILWITH(IERR_IS_IMMUTABLE);
 
-    IONCHECK(_ion_symbol_table_local_find_by_name(symtab, name, &temp_sid, NULL));
+    IONCHECK(_ion_symbol_table_local_find_by_name(symtab, name, &temp_sid, NULL, FALSE));
     if (temp_sid == sid) {
         // we found the name and the sid matches, it's all good.
         SUCCEED();
@@ -1601,30 +1653,37 @@ iERR _ion_symbol_table_close_helper(ION_SYMBOL_TABLE *symtab)
 // these are helpers for validating symbols for a variety of purposes
 // especially to handle cstr vs ion_string at the user boundary
 //
-BOOL _ion_symbol_needs_quotes_string(ION_STRING *p_str)
-{
-    if (!p_str || !p_str->value) return FALSE;
-    return _ion_symbol_needs_quotes_cstr_length((char *)p_str->value, p_str->length);
-}
 
-BOOL _ion_symbol_needs_quotes_cstr(char *cp)
+BOOL _ion_symbol_needs_quotes(ION_STRING *p_str, BOOL system_identifiers_need_quotes)
 {
-    SIZE len;
-    if (!cp) return FALSE;
-    len = strlen(cp);       // yuck
-    return _ion_symbol_needs_quotes_cstr_length(cp, len);
-}
-
-BOOL _ion_symbol_needs_quotes_cstr_length(char *cp, SIZE length)
-{
-    char *start, *limit;
+    char *start, *limit, *cp;
     BOOL  is_possible_keyword = FALSE;
+    SIZE length;
 
-    if (!cp) return FALSE;
+    if (!p_str || !p_str->value) return FALSE;
+
+    cp = (char *)p_str->value;
+    length = p_str->length;
+
     if (length < 1) return TRUE;
 
     start = cp;
     limit = cp + length;
+
+    if (*cp == '$' && system_identifiers_need_quotes) {
+        if (length >= 4 && memcmp(start, "$ion", 4) == 0) {
+            // Symbols beginning with $ion* are reserved and must be quoted if provided by a user.
+            return TRUE;
+        }
+        while (++cp < limit) {
+             is_possible_keyword = '0' <= *cp <= '9';
+        }
+        if (is_possible_keyword) {
+            // Symbol identifiers (of the form $<int>) are reserved and must be quoted if provided by a user.
+            return TRUE;
+        }
+        cp = start;
+    }
 
     // check the first character for $, _, or alpha
     switch(*cp) {

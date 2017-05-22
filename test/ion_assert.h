@@ -247,4 +247,9 @@ BOOL assertIonEventStreamEq(IonEventStream *expected, IonEventStream *actual, AS
  */
 void assertBytesEqual(const char *expected, SIZE expected_len, const BYTE *actual, SIZE actual_len);
 
+/**
+ * Tests that the given strings are equal.
+ */
+void assertStringsEqual(const char *expected, const char *actual, SIZE actual_len);
+
 #endif

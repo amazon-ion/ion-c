@@ -53,10 +53,9 @@ struct _ion_symbol_table_import
 };
 
 // "locals" in ion_symbol_table.c
-iERR _ion_symbol_table_local_find_by_name(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym);
-BOOL _ion_symbol_needs_quotes_string(ION_STRING *p_str);
-BOOL _ion_symbol_needs_quotes_cstr(char *cp);
-BOOL _ion_symbol_needs_quotes_cstr_length(char *cp, SIZE length);
+iERR _ion_symbol_table_local_find_by_name(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym,
+                                          BOOL symbol_identifiers_as_sids);
+BOOL _ion_symbol_needs_quotes(ION_STRING *p_str, BOOL system_identifiers_need_quotes);
 
 // internal (pointer based helpers) functions for symbol tables (in ion_symbol_table.c)
 iERR _ion_symbol_table_open_helper(ION_SYMBOL_TABLE **p_psymtab, hOWNER owner, ION_SYMBOL_TABLE *psystem);
@@ -80,8 +79,10 @@ iERR _ion_symbol_table_get_imports_helper(ION_SYMBOL_TABLE *symtab, ION_COLLECTI
 iERR _ion_symbol_table_add_import_helper(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE_IMPORT *pimport, ION_CATALOG *pcatalog);
 // with delegation use: iERR _ion_symbol_table_find_by_name_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid);
 iERR _ion_symbol_table_find_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name);
+iERR _ion_symbol_table_get_unknown_symbol_name(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name);
+iERR _ion_symbol_table_find_by_sid_force(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name);
 iERR _ion_symbol_table_is_symbol_known_helper(ION_SYMBOL_TABLE *symtab, SID sid, BOOL *p_is_known);
-iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid);
+iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, BOOL parse_symbol_identifiers);
 iERR _ion_symbol_table_add_symbol_and_sid_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID sid, ION_SYMBOL_TABLE *symbol_owning_table);
 iERR _ion_symbol_table_close_helper(ION_SYMBOL_TABLE *symtab);
 

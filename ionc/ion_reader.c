@@ -872,6 +872,28 @@ iERR _ion_reader_get_an_annotation_helper(ION_READER *preader, int32_t idx, ION_
     iRETURN;
 }
 
+// TODO make public?
+iERR _ion_reader_get_an_annotation_sid_helper(ION_READER *preader, int32_t idx, SID *p_sid)
+{
+    iENTER;
+
+    ASSERT(preader);
+
+    switch(preader->type) {
+        case ion_type_text_reader:
+        IONCHECK(_ion_reader_text_get_an_annotation_sid(preader, idx, p_sid));
+            break;
+        case ion_type_binary_reader:
+        IONCHECK(_ion_reader_binary_get_an_annotation_sid(preader, idx, p_sid));
+            break;
+        case ion_type_unknown_reader:
+        default:
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    iRETURN;
+}
+
 iERR ion_reader_is_null(hREADER hreader, BOOL *p_is_null)
 {
     iENTER;
@@ -901,6 +923,32 @@ iERR _ion_reader_is_null_helper(ION_READER *preader, BOOL *p_is_null)
         IONCHECK(_ion_reader_binary_is_null(preader, p_is_null));
         break;
     }
+
+    iRETURN;
+}
+
+iERR ion_reader_is_in_struct(hREADER hreader, BOOL *p_is_in_struct)
+{
+    iENTER;
+    BOOL is_in_struct;
+    ION_READER *preader;
+
+    if (!hreader) FAILWITH(IERR_INVALID_ARG);
+    preader = HANDLE_TO_PTR(hreader, ION_READER);
+    if (!p_is_in_struct)   FAILWITH(IERR_INVALID_ARG);
+
+    switch(preader->type) {
+    case ion_type_text_reader:
+        is_in_struct = preader->typed_reader.text._current_container == tid_STRUCT;
+        break;
+    case ion_type_binary_reader:
+        is_in_struct = preader->typed_reader.binary._in_struct;
+        break;
+    default:
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    *p_is_in_struct = is_in_struct;
 
     iRETURN;
 }
@@ -1478,13 +1526,8 @@ iERR ion_reader_read_string(hREADER hreader, iSTRING p_value)
     if (!p_value) FAILWITH(IERR_INVALID_ARG);
 
     IONCHECK(_ion_reader_read_string_helper(preader, &str));
-    if (ION_STRING_IS_NULL(&str)) {
-        FAILWITH(IERR_NULL_VALUE);
-    }
-    else {
-        ION_STRING_ASSIGN(p_value, &str);
-    }
-
+    // TODO guarantee that only symbol values can be ION_STRING_IS_NULL
+    ION_STRING_ASSIGN(p_value, &str);
     iRETURN;
 }
 

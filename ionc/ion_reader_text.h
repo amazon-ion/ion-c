@@ -302,6 +302,7 @@ iERR _ion_reader_text_has_any_annotations       (ION_READER *preader, BOOL *p_ha
 iERR _ion_reader_text_has_annotation            (ION_READER *preader, ION_STRING *annotation, BOOL *p_annotation_found);
 iERR _ion_reader_text_get_annotation_count      (ION_READER *preader, int32_t *p_count);
 iERR _ion_reader_text_get_an_annotation         (ION_READER *preader, int32_t idx, ION_STRING *p_str);
+iERR _ion_reader_text_get_an_annotation_sid     (ION_READER *preader, int32_t idx, SID *p_sid);
 iERR _ion_reader_text_get_field_name            (ION_READER *preader, ION_STRING **p_pstr);
 iERR _ion_reader_text_get_symbol_table          (ION_READER *preader, ION_SYMBOL_TABLE **p_return);
 iERR _ion_reader_text_get_field_sid             (ION_READER *preader, SID *p_sid);

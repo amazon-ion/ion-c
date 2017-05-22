@@ -225,7 +225,7 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
     // write field name
     if (pwriter->_in_struct) {
         IONCHECK(_ion_writer_get_field_name_as_string_helper(pwriter, &str));
-        IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii));
+        IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii, pwriter->field_name_type == tid_STRING));
         ION_TEXT_WRITER_APPEND_CHAR(':');
         IONCHECK(_ion_writer_clear_field_name_helper(pwriter));
     }
@@ -235,7 +235,7 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
     if (count > 0) {
         for (ii=0; ii<count; ii++) {
             IONCHECK(_ion_writer_get_annotation_as_string_helper(pwriter, ii, &str));
-            IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii));
+            IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii, pwriter->annotations_type == tid_STRING));
             ION_TEXT_WRITER_APPEND_CHAR(':');
             ION_TEXT_WRITER_APPEND_CHAR(':');
         }
@@ -590,7 +590,7 @@ iERR _ion_writer_text_write_timestamp(ION_WRITER *pwriter, iTIMESTAMP value)
 iERR _ion_writer_text_write_symbol_id(ION_WRITER *pwriter, SID sid)
 {
     iENTER;
-    ION_STRING       *pstr;
+    ION_STRING       *pstr = NULL;
     ION_SYMBOL_TABLE *symtab;
     ION_STREAM       *poutput;
     SIZE              written;
@@ -598,11 +598,11 @@ iERR _ion_writer_text_write_symbol_id(ION_WRITER *pwriter, SID sid)
     ASSERT(pwriter);
 
     // bad, very bad: ION_STRING_INIT(&pstr);
-
+    // TODO FAIL if the given SID is out of range of the current symtab context
     // if they passed us a reasonable sid we'll look it up (otherwise str will still be null)
     if (sid != UNKNOWN_SID) {
         IONCHECK(_ion_writer_get_symbol_table_helper(pwriter, &symtab));
-        IONCHECK(_ion_symbol_table_find_by_sid_helper(symtab, sid, &pstr));
+        IONCHECK(_ion_symbol_table_find_by_sid_force(symtab, sid, &pstr));
     }
 
     if (!pstr || !pstr->value) {
@@ -617,7 +617,7 @@ iERR _ion_writer_text_write_symbol_id(ION_WRITER *pwriter, SID sid)
         IONCHECK(_ion_writer_text_start_value(pwriter));
 
         // write the symbol with, or without, quotes (and escaping) as appropriate
-        if (_ion_symbol_needs_quotes_string(pstr)) {
+        if (_ion_symbol_needs_quotes(pstr, FALSE)) {
             ION_PUT(poutput, '\'');
             if (pwriter->options.escape_all_non_ascii) {
                 IONCHECK(_ion_writer_text_append_escaped_string(poutput, pstr, '"'));
@@ -658,7 +658,7 @@ iERR _ion_writer_text_write_symbol(ION_WRITER *pwriter, iSTRING pstr)
 
         IONCHECK(_ion_writer_text_start_value(pwriter));
 
-        if (_ion_symbol_needs_quotes_string(pstr)) {
+        if (_ion_symbol_needs_quotes(pstr, TRUE)) {
             ION_PUT(poutput, '\'');
             if (pwriter->options.escape_all_non_ascii) {
                 IONCHECK(_ion_writer_text_append_escaped_string(poutput, pstr, '\''));
@@ -1054,7 +1054,7 @@ iERR _ion_writer_text_close(ION_WRITER *pwriter)
     iRETURN;
 }
 
-iERR _ion_writer_text_append_symbol_string(ION_STREAM *poutput, ION_STRING *p_str, BOOL as_ascii)
+iERR _ion_writer_text_append_symbol_string(ION_STREAM *poutput, ION_STRING *p_str, BOOL as_ascii, BOOL system_identifiers_need_quotes)
 {
     iENTER;
     SIZE written;
@@ -1063,7 +1063,7 @@ iERR _ion_writer_text_append_symbol_string(ION_STREAM *poutput, ION_STRING *p_st
     if (!p_str) FAILWITH(IERR_INVALID_ARG);
     if (p_str->length < 0) FAILWITH(IERR_INVALID_ARG);
 
-    if (_ion_symbol_needs_quotes_string(p_str)) {
+    if (_ion_symbol_needs_quotes(p_str, system_identifiers_need_quotes)) {
         ION_PUT(poutput, '\'');
         if (as_ascii) {
             IONCHECK(_ion_writer_text_append_escaped_string(poutput, p_str, '\''));

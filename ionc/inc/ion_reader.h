@@ -300,6 +300,7 @@ ION_API_EXPORT iERR ion_reader_get_type            (hREADER hreader, ION_TYPE *p
 ION_API_EXPORT iERR ion_reader_has_any_annotations (hREADER hreader, BOOL *p_has_any_annotations);
 ION_API_EXPORT iERR ion_reader_has_annotation      (hREADER hreader, iSTRING annotation, BOOL *p_annotation_found);
 ION_API_EXPORT iERR ion_reader_is_null             (hREADER hreader, BOOL *p_is_null);
+ION_API_EXPORT iERR ion_reader_is_in_struct        (hREADER preader, BOOL *p_is_in_struct);
 ION_API_EXPORT iERR ion_reader_get_field_name      (hREADER hreader, iSTRING p_str);
 ION_API_EXPORT iERR ion_reader_get_field_sid       (hREADER hreader, SID *p_sid);
 ION_API_EXPORT iERR ion_reader_get_annotations     (hREADER hreader, iSTRING p_strs, SIZE max_count, SIZE *p_count);

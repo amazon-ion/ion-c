@@ -56,7 +56,6 @@ typedef enum _ION_SYMBOL_TABLE_TYPE {
 
 #define ION_SYS_SYMBOL_MAX_ID_UNDEFINED    -1
 
-#define ION_SYS_SID_UNKNOWN                0 /* not necessarily NULL */
 #define ION_SYS_SID_ION                    1 /* "$ion" */
 #define ION_SYS_SID_IVM                    2 /* "$ion_1_0"  aka ion type marker */
 #define ION_SYS_SID_SYMBOL_TABLE           3 /* "$ion_symbol_table" */
@@ -67,6 +66,7 @@ typedef enum _ION_SYMBOL_TABLE_TYPE {
 #define ION_SYS_SID_MAX_ID                 8 /* "max_id" */
 #define ION_SYS_SID_SHARED_SYMBOL_TABLE    9 /* "$ion_shared_symbol_table" */
 
+#define ION_SYS_STRLEN_ZERO                 2 /* "$0" */
 #define ION_SYS_STRLEN_ION                  4 /* "$ion" */
 #define ION_SYS_STRLEN_IVM                  8 /* "$ion_1_0" */
 #define ION_SYS_STRLEN_SYMBOL_TABLE        17 /* "$ion_symbol_table" */
@@ -76,6 +76,11 @@ typedef enum _ION_SYMBOL_TABLE_TYPE {
 #define ION_SYS_STRLEN_SYMBOLS              7 /* "symbols" */
 #define ION_SYS_STRLEN_MAX_ID               6 /* "max_id" */
 
+GLOBAL BYTE ION_SYMBOL_ZERO_BYTES[]
+#ifdef INIT_STATICS
+= { '$', '0', 0 }
+#endif
+;
 GLOBAL BYTE ION_SYMBOL_ION_BYTES[]
 #ifdef INIT_STATICS
 = { '$', 'i', 'o', 'n', 0 }
@@ -124,6 +129,14 @@ GLOBAL BYTE ION_SYMBOL_SHARED_SYMBOL_TABLE_BYTES[]
 ;
 
 
+GLOBAL ION_STRING ION_SYMBOL_ZERO_STRING
+#ifdef INIT_STATICS
+= {
+    ION_SYS_STRLEN_ZERO,
+    ION_SYMBOL_ZERO_BYTES
+}
+#endif
+;
 GLOBAL ION_STRING ION_SYMBOL_ION_STRING
 #ifdef INIT_STATICS
 = {

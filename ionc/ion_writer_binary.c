@@ -228,7 +228,7 @@ iERR _ion_writer_binary_start_value(ION_WRITER *pwriter, int value_length)
     // write field name
     if (pwriter->_in_struct) {
         IONCHECK( _ion_writer_get_field_name_as_sid_helper(pwriter, &sid));
-        if (sid < 1) FAILWITH(IERR_INVALID_STATE);
+        if (sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_STATE);
         IONCHECK( ion_binary_write_var_uint_64( ostream, sid ));
         IONCHECK( _ion_writer_clear_field_name_helper(pwriter));
     }
@@ -1010,7 +1010,9 @@ iERR _ion_writer_binary_write_symbol_id(ION_WRITER *pwriter, SID sid)
     // Write symbol type descriptor and int value out and patch lens.
     IONCHECK( _ion_writer_binary_start_value( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
     ION_PUT( pwriter->_typed_writer.binary._value_stream, makeTypeDescriptor(TID_SYMBOL, len));
-    IONCHECK( ion_binary_write_uint_64( pwriter->_typed_writer.binary._value_stream, sid ));
+    if (sid > 0) {
+        IONCHECK(ion_binary_write_uint_64(pwriter->_typed_writer.binary._value_stream, sid));
+    }
     IONCHECK( _ion_writer_binary_patch_lengths( pwriter, len + ION_BINARY_TYPE_DESC_LENGTH ));
 
     iRETURN;

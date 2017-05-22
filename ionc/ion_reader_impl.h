@@ -59,7 +59,7 @@ typedef struct _ion_reader_text
      *  to field name buffer length.
      *
      */
-    ION_STRING            _field_name;
+    ION_SYMBOL            _field_name;
     BYTE                 *_field_name_buffer;
     SIZE                  _field_name_buffer_length;
     
@@ -71,7 +71,7 @@ typedef struct _ion_reader_text
      *
      */
     SIZE                  _annotation_count;               // number of annotations on this value
-    ION_STRING           *_annotation_string_pool;         // preallocated set of ION_STRING to hold annotations
+    ION_SYMBOL           *_annotation_string_pool;         // preallocated set of ION_STRING to hold annotations
     SIZE                  _annotation_string_pool_length;  // max number of annotations, size of string pool as count
     BYTE                 *_annotation_value_next;          // position in annotation value buffer for the next annotation value
     BYTE                 *_annotation_value_buffer;        // preallocate buffer to hold all annotation character for all annotations of the current value
@@ -210,6 +210,7 @@ iERR _ion_reader_has_any_annotations_helper(ION_READER *preader, BOOL *p_has_ann
 iERR _ion_reader_has_annotation_helper(ION_READER *preader, ION_STRING *annotation, BOOL *p_annotation_found);
 iERR _ion_reader_get_annotation_count_helper(ION_READER *preader, int32_t *p_count);
 iERR _ion_reader_get_an_annotation_helper(ION_READER *preader, int32_t idx, ION_STRING *p_str);
+iERR _ion_reader_get_an_annotation_sid_helper(ION_READER *preader, int32_t idx, SID *p_sid);
 iERR _ion_reader_is_null_helper(ION_READER *preader, BOOL *p_is_null);
 iERR _ion_reader_get_field_name_helper(ION_READER *preader, ION_STRING **p_pstr);
 iERR _ion_reader_get_field_sid_helper(ION_READER *preader, SID *p_sid);
@@ -275,6 +276,7 @@ iERR _ion_reader_binary_has_any_annotations (ION_READER *preader, BOOL *p_has_an
 iERR _ion_reader_binary_has_annotation      (ION_READER *preader, iSTRING annotation, BOOL *p_annotation_found);
 iERR _ion_reader_binary_get_annotation_count(ION_READER *preader, int32_t *p_count);
 iERR _ion_reader_binary_get_an_annotation   (ION_READER *preader, int32_t idx, ION_STRING *p_str);
+iERR _ion_reader_binary_get_an_annotation_sid(ION_READER *preader, int32_t idx, SID *p_sid);
 
 iERR _ion_reader_binary_get_field_name     (ION_READER *preader, ION_STRING **pstr);
 iERR _ion_reader_binary_get_field_sid      (ION_READER *preader, SID *p_sid);
