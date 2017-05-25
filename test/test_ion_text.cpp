@@ -314,3 +314,177 @@ TEST(IonTextSymbol, WriterWriteAllValuesPreservesSymbolZero) {
     ion_test_write_all_values_from_binary(result, result_len, &result, &result_len, TRUE);
     assertBytesEqual((const char *)ion_binary, ion_binary_size, result + result_len - ion_binary_size, ion_binary_size);
 }
+
+TEST(IonTextSymbol, WriterWritesSymbolValueIVMTextAsNoOp) {
+    hWRITER writer = NULL;
+    ION_STREAM *ion_stream = NULL;
+    BYTE *result;
+    SIZE result_len;
+    ION_STRING ivm_text;
+
+    ION_ASSERT_OK(ion_string_from_cstr("$ion_1_0", &ivm_text));
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, FALSE));
+
+    ION_ASSERT_OK(ion_writer_write_int(writer, 123));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &ivm_text)); // This is a no-op.
+    ION_ASSERT_OK(ion_writer_write_int(writer, 456));
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 2)); // This is a no-op.
+    ION_ASSERT_OK(ion_writer_write_int(writer, 789));
+
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
+
+    assertStringsEqual("123\n456\n789", (char *)result, result_len);
+}
+
+TEST(IonTextSymbol, ReaderReadsSymbolValueIVM) {
+    // Asserts that '$ion_1_0' is not treated as an IVM or as a symbol value. If it were treated as an IVM, $10 would
+    // error for being out of range of the symbol table context. If it were treated as a symbol value, the call to
+    // ion_reader_read_string would return $ion_1_0, not foo.
+    const char *ion_text = "$ion_symbol_table::{symbols:[\"foo\"]} '$ion_1_0' $10";
+    hREADER reader;
+    ION_TYPE type;
+    ION_STRING result;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &result));
+    assertStringsEqual("foo", (char *)result.value, result.length);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonTextSymbol, ReaderReadsSymbolValueTrueIVM) {
+    // Asserts that $ion_1_0 is treated as an IVM -- it resets the symbol table context. Reading $10 fails because
+    // it is out of range.
+    const char *ion_text = "$ion_symbol_table::{symbols:[\"foo\"]} $ion_1_0 $10";
+    hREADER reader;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_reader_next(reader, &type));
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonTextSymbol, ReaderReadsSymbolValueAnnotatedIVM) {
+    // Asserts that annotated::$ion_1_0 is not treated as an IVM, but is treated as a symbol value. If it were treated
+    // as an IVM, $10 would error for being out of range of the symbol table context.
+    const char *ion_text = "$ion_symbol_table::{symbols:[\"foo\"]} annotated::$ion_1_0 $10";
+    hREADER reader;
+    ION_TYPE type;
+    SID sid;
+    SIZE annot_count;
+    ION_STRING annot, result;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ASSERT_EQ(2, sid);
+    ION_ASSERT_OK(ion_reader_get_annotation_count(reader, &annot_count));
+    ASSERT_EQ(1, annot_count);
+    ION_ASSERT_OK(ion_reader_get_an_annotation(reader, 0, &annot));
+    assertStringsEqual("annotated", (char *)annot.value, annot.length);
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &result));
+    assertStringsEqual("foo", (char *)result.value, result.length);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonTextSymbol, ReaderReadsSymbolValueIVMFromSID) {
+    // Asserts that $2 is not treated as an IVM or as a symbol value. If it were treated as an IVM, $10 would error
+    // for being out of range of the symbol table context. If it were treated as a symbol value, the call to
+    // ion_reader_read_string would return $ion_1_0, not foo.
+    const char *ion_text = "$ion_symbol_table::{symbols:[\"foo\"]} $2 $10";
+    hREADER reader;
+    ION_TYPE type;
+    ION_STRING result;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &result));
+    assertStringsEqual("foo", (char *)result.value, result.length);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonTextSymbol, WriterWritesKeywordsAsQuotedSymbols) {
+    hWRITER writer = NULL;
+    ION_STREAM *ion_stream = NULL;
+    BYTE *result;
+    SIZE result_len;
+    ION_STRING str_false, str_true, str_nan;
+    ion_string_from_cstr("false", &str_false);
+    ion_string_from_cstr("true", &str_true);
+    ion_string_from_cstr("nan", &str_nan);
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, FALSE));
+
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &str_false));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &str_true));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &str_nan));
+
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
+
+    assertStringsEqual("'false'\n'true'\n'nan'", (char *)result, result_len);
+}
+
+TEST(IonTextSymbol, ReaderChoosesLowestSIDForDuplicateSymbol) {
+    // Asserts that the reader and symbol table work together to make sure by-name symbol queries return the lowest
+    // possible SID for symbols declared multiple times. At the same time, all by-ID queries should return the correct
+    // text.
+    const char *ion_text = "$ion_symbol_table::{symbols:[\"name\"]} name $10";
+    hREADER reader;
+    ION_TYPE type;
+    ION_STRING result, *lookup;
+    SID sid;
+    ION_SYMBOL_TABLE *symbol_table;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ASSERT_EQ(4, sid); // SID 4 maps to "name" in the system symbol table.
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &result));
+    assertStringsEqual("name", (char *)result.value, result.length);
+    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ASSERT_EQ(10, sid); // SID 10 was explicitly declared.
+
+    ION_ASSERT_OK(ion_reader_get_symbol_table(reader, &symbol_table));
+    ION_ASSERT_OK(ion_symbol_table_find_by_name(symbol_table, &result, &sid));
+    ASSERT_EQ(4, sid);
+    ION_ASSERT_OK(ion_symbol_table_find_by_sid(symbol_table, 4, &lookup));
+    assertStringsEqual("name", (char *)lookup->value, lookup->length);
+    ION_ASSERT_OK(ion_symbol_table_find_by_sid(symbol_table, 10, &lookup));
+    assertStringsEqual("name", (char *)lookup->value, lookup->length);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonTextSymbol, WriterWriteAllValuesPreservesSymbolKeywords) {
+    const char *ion_text = "{'false':'true'::'nan'}";
+    const BYTE *ion_binary = (BYTE *)"\xD6\x8B\xE4\x81\x8C\x71\x0A";
+    const SIZE ion_binary_size = 7;
+
+    BYTE *result = NULL;
+    SIZE result_len;
+
+    ion_test_write_all_values_from_text(ion_text, &result, &result_len, FALSE);
+    assertStringsEqual(ion_text, (char *)result, result_len);
+
+    ion_test_write_all_values_from_text(ion_text, &result, &result_len, TRUE);
+    assertBytesEqual((const char *)ion_binary, ion_binary_size, result + result_len - ion_binary_size, ion_binary_size);
+
+    ion_test_write_all_values_from_binary(result, result_len, &result, &result_len, FALSE);
+    assertStringsEqual(ion_text, (char *)result, result_len);
+
+    ion_test_write_all_values_from_text(ion_text, &result, &result_len, TRUE);
+    ion_test_write_all_values_from_binary(result, result_len, &result, &result_len, TRUE);
+    assertBytesEqual((const char *)ion_binary, ion_binary_size, result + result_len - ion_binary_size, ion_binary_size);
+}

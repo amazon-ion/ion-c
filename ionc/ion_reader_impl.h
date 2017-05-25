@@ -139,6 +139,7 @@ typedef struct _ion_reader_binary
     int64_t         _value_start;
     ION_TYPE        _value_type;
     SID             _value_field_id;
+    SID             _value_symbol_id; // The SID of the pending symbol value.
     int             _value_tid;
     int32_t         _value_len;
 
@@ -293,6 +294,7 @@ iERR _ion_reader_binary_read_double         (ION_READER *preader, double *p_valu
 iERR _ion_reader_binary_read_decimal        (ION_READER *preader, decQuad *p_value);
 iERR _ion_reader_binary_read_timestamp      (ION_READER *preader, iTIMESTAMP p_value);
 iERR _ion_reader_binary_read_symbol_sid     (ION_READER *preader, SID *p_value);
+iERR _ion_reader_binary_read_symbol_sid_helper(ION_READER *preader, ION_BINARY_READER *binary, SID *p_value);
 
 iERR _ion_reader_binary_get_string_length   (ION_READER *preader, SIZE *p_length);
 iERR _ion_reader_binary_read_string_bytes   (ION_READER *preader, BOOL accept_partial, BYTE *p_buf, SIZE buf_max, SIZE *p_length);

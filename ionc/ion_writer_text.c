@@ -587,70 +587,17 @@ iERR _ion_writer_text_write_timestamp(ION_WRITER *pwriter, iTIMESTAMP value)
     iRETURN;
 }
 
-iERR _ion_writer_text_write_symbol_id(ION_WRITER *pwriter, SID sid)
-{
-    iENTER;
-    ION_STRING       *pstr = NULL;
-    ION_SYMBOL_TABLE *symtab;
-    ION_STREAM       *poutput;
-    SIZE              written;
-
-    ASSERT(pwriter);
-
-    // bad, very bad: ION_STRING_INIT(&pstr);
-    // TODO FAIL if the given SID is out of range of the current symtab context
-    // if they passed us a reasonable sid we'll look it up (otherwise str will still be null)
-    if (sid != UNKNOWN_SID) {
-        IONCHECK(_ion_writer_get_symbol_table_helper(pwriter, &symtab));
-        IONCHECK(_ion_symbol_table_find_by_sid_force(symtab, sid, &pstr));
-    }
-
-    if (!pstr || !pstr->value) {
-        // no buffer, this is a null string, so that's what we'll output
-        if (pstr->length != 0) FAILWITH(IERR_INVALID_ARG);
-        IONCHECK(_ion_writer_text_write_typed_null(pwriter, tid_SYMBOL));
-    }
-    else {
-        ASSERT(pstr->length >= 0);
-        poutput = pwriter->output;
-
-        IONCHECK(_ion_writer_text_start_value(pwriter));
-
-        // write the symbol with, or without, quotes (and escaping) as appropriate
-        if (_ion_symbol_needs_quotes(pstr, FALSE)) {
-            ION_PUT(poutput, '\'');
-            if (pwriter->options.escape_all_non_ascii) {
-                IONCHECK(_ion_writer_text_append_escaped_string(poutput, pstr, '"'));
-            }
-            else {
-                IONCHECK(_ion_writer_text_append_escaped_string_utf8(poutput, pstr, '"'));
-            }
-            ION_PUT(poutput, '\'');
-        }
-        else {
-            // no quotes means no escapes means we get to write the bytes out as is
-            IONCHECK(ion_stream_write(poutput, pstr->value, pstr->length, &written));
-            if (written != pstr->length) FAILWITH(IERR_WRITE_ERROR);
-        }
-        IONCHECK(_ion_writer_text_close_value(pwriter));
-    }
-
-    iRETURN;
-}
-
-iERR _ion_writer_text_write_symbol(ION_WRITER *pwriter, iSTRING pstr)
+iERR _ion_writer_text_write_symbol_from_string(ION_WRITER *pwriter, ION_STRING *pstr, BOOL symbol_identifiers_need_quotes)
 {
     iENTER;
     ION_STREAM *poutput;
-    SIZE        written;
+    SIZE written;
 
-    if (!pwriter) FAILWITH(IERR_BAD_HANDLE);
-
-    if (!pstr || !pstr->value) {
-        // no buffer, this is a null symbol, so that's what we'll output
-        if (pstr->length != 0) FAILWITH(IERR_INVALID_ARG);
-
-        IONCHECK(_ion_writer_text_write_typed_null(pwriter, tid_SYMBOL));
+    if (pwriter->depth == 0 && pwriter->annotation_count == 0 && pstr->value[0] == '$'
+        && pstr->length == ION_SYS_STRLEN_IVM
+        && memcmp(pstr->value, ION_SYS_SYMBOL_IVM, ION_SYS_STRLEN_IVM) == 0) {
+        // The text $ion_1_0 is reserved for the IVM. This is a no-op.
+        SUCCEED();
     }
     else {
         if (pstr->length < 0) FAILWITH(IERR_INVALID_ARG);
@@ -658,7 +605,8 @@ iERR _ion_writer_text_write_symbol(ION_WRITER *pwriter, iSTRING pstr)
 
         IONCHECK(_ion_writer_text_start_value(pwriter));
 
-        if (_ion_symbol_needs_quotes(pstr, TRUE)) {
+        // write the symbol with, or without, quotes (and escaping) as appropriate
+        if (_ion_symbol_needs_quotes(pstr, symbol_identifiers_need_quotes)) {
             ION_PUT(poutput, '\'');
             if (pwriter->options.escape_all_non_ascii) {
                 IONCHECK(_ion_writer_text_append_escaped_string(poutput, pstr, '\''));
@@ -669,11 +617,55 @@ iERR _ion_writer_text_write_symbol(ION_WRITER *pwriter, iSTRING pstr)
             ION_PUT(poutput, '\'');
         }
         else {
+            // no quotes means no escapes means we get to write the bytes out as is
             IONCHECK(ion_stream_write(poutput, pstr->value, pstr->length, &written));
             if (written != pstr->length) FAILWITH(IERR_WRITE_ERROR);
         }
 
         IONCHECK(_ion_writer_text_close_value(pwriter));
+    }
+    iRETURN;
+}
+
+iERR _ion_writer_text_write_symbol_id(ION_WRITER *pwriter, SID sid)
+{
+    iENTER;
+    ION_STRING       *pstr = NULL;
+    ION_SYMBOL_TABLE *symtab;
+
+    ASSERT(pwriter);
+
+    // if they passed us a reasonable sid we'll look it up (otherwise str will still be null)
+    if (sid != UNKNOWN_SID) {
+        IONCHECK(_ion_writer_get_symbol_table_helper(pwriter, &symtab));
+        if (sid > symtab->max_id) {
+            FAILWITHMSG(IERR_INVALID_SYMBOL, "Attempted to write out-of-range symbol ID.");
+        }
+        IONCHECK(_ion_symbol_table_find_by_sid_force(symtab, sid, &pstr));
+    }
+
+    // Even symbols with unknown text will now have a string value (e.g. $10). Out-of-range (illegal) symbols have
+    // already raised an error.
+    ASSERT(!ION_STRING_IS_NULL(pstr));
+    IONCHECK(_ion_writer_text_write_symbol_from_string(pwriter, pstr, FALSE));
+
+    iRETURN;
+}
+
+iERR _ion_writer_text_write_symbol(ION_WRITER *pwriter, iSTRING pstr)
+{
+    iENTER;
+
+    if (!pwriter) FAILWITH(IERR_BAD_HANDLE);
+
+    if (ION_STRING_IS_NULL(pstr)) {
+        // no buffer, this is a null symbol, so that's what we'll output
+        if (pstr->length != 0) FAILWITH(IERR_INVALID_ARG);
+
+        IONCHECK(_ion_writer_text_write_typed_null(pwriter, tid_SYMBOL));
+    }
+    else {
+        IONCHECK(_ion_writer_text_write_symbol_from_string(pwriter, pstr, TRUE));
     }
 
     iRETURN;

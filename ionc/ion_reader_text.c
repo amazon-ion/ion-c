@@ -396,7 +396,7 @@ iERR _ion_reader_text_load_fieldname(ION_READER *preader, ION_SUB_TYPE *p_ist)
 
         text->_field_name.value.value = text->_field_name_buffer;
         IONCHECK(_ion_reader_text_intern_symbol(preader, &text->_field_name.value, &sym, ist != IST_SYMBOL_QUOTED));
-        ION_STRING_ASSIGN(&text->_field_name.value, &sym->value); // TODO is a copy actually necessary here?
+        ION_STRING_ASSIGN(&text->_field_name.value, &sym->value);
         text->_field_name.sid = sym->sid;
         text->_field_name.psymtab = sym->psymtab;
         text->_field_name.add_count = sym->add_count;
@@ -496,6 +496,16 @@ iERR _ion_reader_text_load_utas(ION_READER *preader, ION_SUB_TYPE *p_ist)
                 text->_scanner._value_image.value = text->_scanner._value_buffer;
                 text->_scanner._value_location = SVL_VALUE_IMAGE;
                 IONCHECK(_ion_reader_text_intern_symbol_value(preader, &sym, ist != IST_SYMBOL_QUOTED));
+                if (preader->_depth == 0 && text->_annotation_count == 0
+                    && ION_STRING_EQUALS(&ION_SYMBOL_VTM_STRING, &sym->value)
+                    && (ist == IST_SYMBOL_QUOTED // e.g. '$ion_1_0'
+                        || !ION_STRING_EQUALS(&ION_SYMBOL_VTM_STRING, &text->_scanner._value_image)) // e.g. $2
+                ) {
+                    // This is an unannotated symbol value with the text $ion_1_0, but encoded in a peculiar way
+                    // (as a quoted symbol or through a symbol identifier). This is treated as a NOP system symbol.
+                    // Continue to the next value.
+                    continue;
+                }
                 break;
             }
 
@@ -1776,6 +1786,11 @@ iERR _ion_reader_text_read_string(ION_READER *preader, ION_STRING *p_user_str)
         }
     }
     else {
+        if (ION_STRING_IS_NULL(user_str)) {
+            // Attempting to read null.string with this API is an error. Note that when the underlying value is a
+            // symbol, a null ION_STRING may be returned to represent a symbol with unknown text.
+            FAILWITH(IERR_NULL_VALUE);
+        }
         ION_STRING_ASSIGN(p_user_str, user_str);
     }
 

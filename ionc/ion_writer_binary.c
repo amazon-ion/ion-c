@@ -1004,6 +1004,9 @@ iERR _ion_writer_binary_write_string(ION_WRITER *pwriter, ION_STRING *pstr )
 iERR _ion_writer_binary_write_symbol_id(ION_WRITER *pwriter, SID sid)
 {
     iENTER;
+    if (sid == ION_SYS_SID_IVM && pwriter->depth == 0 && pwriter->annotation_count == 0) {
+        SUCCEED(); // At the top level, writing a symbol value that looks like the IVM is a no-op.
+    }
     int  len = ion_binary_len_uint_64(sid);
     ASSERT( len < ION_lnIsVarLen );
 

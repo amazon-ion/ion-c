@@ -307,6 +307,7 @@ ION_API_EXPORT iERR ion_reader_get_annotations     (hREADER hreader, iSTRING p_s
 ION_API_EXPORT iERR ion_reader_get_annotation_sids (hREADER hreader, SID *p_sids, SIZE max_count, SIZE *p_count);
 ION_API_EXPORT iERR ion_reader_get_annotation_count(hREADER hreader, SIZE *p_count);
 ION_API_EXPORT iERR ion_reader_get_an_annotation   (hREADER hreader, int idx, iSTRING p_strs);
+ION_API_EXPORT iERR ion_reader_get_an_annotation_sid(hREADER hreader, int idx, SID *p_sid);
 ION_API_EXPORT iERR ion_reader_read_null           (hREADER hreader, ION_TYPE *p_value);
 ION_API_EXPORT iERR ion_reader_read_bool           (hREADER hreader, BOOL *p_value);
 

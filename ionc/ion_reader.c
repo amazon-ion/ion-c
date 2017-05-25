@@ -872,7 +872,22 @@ iERR _ion_reader_get_an_annotation_helper(ION_READER *preader, int32_t idx, ION_
     iRETURN;
 }
 
-// TODO make public?
+iERR ion_reader_get_an_annotation_sid(hREADER hreader, int idx, SID *p_sid)
+{
+    iENTER;
+    ION_READER *preader;
+
+    if (!hreader) FAILWITH(IERR_INVALID_ARG);
+    preader = HANDLE_TO_PTR(hreader, ION_READER);
+    if (idx < 0) FAILWITH(IERR_INVALID_ARG);
+    if (!p_sid) FAILWITH(IERR_INVALID_ARG);
+
+
+    IONCHECK(_ion_reader_get_an_annotation_sid_helper(preader, idx, p_sid));
+
+    iRETURN;
+}
+
 iERR _ion_reader_get_an_annotation_sid_helper(ION_READER *preader, int32_t idx, SID *p_sid)
 {
     iENTER;
@@ -1526,7 +1541,6 @@ iERR ion_reader_read_string(hREADER hreader, iSTRING p_value)
     if (!p_value) FAILWITH(IERR_INVALID_ARG);
 
     IONCHECK(_ion_reader_read_string_helper(preader, &str));
-    // TODO guarantee that only symbol values can be ION_STRING_IS_NULL
     ION_STRING_ASSIGN(p_value, &str);
     iRETURN;
 }

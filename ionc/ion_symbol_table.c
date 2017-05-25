@@ -244,7 +244,7 @@ void _ion_symbol_table_get_symbol_zero(ION_SYMBOL **p_symbol_zero)
         symbol_zero = (ION_SYMBOL *)smallLocalAllocationBlock(gSymbolZeroMemory, kIonSymbolZeroMemorySize);
         symbol_zero->value = ION_SYMBOL_ZERO_STRING;
         symbol_zero->add_count++;
-        symbol_zero->psymtab = NULL; // TODO is this allowed?
+        symbol_zero->psymtab = NULL;
         symbol_zero->sid = 0;
     }
     *p_symbol_zero = symbol_zero;
@@ -1180,7 +1180,7 @@ iERR _ion_symbol_table_local_find_by_name(ION_SYMBOL_TABLE *symtab, ION_STRING *
         for (ii=1; ii<name->length; ii++) {
             c = name->value[ii];
             if (c < '0' || c > '9') {
-                goto not_system_symbol;
+                goto not_symbol_identifier;
             }
             sid *= 10;
             sid += c - '0';
@@ -1201,7 +1201,8 @@ iERR _ion_symbol_table_local_find_by_name(ION_SYMBOL_TABLE *symtab, ION_STRING *
         goto done;
     }
 
-not_system_symbol:
+not_symbol_identifier:
+
     if (!INDEX_IS_ACTIVE(symtab) && symtab->max_id > DEFAULT_INDEX_BUILD_THRESHOLD) {
         IONCHECK(_ion_symbol_table_initialize_indices_helper(symtab));
     }
@@ -1373,15 +1374,11 @@ iERR ion_symbol_table_find_by_sid(hSYMTAB hsymtab, SID sid, iSTRING *p_name)
 iERR _ion_symbol_table_find_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name)
 {
     iENTER;
-    int32_t                  len;
-    ION_STRING              *str;
     ION_SYMBOL              *sym;
-    char                     temp[1 + MAX_INT32_LENGTH + 1]; // '$' <int> '\0'
 
     ASSERT(symtab != NULL);
     ASSERT(p_name != NULL);
     ASSERT(sid > UNKNOWN_SID);
-//    ASSERT(symtab->system_symbol_table != NULL);
 
     *p_name = NULL;
     
@@ -1520,12 +1517,12 @@ iERR ion_symbol_table_add_symbol(hSYMTAB hsymtab, iSTRING name, SID *p_sid)
 
     symtab = HANDLE_TO_PTR(hsymtab, ION_SYMBOL_TABLE);
 
-    IONCHECK(_ion_symbol_table_add_symbol_helper(symtab, name, p_sid, FALSE));
+    IONCHECK(_ion_symbol_table_add_symbol_helper(symtab, name, p_sid));
 
     iRETURN;
 }
 
-iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, BOOL parse_symbol_identifiers)
+iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid)
 {
     iENTER;
     SID         sid;
@@ -1534,7 +1531,7 @@ iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *n
     ASSERT(symtab != NULL);
     ASSERT(!ION_STRING_IS_NULL(name));
 
-    IONCHECK(_ion_symbol_table_local_find_by_name(symtab, name, &sid, &sym, parse_symbol_identifiers));
+    IONCHECK(_ion_symbol_table_local_find_by_name(symtab, name, &sid, &sym, FALSE));
     if (sid == UNKNOWN_SID) {
         // make sure it's really ok to add new symbols
         if (symtab->is_locked) FAILWITH(IERR_IS_IMMUTABLE);
@@ -1654,7 +1651,7 @@ iERR _ion_symbol_table_close_helper(ION_SYMBOL_TABLE *symtab)
 // especially to handle cstr vs ion_string at the user boundary
 //
 
-BOOL _ion_symbol_needs_quotes(ION_STRING *p_str, BOOL system_identifiers_need_quotes)
+BOOL _ion_symbol_needs_quotes(ION_STRING *p_str, BOOL symbol_identifiers_need_quotes)
 {
     char *start, *limit, *cp;
     BOOL  is_possible_keyword = FALSE;
@@ -1670,19 +1667,21 @@ BOOL _ion_symbol_needs_quotes(ION_STRING *p_str, BOOL system_identifiers_need_qu
     start = cp;
     limit = cp + length;
 
-    if (*cp == '$' && system_identifiers_need_quotes) {
-        if (length >= 4 && memcmp(start, "$ion", 4) == 0) {
-            // Symbols beginning with $ion* are reserved and must be quoted if provided by a user.
-            return TRUE;
+    if (*cp == '$') {
+        if (symbol_identifiers_need_quotes) {
+            while (++cp < limit) {
+                if (*cp < '0' || *cp > '9') {
+                    is_possible_keyword = FALSE;
+                    break;
+                }
+                is_possible_keyword = TRUE;
+            }
+            if (is_possible_keyword) {
+                // Symbol identifiers (of the form $<int>) are reserved and must be quoted if provided by a user.
+                return TRUE;
+            }
+            cp = start;
         }
-        while (++cp < limit) {
-             is_possible_keyword = '0' <= *cp <= '9';
-        }
-        if (is_possible_keyword) {
-            // Symbol identifiers (of the form $<int>) are reserved and must be quoted if provided by a user.
-            return TRUE;
-        }
-        cp = start;
     }
 
     // check the first character for $, _, or alpha
@@ -1868,7 +1867,13 @@ iERR _ion_symbol_table_initialize_indices_helper(ION_SYMBOL_TABLE *symtab)
             ION_COLLECTION_NEXT(symbol_cursor, sym);
             if (!sym) break;
             symtab->by_id[sym->sid] = sym;
-            IONCHECK(_ion_index_insert(&symtab->by_name, sym, sym));
+            err = _ion_index_insert(&symtab->by_name, sym, sym);
+            if (err == IERR_KEY_ALREADY_EXISTS) {
+                // This symbol has previously been declared. That's fine; when accessed by name, the SID from the first
+                // declaration (i.e. the lowest SID) will be returned. This is consistent with the spec.
+                err = IERR_OK;
+            }
+            IONCHECK(err);
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
     }

@@ -1398,7 +1398,7 @@ iERR _ion_writer_start_container_helper(ION_WRITER *pwriter, ION_TYPE container_
     default:
         FAILWITH(IERR_INVALID_ARG);
     }
-
+    pwriter->depth++;
     iRETURN;
 }
 
@@ -1431,7 +1431,7 @@ iERR _ion_writer_finish_container_helper(ION_WRITER *pwriter)
     default:
         FAILWITH(IERR_INVALID_ARG);
     }
-
+    pwriter->depth--;
     iRETURN;
 }
 
@@ -1825,7 +1825,7 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
 
     // we'll remember what the top symbol is to see if add_symbol changes it
     old_max_id = psymtab->max_id;
-    IONCHECK( _ion_symbol_table_add_symbol_helper( psymtab, pstr, &sid, FALSE));
+    IONCHECK( _ion_symbol_table_add_symbol_helper( psymtab, pstr, &sid));
 
     // see if this symbol ended up changing the symbol list (if it already
     // was present the max_id doesn't change and we don't reuse 

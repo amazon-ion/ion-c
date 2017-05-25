@@ -270,3 +270,76 @@ TEST(IonBinarySymbol, ReaderReadsSymbolValueZeroAsSID) {
     ION_ASSERT_OK(ion_symbol_table_find_by_sid(symbol_table, 0, &symbol_value));
     ASSERT_TRUE(ION_STRING_IS_NULL(symbol_value));
 }
+
+TEST(IonBinarySymbol, WriterWritesSymbolValueIVM) {
+    hWRITER writer = NULL;
+    ION_STREAM *ion_stream = NULL;
+    BYTE *result;
+    SIZE result_len;
+    ION_STRING ivm_text;
+
+    ION_ASSERT_OK(ion_string_from_cstr("$ion_1_0", &ivm_text));
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, TRUE));
+
+    ION_ASSERT_OK(ion_writer_write_int(writer, 0));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &ivm_text)); // This is a no-op.
+    ION_ASSERT_OK(ion_writer_write_int(writer, 1));
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 2)); // This is a no-op.
+    ION_ASSERT_OK(ion_writer_write_int(writer, 2));
+
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
+
+    assertBytesEqual("\xE0\x01\x00\xEA\x20\x21\x01\x21\x02", 9, result, result_len);
+}
+
+TEST(IonBinarySymbol, ReaderReadsSymbolValueIVMNoOpAtEOF) {
+    hREADER reader;
+    BYTE *data = (BYTE *)"\xE0\x01\x00\xEA\x71\x02";
+    ION_TYPE actual_type;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, 6, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &actual_type));
+    ASSERT_EQ(tid_EOF, actual_type);
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonBinarySymbol, ReaderReadsSymbolValueIVMNoOp) {
+    hREADER reader;
+    BYTE *data = (BYTE *)"\xE0\x01\x00\xEA\x71\x02\x71\x04";
+    ION_TYPE actual_type;
+    SID sid;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, 8, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &actual_type));
+    ASSERT_EQ(tid_SYMBOL, actual_type);
+    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ASSERT_EQ(4, sid);
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonBinarySymbol, ReaderReadsIVMInsideAnnotationWrapper) {
+    hREADER reader;
+    BYTE *data = (BYTE *)"\xE0\x01\x00\xEA\xE4\x81\x84\x71\x02";
+    ION_TYPE actual_type;
+    SID sid;
+    ION_STRING annotation;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, 9, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &actual_type));
+    ASSERT_EQ(tid_SYMBOL, actual_type);
+    ION_ASSERT_OK(ion_reader_get_an_annotation(reader, 0, &annotation));
+    assertStringsEqual("name", (char *)annotation.value, annotation.length); // SID 4 is "name"
+    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ASSERT_EQ(2, sid);
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonBinarySymbol, ReaderReadsNullSymbol) {
+    hREADER reader;
+    BYTE *data = (BYTE *) "\xE0\x01\x00\xEA\x7F";
+    BOOL is_null;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, 5, NULL));
+    ASSERT_TRUE(ion_reader_is_null(reader, &is_null));
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
