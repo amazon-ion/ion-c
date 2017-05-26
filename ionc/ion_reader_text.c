@@ -178,30 +178,6 @@ iERR _ion_reader_text_reset_value(ION_READER *preader)
     iRETURN;
 }
 
-iERR _ion_reader_text_set_symbol_table(ION_READER *preader, ION_SYMBOL_TABLE *symtab)
-{
-    iENTER;
-    ION_TEXT_READER  *text = &preader->typed_reader.text;
-    ION_SYMBOL_TABLE *clone, *system;
-
-    ASSERT(preader);
-    ASSERT(preader->type == ion_type_text_reader);
-    ASSERT(symtab);
-    
-    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-
-    if (symtab != NULL && symtab != system && symtab->owner != preader)
-    {
-        IONCHECK(_ion_symbol_table_clone_with_owner_helper(&clone, symtab, preader, system));
-        symtab = clone;
-    }
-
-    preader->_current_symtab = symtab;
-    SUCCEED();
-
-    iRETURN;
-}
-
 iERR _ion_reader_text_close(ION_READER *preader)
 {
     iENTER;
@@ -602,8 +578,6 @@ iERR _ion_reader_text_check_for_system_values_to_skip_or_process(ION_READER *pre
                     // we clear out any previous local symbol table and set the symbol
                     // table to be the appropriate system symbol table
                     IONCHECK(_ion_reader_reset_local_symbol_table(preader));
-                    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-                    preader->_current_symtab = system;
                     is_system_value = TRUE;
                 }
             }
@@ -619,6 +593,7 @@ iERR _ion_reader_text_check_for_system_values_to_skip_or_process(ION_READER *pre
         
         // TODO - this should be done with flags set while we're
         // recognizing the annotations below (in the fullness of time)
+        // TODO in accordance with the spec, only check the FIRST annotation.
         IONCHECK(_ion_reader_text_has_annotation(preader, &ION_SYMBOL_SYMBOL_TABLE_STRING, &is_local_symbol_table));
             
         // if we return system values we don't process them

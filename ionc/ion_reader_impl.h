@@ -202,6 +202,7 @@ iERR _ion_reader_initialize(ION_READER *preader, BYTE *version_buffer, SIZE vers
 
 iERR _ion_reader_get_catalog_helper(ION_READER *preader, ION_CATALOG **p_pcatalog);
 iERR _ion_reader_get_symbol_table_helper(ION_READER *preader, ION_SYMBOL_TABLE **p_psymtab);
+iERR _ion_reader_set_symbol_table_helper(ION_READER *preader, ION_SYMBOL_TABLE *symtab);
 iERR _ion_reader_next_helper(ION_READER *preader, ION_TYPE *p_value_type);
 iERR _ion_reader_step_in_helper(ION_READER *preader);
 iERR _ion_reader_step_out_helper(ION_READER *preader);
@@ -241,6 +242,7 @@ iERR _ion_reader_close_helper(ION_READER *preader);
 iERR _ion_reader_allocate_temp_pool                 ( ION_READER *preader );
 iERR _ion_reader_reset_temp_pool                    ( ION_READER *preader);
 iERR _ion_reader_get_new_local_symbol_table_owner   (ION_READER *preader, void **p_owner);
+iERR _ion_reader_free_local_symbol_table            (ION_READER *preader);
 iERR _ion_reader_reset_local_symbol_table           (ION_READER *preader);
 
 iERR _ion_reader_get_position_helper(ION_READER *preader, int64_t *p_bytes, int32_t *p_line, int32_t *p_offset);
@@ -264,7 +266,6 @@ iERR _ion_reader_binary_reset               (ION_READER *preader, int parent_tid
 iERR _ion_reader_binary_close               (ION_READER *preader);
 
 iERR _ion_reader_binary_next                (ION_READER *preader, ION_TYPE *p_value_type);
-iERR _ion_reader_binary_set_symbol_table    (ION_READER *preader, ION_SYMBOL_TABLE *symtab);
 iERR _ion_reader_binary_get_local_symbol_table_helper(ION_READER *preader, ION_SYMBOL_TABLE **pplocal );
 iERR _ion_reader_binary_step_in             (ION_READER *preader);
 iERR _ion_reader_binary_step_out            (ION_READER *preader);

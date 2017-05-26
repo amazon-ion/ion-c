@@ -422,6 +422,7 @@ iERR _ion_symbol_table_local_load_symbol_list(ION_READER *preader, hOWNER owner,
         if (type == tid_EOF) break;
         if (type != tid_STRING) continue; // all symbol fields in the symbol struct have string values
 
+        ION_STRING_INIT(&str);
         IONCHECK(_ion_reader_read_string_helper(preader, &str));
 
         sym = (ION_SYMBOL *)_ion_collection_append(psymbol_list);

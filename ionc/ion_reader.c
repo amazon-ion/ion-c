@@ -1780,7 +1780,7 @@ iERR _ion_reader_get_new_local_symbol_table_owner(ION_READER *preader, void **p_
     void *owner;
 
     // recycle the old symtab if there is one
-    IONCHECK(_ion_reader_reset_local_symbol_table(preader));
+    IONCHECK(_ion_reader_free_local_symbol_table(preader));
 
     // allocate a pool, save it as our local symbol table pool and return it
     owner = ion_alloc_owner(sizeof(int));  // this is a fake allocation to hold the pool
@@ -1793,7 +1793,7 @@ iERR _ion_reader_get_new_local_symbol_table_owner(ION_READER *preader, void **p_
     iRETURN;
 }
 
-iERR _ion_reader_reset_local_symbol_table(ION_READER *preader )
+iERR _ion_reader_free_local_symbol_table(ION_READER *preader )
 {
     iENTER;
 
@@ -1803,6 +1803,18 @@ iERR _ion_reader_reset_local_symbol_table(ION_READER *preader )
         preader->_local_symtab_pool = NULL;
     }
     SUCCEED();
+
+    iRETURN;
+}
+
+iERR _ion_reader_reset_local_symbol_table(ION_READER *preader )
+{
+    iENTER;
+    ION_SYMBOL_TABLE *system;
+
+    IONCHECK(_ion_reader_free_local_symbol_table(preader));
+    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
+    preader->_current_symtab = system;
 
     iRETURN;
 }
@@ -1959,15 +1971,35 @@ iERR ion_reader_set_symbol_table(hREADER hreader, hSYMTAB hsymtab)
     
     switch(preader->type) {
     case ion_type_text_reader:
-        IONCHECK(_ion_reader_text_set_symbol_table(preader, symtab));
-        break;
     case ion_type_binary_reader:
-        IONCHECK(_ion_reader_binary_set_symbol_table(preader, symtab));
+        IONCHECK(_ion_reader_set_symbol_table_helper(preader, symtab));
         break;
     case ion_type_unknown_reader:
     default:
         FAILWITH(IERR_INVALID_STATE);
     }
+
+    iRETURN;
+}
+
+iERR _ion_reader_set_symbol_table_helper(ION_READER *preader, ION_SYMBOL_TABLE *symtab)
+{
+    iENTER;
+    ION_SYMBOL_TABLE *clone, *system;
+
+    ASSERT(preader);
+    ASSERT(symtab);
+
+    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
+
+    if (symtab != NULL && symtab != system && symtab->owner != preader)
+    {
+        IONCHECK(_ion_symbol_table_clone_with_owner_helper(&clone, symtab, preader, system));
+        symtab = clone;
+    }
+
+    preader->_current_symtab = symtab;
+    SUCCEED();
 
     iRETURN;
 }

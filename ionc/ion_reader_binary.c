@@ -22,20 +22,7 @@
 iERR _ion_reader_binary_local_read_length(ION_READER *preader, int tid, int *p_length);
 iERR _ion_binary_reader_fits_container(ION_READER *preader, SIZE len);
 iERR _ion_reader_binary_local_process_possible_magic_cookie(ION_READER *preader, int td, BOOL *p_is_system_value);
-iERR _ion_reader_binary_local_process_possible_symbol_table(ION_READER *preader, int td, BOOL *p_is_system_value);
-iERR _ion_reader_binary_local_load_symbol_table(ION_READER *preader, int annotationid, int64_t contents_start, BOOL *p_is_symbol_table);
-
-iERR _ion_reader_binary_local_load_symbol_table_import_list(ION_READER *preader, ION_SYMBOL_TABLE *local);
-iERR _ion_reader_binary_local_load_symbol_table_import(ION_READER *preader, ION_SYMBOL_TABLE *local);
-iERR _ion_reader_binary_local_reset_symbol_table(ION_READER *preader);
-
-//      EXPECT_SYMBOL_TABLE(BINARY(preader))
-#define EXPECT_SYMBOL_TABLE(pbinary) \
-    ((pbinary)->_parent_tid == TID_DATAGRAM)
-
-//BOOL ion_reader_binary_is_in_struct(ION_READER *preader)
-#define IS_IN_STRUCT(pbinary) \
-    ((pbinary)->_parent_tid == TID_STRUCT)
+iERR _ion_reader_binary_local_process_possible_symbol_table(ION_READER *preader, BOOL *p_is_system_value);
 
 //
 //  actual "public" functions
@@ -169,120 +156,109 @@ begin:
         if (type_desc_byte == EOF) {
             goto at_eof;
         }
-        else if (getTypeCode(type_desc_byte) == TID_SYMBOL) {
-            // A non-null symbol at the top-level, not in an annotation wrapper, with SID 2 is a faux IVM (a no-op).
-            if (getLowNibble(type_desc_byte) != ION_lnIsNull) {
-                IONCHECK(_ion_reader_binary_local_read_length(preader, type_desc_byte, &binary->_value_len));
-                IONCHECK(_ion_reader_binary_read_symbol_sid_helper(preader, binary, &binary->_value_symbol_id));
-                if (preader->_depth == 0 && binary->_value_symbol_id == ION_SYS_SID_IVM) {
-                    binary->_value_symbol_id = UNKNOWN_SID; // Go around again, skipping this value.
-                    continue;
-                }
-            }
-            break;
-        }
-
-        if (!EXPECT_SYMBOL_TABLE(binary)) break;
-        
         
         // first check for the magic cookie - especially since the first byte
         // says this is an annotation (with an, otherwise, invalid length of zero)
-        if (type_desc_byte == ION_VERSION_MARKER[0]) 
+        if (preader->_depth == 0 && type_desc_byte == ION_VERSION_MARKER[0])
         {
             IONCHECK(_ion_reader_binary_local_process_possible_magic_cookie(preader, type_desc_byte, &is_system_value));
-            if (!is_system_value) break;
+            if (!is_system_value) FAILWITH(IERR_INVALID_BINARY); // E0 is not a TID.
+            continue;
         }
-        else if (getTypeCode(type_desc_byte) == TID_UTA) 
+
+        // mark where we are
+        binary->_value_tid = type_desc_byte;
+        binary->_state = S_AFTER_TID;
+
+        // get actual type id
+        ion_type_id = getTypeCode(type_desc_byte);
+
+        if (getTypeCode(type_desc_byte) == TID_UTA)
         {
-            // this looks at the current value, checks to see if it has the
-            // $ion_1_0 annoation and if it does load the symbol table and
-            // move forward, otherwise just read the actual values td and
-            // return that instead.  If it's not a symbol table, then the 14
-            // (user type annotation) will be handled during "next()"
-            IONCHECK(_ion_reader_binary_local_process_possible_symbol_table(preader, type_desc_byte, &is_system_value));
-            if (!is_system_value) break;
-        }
-        else {
-            break;
-        }
-    }
+            // but if there is a user type annotation
+            // we read the annotation list in here
 
-    // mark where we are
-    binary->_value_tid = type_desc_byte;
-    binary->_state = S_AFTER_TID;
+            //      set annotation start to the position of
+            //      the first type desc byte
+            binary->_annotation_start = value_start;
 
-    // get actual type id
-    ion_type_id = getTypeCode(type_desc_byte);
+            //      first we skip the value length and then
+            //      read the local annotation length
+            IONCHECK(_ion_reader_binary_local_read_length(preader, binary->_value_tid, &length));
+            annotation_content_start = ion_stream_get_position(preader->istream);
 
-    BOOL is_annotation = ion_type_id == TID_UTA;
-    if (!is_annotation) {
-        // so just clear the annotation marker that may be left over from our previous value
-        binary->_annotation_start = -1;
-    }
-    else {
-        // but if there is a user type annotation
-        // we read the annotation list in here
+            // read the length of the annotation list here
+            IONCHECK(ion_binary_read_var_uint_32(preader->istream, &annotation_len));
+            if (annotation_len < 1) FAILWITH(IERR_INVALID_BINARY);
 
-        //      set annotation start to the position of
-        //      the first type desc byte
-        binary->_annotation_start = value_start;
+            // no - we'll just read them now while we're in the neighborhood
+            annotation_end = ion_stream_get_position(preader->istream) + annotation_len;
+            for (;;) {
+                pos = ion_stream_get_position(preader->istream);
+                if (pos >= annotation_end) break;
+                psid = (SID *)_ion_collection_append(&binary->_annotation_sids);
+                if (!psid) FAILWITH(IERR_NO_MEMORY);
+                IONCHECK(ion_binary_read_var_uint_32(preader->istream, (uint32_t*)psid));
+            }
 
-        //      first we skip the value length and then
-        //      read the local annotation length
-        IONCHECK(_ion_reader_binary_local_read_length(preader, binary->_value_tid, &length));
-        annotation_content_start = ion_stream_get_position(preader->istream);
+            //      read tid again
+            value_start = ion_stream_get_position(preader->istream); // we have a new value start
+            ION_GET(preader->istream, binary->_value_tid);           // read the TID byte, the beginning of a value
+            ion_type_id = getTypeCode(binary->_value_tid);
+            if (ion_type_id == TID_UTA) {
+                // Nested annotations are forbidden
+                FAILWITH(IERR_INVALID_BINARY);
+            }
 
-        // read the length of the annotation list here
-        IONCHECK(ion_binary_read_var_uint_32(preader->istream, &annotation_len));
-        if (annotation_len < 1) FAILWITH(IERR_INVALID_BINARY);
-
-        // no - we'll just read them now while we're in the neighborhood
-        annotation_end = ion_stream_get_position(preader->istream) + annotation_len;
-        for (;;) {
-            pos = ion_stream_get_position(preader->istream);
-            if (pos >= annotation_end) break;
-            psid = (SID *)_ion_collection_append(&binary->_annotation_sids);
-            if (!psid) FAILWITH(IERR_NO_MEMORY);
-            IONCHECK(ion_binary_read_var_uint_32(preader->istream, (uint32_t*)psid));
-        }
-
-        //      read tid again
-        value_start = ion_stream_get_position(preader->istream); // we have a new value start
-        ION_GET(preader->istream, binary->_value_tid);           // read the TID byte, the beginning of a value
-        ion_type_id = getTypeCode(binary->_value_tid);
-        if (ion_type_id == TID_UTA) {
-            // Nested annotations are forbidden
-            FAILWITH(IERR_INVALID_BINARY);
-        }
-        else if (ion_type_id == TID_SYMBOL) {
             IONCHECK(_ion_reader_binary_local_read_length(preader, binary->_value_tid, &binary->_value_len));
             value_content_start = ion_stream_get_position(preader->istream);
-            IONCHECK(_ion_reader_binary_read_symbol_sid_helper(preader, binary, &binary->_value_symbol_id));
-        }
-    }
 
-    // Symbols have already been read. Everything else needs length read.
-    if (ion_type_id != TID_SYMBOL) {
-        IONCHECK(_ion_reader_binary_local_read_length(preader, binary->_value_tid, &binary->_value_len));
-        value_content_start = ion_stream_get_position(preader->istream);
-    }
-
-    if (is_annotation) {
-        int expected_end = annotation_content_start + length;
-        int actual_end = value_content_start + binary->_value_len;
-        if (expected_end != actual_end) {
-            FAILWITH(IERR_INVALID_BINARY);
-        }
-    }
-    else if(getTypeCode(binary->_value_tid) == TID_NULL && getLowNibble(binary->_value_tid) != ION_lnIsNull) {
-        // This is NOP padding.
-        if (binary->_value_len) {
-            if (binary->_value_len > (preader->istream->_limit - preader->istream->_curr)) {
-                FAILWITH(IERR_UNEXPECTED_EOF);
+            if (ion_type_id == TID_SYMBOL) {
+                IONCHECK(_ion_reader_binary_read_symbol_sid_helper(preader, binary, &binary->_value_symbol_id));
             }
-            binary->_state = S_BEFORE_CONTENTS; // This forces a skip.
+
+            POSITION expected_end = annotation_content_start + length;
+            POSITION actual_end = value_content_start + binary->_value_len;
+            if (expected_end != actual_end) {
+                FAILWITH(IERR_INVALID_BINARY);
+            }
+
+            if (preader->_depth == 0 && ion_type_id == TID_STRUCT) {
+                // this looks at the current value, checks to see if it has the
+                // $ion_1_0 annoation and if it does load the symbol table and
+                // move forward, otherwise just read the actual values td and
+                // return that instead.  If it's not a symbol table, then the 14
+                // (user type annotation) will be handled during "next()"
+                IONCHECK(_ion_reader_binary_local_process_possible_symbol_table(preader, &is_system_value));
+                if (is_system_value) continue;
+            }
         }
-        goto begin; // So that the user does not have to 'next' again to skip the padding.
+        else {
+            // Not an annotation, so just clear the annotation marker that may be left over from our previous value.
+            binary->_annotation_start = -1;
+            IONCHECK(_ion_reader_binary_local_read_length(preader, binary->_value_tid, &binary->_value_len));
+            if (getTypeCode(type_desc_byte) == TID_SYMBOL) {
+                // A non-null symbol at the top-level, not in an annotation wrapper, with SID 2 is a faux IVM (a no-op).
+                if (getLowNibble(type_desc_byte) != ION_lnIsNull) {
+                    IONCHECK(_ion_reader_binary_read_symbol_sid_helper(preader, binary, &binary->_value_symbol_id));
+                    if (preader->_depth == 0 && binary->_value_symbol_id == ION_SYS_SID_IVM) {
+                        binary->_value_symbol_id = UNKNOWN_SID; // Go around again, skipping this value.
+                        continue;
+                    }
+                }
+            }
+            else if(getTypeCode(binary->_value_tid) == TID_NULL && getLowNibble(binary->_value_tid) != ION_lnIsNull) {
+                // This is NOP padding.
+                if (binary->_value_len) {
+                    if (binary->_value_len > (preader->istream->_limit - preader->istream->_curr)) {
+                        FAILWITH(IERR_UNEXPECTED_EOF);
+                    }
+                    binary->_state = S_BEFORE_CONTENTS; // This forces a skip.
+                }
+                goto begin; // So that the user does not have to 'next' again to skip the padding.
+            }
+        }
+        break;
     }
 
     // set the state forward
@@ -1578,7 +1554,7 @@ iERR _ion_reader_binary_local_process_possible_magic_cookie(ION_READER *preader,
 
     // there's magic here!  start over with
     // a fresh new symbol table!
-    IONCHECK(_ion_reader_binary_local_reset_symbol_table(preader));
+    IONCHECK(_ion_reader_reset_local_symbol_table(preader));
     binary->_state = S_BEFORE_TID;
     is_system_value = TRUE;
 
@@ -1587,388 +1563,25 @@ return_value:
     iRETURN;
 }
 
-iERR _ion_reader_binary_local_process_possible_symbol_table(ION_READER *preader, int td, BOOL *p_is_system_value)
+iERR _ion_reader_binary_local_process_possible_symbol_table(ION_READER *preader, BOOL *p_is_system_value)
 {
     iENTER;
     BOOL     is_symbol_table = FALSE;
-    int      vlen;
-	uint32_t alen, a;
-    POSITION aend, pos;
-
+    ION_SYMBOL_TABLE *system;
 
     ASSERT(preader && preader->type == ion_type_binary_reader);
     ASSERT(p_is_system_value);
 
-    IONCHECK(ion_stream_mark(preader->istream));
+    preader->typed_reader.binary._state = S_BEFORE_CONTENTS;
 
-    IONCHECK(_ion_reader_binary_local_read_length(preader, td, &vlen));
-    IONCHECK(ion_binary_read_var_uint_32(preader->istream, &alen)); // now we have the length of the annotations themselves
-
-    aend = alen + ion_stream_get_position(preader->istream);
-    for (;;) {
-        pos = ion_stream_get_position(preader->istream);
-        if (pos >= aend) break;
-        IONCHECK(ion_binary_read_var_uint_32(preader->istream, &a));
-        if (a == ION_SYS_SID_SYMBOL_TABLE) {
-            // SystemSymbolTable.ION_SYMBOL_TABLE_SID:
-            IONCHECK(_ion_reader_binary_local_load_symbol_table(preader, a, aend, &is_symbol_table));
-            break;
-        }
-    }
-
-    if (!is_symbol_table) {
-        // we changed our minds, everything is as is should be
-        IONCHECK(ion_stream_mark_rewind(preader->istream));
-        IONCHECK(ion_stream_mark_clear(preader->istream));
+    // TODO just check the first annotation, in accordance with the spec.
+    IONCHECK(_ion_reader_has_annotation_helper(preader, &ION_SYMBOL_SYMBOL_TABLE_STRING, &is_symbol_table));
+    if (is_symbol_table) {
+        IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
+        IONCHECK(_ion_symbol_table_load_helper(preader, preader->_catalog->owner, system, &preader->_current_symtab));
     }
 
     *p_is_system_value = is_symbol_table;
-
-    iRETURN;
-}
-
-
-iERR _ion_reader_binary_get_local_symbol_table_helper(ION_READER *preader, ION_SYMBOL_TABLE **pplocal )
-{
-    iENTER;
-    void *owner = NULL;
-
-    if (*pplocal != NULL) {
-        SUCCEED();
-    }
-
-    // recycle the old symtab if we need to.
-    if (preader->_local_symtab_pool != NULL) {
-        ion_free_owner( preader->_local_symtab_pool );
-        preader->_local_symtab_pool = NULL;
-    }
-
-    // allocate a self-owned symtab and remember it for later free
-    IONCHECK(_ion_reader_get_new_local_symbol_table_owner(preader, &owner));
-    IONCHECK(_ion_symbol_table_open_helper(pplocal, owner, preader->_catalog->system_symbol_table));
-
-    iRETURN;
-}
-
-
-iERR _ion_reader_binary_local_load_symbol_table(ION_READER *preader
-                                              , int         annotationid
-                                              , int64_t     contents_start
-                                              , BOOL       *p_is_symbol_table
-)
-{
-    iENTER;
-    ION_BINARY_READER *binary;
-    BOOL               is_symbol_table = FALSE;
-    // BOOL              has_next_symbol;
-    int32_t            td; 
-    int64_t            current_pos, to_skip;
-    SIZE               one_skip, this_skip;
-    int64_t            prev_end;
-    
-    ION_SYMBOL_TABLE  *plocal = NULL;
-    ION_TYPE           symbol_type, type;
-    int                len, field_sid, max_id, version;
-    ION_STRING         name;
-    int                manual_sid, sid = 0;
-    int64_t            value_start;
-    
-    
-    ASSERT(preader != NULL);
-    ASSERT(preader->type == ion_type_binary_reader);
-    ASSERT(preader->_catalog != NULL);
-    ASSERT(preader->_catalog->system_symbol_table != NULL);
-    
-    binary = &preader->typed_reader.binary;
-    
-    ION_STRING_INIT(&name);
-    
-    // we skip past any other symbols in the annotation list
-    // TODO: really should  there be any - and we should check ???
-    current_pos = ion_stream_get_position(preader->istream);
-    if (current_pos < contents_start) {
-        to_skip = contents_start - current_pos;
-        while (to_skip > 0) {
-            if (to_skip > MAX_SIZE) {
-                one_skip = MAX_SIZE;
-            }
-            else {
-                one_skip = (SIZE)to_skip;
-                
-            }
-            IONCHECK(ion_stream_skip(preader->istream, (int)one_skip, (SIZE*)&this_skip));
-            ASSERT(one_skip == this_skip);
-            to_skip -= this_skip;
-        }
-        current_pos = ion_stream_get_position(preader->istream);
-    }
-    ASSERT(current_pos == contents_start);
-    
-    ION_GET(preader->istream, td);
-    
-    if (getTypeCode(td) == TID_STRUCT)  {
-        // if the annotation is symbol table
-        // and it's a struct, we're going to
-        // treat is as such.  And as a local symbol
-        // table we won't return it so we throw
-        // out the position we saved above - in part
-        // so we can reuse the mark for strings now.
-        IONCHECK(ion_stream_mark_clear(preader->istream));
-        is_symbol_table = TRUE;    
-        
-        // we'll need to restore the parent type and the
-        // datagram's "end" later (we're doing a cheap step in)
-        prev_end = binary->_local_end;
-        
-        binary->_state = S_BEFORE_CONTENTS;
-        binary->_value_tid = td;
-        
-        IONCHECK(_ion_reader_binary_local_read_length(preader, td, &len));
-        binary->_value_len = len;
-        IONCHECK(_ion_reader_binary_step_in(preader));
-        
-        if (binary->_local_end >= prev_end) {
-            binary->_state = S_INVALID;
-            FAILWITHMSG(IERR_INVALID_BINARY, "invalid binary format");
-        }
-        
-        // TODO: this should get it's system symbol table somewhere else
-        // like passed in from the user or deduced from the version stamp
-       field_sid = -1;
-        for (;;) {
-            IONCHECK(_ion_reader_next_helper(preader, &type));
-            if (type == tid_EOF) break;
-            
-            IONCHECK(_ion_reader_get_field_sid_helper(preader, &field_sid));
-            switch (field_sid) {
-            case ION_SYS_SID_MAX_ID:
-                IONCHECK(_ion_reader_read_int32_helper(preader, &max_id));
-                IONCHECK( _ion_reader_binary_get_local_symbol_table_helper(preader, &plocal ));
-                IONCHECK(_ion_symbol_table_set_max_sid_helper(plocal, max_id));
-                break;
-            case ION_SYS_SID_NAME:
-                // if there's a name, this isn't a local symbol table
-                IONCHECK(_ion_reader_read_string_helper(preader, &name));
-                IONCHECK( _ion_reader_binary_get_local_symbol_table_helper(preader, &plocal ));
-                IONCHECK(_ion_symbol_table_set_name_helper(plocal, &name));
-                break;
-            case ION_SYS_SID_IMPORTS:
-                // get the import table name, version, maxid and add it to the imports
-                IONCHECK( _ion_reader_binary_get_local_symbol_table_helper(preader, &plocal ));
-                IONCHECK(_ion_reader_binary_local_load_symbol_table_import_list(preader, plocal));
-                break;
-            case ION_SYS_SID_SYMBOLS:
-                switch ((intptr_t)type) {
-                case (intptr_t)tid_STRUCT:
-                    manual_sid = 1;
-                    sid = plocal->max_id;
-                    break;
-                case (intptr_t)tid_LIST:
-                    manual_sid = 2;
-                    IONCHECK( _ion_reader_binary_get_local_symbol_table_helper(preader, &plocal ));
-                    sid = plocal->symbols._count;
-                    break;
-                default:
-                    // we'll just skip this one
-                    manual_sid = 0;
-                    break;
-                }
-                if (manual_sid > 0) {
-                    IONCHECK( _ion_reader_binary_get_local_symbol_table_helper(preader, &plocal ));
-                        IONCHECK(_ion_reader_step_in_helper(preader));
-                    for (;;) {
-                            IONCHECK(_ion_reader_next_helper(preader, &symbol_type));
-                        if (symbol_type == tid_EOF) break;
-                        if (symbol_type != tid_STRING) {
-                            continue; // we could error here, but open content says don't bother
-                        }
-                        if (manual_sid == 1) {
-                            IONCHECK(_ion_reader_get_field_sid_helper(preader, &sid));
-                        }
-                        else {
-                            sid++;
-                        }
-                            IONCHECK(_ion_reader_read_string_helper(preader, &name));
-                        IONCHECK(_ion_symbol_table_add_symbol_and_sid_helper(plocal, &name, sid, plocal));
-                    }
-                        IONCHECK(_ion_reader_step_out_helper(preader));
-                }
-                break;
-            case ION_SYS_SID_VERSION:
-                IONCHECK(_ion_reader_read_int32_helper(preader, &version));
-                IONCHECK( _ion_reader_binary_get_local_symbol_table_helper(preader, &plocal ));
-                IONCHECK(_ion_symbol_table_set_version_helper(plocal, version));
-                break;
-            default:
-                // everything else we just ignore
-                break;
-            }
-        }
-        
-        IONCHECK(_ion_reader_binary_step_out(preader));
-        
-        value_start = ion_stream_get_position(preader->istream);
-
-        if (value_start >= binary->_local_end) {
-            preader->_eof = TRUE;
-        }
-        
-        // now we store our carefully build local symbol table for use
-        preader->_current_symtab = plocal;
-    }
-    
-    *p_is_symbol_table = is_symbol_table;
-    
-    iRETURN;
-}
-
-iERR _ion_reader_binary_set_symbol_table(ION_READER *preader, ION_SYMBOL_TABLE *symtab)
-{
-    iENTER;
-    ION_BINARY_READER *binary;
-    ION_SYMBOL_TABLE  *clone, *system;
-
-    ASSERT(preader);
-    ASSERT(preader->type == ion_type_binary_reader);
-    ASSERT(symtab);
-
-    binary = &preader->typed_reader.binary;
-    
-    
-    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-
-    if (symtab != NULL && symtab != system && symtab->owner != preader)
-    {
-        IONCHECK(_ion_symbol_table_clone_with_owner_helper(&clone, symtab, preader, system));
-        symtab = clone;
-    }
-
-    preader->_current_symtab = symtab;
-    SUCCEED();
-
-    iRETURN;
-}
-
-iERR _ion_reader_binary_local_load_symbol_table_import_list(ION_READER *preader, ION_SYMBOL_TABLE *local) 
-{
-    iENTER;
-    ION_TYPE type;
-    
-    
-    ASSERT(preader && preader->type == ion_type_binary_reader);
-    ASSERT(preader->typed_reader.binary._value_field_id == ION_SYS_SID_IMPORTS);
-    ASSERT(preader->typed_reader.binary._value_type == tid_LIST);
- 
-    
-    IONCHECK(_ion_reader_step_in_helper(preader));
-    for (;;) {
-        IONCHECK(_ion_reader_next_helper(preader, &type));
-        if (type == tid_EOF) break;
-        if (type == tid_STRUCT) {
-            IONCHECK(_ion_reader_binary_local_load_symbol_table_import(preader, local));
-        }
-    }
-    IONCHECK(_ion_reader_step_out_helper(preader));
-    
-    iRETURN;
-}
-    
-
-iERR _ion_reader_binary_local_load_symbol_table_import(ION_READER *preader, ION_SYMBOL_TABLE *local) 
-{
-    iENTER;
-    
-    ION_SYMBOL_TABLE        *itab = NULL;
-    ION_TYPE                 type;
-    SID                      field_sid;
-    int                      version = -1;
-    int                      maxid = -1;
-    ION_STRING               name;
-    
-    ASSERT(preader && preader->type == ion_type_binary_reader);
-    ASSERT(preader->typed_reader.binary._value_type == tid_STRUCT);
-    
-    IONCHECK(_ion_reader_step_in_helper(preader));
-    for (;;) {
-        IONCHECK(_ion_reader_next_helper(preader, &type));
-        if (type == tid_EOF) break;
-        
-        IONCHECK(_ion_reader_get_field_sid_helper(preader, &field_sid));
-        switch(field_sid) {
-        case ION_SYS_SID_NAME:
-            if (type == tid_STRING || type == tid_SYMBOL) {
-                ION_STRING_INIT(&name);
-                IONCHECK(_ion_reader_read_string_helper(preader, &name));
-            }
-            break;
-        case ION_SYS_SID_VERSION:
-            if (type == tid_INT) {
-                IONCHECK(_ion_reader_read_int32_helper(preader, &version));
-            }
-            break;
-        case ION_SYS_SID_MAX_ID: {
-            BOOL is_null = FALSE;
-            IONCHECK(ion_reader_is_null(preader, &is_null));
-            if (type == tid_INT && !is_null) {
-                int temp_maxid = -1;
-                IONCHECK(_ion_reader_read_int32_helper(preader, &temp_maxid));
-                if (temp_maxid >= 0) {
-                    maxid = temp_maxid;
-                }
-            }
-            break;
-        }
-        default:
-            // we just ignore anything else as "open content"
-            break;
-        }
-    }
-    if (version < 1) {
-        version = 1;
-    }
-    IONCHECK(_ion_catalog_find_best_match_helper(preader->_catalog, &name, version, maxid, &itab));
-    
-    // We're adding the import information to the import_list
-    // We are NOT adding what was actually added, but we're adding what was requested
-    // This allows us to know more information about the original file's state.
-    /// MY FIX: Need to append to collection.
-    ION_SYMBOL_TABLE_IMPORT *p_requested_import = NULL;
-    p_requested_import = (ION_SYMBOL_TABLE_IMPORT *)_ion_collection_append(&(local->import_list));
-    if (!p_requested_import) FAILWITH(IERR_NO_MEMORY);
-    
-    memset(p_requested_import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
-    p_requested_import->max_id = maxid;
-    p_requested_import->version = version;
-    IONCHECK(ion_string_copy_to_owner(preader, &p_requested_import->name, &name));
-    
-    // so now we make an import entry and add it to the local symtab
-    ION_SYMBOL_TABLE_IMPORT *pimport = NULL;
-    pimport = (ION_SYMBOL_TABLE_IMPORT *)ion_alloc_with_owner(preader, sizeof(ION_SYMBOL_TABLE_IMPORT));
-    if (pimport == NULL) FAILWITH(IERR_NO_MEMORY);
-    
-    IONCHECK(ion_string_copy_to_owner(preader, &pimport->name, &name));
-    pimport->version = version;
-    if (maxid != -1 && itab != NULL) {
-        IONCHECK(_ion_symbol_table_get_max_sid_helper(itab, &maxid));
-    }
-    pimport->max_id = maxid;
-    
-    IONCHECK(_ion_symbol_table_add_import_helper(local, pimport, preader->_catalog));
-    IONCHECK(_ion_reader_step_out_helper(preader));
-    
-    iRETURN;
-}
-
-iERR _ion_reader_binary_local_reset_symbol_table(ION_READER *preader)
-{
-    iENTER;
-    ION_SYMBOL_TABLE *system;
-
-    ASSERT(preader != NULL);
-    ASSERT(preader->type == ion_type_binary_reader);
-
-    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-    preader->_current_symtab = system;
 
     iRETURN;
 }
