@@ -299,6 +299,7 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
     iRETURN;
 }
 
+// TODO can we cut down on usage of this? Perhaps only when $<int> symbol identifiers are given? Text Ion doesn't really need a local symbol table.
 iERR _ion_reader_text_intern_symbol(ION_READER *preader, ION_STRING *symbol_name, ION_SYMBOL **psym, BOOL parse_symbol_identifiers) {
     iENTER;
 
@@ -310,7 +311,7 @@ iERR _ion_reader_text_intern_symbol(ION_READER *preader, ION_STRING *symbol_name
     ASSERT(psym);
 
     IONCHECK(_ion_reader_text_get_symbol_table(preader, &symbols));
-    IONCHECK(_ion_symbol_table_local_find_by_name(symbols, symbol_name, &sid, &sym, parse_symbol_identifiers));
+    IONCHECK(_ion_symbol_table_find_by_name_helper(symbols, symbol_name, &sid, &sym, parse_symbol_identifiers));
     if (!sym || sid <= UNKNOWN_SID) {
         IONCHECK(_ion_symbol_table_is_locked_helper(symbols, &is_locked));
         if (is_locked) {
@@ -322,6 +323,7 @@ iERR _ion_reader_text_intern_symbol(ION_READER *preader, ION_STRING *symbol_name
             preader->_current_symtab = symbols;
         }
         sid = symbols->max_id + 1;
+        ASSERT(!ION_STRING_IS_NULL(symbol_name));
         IONCHECK(_ion_symbol_table_local_add_symbol_helper(symbols, symbol_name, sid, symbols, &sym));
         if (sym) {
             sym->add_count++;
@@ -1675,7 +1677,7 @@ iERR _ion_reader_text_read_symbol_sid(ION_READER *preader, SID *p_value)
     ASSERT(text->_scanner._value_image.length > 0);
     ASSERT(text->_scanner._value_image.value[text->_scanner._value_image.length] == 0);
 
-    IONCHECK(_ion_symbol_table_local_find_by_name(preader->_current_symtab, &text->_scanner._value_image, p_value, NULL,
+    IONCHECK(_ion_symbol_table_find_by_name_helper(preader->_current_symtab, &text->_scanner._value_image, p_value, NULL,
                                                   text->_value_sub_type != IST_SYMBOL_QUOTED));
 
     iRETURN;

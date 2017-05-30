@@ -509,7 +509,7 @@ iERR _ion_reader_binary_has_annotation(ION_READER *preader, ION_STRING *annotati
     binary = &preader->typed_reader.binary;
 
     // now translate the users string into a local sid (since they gave us a string
-    IONCHECK(_ion_symbol_table_local_find_by_name(preader->_current_symtab, annotation, &user_sid, NULL, FALSE));
+    IONCHECK(_ion_symbol_table_find_by_name_helper(preader->_current_symtab, annotation, &user_sid, NULL, FALSE));
     if (user_sid == UNKNOWN_SID) {
         goto return_value;
     }

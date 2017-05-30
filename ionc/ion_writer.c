@@ -166,6 +166,8 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
         ASSERT( pwriter->symbol_table == NULL || pwriter->symbol_table == system );
 
         IONCHECK(_ion_symbol_table_open_helper(&psymtab, pwriter->_temp_entity_pool, system));
+        // TODO what is this for? Is it in the writer's catalog? If not, its symbols won't be included in the local symbol table.
+        // might need to manually add the symbols to the local symbol table
         IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, pwriter->options.encoding_psymbol_table));
 
         pwriter->symbol_table = psymtab;
@@ -420,7 +422,7 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
         IONCHECK(_ion_symbol_table_get_name_helper(psymtab, &import.name));
         IONCHECK(_ion_symbol_table_get_version_helper(psymtab, &import.version));
         IONCHECK(_ion_symbol_table_get_max_sid_helper(psymtab, &import.max_id));
-        IONCHECK(_ion_symbol_table_add_import_helper(plocal, &import, pwriter->options.pcatalog));
+        IONCHECK(_ion_symbol_table_local_incorporate_symbols(plocal, plocal->catalog, &import.name, import.version, import.max_id));
         psymtab = plocal;
         break;
     case ist_LOCAL:

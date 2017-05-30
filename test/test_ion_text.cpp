@@ -488,3 +488,78 @@ TEST(IonTextSymbol, WriterWriteAllValuesPreservesSymbolKeywords) {
     ion_test_write_all_values_from_binary(result, result_len, &result, &result_len, TRUE);
     assertBytesEqual((const char *)ion_binary, ion_binary_size, result + result_len - ion_binary_size, ion_binary_size);
 }
+
+TEST(IonTextSymbol, ReaderReadsUndefinedSymbol) {
+    const char *ion_text =
+            "$ion_symbol_table::\n"
+                    "{\n"
+                    "  imports:[ { name: \"not_found\",\n"
+                    "              version: 1,\n"
+                    "              max_id: 75 },\n"
+                    "  ],\n"
+                    "  symbols:[ \"rock\", \"paper\", \"scissors\" ]\n"
+                    "}\n"
+                    "$53\n"
+                    "$85";
+    // Symbol 53 is a dummy symbol (unknown text), but is valid because it is within the max ID range of the
+    // not-found import. Symbol 85 is the first local symbol ("rock").
+    // 9 (+1 for SID 0) = 10 system symbols + 75 imports = 85.
+    hREADER reader;
+    SID sid;
+    hSYMTAB symtab;
+    ION_STRING *symbol;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ION_ASSERT_OK(ion_reader_get_symbol_table(reader, &symtab));
+    ION_ASSERT_OK(ion_symbol_table_find_by_sid(symtab, sid, &symbol));
+    ASSERT_TRUE(ION_STRING_IS_NULL(symbol));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, symbol));
+    assertStringsEqual("rock", (char *)symbol->value, symbol->length);
+    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ION_ASSERT_OK(ion_symbol_table_find_by_sid(symtab, sid, &symbol));
+    assertStringsEqual("rock", (char *)symbol->value, symbol->length);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+
+}
+
+TEST(IonTextSymbol, ReaderReadsLocalSymbolsFromIdentifiers) {
+    const char * ion_text =
+            "$ion_1_0\n"
+            "$ion_symbol_table::{\n"
+            "    symbols:[ \"foo\", \"bar\", \"baz\" ]\n"
+            "}\n"
+            "$10\n"
+            "$11\n"
+            "$12";
+    hREADER reader;
+    ION_STRING symbol;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &symbol));
+    assertStringsEqual("foo", (char *)symbol.value, symbol.length);
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &symbol));
+    assertStringsEqual("bar", (char *)symbol.value, symbol.length);
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &symbol));
+    assertStringsEqual("baz", (char *)symbol.value, symbol.length);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
