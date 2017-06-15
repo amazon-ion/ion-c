@@ -322,6 +322,7 @@ iERR _ion_reader_text_read_double               (ION_READER *preader, double *p_
 iERR _ion_reader_text_read_decimal              (ION_READER *preader, decQuad *p_value);
 iERR _ion_reader_text_read_timestamp            (ION_READER *preader, ION_TIMESTAMP *p_value);
 iERR _ion_reader_text_read_symbol_sid           (ION_READER *preader, SID *p_value);
+iERR _ion_reader_text_read_symbol               (ION_READER *preader, ION_SYMBOL *p_symbol);
 
 // get string functions, these work over value of type string or type symbol
 // get length FORCES the value to read into the value_image buffer (which may not be desirable)

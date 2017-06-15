@@ -75,6 +75,7 @@ iERR _ion_symbol_table_set_name_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *nam
 iERR _ion_symbol_table_set_version_helper(ION_SYMBOL_TABLE *symtab, int32_t version);
 iERR _ion_symbol_table_set_max_sid_helper(ION_SYMBOL_TABLE *symtab, SID max_id);
 iERR _ion_symbol_table_get_imports_helper(ION_SYMBOL_TABLE *symtab, ION_COLLECTION **p_imports);
+iERR _ion_symbol_table_parse_possible_symbol_identifier(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym, BOOL *p_is_symbol_identifier);
 iERR _ion_symbol_table_find_by_name_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym, BOOL symbol_identifiers_as_sids);
 iERR _ion_symbol_table_find_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name);
 iERR _ion_symbol_table_find_symbol_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID sid, ION_SYMBOL **p_sym);
@@ -91,6 +92,10 @@ iERR _ion_symbol_table_close_helper(ION_SYMBOL_TABLE *symtab);
 
 // local function forward reference declarations
 iERR _ion_symbol_table_local_make_system_symbol_table_helper(int32_t version);
+
+// The text reader doesn't automatically provide SIDs for known symbols. This forces a by-name lookup to the system
+// symbol table in those cases.
+iERR _ion_symbol_table_get_field_sid_force(ION_READER *preader, SID *fld_sid);
 
 iERR _ion_symbol_table_local_load_import_list   (ION_READER *preader, hOWNER owner, ION_COLLECTION *pimport_list);
 iERR _ion_symbol_table_local_load_symbol_struct (ION_READER *preader, hOWNER owner, ION_COLLECTION *psymbol_list);

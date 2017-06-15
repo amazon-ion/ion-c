@@ -166,8 +166,8 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
         ASSERT( pwriter->symbol_table == NULL || pwriter->symbol_table == system );
 
         IONCHECK(_ion_symbol_table_open_helper(&psymtab, pwriter->_temp_entity_pool, system));
-        // TODO what is this for? Is it in the writer's catalog? If not, its symbols won't be included in the local symbol table.
-        // might need to manually add the symbols to the local symbol table
+        // NOTE: This table and its imports must be in the writer's catalog. If they aren't, their symbols will be
+        // treated as unknown.
         IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, pwriter->options.encoding_psymbol_table));
 
         pwriter->symbol_table = psymtab;
@@ -1485,14 +1485,14 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
     iENTER;
 
     ION_TYPE      type;
-    ION_STRING   *fld_name, *symbol_value, string_value;
+    ION_STRING   *fld_name, string_value;
+    ION_SYMBOL    symbol_value;
     SID           sid;
     int32_t       count, ii;
     BOOL          is_null, bool_value, is_in_struct;
     double        double_value;
     decQuad       decimal_value;
     ION_TIMESTAMP timestamp_value;
-    ION_SYMBOL_TABLE *symbol_table;
 
 
     ASSERT(pwriter);
@@ -1601,14 +1601,12 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
         IONCHECK(_ion_writer_write_string_helper(pwriter, &string_value));
         break;
     case (intptr_t)tid_SYMBOL:
-        IONCHECK(ion_reader_get_symbol_table(preader, &symbol_table));
-        IONCHECK(_ion_reader_read_symbol_sid_helper(preader, &sid));
-        IONCHECK(ion_symbol_table_find_by_sid(symbol_table, sid, &symbol_value));
-        if (ION_STRING_IS_NULL(symbol_value)) {
-            IONCHECK(_ion_writer_write_symbol_id_helper(pwriter, sid));
+        IONCHECK(_ion_reader_read_symbol_helper(preader, &symbol_value));
+        if (ION_STRING_IS_NULL(&symbol_value.value)) {
+            IONCHECK(_ion_writer_write_symbol_id_helper(pwriter, symbol_value.sid));
         }
         else {
-            IONCHECK(_ion_writer_write_symbol_helper(pwriter, symbol_value));
+            IONCHECK(_ion_writer_write_symbol_helper(pwriter, &symbol_value.value));
         }
         break;
     case (intptr_t)tid_CLOB:

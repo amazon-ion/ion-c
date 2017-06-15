@@ -66,7 +66,6 @@ typedef enum _ION_SYMBOL_TABLE_TYPE {
 #define ION_SYS_SID_MAX_ID                 8 /* "max_id" */
 #define ION_SYS_SID_SHARED_SYMBOL_TABLE    9 /* "$ion_shared_symbol_table" */
 
-#define ION_SYS_STRLEN_ZERO                 2 /* "$0" */
 #define ION_SYS_STRLEN_ION                  4 /* "$ion" */
 #define ION_SYS_STRLEN_IVM                  8 /* "$ion_1_0" */
 #define ION_SYS_STRLEN_SYMBOL_TABLE        17 /* "$ion_symbol_table" */
@@ -76,11 +75,6 @@ typedef enum _ION_SYMBOL_TABLE_TYPE {
 #define ION_SYS_STRLEN_SYMBOLS              7 /* "symbols" */
 #define ION_SYS_STRLEN_MAX_ID               6 /* "max_id" */
 
-GLOBAL BYTE ION_SYMBOL_ZERO_BYTES[]
-#ifdef INIT_STATICS
-= { '$', '0', 0 }
-#endif
-;
 GLOBAL BYTE ION_SYMBOL_ION_BYTES[]
 #ifdef INIT_STATICS
 = { '$', 'i', 'o', 'n', 0 }
@@ -129,14 +123,6 @@ GLOBAL BYTE ION_SYMBOL_SHARED_SYMBOL_TABLE_BYTES[]
 ;
 
 
-GLOBAL ION_STRING ION_SYMBOL_ZERO_STRING
-#ifdef INIT_STATICS
-= {
-    ION_SYS_STRLEN_ZERO,
-    ION_SYMBOL_ZERO_BYTES
-}
-#endif
-;
 GLOBAL ION_STRING ION_SYMBOL_ION_STRING
 #ifdef INIT_STATICS
 = {
@@ -252,6 +238,13 @@ ION_API_EXPORT iERR ion_symbol_table_set_max_sid        (hSYMTAB hsymtab, SID ma
 
 ION_API_EXPORT iERR ion_symbol_table_get_imports        (hSYMTAB hsymtab, ION_COLLECTION **p_imports);
 ION_API_EXPORT iERR ion_symbol_table_add_import         (hSYMTAB hsymtab, ION_SYMBOL_TABLE_IMPORT *pimport);
+
+/**
+ * Imports one symbol table into another. NOTE: the imported symbol table must be accessible through the parent symbol
+ * table's catalog, otherwise all of its symbols will be considered to have unknown text.
+ * @param hsymtab - The symbol table into which the imported symbol table will be incorporated.
+ * @param hsymtab_import - The symbol table to import.
+ */
 ION_API_EXPORT iERR ion_symbol_table_import_symbol_table(hSYMTAB hsymtab, hSYMTAB hsymtab_import);
 
 ION_API_EXPORT iERR ion_symbol_table_find_by_name       (hSYMTAB hsymtab, iSTRING name, SID *p_sid);

@@ -71,7 +71,7 @@ typedef struct _ion_reader_text
      *
      */
     SIZE                  _annotation_count;               // number of annotations on this value
-    ION_SYMBOL           *_annotation_string_pool;         // preallocated set of ION_STRING to hold annotations
+    ION_SYMBOL           *_annotation_string_pool;         // preallocated set of ION_SYMBOL to hold annotations
     SIZE                  _annotation_string_pool_length;  // max number of annotations, size of string pool as count
     BYTE                 *_annotation_value_next;          // position in annotation value buffer for the next annotation value
     BYTE                 *_annotation_value_buffer;        // preallocate buffer to hold all annotation character for all annotations of the current value
@@ -228,6 +228,7 @@ iERR _ion_reader_read_double_helper(ION_READER *preader, double *p_value);
 iERR _ion_reader_read_decimal_helper(ION_READER *preader, decQuad *p_value);
 iERR _ion_reader_read_timestamp_helper(ION_READER *preader, ION_TIMESTAMP *p_value);
 iERR _ion_reader_read_symbol_sid_helper(ION_READER *preader, SID *p_value);
+iERR _ion_reader_read_symbol_helper(ION_READER *preader, ION_SYMBOL *p_symbol);
 
 iERR _ion_reader_get_string_length_helper(ION_READER *preader, SIZE *p_length);
 iERR _ion_reader_read_string_helper(ION_READER *preader, ION_STRING *p_value);
@@ -296,6 +297,7 @@ iERR _ion_reader_binary_read_decimal        (ION_READER *preader, decQuad *p_val
 iERR _ion_reader_binary_read_timestamp      (ION_READER *preader, iTIMESTAMP p_value);
 iERR _ion_reader_binary_read_symbol_sid     (ION_READER *preader, SID *p_value);
 iERR _ion_reader_binary_read_symbol_sid_helper(ION_READER *preader, ION_BINARY_READER *binary, SID *p_value);
+iERR _ion_reader_binary_read_symbol         (ION_READER *preader, ION_SYMBOL *p_symbol);
 
 iERR _ion_reader_binary_get_string_length   (ION_READER *preader, SIZE *p_length);
 iERR _ion_reader_binary_read_string_bytes   (ION_READER *preader, BOOL accept_partial, BYTE *p_buf, SIZE buf_max, SIZE *p_length);

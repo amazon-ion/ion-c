@@ -346,6 +346,14 @@ ION_API_EXPORT iERR ion_reader_read_decimal        (hREADER hreader, decQuad *p_
  * @return IERR_NULL_VALUE if the current value is null.timestamp.
  */
 ION_API_EXPORT iERR ion_reader_read_timestamp      (hREADER hreader, iTIMESTAMP p_value);
+
+/** Read the local symbol ID of the current symbol value.
+ * NOTE: use of this function is discouraged, as it can have different results for text and binary data. In Ion text,
+ * which is not required to explicitly include a local symbol table, known symbols are not necessarily assigned symbol
+ * IDs. For those symbols, this function would return UNKNOWN_SID even though the text is known.
+ * Prefer `ion_reader_read_string`, which provides an ION_STRING for which ION_STRING_IS_NULL() will evaluate to TRUE
+ * if the current symbol value's text is unknown.
+ */
 ION_API_EXPORT iERR ion_reader_read_symbol_sid     (hREADER hreader, SID *p_value);
 
 /**

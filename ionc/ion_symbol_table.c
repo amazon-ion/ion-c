@@ -216,9 +216,15 @@ iERR _ion_symbol_table_get_system_symbol_helper(ION_SYMBOL_TABLE **pp_system_tab
     iRETURN;
 }
 
-void* smallLocalAllocationBlock(char *block, SIZE alloc_size)
+
+// currently the system symbol table uses 1304 bytes or so
+#define kIonSystemSymbolMemorySize 2048
+static char gSystemSymbolMemory[kIonSystemSymbolMemorySize];
+
+void* smallLocalAllocationBlock()
 {
-    ION_ALLOCATION_CHAIN *new_block = (ION_ALLOCATION_CHAIN*)block;
+    ION_ALLOCATION_CHAIN *new_block = (ION_ALLOCATION_CHAIN*)gSystemSymbolMemory;
+    SIZE                  alloc_size = kIonSystemSymbolMemorySize;
 
     new_block->size     = alloc_size;
 
@@ -231,10 +237,6 @@ void* smallLocalAllocationBlock(char *block, SIZE alloc_size)
     return new_block->position;
 }
 
-// currently the system symbol table uses 1304 bytes or so
-#define kIonSystemSymbolMemorySize 2048
-static char gSystemSymbolMemory[kIonSystemSymbolMemorySize];
-
 // HACK - hate this
 iERR _ion_symbol_table_local_make_system_symbol_table_helper(int32_t version)
 {
@@ -246,7 +248,7 @@ iERR _ion_symbol_table_local_make_system_symbol_table_helper(int32_t version)
     ASSERT(p_system_symbol_table_version_1 == NULL);
     
     // need a SMALL block for the system symbol table
-    sysBlock = smallLocalAllocationBlock(gSystemSymbolMemory, kIonSystemSymbolMemorySize);
+    sysBlock = smallLocalAllocationBlock();
     
     IONCHECK(_ion_symbol_table_open_helper(&psymtab, sysBlock, NULL));
 
@@ -316,7 +318,7 @@ iERR _ion_symbol_table_local_load_import_list(ION_READER *preader, hOWNER owner,
             IONCHECK(_ion_reader_next_helper(preader, &type));
             if (type == tid_EOF) break;
 
-            IONCHECK(_ion_reader_get_field_sid_helper(preader, &fld_sid));
+            IONCHECK(_ion_symbol_table_get_field_sid_force(preader, &fld_sid));
             switch(fld_sid) {
             case ION_SYS_SID_NAME:     /* "name" */
                 if (!ION_STRING_IS_NULL(&import->name)) FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "too many names in import list");
@@ -409,6 +411,27 @@ iERR ion_symbol_table_load(hREADER hreader, hOWNER owner, hSYMTAB *p_hsymtab)
     iRETURN;
 }
 
+iERR _ion_symbol_table_get_field_sid_force(ION_READER *preader, SID *fld_sid)
+{
+    iENTER;
+    SID sid;
+    ION_STRING *field_name;
+
+    IONCHECK(_ion_reader_get_field_sid_helper(preader, &sid));
+    if (sid <= UNKNOWN_SID) {
+        // Binary readers should fail before reaching this point.
+        ASSERT(preader->type == ion_type_text_reader);
+        IONCHECK(_ion_reader_get_field_name_helper(preader, &field_name));
+        if (ION_STRING_IS_NULL(field_name)) {
+            FAILWITH(IERR_INVALID_FIELDNAME);
+        }
+        IONCHECK(_ion_symbol_table_local_find_by_name(preader->_current_symtab->system_symbol_table, field_name, &sid, NULL));
+    }
+
+    *fld_sid = sid;
+    iRETURN;
+}
+
 iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL_TABLE *system, ION_SYMBOL_TABLE **p_psymtab)
 {
     iENTER;
@@ -453,7 +476,7 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
     for (;;) {
         IONCHECK(_ion_reader_next_helper(preader, &type));
         if (type == tid_EOF) break;
-        IONCHECK(_ion_reader_get_field_sid_helper(preader, &fld_sid));
+        IONCHECK(_ion_symbol_table_get_field_sid_force(preader, &fld_sid));
         switch(fld_sid) {
         case ION_SYS_SID_NAME:     /* "name" */
             if (!is_shared_table) break; // no meaning for local tables
@@ -526,7 +549,7 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
         for (;;) {
             ION_COLLECTION_NEXT(symbol_cursor, symbol);
             if (!symbol) break;
-            if (symbol->sid == UNKNOWN_SID) {  // TODO -------------------------- WHAT IS THE RIGHT BEHAVIOR?
+            if (symbol->sid == UNKNOWN_SID) {
                 sid++;
                 symbol->sid = sid;
             }
@@ -985,7 +1008,6 @@ iERR _ion_symbol_table_get_imports_helper(ION_SYMBOL_TABLE *symtab, ION_COLLECTI
     return IERR_OK;
 }
 
-// TODO note: the symbol table import still has to be accessible through the catalog.
 iERR ion_symbol_table_import_symbol_table(hSYMTAB hsymtab, hSYMTAB hsymtab_import)
 {
     iENTER;
@@ -1125,35 +1147,30 @@ iERR ion_symbol_table_find_by_name(hSYMTAB hsymtab, iSTRING name, SID *p_sid)
     iRETURN;
 }
 
-iERR _ion_symbol_table_find_by_name_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym,
-                                           BOOL symbol_identifiers_as_sids)
-{
+iERR _ion_symbol_table_parse_possible_symbol_identifier(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym, BOOL *p_is_symbol_identifier) {
     iENTER;
-    ION_SYMBOL_TABLE        *imported;
-    SID                      sid = UNKNOWN_SID;
-    ION_SYMBOL_TABLE_IMPORT *imp;
-    ION_COLLECTION_CURSOR    import_cursor;
-    int32_t                  offset;
-    ION_SYMBOL              *sym = NULL;
-    int                      ii, c;
+    SID sid = UNKNOWN_SID;
+    ION_SYMBOL *sym = NULL;
+    int ii, c;
+    BOOL is_symbol_identifier = FALSE;
 
-    ASSERT(symtab != NULL);
-    ASSERT(name != NULL);
-    ASSERT(!ION_STRING_IS_NULL(name));
-    ASSERT(name->length >= 0);
-    ASSERT(p_sid != NULL);
+    ASSERT(p_is_symbol_identifier);
+    ASSERT(p_sym);
+    ASSERT(name);
+    ASSERT(symtab);
 
-    if (symbol_identifiers_as_sids && name->value[0] == '$' && name->length > 1) {
+    if (name->value[0] == '$' && name->length > 1) {
         sid = 0;
         for (ii=1; ii<name->length; ii++) {
             c = name->value[ii];
             if (c < '0' || c > '9') {
                 sid = UNKNOWN_SID;
-                goto not_symbol_identifier;
+                goto done;
             }
             sid *= 10;
             sid += c - '0';
         }
+        is_symbol_identifier = TRUE;
         if (sid == 0) {
             // SID 0 is not in any symbol table, but is available in all symbol table contexts.
             _ion_symbol_table_allocate_symbol_unknown_text(symtab, 0, &sym);
@@ -1165,10 +1182,38 @@ iERR _ion_symbol_table_find_by_name_helper(ION_SYMBOL_TABLE *symtab, ION_STRING 
             IONCHECK(_ion_symbol_table_find_symbol_by_sid_helper(symtab, sid, &sym));
             ASSERT(sym != NULL); // This SID is within range. It MUST have a non-NULL symbol.
         }
-        goto done;
     }
+done:
+    *p_is_symbol_identifier = is_symbol_identifier;
+    *p_sym = sym;
+    if(p_sid) *p_sid = sid;
+    iRETURN;
+}
 
-not_symbol_identifier:
+iERR _ion_symbol_table_find_by_name_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym,
+                                           BOOL symbol_identifiers_as_sids)
+{
+    iENTER;
+    ION_SYMBOL_TABLE        *imported;
+    SID                      sid = UNKNOWN_SID;
+    ION_SYMBOL_TABLE_IMPORT *imp;
+    ION_COLLECTION_CURSOR    import_cursor;
+    int32_t                  offset;
+    ION_SYMBOL              *sym = NULL;
+    BOOL is_symbol_identifier;
+
+    ASSERT(symtab != NULL);
+    ASSERT(name != NULL);
+    ASSERT(!ION_STRING_IS_NULL(name));
+    ASSERT(name->length >= 0);
+    ASSERT(p_sid != NULL);
+
+    if (symbol_identifiers_as_sids) {
+        IONCHECK(_ion_symbol_table_parse_possible_symbol_identifier(symtab, name, &sid, &sym, &is_symbol_identifier));
+        if (is_symbol_identifier) {
+            goto done;
+        }
+    }
 
     // first we check the system symbol table, if there is one
    IONCHECK(_ion_symbol_table_local_find_by_name(symtab->system_symbol_table, name, &sid, &sym));
@@ -1307,7 +1352,6 @@ iERR _ion_symbol_table_find_symbol_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID s
                     }
                     else {
                         IONCHECK(_ion_symbol_table_local_find_by_sid(imported, sid - offset, &sym));
-                        // TODO set sym.sid to sid?
                     }
                     // The SID is within the max_id range of this symbol table. The symbol must be non-NULL,
                     // even if its text is unknown.
@@ -1365,7 +1409,7 @@ iERR _ion_symbol_table_get_unknown_symbol_name(ION_SYMBOL_TABLE *symtab, SID sid
     // A symbol name was not found, but the SID is within range for the current symbol table context -
     // make a symbol identifier of the form $<int> to represent the name
     temp[0] = '$';
-    len = (int32_t) strlen(_ion_itoa_10(sid, temp + 1, sizeof(temp) - 1)) + 1; // we're writing into the 2nd byte
+    len = (int32_t)strlen(_ion_itoa_10(sid, temp + 1, sizeof(temp)-1)) + 1; // we're writing into the 2nd byte
     str = ion_alloc_with_owner(symtab->owner, sizeof(ION_STRING));
     if (!str) FAILWITH(IERR_NO_MEMORY);
     str->length = len;

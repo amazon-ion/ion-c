@@ -18,6 +18,7 @@
 //
 
 #include "ion_internal.h"
+#include "ion_reader_impl.h"
 
 iERR _ion_reader_binary_local_read_length(ION_READER *preader, int tid, int *p_length);
 iERR _ion_binary_reader_fits_container(ION_READER *preader, SIZE len);
@@ -1142,6 +1143,28 @@ iERR _ion_reader_binary_read_symbol_sid(ION_READER *preader, SID *p_value)
     binary->_state = S_BEFORE_TID; // now we (should be) just in front of the next value
     *p_value = binary->_value_symbol_id;
 
+    iRETURN;
+}
+
+iERR _ion_reader_binary_read_symbol(ION_READER *preader, ION_SYMBOL *p_symbol)
+{
+    iENTER;
+    SID sid;
+    ION_STRING *text;
+
+    ASSERT(p_symbol);
+    IONCHECK(_ion_reader_binary_read_symbol_sid(preader, &sid));
+    if (sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
+    IONCHECK(_ion_symbol_table_find_by_sid_helper(preader->_current_symtab, sid, &text));
+    if (ION_STRING_IS_NULL(text)) {
+        ION_STRING_INIT(&p_symbol->value);
+    }
+    else {
+        ION_STRING_ASSIGN(&p_symbol->value, text);
+    }
+    p_symbol->sid = sid;
+    p_symbol->psymtab = preader->_current_symtab;
+    p_symbol->add_count = 1;
     iRETURN;
 }
 

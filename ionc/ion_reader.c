@@ -1042,10 +1042,6 @@ iERR _ion_reader_get_field_sid_helper(ION_READER *preader, SID *p_sid)
         FAILWITH(IERR_INVALID_STATE);
     }
 
-    if (*p_sid <= UNKNOWN_SID) {
-        FAILWITH(IERR_INVALID_SYMBOL);
-    }
-
     iRETURN;
 }
 
@@ -1486,6 +1482,28 @@ iERR _ion_reader_read_symbol_sid_helper(ION_READER *preader, SID *p_value)
         break;
     case ion_type_unknown_reader:
     default:
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    iRETURN;
+}
+
+iERR _ion_reader_read_symbol_helper(ION_READER *preader, ION_SYMBOL *p_symbol)
+{
+    iENTER;
+
+    ASSERT(preader);
+    ASSERT(p_symbol);
+
+    switch(preader->type) {
+        case ion_type_text_reader:
+            IONCHECK(_ion_reader_text_read_symbol(preader, p_symbol));
+            break;
+        case ion_type_binary_reader:
+            IONCHECK(_ion_reader_binary_read_symbol(preader, p_symbol));
+            break;
+        case ion_type_unknown_reader:
+        default:
         FAILWITH(IERR_INVALID_STATE);
     }
 

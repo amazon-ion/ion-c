@@ -26,16 +26,23 @@ char *ionIntToString(ION_INT *value) {
 }
 
 char *ionStringToString(ION_STRING *value) {
-    if (!value) {
-        return (char *)"NULL";
+    BYTE *src, *dst;
+    SIZE len;
+    if (value) {
+        src = value->value;
+        len = value->length;
     }
-    char *str = (char *)malloc(((size_t)value->length + 1) * sizeof(char));
-    if (!str) return NULL;
+    else {
+        src = (BYTE *)"NULL";
+        len = 4;
+    }
+    dst = (BYTE *)malloc(((size_t)len + 1) * sizeof(char));
+    if (!dst) return NULL;
 
-    memcpy(str, value->value, (size_t)value->length);
-    str[value->length] = 0;
+    memcpy(dst, src, (size_t)len);
+    dst[len] = 0;
 
-    return str;
+    return (char *)dst;
 }
 
 ::testing::AssertionResult assertIonStringEq(ION_STRING *expected, ION_STRING *actual) {
