@@ -243,7 +243,7 @@ iERR _ion_writer_free_temp_pool( ION_WRITER *pwriter );
 //
 // text writer interfaces in ion_writer_text.c
 //
-iERR _ion_writer_text_append_symbol_string(ION_STREAM *poutput, ION_STRING *p_str, BOOL as_ascii);
+iERR _ion_writer_text_append_symbol_string(ION_STREAM *poutput, ION_STRING *p_str, BOOL as_ascii, BOOL system_identifiers_need_quotes);
 iERR _ion_writer_text_append_ascii_cstr(ION_STREAM *poutput, char *cp);
 iERR _ion_writer_text_append_escape_sequence_string(ION_STREAM  *poutput, BYTE *cp, BYTE *limit, BYTE **p_next);
 iERR _ion_writer_text_append_escape_sequence_cstr_limit(ION_STREAM *poutput, char *cp, char *limit, char **p_next);

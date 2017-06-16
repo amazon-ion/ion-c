@@ -56,7 +56,6 @@ typedef enum _ION_SYMBOL_TABLE_TYPE {
 
 #define ION_SYS_SYMBOL_MAX_ID_UNDEFINED    -1
 
-#define ION_SYS_SID_UNKNOWN                0 /* not necessarily NULL */
 #define ION_SYS_SID_ION                    1 /* "$ion" */
 #define ION_SYS_SID_IVM                    2 /* "$ion_1_0"  aka ion type marker */
 #define ION_SYS_SID_SYMBOL_TABLE           3 /* "$ion_symbol_table" */
@@ -239,6 +238,13 @@ ION_API_EXPORT iERR ion_symbol_table_set_max_sid        (hSYMTAB hsymtab, SID ma
 
 ION_API_EXPORT iERR ion_symbol_table_get_imports        (hSYMTAB hsymtab, ION_COLLECTION **p_imports);
 ION_API_EXPORT iERR ion_symbol_table_add_import         (hSYMTAB hsymtab, ION_SYMBOL_TABLE_IMPORT *pimport);
+
+/**
+ * Imports one symbol table into another. NOTE: the imported symbol table must be accessible through the parent symbol
+ * table's catalog, otherwise all of its symbols will be considered to have unknown text.
+ * @param hsymtab - The symbol table into which the imported symbol table will be incorporated.
+ * @param hsymtab_import - The symbol table to import.
+ */
 ION_API_EXPORT iERR ion_symbol_table_import_symbol_table(hSYMTAB hsymtab, hSYMTAB hsymtab_import);
 
 ION_API_EXPORT iERR ion_symbol_table_find_by_name       (hSYMTAB hsymtab, iSTRING name, SID *p_sid);

@@ -872,6 +872,43 @@ iERR _ion_reader_get_an_annotation_helper(ION_READER *preader, int32_t idx, ION_
     iRETURN;
 }
 
+iERR ion_reader_get_an_annotation_sid(hREADER hreader, int idx, SID *p_sid)
+{
+    iENTER;
+    ION_READER *preader;
+
+    if (!hreader) FAILWITH(IERR_INVALID_ARG);
+    preader = HANDLE_TO_PTR(hreader, ION_READER);
+    if (idx < 0) FAILWITH(IERR_INVALID_ARG);
+    if (!p_sid) FAILWITH(IERR_INVALID_ARG);
+
+
+    IONCHECK(_ion_reader_get_an_annotation_sid_helper(preader, idx, p_sid));
+
+    iRETURN;
+}
+
+iERR _ion_reader_get_an_annotation_sid_helper(ION_READER *preader, int32_t idx, SID *p_sid)
+{
+    iENTER;
+
+    ASSERT(preader);
+
+    switch(preader->type) {
+        case ion_type_text_reader:
+        IONCHECK(_ion_reader_text_get_an_annotation_sid(preader, idx, p_sid));
+            break;
+        case ion_type_binary_reader:
+        IONCHECK(_ion_reader_binary_get_an_annotation_sid(preader, idx, p_sid));
+            break;
+        case ion_type_unknown_reader:
+        default:
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    iRETURN;
+}
+
 iERR ion_reader_is_null(hREADER hreader, BOOL *p_is_null)
 {
     iENTER;
@@ -901,6 +938,32 @@ iERR _ion_reader_is_null_helper(ION_READER *preader, BOOL *p_is_null)
         IONCHECK(_ion_reader_binary_is_null(preader, p_is_null));
         break;
     }
+
+    iRETURN;
+}
+
+iERR ion_reader_is_in_struct(hREADER hreader, BOOL *p_is_in_struct)
+{
+    iENTER;
+    BOOL is_in_struct;
+    ION_READER *preader;
+
+    if (!hreader) FAILWITH(IERR_INVALID_ARG);
+    preader = HANDLE_TO_PTR(hreader, ION_READER);
+    if (!p_is_in_struct)   FAILWITH(IERR_INVALID_ARG);
+
+    switch(preader->type) {
+    case ion_type_text_reader:
+        is_in_struct = preader->typed_reader.text._current_container == tid_STRUCT;
+        break;
+    case ion_type_binary_reader:
+        is_in_struct = preader->typed_reader.binary._in_struct;
+        break;
+    default:
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    *p_is_in_struct = is_in_struct;
 
     iRETURN;
 }
@@ -977,10 +1040,6 @@ iERR _ion_reader_get_field_sid_helper(ION_READER *preader, SID *p_sid)
     case ion_type_unknown_reader:
     default:
         FAILWITH(IERR_INVALID_STATE);
-    }
-
-    if (*p_sid <= UNKNOWN_SID) {
-        FAILWITH(IERR_INVALID_SYMBOL);
     }
 
     iRETURN;
@@ -1429,6 +1488,28 @@ iERR _ion_reader_read_symbol_sid_helper(ION_READER *preader, SID *p_value)
     iRETURN;
 }
 
+iERR _ion_reader_read_symbol_helper(ION_READER *preader, ION_SYMBOL *p_symbol)
+{
+    iENTER;
+
+    ASSERT(preader);
+    ASSERT(p_symbol);
+
+    switch(preader->type) {
+        case ion_type_text_reader:
+            IONCHECK(_ion_reader_text_read_symbol(preader, p_symbol));
+            break;
+        case ion_type_binary_reader:
+            IONCHECK(_ion_reader_binary_read_symbol(preader, p_symbol));
+            break;
+        case ion_type_unknown_reader:
+        default:
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    iRETURN;
+}
+
 iERR ion_reader_get_string_length(hREADER hreader, SIZE *p_length)
 {
     iENTER;
@@ -1478,13 +1559,7 @@ iERR ion_reader_read_string(hREADER hreader, iSTRING p_value)
     if (!p_value) FAILWITH(IERR_INVALID_ARG);
 
     IONCHECK(_ion_reader_read_string_helper(preader, &str));
-    if (ION_STRING_IS_NULL(&str)) {
-        FAILWITH(IERR_NULL_VALUE);
-    }
-    else {
-        ION_STRING_ASSIGN(p_value, &str);
-    }
-
+    ION_STRING_ASSIGN(p_value, &str);
     iRETURN;
 }
 
@@ -1723,7 +1798,7 @@ iERR _ion_reader_get_new_local_symbol_table_owner(ION_READER *preader, void **p_
     void *owner;
 
     // recycle the old symtab if there is one
-    IONCHECK(_ion_reader_reset_local_symbol_table(preader));
+    IONCHECK(_ion_reader_free_local_symbol_table(preader));
 
     // allocate a pool, save it as our local symbol table pool and return it
     owner = ion_alloc_owner(sizeof(int));  // this is a fake allocation to hold the pool
@@ -1736,7 +1811,7 @@ iERR _ion_reader_get_new_local_symbol_table_owner(ION_READER *preader, void **p_
     iRETURN;
 }
 
-iERR _ion_reader_reset_local_symbol_table(ION_READER *preader )
+iERR _ion_reader_free_local_symbol_table(ION_READER *preader )
 {
     iENTER;
 
@@ -1746,6 +1821,18 @@ iERR _ion_reader_reset_local_symbol_table(ION_READER *preader )
         preader->_local_symtab_pool = NULL;
     }
     SUCCEED();
+
+    iRETURN;
+}
+
+iERR _ion_reader_reset_local_symbol_table(ION_READER *preader )
+{
+    iENTER;
+    ION_SYMBOL_TABLE *system;
+
+    IONCHECK(_ion_reader_free_local_symbol_table(preader));
+    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
+    preader->_current_symtab = system;
 
     iRETURN;
 }
@@ -1902,15 +1989,35 @@ iERR ion_reader_set_symbol_table(hREADER hreader, hSYMTAB hsymtab)
     
     switch(preader->type) {
     case ion_type_text_reader:
-        IONCHECK(_ion_reader_text_set_symbol_table(preader, symtab));
-        break;
     case ion_type_binary_reader:
-        IONCHECK(_ion_reader_binary_set_symbol_table(preader, symtab));
+        IONCHECK(_ion_reader_set_symbol_table_helper(preader, symtab));
         break;
     case ion_type_unknown_reader:
     default:
         FAILWITH(IERR_INVALID_STATE);
     }
+
+    iRETURN;
+}
+
+iERR _ion_reader_set_symbol_table_helper(ION_READER *preader, ION_SYMBOL_TABLE *symtab)
+{
+    iENTER;
+    ION_SYMBOL_TABLE *clone, *system;
+
+    ASSERT(preader);
+    ASSERT(symtab);
+
+    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
+
+    if (symtab != NULL && symtab != system && symtab->owner != preader)
+    {
+        IONCHECK(_ion_symbol_table_clone_with_owner_helper(&clone, symtab, preader, system));
+        symtab = clone;
+    }
+
+    preader->_current_symtab = symtab;
+    SUCCEED();
 
     iRETURN;
 }

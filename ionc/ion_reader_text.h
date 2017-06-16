@@ -280,7 +280,6 @@ iERR _ion_reader_text_open                      (ION_READER *preader);
 iERR _ion_reader_text_open_alloc_buffered_string(ION_READER *preader, SIZE len, ION_STRING *p_string, BYTE **p_buf, SIZE *p_buf_len);
 iERR _ion_reader_text_reset                     (ION_READER *preader, ION_TYPE parent_tid, POSITION local_end);
 iERR _ion_reader_text_reset_value               (ION_READER *preader);
-iERR _ion_reader_text_set_symbol_table          (ION_READER *preader, ION_SYMBOL_TABLE *symtab);
 iERR _ion_reader_text_close                     (ION_READER *preader);
 
 // support for "next" functions
@@ -302,6 +301,7 @@ iERR _ion_reader_text_has_any_annotations       (ION_READER *preader, BOOL *p_ha
 iERR _ion_reader_text_has_annotation            (ION_READER *preader, ION_STRING *annotation, BOOL *p_annotation_found);
 iERR _ion_reader_text_get_annotation_count      (ION_READER *preader, int32_t *p_count);
 iERR _ion_reader_text_get_an_annotation         (ION_READER *preader, int32_t idx, ION_STRING *p_str);
+iERR _ion_reader_text_get_an_annotation_sid     (ION_READER *preader, int32_t idx, SID *p_sid);
 iERR _ion_reader_text_get_field_name            (ION_READER *preader, ION_STRING **p_pstr);
 iERR _ion_reader_text_get_symbol_table          (ION_READER *preader, ION_SYMBOL_TABLE **p_return);
 iERR _ion_reader_text_get_field_sid             (ION_READER *preader, SID *p_sid);
@@ -322,6 +322,7 @@ iERR _ion_reader_text_read_double               (ION_READER *preader, double *p_
 iERR _ion_reader_text_read_decimal              (ION_READER *preader, decQuad *p_value);
 iERR _ion_reader_text_read_timestamp            (ION_READER *preader, ION_TIMESTAMP *p_value);
 iERR _ion_reader_text_read_symbol_sid           (ION_READER *preader, SID *p_value);
+iERR _ion_reader_text_read_symbol               (ION_READER *preader, ION_SYMBOL *p_symbol);
 
 // get string functions, these work over value of type string or type symbol
 // get length FORCES the value to read into the value_image buffer (which may not be desirable)

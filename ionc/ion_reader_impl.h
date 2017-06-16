@@ -59,7 +59,7 @@ typedef struct _ion_reader_text
      *  to field name buffer length.
      *
      */
-    ION_STRING            _field_name;
+    ION_SYMBOL            _field_name;
     BYTE                 *_field_name_buffer;
     SIZE                  _field_name_buffer_length;
     
@@ -71,7 +71,7 @@ typedef struct _ion_reader_text
      *
      */
     SIZE                  _annotation_count;               // number of annotations on this value
-    ION_STRING           *_annotation_string_pool;         // preallocated set of ION_STRING to hold annotations
+    ION_SYMBOL           *_annotation_string_pool;         // preallocated set of ION_SYMBOL to hold annotations
     SIZE                  _annotation_string_pool_length;  // max number of annotations, size of string pool as count
     BYTE                 *_annotation_value_next;          // position in annotation value buffer for the next annotation value
     BYTE                 *_annotation_value_buffer;        // preallocate buffer to hold all annotation character for all annotations of the current value
@@ -139,6 +139,7 @@ typedef struct _ion_reader_binary
     int64_t         _value_start;
     ION_TYPE        _value_type;
     SID             _value_field_id;
+    SID             _value_symbol_id; // The SID of the pending symbol value.
     int             _value_tid;
     int32_t         _value_len;
 
@@ -201,6 +202,7 @@ iERR _ion_reader_initialize(ION_READER *preader, BYTE *version_buffer, SIZE vers
 
 iERR _ion_reader_get_catalog_helper(ION_READER *preader, ION_CATALOG **p_pcatalog);
 iERR _ion_reader_get_symbol_table_helper(ION_READER *preader, ION_SYMBOL_TABLE **p_psymtab);
+iERR _ion_reader_set_symbol_table_helper(ION_READER *preader, ION_SYMBOL_TABLE *symtab);
 iERR _ion_reader_next_helper(ION_READER *preader, ION_TYPE *p_value_type);
 iERR _ion_reader_step_in_helper(ION_READER *preader);
 iERR _ion_reader_step_out_helper(ION_READER *preader);
@@ -210,6 +212,7 @@ iERR _ion_reader_has_any_annotations_helper(ION_READER *preader, BOOL *p_has_ann
 iERR _ion_reader_has_annotation_helper(ION_READER *preader, ION_STRING *annotation, BOOL *p_annotation_found);
 iERR _ion_reader_get_annotation_count_helper(ION_READER *preader, int32_t *p_count);
 iERR _ion_reader_get_an_annotation_helper(ION_READER *preader, int32_t idx, ION_STRING *p_str);
+iERR _ion_reader_get_an_annotation_sid_helper(ION_READER *preader, int32_t idx, SID *p_sid);
 iERR _ion_reader_is_null_helper(ION_READER *preader, BOOL *p_is_null);
 iERR _ion_reader_get_field_name_helper(ION_READER *preader, ION_STRING **p_pstr);
 iERR _ion_reader_get_field_sid_helper(ION_READER *preader, SID *p_sid);
@@ -225,6 +228,7 @@ iERR _ion_reader_read_double_helper(ION_READER *preader, double *p_value);
 iERR _ion_reader_read_decimal_helper(ION_READER *preader, decQuad *p_value);
 iERR _ion_reader_read_timestamp_helper(ION_READER *preader, ION_TIMESTAMP *p_value);
 iERR _ion_reader_read_symbol_sid_helper(ION_READER *preader, SID *p_value);
+iERR _ion_reader_read_symbol_helper(ION_READER *preader, ION_SYMBOL *p_symbol);
 
 iERR _ion_reader_get_string_length_helper(ION_READER *preader, SIZE *p_length);
 iERR _ion_reader_read_string_helper(ION_READER *preader, ION_STRING *p_value);
@@ -239,6 +243,7 @@ iERR _ion_reader_close_helper(ION_READER *preader);
 iERR _ion_reader_allocate_temp_pool                 ( ION_READER *preader );
 iERR _ion_reader_reset_temp_pool                    ( ION_READER *preader);
 iERR _ion_reader_get_new_local_symbol_table_owner   (ION_READER *preader, void **p_owner);
+iERR _ion_reader_free_local_symbol_table            (ION_READER *preader);
 iERR _ion_reader_reset_local_symbol_table           (ION_READER *preader);
 
 iERR _ion_reader_get_position_helper(ION_READER *preader, int64_t *p_bytes, int32_t *p_line, int32_t *p_offset);
@@ -262,7 +267,6 @@ iERR _ion_reader_binary_reset               (ION_READER *preader, int parent_tid
 iERR _ion_reader_binary_close               (ION_READER *preader);
 
 iERR _ion_reader_binary_next                (ION_READER *preader, ION_TYPE *p_value_type);
-iERR _ion_reader_binary_set_symbol_table    (ION_READER *preader, ION_SYMBOL_TABLE *symtab);
 iERR _ion_reader_binary_get_local_symbol_table_helper(ION_READER *preader, ION_SYMBOL_TABLE **pplocal );
 iERR _ion_reader_binary_step_in             (ION_READER *preader);
 iERR _ion_reader_binary_step_out            (ION_READER *preader);
@@ -275,6 +279,7 @@ iERR _ion_reader_binary_has_any_annotations (ION_READER *preader, BOOL *p_has_an
 iERR _ion_reader_binary_has_annotation      (ION_READER *preader, iSTRING annotation, BOOL *p_annotation_found);
 iERR _ion_reader_binary_get_annotation_count(ION_READER *preader, int32_t *p_count);
 iERR _ion_reader_binary_get_an_annotation   (ION_READER *preader, int32_t idx, ION_STRING *p_str);
+iERR _ion_reader_binary_get_an_annotation_sid(ION_READER *preader, int32_t idx, SID *p_sid);
 
 iERR _ion_reader_binary_get_field_name     (ION_READER *preader, ION_STRING **pstr);
 iERR _ion_reader_binary_get_field_sid      (ION_READER *preader, SID *p_sid);
@@ -291,6 +296,8 @@ iERR _ion_reader_binary_read_double         (ION_READER *preader, double *p_valu
 iERR _ion_reader_binary_read_decimal        (ION_READER *preader, decQuad *p_value);
 iERR _ion_reader_binary_read_timestamp      (ION_READER *preader, iTIMESTAMP p_value);
 iERR _ion_reader_binary_read_symbol_sid     (ION_READER *preader, SID *p_value);
+iERR _ion_reader_binary_read_symbol_sid_helper(ION_READER *preader, ION_BINARY_READER *binary, SID *p_value);
+iERR _ion_reader_binary_read_symbol         (ION_READER *preader, ION_SYMBOL *p_symbol);
 
 iERR _ion_reader_binary_get_string_length   (ION_READER *preader, SIZE *p_length);
 iERR _ion_reader_binary_read_string_bytes   (ION_READER *preader, BOOL accept_partial, BYTE *p_buf, SIZE buf_max, SIZE *p_length);
