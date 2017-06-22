@@ -541,6 +541,8 @@ iERR _ion_scanner_read_past_whitespace(ION_SCANNER *scanner, int *p_char)
         case '\0':
         case ' ':
         case '\t':
+        case '\v': /* Vertical tab */
+        case '\f': /* Form feed */
         case NEW_LINE_3: /* carraige return */
         case NEW_LINE_2: /* carraige return, newline  */
         case NEW_LINE_1: /* newline */
@@ -571,6 +573,8 @@ iERR _ion_scanner_read_past_lob_whitespace(ION_SCANNER *scanner, int *p_char)
         case '\0':
         case ' ':
         case '\t':
+        case '\v': /* Vertical tab */
+        case '\f': /* Form feed */
         case NEW_LINE_3: /* carraige return */
         case NEW_LINE_2: /* carraige return, newline  */
         case NEW_LINE_1: /* newline */

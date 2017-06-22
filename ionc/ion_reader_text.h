@@ -256,7 +256,7 @@ extern "C" {
 #define FCF_IS_CONTAINER 0x0100
 
 // numeric stop characters
-#define NUMERIC_STOP_CHARACTERS "{}[](),\"\' \t\n\r"
+#define NUMERIC_STOP_CHARACTERS "{}[](),\"\' \t\n\r\v\f"
 
 #define IST_FOLLOW_STATE( iii )     ((iii)->follow_state)
 #define IST_BASE_TYPE( iii )        ((iii)->base_type)
