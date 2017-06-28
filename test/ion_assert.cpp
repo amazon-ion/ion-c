@@ -18,6 +18,15 @@
 
 TIMESTAMP_COMPARISON_FN g_TimestampEquals = ion_timestamp_equals;
 std::string g_CurrentTest = "NONE";
+decContext g_TestDecimalContext = {
+    ION_TEST_DECIMAL_MAX_DIGITS,    // max digits (arbitrarily high -- raise if test data requires more)
+    DEC_MAX_MATH,                   // max exponent
+    -DEC_MAX_MATH,                  // min exponent
+    DEC_ROUND_HALF_EVEN,            // rounding mode
+    DEC_Errors,                     // trap conditions
+    0,                              // status flags
+    0                               // apply exponent clamp?
+};
 
 char *ionIntToString(ION_INT *value) {
     SIZE len, written;
@@ -81,31 +90,31 @@ char *ionStringToString(ION_STRING *value) {
     return result;
 }
 
-::testing::AssertionResult assertIonDecimalEq(decQuad *expected, decQuad *actual) {
+::testing::AssertionResult assertIonDecimalEq(ION_DECIMAL *expected, ION_DECIMAL *actual) {
     BOOL decimal_equals;
-    EXPECT_EQ(IERR_OK, ion_decimal_equals(expected, actual, &g_Context, &decimal_equals));
+    ION_EXPECT_OK(ion_decimal_equals(expected, actual, &g_TestDecimalContext, &decimal_equals));
     if (decimal_equals) {
         return ::testing::AssertionSuccess();
     }
-    char expected_str[DECQUAD_String];
-    char actual_str[DECQUAD_String];
-    decQuadToString(expected, expected_str);
-    decQuadToString(actual, actual_str);
+    char expected_str[ION_TEST_DECIMAL_MAX_STRLEN];
+    char actual_str[ION_TEST_DECIMAL_MAX_STRLEN];
+    ION_EXPECT_OK(ion_decimal_to_string(expected, expected_str));
+    ION_EXPECT_OK(ion_decimal_to_string(actual, actual_str));
     return ::testing::AssertionFailure()
             << std::string("") << expected_str << " vs. " << actual_str;
 }
 
 ::testing::AssertionResult assertIonTimestampEq(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual) {
     BOOL timestamps_equal;
-    EXPECT_EQ(IERR_OK, g_TimestampEquals(expected, actual, &timestamps_equal, &g_Context));
+    EXPECT_EQ(IERR_OK, g_TimestampEquals(expected, actual, &timestamps_equal, &g_TestDecimalContext));
     if (timestamps_equal) {
         return ::testing::AssertionSuccess();
     }
     char expected_str[ION_MAX_TIMESTAMP_STRING];
     char actual_str[ION_MAX_TIMESTAMP_STRING];
     SIZE expected_str_len, actual_str_len;
-    EXPECT_EQ(IERR_OK, ion_timestamp_to_string(expected, expected_str, ION_MAX_TIMESTAMP_STRING, &expected_str_len, &g_Context));
-    EXPECT_EQ(IERR_OK, ion_timestamp_to_string(actual, actual_str, ION_MAX_TIMESTAMP_STRING, &actual_str_len, &g_Context));
+    EXPECT_EQ(IERR_OK, ion_timestamp_to_string(expected, expected_str, ION_MAX_TIMESTAMP_STRING, &expected_str_len, &g_TestDecimalContext));
+    EXPECT_EQ(IERR_OK, ion_timestamp_to_string(actual, actual_str, ION_MAX_TIMESTAMP_STRING, &actual_str_len, &g_TestDecimalContext));
     return ::testing::AssertionFailure()
             << std::string(expected_str, (size_t)expected_str_len) << " vs. " << std::string(actual_str, (size_t)actual_str_len);
 }
@@ -126,26 +135,26 @@ BOOL assertIonScalarEq(IonEvent *expected, IonEvent *actual, ASSERTION_TYPE asse
     }
     switch (tid) {
         case TID_BOOL:
-        ION_EXPECT_EQ(*(BOOL *) expected_value, *(BOOL *) actual_value);
+            ION_EXPECT_EQ(*(BOOL *) expected_value, *(BOOL *) actual_value);
             break;
         case TID_POS_INT:
         case TID_NEG_INT:
-        ION_EXPECT_INT_EQ((ION_INT *) expected_value, (ION_INT *) actual_value);
+            ION_EXPECT_INT_EQ((ION_INT *) expected_value, (ION_INT *) actual_value);
             break;
         case TID_FLOAT:
-        ION_EXPECT_DOUBLE_EQ(*(double *) expected_value, *(double *) actual_value);
+            ION_EXPECT_DOUBLE_EQ(*(double *) expected_value, *(double *) actual_value);
             break;
         case TID_DECIMAL:
-        ION_EXPECT_DECIMAL_EQ((decQuad *) expected_value, (decQuad *) actual_value);
+            ION_EXPECT_DECIMAL_EQ((ION_DECIMAL *) expected_value, (ION_DECIMAL *) actual_value);
             break;
         case TID_TIMESTAMP:
-        ION_EXPECT_TIMESTAMP_EQ((ION_TIMESTAMP *) expected_value, (ION_TIMESTAMP *) actual_value);
+            ION_EXPECT_TIMESTAMP_EQ((ION_TIMESTAMP *) expected_value, (ION_TIMESTAMP *) actual_value);
             break;
         case TID_SYMBOL:
         case TID_STRING:
         case TID_CLOB:
         case TID_BLOB: // Clobs and blobs are stored in ION_STRINGs too...
-        ION_EXPECT_STRING_EQ((ION_STRING *) expected_value, (ION_STRING *) actual_value);
+            ION_EXPECT_STRING_EQ((ION_STRING *) expected_value, (ION_STRING *) actual_value);
             break;
         default:
             EXPECT_FALSE("Illegal state: unknown ion type.");

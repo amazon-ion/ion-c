@@ -226,6 +226,7 @@ iERR _ion_reader_read_ion_int_helper(ION_READER *preader, ION_INT *p_value);
 iERR _ion_reader_read_mixed_int_helper(ION_READER *preader);
 iERR _ion_reader_read_double_helper(ION_READER *preader, double *p_value);
 iERR _ion_reader_read_decimal_helper(ION_READER *preader, decQuad *p_value);
+iERR _ion_reader_read_ion_decimal_helper(ION_READER *preader, ION_DECIMAL *p_value);
 iERR _ion_reader_read_timestamp_helper(ION_READER *preader, ION_TIMESTAMP *p_value);
 iERR _ion_reader_read_symbol_sid_helper(ION_READER *preader, SID *p_value);
 iERR _ion_reader_read_symbol_helper(ION_READER *preader, ION_SYMBOL *p_symbol);
@@ -293,7 +294,7 @@ iERR _ion_reader_binary_read_int32          (ION_READER *preader, int32_t *p_val
 iERR _ion_reader_binary_read_int64          (ION_READER *preader, int64_t *p_value);
 iERR _ion_reader_binary_read_ion_int        (ION_READER *preader, ION_INT *p_value);
 iERR _ion_reader_binary_read_double         (ION_READER *preader, double *p_value);
-iERR _ion_reader_binary_read_decimal        (ION_READER *preader, decQuad *p_value);
+iERR _ion_reader_binary_read_decimal        (ION_READER *preader, decQuad *p_value, decNumber **p_num);
 iERR _ion_reader_binary_read_timestamp      (ION_READER *preader, iTIMESTAMP p_value);
 iERR _ion_reader_binary_read_symbol_sid     (ION_READER *preader, SID *p_value);
 iERR _ion_reader_binary_read_symbol_sid_helper(ION_READER *preader, ION_BINARY_READER *binary, SID *p_value);

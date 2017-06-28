@@ -20,11 +20,17 @@
 #include "ion.h"
 #include "ion_event_stream.h"
 
+#define ION_TEST_DECIMAL_MAX_DIGITS 10000
+#define ION_TEST_DECIMAL_MAX_STRLEN (ION_TEST_DECIMAL_MAX_DIGITS + 14) // 14 extra bytes as specified by decNumber.
+
 #define ION_ENTER_ASSERTIONS /* nothing */
 
 #define ION_EXIT_ASSERTIONS return TRUE
 
 #define ION_ACCUMULATE_ASSERTION(x) if (!(x)) return FALSE;
+
+#define ION_ASSERT_OK(x) ASSERT_EQ(IERR_OK, x)
+#define ION_EXPECT_OK(x) EXPECT_EQ(IERR_OK, x)
 
 #define ION_ASSERT(x, m) { \
     if (!(x)) { \
@@ -144,7 +150,7 @@
             break; \
         case ASSERTION_TYPE_SET_FLAG: \
             BOOL _decimal_equals; \
-            EXPECT_EQ(IERR_OK, ion_decimal_equals(x, y, &g_Context, &_decimal_equals)); \
+            EXPECT_EQ(IERR_OK, ion_decimal_equals(x, y, &g_TestDecimalContext, &_decimal_equals)); \
             if (!_decimal_equals) return FALSE; \
             break; \
         default: \
@@ -160,7 +166,7 @@
             break; \
         case ASSERTION_TYPE_SET_FLAG: \
             BOOL _timestamps_equal; \
-            EXPECT_EQ(IERR_OK, g_TimestampEquals(x, y, &_timestamps_equal, &g_Context)); \
+            EXPECT_EQ(IERR_OK, g_TimestampEquals(x, y, &_timestamps_equal, &g_TestDecimalContext)); \
             if (!_timestamps_equal) return FALSE; \
             break; \
         default: \
@@ -203,6 +209,13 @@ extern TIMESTAMP_COMPARISON_FN g_TimestampEquals;
 extern std::string g_CurrentTest;
 
 /**
+ * Global variable that holds the decimal context to be used throughout tests. Initialized
+ * to contain arbitrarily high limits, which may be raised if necessary, to avoid loss
+ * of precision.
+ */
+extern decContext g_TestDecimalContext;
+
+/**
  * Allocates and returns a new char * representing the given ION_INT.
  * Note: the caller is responsible for freeing the returned char *.
  */
@@ -216,7 +229,7 @@ char *ionStringToString(ION_STRING *value);
 
 ::testing::AssertionResult assertIonStringEq(ION_STRING *expected, ION_STRING *actual);
 ::testing::AssertionResult assertIonIntEq(ION_INT *expected, ION_INT *actual);
-::testing::AssertionResult assertIonDecimalEq(decQuad *expected, decQuad *actual);
+::testing::AssertionResult assertIonDecimalEq(ION_DECIMAL *expected, ION_DECIMAL *actual);
 
 /**
  * Asserts that the given timestamps are equal. Uses g_TimestampEquals as the comparison method.

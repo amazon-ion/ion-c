@@ -126,7 +126,12 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
     _ion_writer_initialize_option_defaults(&(pwriter->options));
 
     // initialize decimal context
-    decContextDefault(&pwriter->deccontext, DEC_INIT_DECQUAD);
+    if (pwriter->options.decimal_context == NULL) {
+        decContextDefault(&pwriter->deccontext, DEC_INIT_DECQUAD);
+    }
+    else {
+        memcpy(&pwriter->deccontext, pwriter->options.decimal_context, sizeof(decContext));
+    }
 
     // our default is unknown, so if the option says "binary" we need to 
     // change the underlying writer's obj type we'll use the presence of 
@@ -1037,12 +1042,65 @@ iERR _ion_writer_write_decimal_helper(ION_WRITER *pwriter, decQuad *value)
 
     switch (pwriter->type) {
     case ion_type_text_writer:
-        IONCHECK(_ion_writer_text_write_decimal(pwriter, value));
+        IONCHECK(_ion_writer_text_write_decimal_quad(pwriter, value));
         break;
     case ion_type_binary_writer:
-        IONCHECK(_ion_writer_binary_write_decimal(pwriter, value));
+        IONCHECK(_ion_writer_binary_write_decimal_quad(pwriter, value));
         break;
     default:
+        FAILWITH(IERR_INVALID_ARG);
+    }
+
+    iRETURN;
+}
+
+iERR ion_writer_write_ion_decimal(hWRITER hwriter, ION_DECIMAL *value)
+{
+    iENTER;
+    ION_WRITER *pwriter;
+
+    if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
+    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    IONCHECK(_ion_writer_write_ion_decimal_helper(pwriter, value));
+
+    iRETURN;
+}
+
+iERR _ion_writer_write_ion_decimal_helper(ION_WRITER *pwriter, ION_DECIMAL *value)
+{
+    iENTER;
+
+    ASSERT(pwriter);
+
+    switch (pwriter->type) {
+        case ion_type_text_writer:
+            switch(value->type) {
+                case ION_DECIMAL_TYPE_QUAD:
+                    IONCHECK(_ion_writer_text_write_decimal_quad(pwriter, &value->value.quad_value));
+                    break;
+                case ION_DECIMAL_TYPE_NUMBER_OWNED:
+                case ION_DECIMAL_TYPE_NUMBER:
+                    IONCHECK(_ion_writer_text_write_decimal_number(pwriter, value->value.num_value));
+                    break;
+                default:
+                    FAILWITH(IERR_INVALID_STATE);
+            }
+            break;
+        case ion_type_binary_writer:
+            switch(value->type) {
+                case ION_DECIMAL_TYPE_QUAD:
+                    IONCHECK(_ion_writer_binary_write_decimal_quad(pwriter, &value->value.quad_value));
+                    break;
+                case ION_DECIMAL_TYPE_NUMBER_OWNED:
+                case ION_DECIMAL_TYPE_NUMBER:
+                    IONCHECK(_ion_writer_binary_write_decimal_number(pwriter, value->value.num_value));
+                    break;
+                default:
+                FAILWITH(IERR_INVALID_STATE);
+            }
+            break;
+        default:
         FAILWITH(IERR_INVALID_ARG);
     }
 
@@ -1491,7 +1549,7 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
     int32_t       count, ii;
     BOOL          is_null, bool_value, is_in_struct;
     double        double_value;
-    decQuad       decimal_value;
+    ION_DECIMAL   decimal_value;
     ION_TIMESTAMP timestamp_value;
 
 
@@ -1588,8 +1646,9 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
         IONCHECK(_ion_writer_write_double_helper(pwriter, double_value));
         break;
     case (intptr_t)tid_DECIMAL:
-        IONCHECK(_ion_reader_read_decimal_helper(preader, &decimal_value));
-        IONCHECK(_ion_writer_write_decimal_helper(pwriter, &decimal_value));
+        IONCHECK(_ion_reader_read_ion_decimal_helper(preader, &decimal_value));
+        IONCHECK(_ion_writer_write_ion_decimal_helper(pwriter, &decimal_value));
+        IONCHECK(ion_decimal_free(&decimal_value));
         break;
     case (intptr_t)tid_TIMESTAMP:
         IONCHECK(_ion_reader_read_timestamp_helper(preader, &timestamp_value));

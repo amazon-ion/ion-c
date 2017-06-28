@@ -14,6 +14,7 @@
 
 #include <limits.h>
 #include "ion_internal.h"
+#include "ion_decimal_impl.h"
 
 // These field formats are always used in some context that clearly indicates the number of octets in the field.
 int ion_binary_len_uint_64(uint64_t value) {
@@ -389,17 +390,39 @@ iERR ion_binary_read_double(ION_STREAM *pstream, int32_t len, double *p_value)
     iRETURN;
 }
 
-iERR _ion_binary_read_decimal_big_helper(ION_STREAM *pstream, int32_t len, decContext *context, decQuad *p_value) {
+iERR _ion_binary_read_decimal_helper(ION_STREAM *pstream, int32_t len, int32_t exponent, decContext *context,
+                                     decQuad *p_quad, decNumber **p_num) {
     iENTER;
     ION_INT mantissa;
+    SIZE decimal_digits;
+    uint32_t saved_status;
 
-    IONCHECK(ion_int_init(&mantissa, NULL));
+    ASSERT(p_quad);
+
+    IONCHECK(ion_int_init(&mantissa, pstream));
     IONCHECK(ion_binary_read_ion_int_signed(pstream, len, &mantissa));
-    IONCHECK(ion_int_to_decimal(&mantissa, p_value));
+    decimal_digits = DECIMAL_DIGIT_COUNT_FROM_BITS(_ion_int_highest_bit_set_helper(&mantissa));
+    if (decimal_digits <= DECQUAD_Pmax && exponent <= DECQUAD_Emax && exponent >= DECQUAD_Emin) {
+        IONCHECK(ion_int_to_decimal(&mantissa, p_quad, context));
+        decQuadSetExponent(p_quad, context, exponent);
+    }
+    else if (!p_num) {
+        // The decimal's components lay outside of decQuad bounds and a decNumber was not provided. Rather than silently
+        // losing precision, fail.
+        FAILWITH(IERR_NUMERIC_OVERFLOW);
+    }
+    else {
+        // TODO the decimal's owner should really be the reader, not the stream... that requires a refactor.
+        IONCHECK(_ion_decimal_number_alloc(pstream, decimal_digits, p_num));
+        ION_DECIMAL_SAVE_STATUS(saved_status, context, DEC_Inexact);
+        IONCHECK(_ion_int_to_decimal_number(&mantissa, *p_num, context));
+        ION_DECIMAL_TEST_AND_RESTORE_STATUS(saved_status, context, DEC_Inexact);
+        (*p_num)->exponent = exponent;
+    }
     iRETURN;
 }
 
-iERR ion_binary_read_decimal(ION_STREAM *pstream, int32_t len, decContext *context, decQuad *p_value)
+iERR ion_binary_read_decimal(ION_STREAM *pstream, int32_t len, decContext *context, decQuad *p_quad, decNumber **p_num)
 {
     iENTER;
     int64_t start_exp, finish_exp, value_len;
@@ -410,10 +433,10 @@ iERR ion_binary_read_decimal(ION_STREAM *pstream, int32_t len, decContext *conte
     ASSERT(pstream != NULL);
     ASSERT(len >= 0);
     ASSERT(context != NULL);
-    ASSERT(p_value != NULL);
+    ASSERT(p_quad != NULL);
 
     if (len == 0) {
-        decQuadZero(p_value);
+        decQuadZero(p_quad);
         SUCCEED();
     }
 
@@ -432,7 +455,7 @@ iERR ion_binary_read_decimal(ION_STREAM *pstream, int32_t len, decContext *conte
     isNegative = FALSE;
     if (value_len == 0) {
         mantissa = 0;
-        ion_quad_get_quad_from_digits_and_exponent(mantissa, exponent, context, isNegative, p_value);
+        IONCHECK(ion_quad_get_quad_from_digits_and_exponent(mantissa, exponent, context, isNegative, p_quad));
     }
     else {
         if (value_len <= sizeof(uint64_t)) {
@@ -442,14 +465,12 @@ iERR ion_binary_read_decimal(ION_STREAM *pstream, int32_t len, decContext *conte
             // magnitude. Although this exact case could be checked, it is probably not worth the extra complexity given
             // that most decimals likely do not fall in that range.
             IONCHECK(ion_binary_read_int_64_and_sign(pstream, (int32_t)value_len, &mantissa, &isNegative));
-            ion_quad_get_quad_from_digits_and_exponent(mantissa, exponent, context, isNegative, p_value);
+            IONCHECK(ion_quad_get_quad_from_digits_and_exponent(mantissa, exponent, context, isNegative, p_quad));
         }
         else {
-            IONCHECK(_ion_binary_read_decimal_big_helper(pstream, (int32_t)value_len, context, p_value));
-            decQuadSetExponent(p_value, context, exponent);
+            IONCHECK(_ion_binary_read_decimal_helper(pstream, (int32_t) value_len, exponent, context, p_quad, p_num));
         }
     }
-
     iRETURN;
 }
 
