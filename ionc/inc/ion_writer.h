@@ -90,6 +90,16 @@ typedef struct _ion_writer_options
      */
     ION_SYMBOL_TABLE *encoding_psymbol_table;
 
+    /** Handle to the decNumber context for the writer to use. This allows configuration of the maximum number of
+     * decimal digits, decimal exponent range, etc. See decContextDefault in decContext.h for simple initialization.
+     *
+     * If NULL, the writer will initialize its decimal context by calling decContextDefault with the DEC_INIT_DECQUAD
+     * option, which results in a maximum of 34 decimal digits and an exponent range of [-6143, 6144].
+     *
+     * Note that up to 34 digits of precision will always be supported, even if configured to be less than 34.
+     */
+    decContext *decimal_context;
+
 } ION_WRITER_OPTIONS;
 
 
@@ -150,7 +160,12 @@ ION_API_EXPORT iERR ion_writer_write_int64          (hWRITER hwriter, int64_t va
 ION_API_EXPORT iERR ion_writer_write_long           (hWRITER hwriter, long value);
 ION_API_EXPORT iERR ion_writer_write_ion_int        (hWRITER hwriter, ION_INT *value);
 ION_API_EXPORT iERR ion_writer_write_double         (hWRITER hwriter, double value);
+
+/**
+ * @deprecated use of decQuads directly is deprecated. ION_DECIMAL should be used. See `ion_writer_write_ion_decimal`.
+ */
 ION_API_EXPORT iERR ion_writer_write_decimal        (hWRITER hwriter, decQuad *value);
+ION_API_EXPORT iERR ion_writer_write_ion_decimal    (hWRITER hwriter, ION_DECIMAL *value);
 ION_API_EXPORT iERR ion_writer_write_timestamp      (hWRITER hwriter, iTIMESTAMP value);
 ION_API_EXPORT iERR ion_writer_write_symbol_sid     (hWRITER hwriter, SID value);
 ION_API_EXPORT iERR ion_writer_write_symbol         (hWRITER hwriter, iSTRING p_value);

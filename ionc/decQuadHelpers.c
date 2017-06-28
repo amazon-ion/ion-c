@@ -15,6 +15,7 @@
 // helper functions
 
 #include "ion_internal.h"
+#include "ion_decimal_impl.h"
 #include <math.h>
 
 // Max uint64_t is 18446744073709551615; decimal digits are retrieved 9 at a time.
@@ -65,18 +66,22 @@ void ion_quad_get_exponent_and_shift(const decQuad *quad_value, decContext *set,
     }
 }
 
-void ion_quad_get_quad_from_digits_and_exponent(uint64_t value, int32_t exp,
+iERR ion_quad_get_quad_from_digits_and_exponent(uint64_t value, int32_t exp,
         decContext *set, BOOL is_negative, decQuad *p_quad)
 {
+    iENTER;
     decQuad result, nine_quad_digits;
     decQuad multiplier;
     int32_t nine_digits;
     int     multiplier_exponent;
+    uint32_t saved_status;
 
     // decDoubleScaleB(r, x, y, set) - This calculates x * 10y and places
     //                                 the result in r.
 
     decQuadZero(&result);
+
+    ION_DECIMAL_SAVE_STATUS(saved_status, set, DEC_Inexact);
 
     decQuadFromInt32(&multiplier, 1);
     multiplier_exponent = 0;
@@ -105,9 +110,11 @@ void ion_quad_get_quad_from_digits_and_exponent(uint64_t value, int32_t exp,
     }
     decQuadSetExponent(&result, set, exp);
 
+    ION_DECIMAL_TEST_AND_RESTORE_STATUS(saved_status, set, DEC_Inexact);
+
     decQuadCopy(p_quad, &result);
 
-    return;
+    iRETURN;
 }
 
 void ion_quad_get_packed_and_exponent_from_quad(const decQuad *quad_value, uint8_t *p_packed, int32_t *p_exp)

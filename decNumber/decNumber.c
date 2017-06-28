@@ -582,7 +582,7 @@ decNumber * decNumberFromString(decNumber *dn, const char chars[],
       Flag nege;                   // 1=negative exponent
       const char *firstexp;        // -> first significant exponent digit
       status=DEC_Conversion_syntax;// assume the worst
-      if (*c!='e' && *c!='E') break;
+      if (*c!='e' && *c!='E' && *c!='d' && *c!='D') break;  // NOTE: modified to support Ion decimal notation.
       /* Found 'e' or 'E' -- now process explicit exponent */
       // 1998.07.11: sign no longer required
       nege=0;

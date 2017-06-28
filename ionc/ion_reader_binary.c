@@ -1031,14 +1031,14 @@ iERR _ion_reader_binary_read_double(ION_READER *preader, double *p_value)
     iRETURN;
 }
 
-iERR _ion_reader_binary_read_decimal(ION_READER *preader, decQuad *p_value)
+iERR _ion_reader_binary_read_decimal(ION_READER *preader, decQuad *p_quad, decNumber **p_num)
 {
     iENTER;
     ION_BINARY_READER *binary;
     int                tid;
 
     ASSERT(preader && preader->type == ion_type_binary_reader);
-    ASSERT(p_value != NULL);
+    ASSERT(p_quad != NULL);
 
     binary = &preader->typed_reader.binary;
 
@@ -1057,7 +1057,7 @@ iERR _ion_reader_binary_read_decimal(ION_READER *preader, decQuad *p_value)
     
     IONCHECK(_ion_binary_reader_fits_container(preader, binary->_value_len));
 
-    IONCHECK(ion_binary_read_decimal(preader->istream, binary->_value_len, &preader->_deccontext, p_value));
+    IONCHECK(ion_binary_read_decimal(preader->istream, binary->_value_len, &preader->_deccontext, p_quad, p_num));
 
     binary->_state = S_BEFORE_TID; // now we (should be) just in front of the next value
 

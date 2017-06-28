@@ -110,6 +110,16 @@ typedef struct _ion_reader_options
      */
     ION_CATALOG *pcatalog;
 
+    /** Handle to the decNumber context for the reader to use. This allows configuration of the maximum number of
+     * decimal digits, decimal exponent range, etc. See decContextDefault in decContext.h for simple initialization.
+     *
+     * If NULL, the reader will initialize its decimal context by calling decContextDefault with the DEC_INIT_DECQUAD
+     * option, which results in a maximum of 34 decimal digits and an exponent range of [-6143, 6144].
+     *
+     * Note that up to 34 digits of precision will always be supported, even if configured to be less than 34.
+     */
+    decContext *decimal_context;
+
 } ION_READER_OPTIONS;
 
 //
@@ -340,7 +350,12 @@ ION_API_EXPORT iERR ion_reader_read_ion_int        (hREADER hreader, ION_INT *p_
  */
 ION_API_EXPORT iERR ion_reader_read_long           (hREADER hreader, long *p_value);
 ION_API_EXPORT iERR ion_reader_read_double         (hREADER hreader, double *p_value);
+
+/**
+ * @deprecated use of decQuads directly is deprecated. ION_DECIMAL should be used. See `ion_reader_read_ion_decimal`.
+ */
 ION_API_EXPORT iERR ion_reader_read_decimal        (hREADER hreader, decQuad *p_value);
+ION_API_EXPORT iERR ion_reader_read_ion_decimal    (hREADER hreader, ION_DECIMAL *p_value);
 
 /**
  * @return IERR_NULL_VALUE if the current value is null.timestamp.
