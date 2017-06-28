@@ -17,7 +17,12 @@
 
 #include "ion.h"
 
-#define ION_ASSERT_OK(x) ASSERT_EQ(IERR_OK, x)
+/**
+ * Initializes the given writer options to the test defaults, which provide
+ * arbitrarily high limits.
+ * @param options - the options to initialize.
+ */
+void ion_test_initialize_writer_options(ION_WRITER_OPTIONS *options);
 
 /**
  * Initializes and opens a new in-memory writer.
@@ -45,6 +50,22 @@ iERR ion_test_writer_get_bytes(hWRITER writer, ION_STREAM *ion_stream, BYTE **ou
  * @return IERR_OK, unless out is NULL.
  */
 iERR ion_string_from_cstr(const char *cstr, ION_STRING *out);
+
+/**
+ * Initializes the given reader options to the test defaults, which provide
+ * arbitrarily high limits.
+ * @param options - the options to initialize.
+ */
+void ion_test_initialize_reader_options(ION_READER_OPTIONS *options);
+
+/**
+ * Initializes and opens a new in-memory reader over the given buffer of Ion data.
+ * @param ion_data - the Ion data to read.
+ * @param buffer_length - the length of the buffer of Ion data.
+ * @param reader - the reader to initialize and open.
+ * @return IERR_OK, unless the reader fails to open.
+ */
+iERR ion_test_new_reader(BYTE *ion_data, SIZE buffer_length, hREADER *reader);
 
 /**
  * Initializes and opens a new in-memory reader over the given string of Ion text.

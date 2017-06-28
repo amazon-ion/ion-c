@@ -198,6 +198,8 @@ base64char         [a-z,A-Z,0-9,'\','+']
 #ifndef ION_READER_TEXT_H_
 #define ION_READER_TEXT_H_
 
+#include <decNumber.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -319,7 +321,7 @@ iERR _ion_reader_text_read_int64                (ION_READER *preader, int64_t *p
 iERR _ion_reader_text_read_ion_int_helper       (ION_READER *preader, ION_INT *p_value);
 iERR _ion_reader_text_read_double               (ION_READER *preader, double *p_value);
 //iERR _ion_reader_text_read_float32              (ION_READER *preader, float *p_value);
-iERR _ion_reader_text_read_decimal              (ION_READER *preader, decQuad *p_value);
+iERR _ion_reader_text_read_decimal              (ION_READER *preader, decQuad *p_quad, decNumber **p_num);
 iERR _ion_reader_text_read_timestamp            (ION_READER *preader, ION_TIMESTAMP *p_value);
 iERR _ion_reader_text_read_symbol_sid           (ION_READER *preader, SID *p_value);
 iERR _ion_reader_text_read_symbol               (ION_READER *preader, ION_SYMBOL *p_symbol);

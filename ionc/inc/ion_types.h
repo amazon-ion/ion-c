@@ -29,6 +29,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <decQuad.h>
+#include <decNumber.h>
 
 #ifdef ION_INIT
   #define GLOBAL    ION_API_EXPORT
@@ -125,6 +126,7 @@ typedef struct _ion_symbol_table_import ION_SYMBOL_TABLE_IMPORT;
 typedef struct _ion_reader              ION_READER;
 typedef struct _ion_writer              ION_WRITER;
 typedef struct _ion_int                 ION_INT;
+typedef struct _ion_decimal             ION_DECIMAL;
 typedef struct _ion_timestamp           ION_TIMESTAMP;
 typedef struct _ion_collection          ION_COLLECTION;
 

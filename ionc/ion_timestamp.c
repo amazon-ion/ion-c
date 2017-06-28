@@ -17,6 +17,7 @@
 //
 
 #include "ion_internal.h"
+#include "ion_decimal_impl.h"
 
 #ifdef ION_PLATFORM_ANDROID
 // Taken from http://www.kernel.org/doc/man-pages/online/pages/man3/timegm.3.html
@@ -532,7 +533,8 @@ iERR ion_timestamp_parse(ION_TIMESTAMP *ptime, char *buffer, SIZE buf_length, SI
         if (cp > end_of_buffer) FAILWITH(IERR_INVALID_TIMESTAMP);
 
         *dst = 0; // null terminate the string (it's why we copied it after all)
-        decQuadFromString(&fraction, temp, pcontext);
+        // TODO timestamp fraction as ION_DECIMAL to support full precision?
+        IONCHECK(_ion_decimal_from_string_helper(temp, pcontext, NULL, &fraction, NULL));
 
 
 end_of_time:
@@ -663,7 +665,7 @@ end_of_days:
             ptime->seconds   = 0;
         }
         if (IS_FLAG_ON(ptime->precision, ION_TT_BIT_FRAC)) {
-            decQuadCopy(&ptime->fraction, &fraction);
+            decQuadCopy(&ptime->fraction, &fraction);  // TODO timestamp fraction as ION_DECIMAL to support full precision?
         }
         // No need to zero ptime->fraction here -- that is taken care of by _ion_timestamp_initialize.
     }
@@ -1068,7 +1070,7 @@ iERR _ion_timestamp_equals_helper(const ION_TIMESTAMP *ptime1, const ION_TIMESTA
         // Fractional precision does not matter in this case. Trim any trailing zeros from the fractions, then compare.
         decQuadReduce(&fraction_trimmed1, &ptime1->fraction, pcontext);
         decQuadReduce(&fraction_trimmed2, &ptime2->fraction, pcontext);
-        ion_decimal_equals(&fraction_trimmed1, &fraction_trimmed2, pcontext, &decResult);
+        IONCHECK(ion_decimal_equals_quad(&fraction_trimmed1, &fraction_trimmed2, pcontext, &decResult));
         if (!decResult) goto is_false;
         IONCHECK(_ion_timestamp_initialize(&ptime1_compare));
         IONCHECK(_ion_timestamp_initialize(&ptime2_compare));
@@ -1126,7 +1128,7 @@ iERR _ion_timestamp_equals_helper(const ION_TIMESTAMP *ptime1, const ION_TIMESTA
             goto is_false;
         }
         if (precision1 == ION_TS_FRAC) { // Then precision2 is also ION_TS_FRAC.
-            ion_decimal_equals(&ptime1->fraction, &ptime2->fraction, pcontext, &decResult);
+            IONCHECK(ion_decimal_equals_quad(&ptime1->fraction, &ptime2->fraction, pcontext, &decResult));
             if (!decResult) goto is_false;
         }
     }
@@ -1288,7 +1290,7 @@ iERR ion_timestamp_binary_read(ION_STREAM *stream, int32_t len, decContext *cont
     if (len == 0) goto timestamp_is_finished;
 
     // now we read in our actual "milliseconds since the epoch"
-    IONCHECK(ion_binary_read_decimal(stream, len, context, &ptime->fraction));
+    IONCHECK(ion_binary_read_decimal(stream, len, context, &ptime->fraction, NULL)); // TODO make timestamp's fraction an ION_DECIMAL so it can support full precision?
     if (decQuadIsSigned(&ptime->fraction)) {
         if (decQuadIsZero(&ptime->fraction)) {
             // Negative-zero fractional seconds are normalized to positive-zero.

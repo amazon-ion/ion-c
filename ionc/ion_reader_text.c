@@ -48,6 +48,7 @@ double _ION_FLOAT64_NAN() {
 
 #define IST_RECORD( NAME, TTT, STATE, FLAGS ) ION_SUB_TYPE NAME = & g_##NAME ;
 #include "ion_sub_type_records.h"
+#include "ion_decimal_impl.h"
 
 /**
  *        open the reader, allocate supporting buffers for fieldname, annotations,
@@ -1561,15 +1562,13 @@ iERR _ion_reader_text_read_double(ION_READER *preader, double *p_value)
     iRETURN;
 }
 
-
-iERR _ion_reader_text_read_decimal(ION_READER *preader, decQuad *p_value)
+iERR _ion_reader_text_read_decimal(ION_READER *preader, decQuad *p_quad, decNumber **p_num)
 {
     iENTER;
     ION_TEXT_READER *text = &preader->typed_reader.text;
-    char            *cp, c_save = 0;
 
     ASSERT(preader);
-    ASSERT(p_value);
+    ASSERT(p_quad);
 
     if (text->_state == IPS_ERROR 
      || text->_state == IPS_NONE 
@@ -1585,26 +1584,8 @@ iERR _ion_reader_text_read_decimal(ION_READER *preader, decQuad *p_value)
     ASSERT(text->_scanner._value_image.length > 0);
     ASSERT(text->_scanner._value_image.value[text->_scanner._value_image.length] == 0);
 
-    for (cp = text->_scanner._value_image.value; *cp; cp++) {
-        if (*cp == 'd' || *cp == 'D') {
-            c_save = *cp;
-            *cp = 'e';
-            break;
-        }
-    }
-    // replace the 'd' with a 'e' to make decQuadFromString happy (if there is a 'd')
-    if (*cp) {
-        c_save = *cp;
-        *cp = 'e';
-    }
-
-    decQuadFromString(p_value, text->_scanner._value_image.value, &preader->_deccontext);
-
-    // restore the string is we munged it, just in case someone else wants to use if later
-    if (*cp) {
-        *cp = c_save;
-    }
-    SUCCEED();
+    IONCHECK(_ion_decimal_from_string_helper((char *)text->_scanner._value_image.value, &preader->_deccontext,
+                                             preader, p_quad, p_num));
 
     iRETURN;
 }
