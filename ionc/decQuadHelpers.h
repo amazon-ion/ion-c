@@ -31,7 +31,7 @@ extern "C" {
 // that would also be more work than the specific cases we need just now as well)
 //
 ION_API_EXPORT void    ion_quad_get_exponent_and_shift(const decQuad *quad_value, decContext *set, decQuad *p_int_mantissa, int32_t *p_exp);
-ION_API_EXPORT void    ion_quad_get_quad_from_digits_and_exponent(uint64_t value, int32_t exp, decContext *set, BOOL is_negative, decQuad *p_quad);
+ION_API_EXPORT iERR    ion_quad_get_quad_from_digits_and_exponent(uint64_t value, int32_t exp, decContext *set, BOOL is_negative, decQuad *p_quad);
 
 // exported method for getting packed representation.
 // decimal package may be statically linked into the DLL (on win32) with no export

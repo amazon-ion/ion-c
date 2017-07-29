@@ -827,7 +827,7 @@ decFloat * decFloatFromString(decFloat *result, const char *string,
         uInt edig;                      // unsigned work
         // had some digits and more to come; expect E[+|-]nnn now
         const char *firstexp;           // exponent first non-zero
-        if (*c!='E' && *c!='e') break;
+        if (*c!='E' && *c!='e' && *c!='D' && *c!='d') break; // NOTE: modified to support Ion decimal notation.
         c++;                            // to (optional) sign
         if (*c=='-' || *c=='+') c++;    // step over sign (c=clast+2)
         if (*c=='\0') break;            // no digits!  (e.g., '1.2E')

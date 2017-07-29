@@ -101,7 +101,8 @@ ION_API_EXPORT iERR ion_binary_read_ion_int          (ION_STREAM *pstream, int32
 ION_API_EXPORT iERR _ion_binary_read_mixed_int_helper(ION_READER *preader);
 
 ION_API_EXPORT iERR ion_binary_read_double         (ION_STREAM *pstream, int32_t len, double *p_value);
-ION_API_EXPORT iERR ion_binary_read_decimal        (ION_STREAM *pstream, int32_t len, decContext *context, decQuad *p_value);
+ION_API_EXPORT iERR ion_binary_read_decimal        (ION_STREAM *pstream, int32_t len, decContext *context,
+                                                    decQuad *p_quad, decNumber **p_num);
 ION_API_EXPORT iERR ion_binary_read_timestamp      (ION_STREAM *pstream, int32_t len, decContext *context, ION_TIMESTAMP *p_value);
 ION_API_EXPORT iERR ion_binary_read_string         (ION_STREAM *pstream, int32_t len, ION_STRING *p_value);
 

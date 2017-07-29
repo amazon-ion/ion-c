@@ -14,8 +14,6 @@
 
 #include "ion_assert.h"
 #include "ion_helpers.h"
-#include "ion_test_util.h"
-
 
 TEST(IonTimestamp, IgnoresSuperfluousOffset) {
     ION_TIMESTAMP expected1, expected2, actual;

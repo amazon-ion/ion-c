@@ -30,4 +30,4 @@ target_include_directories(ionc PUBLIC
   inc/
 
 )
-target_link_libraries(ionc decNumber m)
+target_link_libraries(ionc decNumber)
