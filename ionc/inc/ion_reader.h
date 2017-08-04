@@ -242,7 +242,6 @@ ION_API_EXPORT iERR ion_reader_open                    (hREADER *p_hreader
                                                        ,ION_STREAM *p_stream
                                                        ,ION_READER_OPTIONS *p_options);
 ION_API_EXPORT iERR ion_reader_get_catalog             (hREADER hreader, hCATALOG *p_hcatalog);
-ION_API_EXPORT iERR ion_reader_get_symbol_table        (hREADER hreader, hSYMTAB  *p_hsymtab);
 
 /** moves the stream position to the specified offset. Resets the 
  *  the state of the reader to be at the top level. As long as the

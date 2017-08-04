@@ -109,7 +109,6 @@ iERR _ion_symbol_local_copy_same_owner(void *context, void *dst, void *src, int3
 iERR _ion_symbol_local_copy_new_owner(void *context, void *dst, void *src, int32_t data_size);
 iERR _ion_symbol_table_local_import_copy_new_owner(void *context, void *dst, void *src, int32_t data_size);
 iERR _ion_symbol_table_local_import_copy_same_owner(void *context, void *dst, void *src, int32_t data_size);
-iERR _ion_symbol_table_create_substitute(ION_SYMBOL_TABLE_IMPORT* import, ION_CATALOG* catalog, ION_SYMBOL_TABLE** result);
 
 #define INDEX_IS_ACTIVE(symtab) ((symtab)->by_id_max > 0)
 iERR         _ion_symbol_table_initialize_indices_helper(ION_SYMBOL_TABLE *symtab);
