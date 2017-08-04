@@ -241,11 +241,12 @@ iERR _ion_reader_read_partial_string_helper(ION_READER *preader, BOOL accept_par
 
 iERR _ion_reader_close_helper(ION_READER *preader);
 
-iERR _ion_reader_allocate_temp_pool                 ( ION_READER *preader );
-iERR _ion_reader_reset_temp_pool                    ( ION_READER *preader);
-iERR _ion_reader_get_new_local_symbol_table_owner   (ION_READER *preader, void **p_owner);
+iERR _ion_reader_allocate_temp_pool                 (ION_READER *preader);
+iERR _ion_reader_reset_temp_pool                    (ION_READER *preader);
+iERR _ion_reader_allocate_pool_owner                (void **p_owner);
 iERR _ion_reader_free_local_symbol_table            (ION_READER *preader);
 iERR _ion_reader_reset_local_symbol_table           (ION_READER *preader);
+iERR _ion_reader_process_possible_symbol_table      (ION_READER *preader, BOOL *is_symbol_table);
 
 iERR _ion_reader_get_position_helper(ION_READER *preader, int64_t *p_bytes, int32_t *p_line, int32_t *p_offset);
 

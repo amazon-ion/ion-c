@@ -141,6 +141,7 @@ iERR _ion_symbol_table_clone_with_owner_helper(ION_SYMBOL_TABLE **p_pclone, ION_
     }   
 
     clone->max_id = orig->max_id;
+    clone->min_local_id = orig->min_local_id;
     clone->system_symbol_table = orig->system_symbol_table;
 
     // since these value should be immutable if the owner
@@ -368,19 +369,30 @@ iERR _ion_symbol_table_local_load_symbol_list(ION_READER *preader, hOWNER owner,
     ION_SYMBOL *sym;
     ION_TYPE    type;
     ION_STRING  str;
+    BOOL        is_symbol_null;
 
     IONCHECK(_ion_reader_step_in_helper(preader));
     for (;;) {
         IONCHECK(_ion_reader_next_helper(preader, &type));
         if (type == tid_EOF) break;
-        if (type != tid_STRING) continue; // all symbol fields in the symbol struct have string values
+
+        // NOTE: any value in the symbols list that is null or is not a string is treated as a valid SID mapping with
+        // unknown text.
 
         ION_STRING_INIT(&str);
-        IONCHECK(_ion_reader_read_string_helper(preader, &str));
+        IONCHECK(ion_reader_is_null(preader, &is_symbol_null));
+        if (type == tid_STRING && !is_symbol_null) {
+            IONCHECK(_ion_reader_read_string_helper(preader, &str));
+        }
 
         sym = (ION_SYMBOL *)_ion_collection_append(psymbol_list);
-        
-        IONCHECK(ion_string_copy_to_owner(owner, &sym->value, &str));
+
+        if (!ION_STRING_IS_NULL(&str)) {
+            IONCHECK(ion_string_copy_to_owner(owner, &sym->value, &str));
+        }
+        else {
+            ION_STRING_ASSIGN(&sym->value, &str);
+        }
         sym->sid = UNKNOWN_SID;
         sym->psymtab = NULL;
     }
@@ -432,6 +444,38 @@ iERR _ion_symbol_table_get_field_sid_force(ION_READER *preader, SID *fld_sid)
     iRETURN;
 }
 
+iERR _ion_symbol_table_append(ION_READER *preader, hOWNER owner, ION_SYMBOL_TABLE *system, ION_COLLECTION *symbols_to_append, ION_SYMBOL_TABLE **p_symtab) {
+    iENTER;
+    ION_SYMBOL_TABLE *cloned;
+    ION_SYMBOL_TABLE_TYPE type;
+    ION_COLLECTION_CURSOR symbol_cursor;
+    ION_SYMBOL *symbol_to_append, *appended_symbol;
+
+    ASSERT(p_symtab);
+
+    IONCHECK(_ion_symbol_table_get_type_helper(preader->_current_symtab, &type));
+    if (type != ist_SYSTEM) {
+        ASSERT(type != ist_SHARED);
+        // Copy all the symbols and imports of the current symbol table into the new symbol table.
+        IONCHECK(_ion_symbol_table_clone_with_owner_helper(&cloned, preader->_current_symtab, owner, system));
+        if (!ION_COLLECTION_IS_EMPTY(symbols_to_append)) {
+            ION_COLLECTION_OPEN(symbols_to_append, symbol_cursor);
+            for (;;) {
+                ION_COLLECTION_NEXT(symbol_cursor, symbol_to_append);
+                if (!symbol_to_append) break;
+                appended_symbol = (ION_SYMBOL *)_ion_collection_append(&cloned->symbols);
+                // These strings have the same owner; they can be assigned rather than copied.
+                ION_STRING_ASSIGN(&appended_symbol->value, &symbol_to_append->value);
+                appended_symbol->sid = UNKNOWN_SID; // This is assigned correctly later.
+            }
+        }
+        // This overwrites p_symtab's reference, which will be cleaned up when its owner is freed.
+        *p_symtab = cloned;
+    }
+
+    iRETURN;
+}
+
 iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL_TABLE *system, ION_SYMBOL_TABLE **p_psymtab)
 {
     iENTER;
@@ -441,7 +485,7 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
     ION_SYMBOL              *symbol;
     int                      version = 0;
     SID                      fld_sid, sid, max_id = 0;
-    BOOL                     is_shared_table, is_symbol_table;
+    BOOL                     is_shared_table, is_symbol_table, processed_symbols = FALSE, processed_imports = FALSE;
     ION_STRING               str, name;
     ION_COLLECTION_CURSOR    import_cursor, symbol_cursor;
 
@@ -464,7 +508,7 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
     // shared symbol tables don't need the system table symbols, but local tables do
     if (is_shared_table) {
         IONCHECK(_ion_symbol_table_open_helper(&symtab, owner, NULL));
-        symtab->system_symbol_table = system; // we still need this reference, we just don't incoporate the symbols into the table
+        symtab->system_symbol_table = system; // we still need this reference, we just don't incorporate the symbols into the table
     }
     else {
         IONCHECK(_ion_symbol_table_open_helper(&symtab, owner, system));
@@ -496,15 +540,49 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
             }
             break;
         case ION_SYS_SID_IMPORTS:  /* "imports" */
+            if (processed_imports) {
+                // Since struct order is not guaranteed, duplicate imports lists could be processed in any order,
+                // leading to potentially-incorrect SID mappings.
+                FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "Duplicate imports declaration in symbol table.");
+            }
             if (type == tid_LIST) {
                 IONCHECK(_ion_symbol_table_local_load_import_list(preader, owner, &symtab->import_list));
+                processed_imports = TRUE;
+                // For local tables, incorporate the symbols from the import list. For shared tables, the imports list
+                // is purely informational.
+                if (!is_shared_table && !ION_COLLECTION_IS_EMPTY(&symtab->import_list)) {
+                    ION_COLLECTION_OPEN(&symtab->import_list, import_cursor);
+                    for (;;) {
+                        ION_COLLECTION_NEXT(import_cursor, import);
+                        if (!import) break;
+                        if (!preader->_catalog) {
+                            IONCHECK(_ion_catalog_open_with_owner_helper(&preader->_catalog, preader));
+                        }
+                        IONCHECK(_ion_symbol_table_local_incorporate_symbols(symtab, preader->_catalog, &import->name,
+                                                                             import->version, import->max_id));
+                    }
+                    ION_COLLECTION_CLOSE(import_cursor);
+                }
+            }
+            else if (!is_shared_table && type == tid_SYMBOL) {
+                IONCHECK(_ion_reader_read_string_helper(preader, &str));
+                if (ION_STRING_EQUALS(&ION_SYMBOL_SYMBOL_TABLE_STRING, &str)) {
+                    // This LST's symbols should be appended to the previous context's symbols.
+                    IONCHECK(_ion_symbol_table_append(preader, owner, system, &symtab->symbols, &symtab));
+                    processed_imports = TRUE;
+                }
             }
             break;
         case ION_SYS_SID_SYMBOLS:  /* "symbols" */
+            if (processed_symbols) {
+                // Since struct order is not guaranteed, duplicate symbols lists could be processed in any order,
+                // leading to potentially-incorrect SID mappings.
+                FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "Duplicate symbols declaration in symbol table.");
+            }
             if (type == tid_LIST) {
                 IONCHECK(_ion_symbol_table_local_load_symbol_list(preader, owner, &symtab->symbols));
+                processed_symbols = TRUE;
             }
-            // TODO support receiving the $ion_symbol_table symbol here, indicating local symbol table append.
             break;
         case ION_SYS_SID_MAX_ID:   /* "max_id" */
             if (!is_shared_table) break; // no meaning for local tables
@@ -521,23 +599,6 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
     }
 
     IONCHECK(_ion_reader_step_out_helper(preader));
-       
-
-    // now we check for our import list since we need to import before adding symbols
-    // but only if this a non-shared table - shared tables have already had the
-    // symbols included in their symbol list already
-    if (!is_shared_table && !ION_COLLECTION_IS_EMPTY(&symtab->import_list)) {
-        ION_COLLECTION_OPEN(&symtab->import_list, import_cursor);
-        for (;;) {
-            ION_COLLECTION_NEXT(import_cursor, import);
-            if (!import) break;
-            if (!preader->_catalog) {
-                IONCHECK(_ion_catalog_open_with_owner_helper(&preader->_catalog, preader));
-            }
-            IONCHECK(_ion_symbol_table_local_incorporate_symbols(symtab, preader->_catalog, &import->name, import->version, import->max_id));
-        }
-        ION_COLLECTION_CLOSE(import_cursor);
-    }
 
     // now adjust the symbol table owner handles (hsymtab)
     // and the sid values for any local symbols we stored but
@@ -793,7 +854,7 @@ iERR _ion_symbol_table_get_type_helper(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABL
     if (!ION_STRING_IS_NULL(&symtab->name)) {
         // it's either system or shared
         if (symtab->version == 1 
-         && ION_STRING_EQUALS(&symtab->name, &ION_SYMBOL_VTM_STRING)
+         && ION_STRING_EQUALS(&symtab->name, &ION_SYMBOL_ION_STRING)
         ) {
             type = ist_SYSTEM;
         }
@@ -2029,20 +2090,4 @@ const char *ion_symbol_table_type_to_str(ION_SYMBOL_TABLE_TYPE t)
     default:
         return _ion_hack_bad_value_to_str((intptr_t)t, "Bad ION_SYMBOL_TABLE_TYPE");
     }
-}
-
-iERR _ion_symbol_table_create_substitute(ION_SYMBOL_TABLE_IMPORT* import, ION_CATALOG* catalog, ION_SYMBOL_TABLE** result)
-{
-    iENTER;
-    ION_SYMBOL_TABLE* symbol_table;
-    _ion_symbol_table_open_helper(&symbol_table, NULL, NULL);
-
-    symbol_table->version = import->version;
-    ION_STRING_ASSIGN(&symbol_table->name, &import->name);
-    symbol_table->system_symbol_table = catalog->system_symbol_table;
-    symbol_table->max_id = import->max_id;
-
-    *result = symbol_table;
-
-    iRETURN;
 }

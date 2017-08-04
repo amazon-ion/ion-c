@@ -23,7 +23,6 @@
 iERR _ion_reader_binary_local_read_length(ION_READER *preader, int tid, int *p_length);
 iERR _ion_binary_reader_fits_container(ION_READER *preader, SIZE len);
 iERR _ion_reader_binary_local_process_possible_magic_cookie(ION_READER *preader, int td, BOOL *p_is_system_value);
-iERR _ion_reader_binary_local_process_possible_symbol_table(ION_READER *preader, BOOL *p_is_system_value);
 
 //
 //  actual "public" functions
@@ -225,12 +224,13 @@ begin:
             }
 
             if (preader->_depth == 0 && ion_type_id == TID_STRUCT) {
-                // this looks at the current value, checks to see if it has the
-                // $ion_1_0 annoation and if it does load the symbol table and
-                // move forward, otherwise just read the actual values td and
-                // return that instead.  If it's not a symbol table, then the 14
-                // (user type annotation) will be handled during "next()"
-                IONCHECK(_ion_reader_binary_local_process_possible_symbol_table(preader, &is_system_value));
+                // Looks at the current value and checks to see if it has the
+                // $ion_symbol_table annotation. If it does, it loads the symbol table and
+                // moves forward; otherwise, it just reads the actual value's td and
+                // returns that instead.  If it's not a symbol table, then the 14
+                // (user type annotation) will be handled during "next()".
+                preader->typed_reader.binary._state = S_BEFORE_CONTENTS;
+                IONCHECK(_ion_reader_process_possible_symbol_table(preader, &is_system_value));
                 if (is_system_value) continue;
             }
         }
@@ -1583,28 +1583,5 @@ iERR _ion_reader_binary_local_process_possible_magic_cookie(ION_READER *preader,
 
 return_value:
     *p_is_system_value = is_system_value;
-    iRETURN;
-}
-
-iERR _ion_reader_binary_local_process_possible_symbol_table(ION_READER *preader, BOOL *p_is_system_value)
-{
-    iENTER;
-    BOOL     is_symbol_table = FALSE;
-    ION_SYMBOL_TABLE *system;
-
-    ASSERT(preader && preader->type == ion_type_binary_reader);
-    ASSERT(p_is_system_value);
-
-    preader->typed_reader.binary._state = S_BEFORE_CONTENTS;
-
-    // TODO just check the first annotation, in accordance with the spec.
-    IONCHECK(_ion_reader_has_annotation_helper(preader, &ION_SYMBOL_SYMBOL_TABLE_STRING, &is_symbol_table));
-    if (is_symbol_table) {
-        IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-        IONCHECK(_ion_symbol_table_load_helper(preader, preader->_catalog->owner, system, &preader->_current_symtab));
-    }
-
-    *p_is_system_value = is_symbol_table;
-
     iRETURN;
 }
