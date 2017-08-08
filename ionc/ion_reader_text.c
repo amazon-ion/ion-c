@@ -556,9 +556,6 @@ iERR _ion_reader_text_check_for_system_values_to_skip_or_process(ION_READER *pre
     iENTER;
     ION_TEXT_READER  *text = &preader->typed_reader.text;
     BOOL              is_system_value = FALSE;
-    BOOL              is_shared_symbol_table, is_local_symbol_table;
-    ION_SYMBOL_TABLE *system, *local = NULL;
-    void             *owner = NULL;
 
     // we only look for system values at the top level,
     ASSERT(text->_current_container == tid_DATAGRAM);
@@ -593,50 +590,7 @@ iERR _ion_reader_text_check_for_system_values_to_skip_or_process(ION_READER *pre
         }
     }
     else if (ist == IST_STRUCT && text->_annotation_count > 0) { // an annotated struct is a candidate for a symbol table
-        /*
-         * When we see a local symbol table (which would be a struct appropriately annotated
-         * we will process this if the caller hasn't asked to have system values returned.
-         * If they have, then we just return it and it's their problem to read and set the
-         * local symbol table. This is not the same as the Java impl.
-         */
-        
-        // TODO - this should be done with flags set while we're
-        // recognizing the annotations below (in the fullness of time)
-        // TODO in accordance with the spec, only check the FIRST annotation.
-        IONCHECK(_ion_reader_text_has_annotation(preader, &ION_SYMBOL_SYMBOL_TABLE_STRING, &is_local_symbol_table));
-            
-        // if we return system values we don't process them
-        if (is_local_symbol_table && preader->options.return_system_values != TRUE) { 
-            // this is a local symbol table and the user has not *insisted* we return system values, so we process it
-            IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-            IONCHECK(_ion_reader_get_new_local_symbol_table_owner(preader, &owner )); // this owner will be _local_symtab_pool
-            // fake the state values so the symbol table load helper will "next" properly
-            preader->typed_reader.text._state = IPS_BEFORE_CONTAINER;
-            preader->typed_reader.text._value_type = tid_STRUCT;
-            IONCHECK(_ion_symbol_table_load_helper(preader, owner, system, &local));
-            if (local == NULL) {
-                FAILWITH(IERR_NOT_A_SYMBOL_TABLE);
-            }
-            preader->_current_symtab = local;
-            is_system_value = TRUE;
-        }
-        else if (preader->options.return_shared_symbol_tables != TRUE) { 
-            // it wasn't a local symbol table, it might still be a shared symbol table, 
-            // but we only process this if the user did not tell us to return shared symbol tables
-            IONCHECK(_ion_reader_text_has_annotation(preader, &ION_SYMBOL_SHARED_SYMBOL_TABLE_STRING, &is_shared_symbol_table));
-            if (is_shared_symbol_table) {
-                IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-                // fake the state values so the symbol table load helper will "next" properly
-                preader->typed_reader.text._state = IPS_BEFORE_CONTAINER;
-                preader->typed_reader.text._value_type = tid_STRUCT;
-                IONCHECK(_ion_symbol_table_load_helper(preader, preader->_catalog->owner, system, &local));
-                if (local == NULL) {
-                    FAILWITH(IERR_NOT_A_SYMBOL_TABLE);
-                }
-                IONCHECK(_ion_catalog_add_symbol_table_helper(preader->_catalog, local));
-                is_system_value = TRUE;
-            }
-        }
+        IONCHECK(_ion_reader_process_possible_symbol_table(preader, &is_system_value));
     }
 
     *p_is_system_value = is_system_value;
