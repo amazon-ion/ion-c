@@ -17,6 +17,10 @@
 #include "ion_test_util.h"
 #include "ion_assert.h"
 
+void BinaryAndTextTest::SetUp() {
+    is_binary = GetParam();
+}
+
 void ion_test_initialize_writer_options(ION_WRITER_OPTIONS *options) {
     memset(options, 0, sizeof(ION_WRITER_OPTIONS));
     options->decimal_context = &g_TestDecimalContext;
@@ -84,4 +88,11 @@ iERR ion_read_string_as_chars(hREADER reader, char **out) {
     IONCHECK(ion_reader_read_string(reader, &ion_string));
     *out = ion_string_strdup(&ion_string);
     iRETURN;
+}
+
+void ion_test_print_bytes(BYTE *bytes, SIZE length) {
+    for(int i = 0; i < length; i++) {
+        printf("\\x%02X", bytes[i]);
+    }
+    printf("\n");
 }

@@ -85,10 +85,16 @@ typedef struct _ion_writer_options
      */
     ION_CATALOG *pcatalog;
 
-    /** Set the symbol table on the writer to be used for binary encoding
-     *
+    /** Pointer to the first element of an array of shared symbol tables that the writer will import into each new local
+     *  symbol table context. The size of the array is specified by `encoding_psymbol_table_count`. The user owns the
+     *  associated memory, and must ensure it stays in scope for the lifetime of the writer.
      */
     ION_SYMBOL_TABLE *encoding_psymbol_table;
+
+    /** Number of symbol tables in the `encoding_psymbol_table` array.
+     *
+     */
+    SIZE encoding_psymbol_table_count;
 
     /** Handle to the decNumber context for the writer to use. This allows configuration of the maximum number of
      * decimal digits, decimal exponent range, etc. See decContextDefault in decContext.h for simple initialization.
@@ -182,12 +188,27 @@ ION_API_EXPORT iERR ion_writer_finish_container     (hWRITER hwriter);
 ION_API_EXPORT iERR ion_writer_write_one_value      (hWRITER hwriter, hREADER hreader);
 ION_API_EXPORT iERR ion_writer_write_all_values     (hWRITER hwriter, hREADER hreader);
 
-/** Returns number of bytes written into the buffer/stream.
- * If writer is created using open_stream, also flush write buffer to stream.
- * @param   hwriter
- * @param   p_bytes_flushed.
+/**
+ * Flushes pending bytes without forcing an Ion Version Marker or ending the current symbol table context.
+ * If writer was created using open_stream, also flushes write buffer to stream. If not at the top level, flushing a
+ * binary writer will do nothing.
+ * @param   p_bytes_flushed - the number of bytes written into the buffer/stream.
  */
 ION_API_EXPORT iERR ion_writer_flush                (hWRITER hwriter, SIZE *p_bytes_flushed);
+
+/**
+ * Flushes pending bytes, ending the current symbol table context and forcing an Ion Version Marker if the writer
+ * continues writing to the stream. If writer was created using open_stream, also flushes write buffer to stream.
+ * If not at the top level, finishing any writer is an error.
+ * @param   p_bytes_flushed - the number of bytes written into the buffer/stream.
+ */
+ION_API_EXPORT iERR ion_writer_finish               (hWRITER hwriter, SIZE *p_bytes_flushed);
+
+/**
+ * Finishes the writer, frees the writer's associated resources, and finally frees the writer itself. The writer may
+ * not continue writing to the stream after this function is called. If not at the top level, closing any writer is an
+ * error.
+ */
 ION_API_EXPORT iERR ion_writer_close                (hWRITER hwriter);
 
 #ifdef __cplusplus

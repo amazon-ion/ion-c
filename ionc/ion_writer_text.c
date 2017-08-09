@@ -45,17 +45,23 @@ iERR _ion_writer_text_initialize(ION_WRITER *pwriter)
 
 if (_debug_on) pwriter->_typed_writer.text._separator_character = '\n';
 
+    IONCHECK(_ion_writer_text_initialize_stack(pwriter));
+    iRETURN;
+}
+
+iERR _ion_writer_text_initialize_stack(ION_WRITER *pwriter)
+{
+    iENTER;
     pwriter->_typed_writer.text._top = 0;
     pwriter->_typed_writer.text._stack_size = DEFAULT_WRITER_STACK_DEPTH;
     IONCHECK(ion_temp_buffer_alloc(&pwriter->temp_buffer
-                                  ,DEFAULT_WRITER_STACK_DEPTH * sizeof(*(TEXTWRITER(pwriter)->_stack_parent_type))
-                                  ,(void **)&TEXTWRITER(pwriter)->_stack_parent_type)
+            ,DEFAULT_WRITER_STACK_DEPTH * sizeof(*(TEXTWRITER(pwriter)->_stack_parent_type))
+            ,(void **)&TEXTWRITER(pwriter)->_stack_parent_type)
     );
     IONCHECK(ion_temp_buffer_alloc(&pwriter->temp_buffer
             ,DEFAULT_WRITER_STACK_DEPTH * sizeof(*(TEXTWRITER(pwriter)->_stack_flags))
             ,(void **)&TEXTWRITER(pwriter)->_stack_flags)
     );
-    
     iRETURN;
 }
 
