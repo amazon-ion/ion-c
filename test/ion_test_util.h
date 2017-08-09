@@ -15,6 +15,7 @@
 #ifndef IONC_ION_TEST_UTIL_H
 #define IONC_ION_TEST_UTIL_H
 
+#include <gtest/gtest.h>
 #include "ion.h"
 
 #define ION_ASSERT_OK(x) ASSERT_EQ(IERR_OK, x)
@@ -24,6 +25,19 @@
  * Converts an ION_TYPE to a switchable int representing the given type's ID.
  */
 #define ION_TID_INT(type) (int)(ION_TYPE_INT(type) >> 8)
+
+#define INSTANTIATE_TEST_CASE_BOOLEAN_PARAM(instantiation_name) \
+    INSTANTIATE_TEST_CASE_P(instantiation_name, BinaryAndTextTest, ::testing::Bool())
+
+/**
+ * Parameterized test fixture for tests that should be run for both text and binary.
+ * Use by declaring a test with TEST_P(BinaryAndTextTest, TestName) {...}.
+ */
+class BinaryAndTextTest : public ::testing::TestWithParam<bool> {
+    virtual void SetUp();
+public:
+    BOOL is_binary;
+};
 
 /**
  * Initializes the given writer options to the test defaults, which provide
@@ -91,5 +105,12 @@ iERR ion_test_new_text_reader(const char *ion_text, hREADER *reader);
  * @return IERR_OK, unless the read or the copy fails.
  */
 iERR ion_read_string_as_chars(hREADER reader, char **out);
+
+/**
+ * Prints the given bytes in two-digit hexadecimal format, delimited by "\x"
+ * @param bytes - the bytes to print.
+ * @param length - the number of bytes to print.
+ */
+void ion_test_print_bytes(BYTE *bytes, SIZE length);
 
 #endif //IONC_ION_TEST_UTIL_H

@@ -1196,13 +1196,11 @@ iERR _ion_writer_binary_close(ION_WRITER *pwriter)
     if (patches || values) {
         IONCHECK(_ion_writer_binary_flush_to_output(pwriter));
     }
-    IONCHECK(ion_stream_flush(pwriter->output));
-    IONCHECK(ion_stream_close( bwriter->_value_stream ));
 
     iRETURN;
 }
 
-iERR _ion_writer_binary_flush_to_output(ION_WRITER *pwriter) 
+iERR _ion_writer_binary_flush_to_output(ION_WRITER *pwriter)
 {
     iENTER;
  
@@ -1220,9 +1218,7 @@ iERR _ion_writer_binary_flush_to_output(ION_WRITER *pwriter)
     has_imports = (pwriter->symbol_table && !ION_COLLECTION_IS_EMPTY(&pwriter->symbol_table->import_list));
     needs_local_symbol_table = (pwriter->_has_local_symbols || has_imports);
 
-    if (!bwriter->_version_marker_written
-     || needs_local_symbol_table
-    ) {
+    if (!bwriter->_version_marker_written) {
         IONCHECK( ion_stream_write( out, ION_VERSION_MARKER, ION_VERSION_MARKER_LENGTH, &written ));
         if (written != ION_VERSION_MARKER_LENGTH) FAILWITH(IERR_WRITE_ERROR);
         bwriter->_version_marker_written = TRUE; // just so we remember
@@ -1243,12 +1239,6 @@ iERR _ion_writer_binary_flush_to_output(ION_WRITER *pwriter)
         //not: IONCHECK( ion_symbol_table_write( PTR_TO_HANDLE(pwriter), pwriter->symbol_table ));
         IONCHECK(_ion_writer_binary_serialize_symbol_table(pwriter->symbol_table, out, &len));
     }
-
-    // we free the local symbol table as we'll be starting fresh now on the next value
-    // this is a no-op in the event the local table is not local (shared or simply absent)
-    // this isn't the same as _no_local_symbols because the local table gets allocated
-    // before any symbols are added to it
-    IONCHECK( _ion_writer_free_local_symbol_table( pwriter ));
 
     // 
     values_in = bwriter->_value_stream;
@@ -1293,15 +1283,9 @@ iERR _ion_writer_binary_flush_to_output(ION_WRITER *pwriter)
     _ion_collection_reset( &bwriter->_patch_list );
     _ion_collection_reset( &bwriter->_value_list );
 
-    // the clear the symbol table as we're starting over
-    pwriter->symbol_table = NULL;
-
     // and finally re-initialize the value stream to reset it
     IONCHECK( ion_stream_seek( values_in, 0 ));
     IONCHECK( ion_stream_truncate( values_in ));
-
-    // and if we've cleared everything out, we'll need a fresh version marker if we ever restart
-    bwriter->_version_marker_written = FALSE;
 
     iRETURN;
 }
@@ -1327,16 +1311,6 @@ iERR _ion_writer_binary_flush_to_output(ION_WRITER *pwriter)
 //
 // as with the rest of the writer this was ported from the Java streaming
 // writer as it's very touchy.  As such it has been simplified somewhat.
- 
-iERR _ion_writer_binary_calc_serialized_symbol_table_length(ION_WRITER *pwriter, int *p_length)
-{
-    iENTER;
-    ION_SYMBOL_TABLE *psymtab = pwriter->symbol_table;
-
-    IONCHECK(_ion_writer_binary_serialize_symbol_table(psymtab, NULL, p_length));
-
-    iRETURN;
-}
 
 iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_STREAM *out, int *p_length)
 {
@@ -1353,9 +1327,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     int annotated_value_len, annotation_header_len;
 
     int symbol_list_len, symbol_header_len;
-    int  tid;
-    BOOL must_use_struct = FALSE;
-    SID  sid;
+    BOOL append_symbols;
         
     // first calculate the length of the bits and pieces we will be
     // writing out in the second phase.  We do this all in one big
@@ -1370,59 +1342,58 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     ASSERT(psymtab != NULL);
     ASSERT(ION_STRING_IS_NULL(&psymtab->name) == TRUE);
     ASSERT(psymtab->version < 1);
+    ASSERT(psymtab->flushed_max_id >= 0);
 
-    import_list_len = import_header_len = 0;
+    append_symbols = psymtab->flushed_max_id > 0;
+    ASSERT(append_symbols ? (psymtab->flushed_max_id <= psymtab->max_id) : TRUE);
 
-    if (!ION_COLLECTION_IS_EMPTY(&psymtab->import_list)) {
-        ION_COLLECTION_OPEN(&psymtab->import_list, import_cursor);
-        for (;;) {
-            ION_COLLECTION_NEXT(import_cursor, import);
-            if (!import) break;
-            import_len = ion_writer_binary_serialize_import_struct_length(import);
-            if (import_len >= ION_lnIsVarLen) {
-              import_len += ion_binary_len_var_uint_64(import_len); // the overflow length if this is longer than 14
-            }
-            import_len += ION_BINARY_TYPE_DESC_LENGTH; // and the type descriptor
-            import_list_len += import_len;
+    if (append_symbols) {
+        if (psymtab->flushed_max_id == psymtab->max_id) {
+            // This symbol table has been written previously and no new symbols have been added. There is no need to write
+            // anything.
+            *p_length = 0;
+            SUCCEED();
         }
-        ION_COLLECTION_CLOSE(import_cursor);
+        // Abbreviated syntax for appending to the already-written symbol table.
+        import_list_len = 1; // SID 3 ($ion_symbol_table) as UInt
+        import_header_len = 1 + ION_BINARY_TYPE_DESC_LENGTH; // SID 6 (imports) as VarUint + typedesc for symbol value
+    }
+    else {
+        // This symbol table has not been written previously. Its imports must be explicitly written.
+        import_list_len = import_header_len = 0;
 
-        ASSERT( import_list_len > 0 );  // if there weren't any imports how did we get here?
-        import_header_len = ION_BINARY_TYPE_DESC_LENGTH + 1;  // fieldid(imports) + typedesc for array
-        if (import_list_len >= ION_lnIsVarLen) {
-            import_header_len += ion_binary_len_var_uint_64(import_list_len);
+        if (!ION_COLLECTION_IS_EMPTY(&psymtab->import_list)) {
+            ION_COLLECTION_OPEN(&psymtab->import_list, import_cursor);
+            for (;;) {
+                ION_COLLECTION_NEXT(import_cursor, import);
+                if (!import) break;
+                import_len = ion_writer_binary_serialize_import_struct_length(import);
+                if (import_len >= ION_lnIsVarLen) {
+                    import_len += ion_binary_len_var_uint_64(import_len); // the overflow length if this is longer than 14
+                }
+                import_len += ION_BINARY_TYPE_DESC_LENGTH; // and the type descriptor
+                import_list_len += import_len;
+            }
+            ION_COLLECTION_CLOSE(import_cursor);
+
+            ASSERT(import_list_len > 0);  // if there weren't any imports how did we get here?
+            import_header_len = ION_BINARY_TYPE_DESC_LENGTH + 1;  // fieldid(imports) + typedesc for array
+            if (import_list_len >= ION_lnIsVarLen) {
+                import_header_len += ion_binary_len_var_uint_64(import_list_len);
+            }
         }
     }
        
     symbol_list_len = symbol_header_len = 0;
     if (!ION_COLLECTION_IS_EMPTY(&psymtab->symbols)) {
-        sid = 0;
         ION_COLLECTION_OPEN(&psymtab->symbols, symbol_cursor);
         for (;;) {
             ION_COLLECTION_NEXT(symbol_cursor, symbol);
             if (!symbol) break;
-            if (symbol_list_len > 0 && symbol->sid != sid + 1) {
-                must_use_struct = TRUE;
-            }
-            sid = symbol->sid;
-            if (symbol->psymtab != psymtab) continue;
+            if (symbol->sid <= psymtab->flushed_max_id || symbol->psymtab != psymtab) continue;
             symbol_list_len += ion_writer_binary_serialize_symbol_length(symbol);
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
-
-        if (must_use_struct) {
-            // if we have discontiguous symbols we use the struct form
-            // of the symbol list - so we need to make room for sid's
-            ION_COLLECTION_OPEN(&psymtab->symbols, symbol_cursor);
-            for (;;) {
-                ION_COLLECTION_NEXT(symbol_cursor, symbol);
-                if (!symbol) break;
-                sid = symbol->sid;
-                if (symbol->psymtab != psymtab) continue;
-                symbol_list_len += ion_binary_len_var_uint_64(sid);
-            }
-            ION_COLLECTION_CLOSE(symbol_cursor);
-        }
 
         if (symbol_list_len > 0) {
             symbol_header_len = ION_BINARY_TYPE_DESC_LENGTH + 1; // fldid + typedesc
@@ -1431,6 +1402,8 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
             }
         }
     }
+
+    ASSERT(append_symbols ? (symbol_list_len != 0) : TRUE);
 
     table_struct_len  = import_header_len + import_list_len;
     table_struct_len += symbol_header_len + symbol_list_len;
@@ -1451,11 +1424,6 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     total_len = annotation_header_len + annotated_value_len;
     if (p_length) {
         *p_length = total_len;
-    }
-        
-    // trick to just get the length and gaurantee it's the same length
-    if (out == NULL) {
-        SUCCEED();
     }
 
     // -------------------------------------------------------------------------
@@ -1488,48 +1456,54 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     if (import_list_len > 0) {
         // write import field id, list type desc and maybe overflow length
         ION_PUT(out, ION_BINARY_MAKE_1_BYTE_VAR_INT(ION_SYS_SID_IMPORTS)); // field sid
-        if (import_list_len >= ION_lnIsVarLen) {
-            ION_PUT(out, makeTypeDescriptor(TID_LIST, ION_lnIsVarLen));
-            IONCHECK(ion_binary_write_var_uint_64(out, import_list_len));  // symtab has overflow length
+        if (append_symbols) {
+            // imports: $ion_symbol_table
+            ION_PUT(out, makeTypeDescriptor(TID_SYMBOL, import_list_len));
+            ION_PUT(out, ION_BINARY_MAKE_1_BYTE_INT(ION_SYS_SID_SYMBOL_TABLE));
         }
         else {
-            ION_PUT(out, makeTypeDescriptor(TID_LIST, import_list_len));
-        }
-
-        ION_COLLECTION_OPEN(&psymtab->import_list, import_cursor);
-        for (;;) {
-            ION_COLLECTION_NEXT(import_cursor, import);
-            if (!import) break;
-
-            import_len = ion_writer_binary_serialize_import_struct_length(import);
-            if (import_len >= ION_lnIsVarLen) {
-                ION_PUT(out, makeTypeDescriptor(TID_STRUCT, ION_lnIsVarLen));
-                IONCHECK(ion_binary_write_var_uint_64(out, import_len));  // symtab has overflow length
+            // imports: [...]
+            if (import_list_len >= ION_lnIsVarLen) {
+                ION_PUT(out, makeTypeDescriptor(TID_LIST, ION_lnIsVarLen));
+                IONCHECK(ion_binary_write_var_uint_64(out, import_list_len));  // symtab has overflow length
             }
             else {
-                ION_PUT(out, makeTypeDescriptor(TID_STRUCT, import_len));
+                ION_PUT(out, makeTypeDescriptor(TID_LIST, import_list_len));
             }
-            // now we write the name, version, and max id
-            IONCHECK(ion_binary_write_string_with_field_sid(out, ION_SYS_SID_NAME, &import->name));
-            IONCHECK(ion_binary_write_int32_with_field_sid(out, ION_SYS_SID_VERSION, import->version));
-            if (import->max_id > 0) {
-                IONCHECK(ion_binary_write_int32_with_field_sid(out, ION_SYS_SID_MAX_ID, import->max_id));
+
+            ION_COLLECTION_OPEN(&psymtab->import_list, import_cursor);
+            for (;;) {
+                ION_COLLECTION_NEXT(import_cursor, import);
+                if (!import) break;
+
+                import_len = ion_writer_binary_serialize_import_struct_length(import);
+                if (import_len >= ION_lnIsVarLen) {
+                    ION_PUT(out, makeTypeDescriptor(TID_STRUCT, ION_lnIsVarLen));
+                    IONCHECK(ion_binary_write_var_uint_64(out, import_len));  // symtab has overflow length
+                } else {
+                    ION_PUT(out, makeTypeDescriptor(TID_STRUCT, import_len));
+                }
+                // now we write the name, version, and max id
+                IONCHECK(ion_binary_write_string_with_field_sid(out, ION_SYS_SID_NAME, &import->name));
+                IONCHECK(ion_binary_write_int32_with_field_sid(out, ION_SYS_SID_VERSION, import->version));
+                if (import->max_id > 0) {
+                    IONCHECK(ion_binary_write_int32_with_field_sid(out, ION_SYS_SID_MAX_ID, import->max_id));
+                }
             }
+            ION_COLLECTION_CLOSE(import_cursor);
         }
-        ION_COLLECTION_CLOSE(import_cursor);
     }
 
     // and finally write the local symbols (which is really the most important part)
     if (symbol_list_len > 0) {
         ION_PUT(out, ION_BINARY_MAKE_1_BYTE_VAR_INT(ION_SYS_SID_SYMBOLS)); // field sid
         // write import field id, list type desc and maybe overflow length
-        tid = must_use_struct ? TID_STRUCT : TID_LIST;
         if (symbol_list_len >= ION_lnIsVarLen) {
-            ION_PUT(out, makeTypeDescriptor(tid, ION_lnIsVarLen));
+            ION_PUT(out, makeTypeDescriptor(TID_LIST, ION_lnIsVarLen));
             IONCHECK(ion_binary_write_var_uint_64(out, symbol_list_len));  // symtab has overflow length
         }
         else {
-            ION_PUT(out, makeTypeDescriptor(tid, symbol_list_len));
+            ION_PUT(out, makeTypeDescriptor(TID_LIST, symbol_list_len));
         }
 
         //  write the strings out
@@ -1537,10 +1511,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
         for (;;) {
             ION_COLLECTION_NEXT(symbol_cursor, symbol);
             if (!symbol) break;
-            if (symbol->psymtab != psymtab) continue;
-            if (must_use_struct) {
-                IONCHECK(ion_binary_write_var_uint_64(out, symbol->sid)); // the sid is the field id here
-            }
+            if (symbol->sid <= psymtab->flushed_max_id || symbol->psymtab != psymtab) continue;
             IONCHECK(ion_binary_write_string_with_td_byte(out, &symbol->value));
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
@@ -1550,7 +1521,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     if (output_finish - output_start != total_len) {
         FAILWITH(IERR_INVALID_STATE);
     }
-
+    psymtab->flushed_max_id = psymtab->max_id;
     iRETURN;
 }
 

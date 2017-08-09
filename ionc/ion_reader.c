@@ -1826,9 +1826,7 @@ iERR _ion_reader_reset_temp_pool( ION_READER *preader )
 {
     iENTER;
     void *owner;
-    if ((preader->_temp_entity_pool != NULL)
-     && ((ION_READER *)(preader->_temp_entity_pool) != preader)
-    ) {
+    if ((preader->_temp_entity_pool != NULL)) {
         ion_free_owner( preader->_temp_entity_pool );
         preader->_temp_entity_pool = NULL;
     }

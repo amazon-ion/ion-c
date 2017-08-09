@@ -18,6 +18,7 @@
 //
 
 #include "ion_internal.h"
+#include "ion_writer_impl.h"
 
 #define IONCLOSEpWRITER(x)   { if (x != NULL)  { UPDATEERROR(_ion_writer_close_helper(x)); x = NULL;}}
 
@@ -99,13 +100,48 @@ iERR ion_writer_open(
 
     iRETURN;
 }
+
+iERR _ion_writer_initialize_local_symbol_table(ION_WRITER *pwriter)
+{
+    iENTER;
+    ION_SYMBOL_TABLE *psymtab, *system, *import;
+    ION_SYMBOL_TABLE_TYPE table_type;
+    int i;
+
+    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
+    ASSERT( pwriter->symbol_table == NULL || pwriter->symbol_table == system );
+
+    IONCHECK(_ion_symbol_table_open_helper(&psymtab, pwriter->_temp_entity_pool, system));
+    // NOTE: This table and its imports must be in the writer's catalog. If they aren't, their symbols will be
+    // treated as unknown.
+    for (i = 0; i < pwriter->options.encoding_psymbol_table_count; i++) {
+        import = &pwriter->options.encoding_psymbol_table[i];
+        if (import) {
+            IONCHECK(ion_symbol_table_get_type(import, &table_type));
+            if (table_type == ist_SHARED) {
+                IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, import));
+            }
+            else if (i == 0 && table_type == ist_SYSTEM) {
+                // Do nothing; every local symbol table implicitly imports the system symbol table.
+            }
+            else {
+                FAILWITHMSG(IERR_INVALID_ARG, "A writer's imported symbol tables must be shared.");
+            }
+        }
+    }
+
+    psymtab->catalog = pwriter->pcatalog;
+
+    pwriter->symbol_table = psymtab;
+    pwriter->_local_symbol_table = TRUE;
+    iRETURN;
+}
     
 iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRITER_OPTIONS *p_options)
 {
     iENTER;
     ION_WRITER         *pwriter = NULL;
-    ION_OBJ_TYPE        writer_type = ion_type_unknown_writer;
-    ION_SYMBOL_TABLE   *psymtab, *system;
+    ION_OBJ_TYPE        writer_type;
 
     pwriter = ion_alloc_owner(sizeof(ION_WRITER));
     if (!pwriter) FAILWITH(IERR_NO_MEMORY);
@@ -132,6 +168,8 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
     else {
         memcpy(&pwriter->deccontext, pwriter->options.decimal_context, sizeof(decContext));
     }
+
+    pwriter->pcatalog = pwriter->options.pcatalog;
 
     // our default is unknown, so if the option says "binary" we need to 
     // change the underlying writer's obj type we'll use the presence of 
@@ -166,17 +204,8 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
         FAILWITH(IERR_INVALID_ARG);
     }
 
-    if (pwriter->options.encoding_psymbol_table) {
-        IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-        ASSERT( pwriter->symbol_table == NULL || pwriter->symbol_table == system );
-
-        IONCHECK(_ion_symbol_table_open_helper(&psymtab, pwriter->_temp_entity_pool, system));
-        // NOTE: This table and its imports must be in the writer's catalog. If they aren't, their symbols will be
-        // treated as unknown.
-        IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, pwriter->options.encoding_psymbol_table));
-
-        pwriter->symbol_table = psymtab;
-        pwriter->_local_symbol_table = TRUE;
+    if (pwriter->options.encoding_psymbol_table && pwriter->options.encoding_psymbol_table_count > 0) {
+        IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
     }
 
     return err;
@@ -1754,6 +1783,27 @@ iERR ion_writer_flush(hWRITER hwriter, SIZE *p_bytes_flushed)
     iRETURN;
 }
 
+iERR ion_writer_finish(hWRITER hwriter, SIZE *p_bytes_flushed)
+{
+    iENTER;
+    ION_WRITER *pwriter;
+
+    if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
+    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    if (pwriter->depth != 0) {
+        FAILWITHMSG(IERR_INVALID_STATE, "Cannot finish a writer that is not at the top level.");
+    }
+
+    IONCHECK(_ion_writer_flush_helper(pwriter, p_bytes_flushed));
+    IONCHECK(_ion_writer_free_local_symbol_table(pwriter));
+    IONCHECK(_ion_writer_reset_temp_pool(pwriter));
+    if (pwriter->type == ion_type_binary_writer) {
+        pwriter->_typed_writer.binary._version_marker_written = FALSE;
+    }
+    iRETURN;
+}
+
 iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
 {
     iENTER;
@@ -1761,26 +1811,29 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
 
     ASSERT(pwriter);
 
-    // TODO: what about the temp buffer, can we reset it here?
-    //       what about the local symbol table, should it be reset here too?
-
     switch (pwriter->type) {
     case ion_type_text_writer:
-        // not really anything to do for the text writer
+        // The text writer does not need to buffer data.
         start = 0;
         finish = ion_stream_get_position(pwriter->output);
+        if (pwriter->depth == 0) {
+            IONCHECK(ion_temp_buffer_reset(&pwriter->temp_buffer));
+            IONCHECK(_ion_writer_text_initialize_stack(pwriter));
+        }
         break;
     case ion_type_binary_writer:
         start =  ion_stream_get_position(pwriter->output);
-        IONCHECK(_ion_writer_binary_flush_to_output(pwriter));
+        if (pwriter->depth == 0) {
+            IONCHECK(_ion_writer_binary_flush_to_output(pwriter));
+            IONCHECK(ion_temp_buffer_reset(&pwriter->temp_buffer));
+        }
         finish = ion_stream_get_position(pwriter->output);
         break;
     default:
         FAILWITH(IERR_INVALID_ARG);
     }
 
-    IONCHECK(_ion_writer_reset_temp_pool(pwriter));
-
+    IONCHECK(ion_stream_flush(pwriter->output));
     if (p_bytes_flushed) *p_bytes_flushed = (SIZE)(finish - start);    // TODO - this needs 64bit care
 
     iRETURN;
@@ -1804,6 +1857,10 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
     iENTER;
 
     ASSERT(pwriter);
+
+    if (pwriter->depth != 0) {
+        FAILWITHMSG(IERR_INVALID_STATE, "Cannot close writer that is not at the top level.");
+    }
 
     // all the local resources are allocated in the parent
     // (at least at the present time)
@@ -1835,7 +1892,6 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
     // then we free ourselves :) all associated memory, for
     // which we (pwriter) are the owner
     ion_free_owner(pwriter);
-    goto fail;
 
     iRETURN;
 }
@@ -1848,7 +1904,7 @@ iERR _ion_writer_free_local_symbol_table( ION_WRITER *pwriter )
 
     if (pwriter->_local_symbol_table) {
         ASSERT(pwriter->symbol_table);
-        // local symbol tables have indirect owners: ion_free_owner(pwriter->symbol_table);
+        // local symbol tables are owned by the _temp_entity_pool, which is freed upon flush and close.
         pwriter->symbol_table = NULL;
         pwriter->_local_symbol_table = FALSE;
     }
@@ -1863,7 +1919,7 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
     iENTER;
     SID               sid = UNKNOWN_SID;
     SID               old_max_id;
-    ION_SYMBOL_TABLE *psymtab, *system;
+    ION_SYMBOL_TABLE *psymtab;
 
     ASSERT(pwriter);
     ASSERT(pstr);
@@ -1874,11 +1930,7 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
     psymtab = pwriter->symbol_table;
     if (!psymtab || psymtab->is_locked) 
     {
-        IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-        ASSERT( pwriter->symbol_table == NULL || pwriter->symbol_table == system );
-
-        IONCHECK(_ion_symbol_table_open_helper(&pwriter->symbol_table, pwriter->_temp_entity_pool, system));
-        pwriter->_local_symbol_table = TRUE;
+        IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
         psymtab = pwriter->symbol_table;
     }
 
@@ -2215,7 +2267,7 @@ iERR _ion_writer_allocate_temp_pool( ION_WRITER *pwriter )
     iENTER;
     void *temp_owner;
 
-    temp_owner = ion_alloc_owner(sizeof(ION_WRITER *));
+    temp_owner = ion_alloc_owner(sizeof(int)); // this is a fake allocation to hold the pool
     if (temp_owner == NULL) {
         FAILWITH(IERR_NO_MEMORY);
     }
@@ -2239,9 +2291,7 @@ iERR _ion_writer_free_temp_pool( ION_WRITER *pwriter )
 {
     iENTER;
 
-    if ((pwriter->_temp_entity_pool != NULL)
- //   && (((ION_WRITER *)pwriter->_temp_entity_pool) != pwriter)
-    ) {
+    if ((pwriter->_temp_entity_pool != NULL)) {
         ion_free_owner( pwriter->_temp_entity_pool );
         pwriter->_temp_entity_pool = NULL;
     }

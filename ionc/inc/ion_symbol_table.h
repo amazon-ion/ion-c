@@ -217,7 +217,15 @@ GLOBAL char *SYSTEM_SYMBOLS []
 #endif
 ;
 
+/**
+ * Allocates a new local symbol table.
+ */
 ION_API_EXPORT iERR ion_symbol_table_open               (hSYMTAB *p_hsymtab, hOWNER owner);
+
+/**
+ * Allocates a new local symbol table of the given type.
+ */
+ION_API_EXPORT iERR ion_symbol_table_open_with_type     (hSYMTAB *p_hsymtab, hOWNER owner, ION_SYMBOL_TABLE_TYPE type);
 ION_API_EXPORT iERR ion_symbol_table_clone              (hSYMTAB hsymtab, hSYMTAB *p_hclone);
 ION_API_EXPORT iERR ion_symbol_table_clone_with_owner   (hSYMTAB hsymtab, hSYMTAB *p_hclone, hOWNER owner);
 ION_API_EXPORT iERR ion_symbol_table_get_system_table   (hSYMTAB *p_hsystem_table, int32_t version);
