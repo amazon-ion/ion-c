@@ -1762,7 +1762,6 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
     ASSERT(pwriter);
 
     // TODO: what about the temp buffer, can we reset it here?
-    //       what about the local symbol table, should it be reset here too?
 
     switch (pwriter->type) {
     case ion_type_text_writer:
@@ -1779,6 +1778,7 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
         FAILWITH(IERR_INVALID_ARG);
     }
 
+    IONCHECK(_ion_writer_free_local_symbol_table( pwriter ));
     IONCHECK(_ion_writer_reset_temp_pool(pwriter));
 
     if (p_bytes_flushed) *p_bytes_flushed = (SIZE)(finish - start);    // TODO - this needs 64bit care
@@ -1848,7 +1848,7 @@ iERR _ion_writer_free_local_symbol_table( ION_WRITER *pwriter )
 
     if (pwriter->_local_symbol_table) {
         ASSERT(pwriter->symbol_table);
-        // local symbol tables have indirect owners: ion_free_owner(pwriter->symbol_table);
+        // local symbol tables are owned by the _temp_entity_pool, which is freed upon flush and close.
         pwriter->symbol_table = NULL;
         pwriter->_local_symbol_table = FALSE;
     }
@@ -2215,7 +2215,7 @@ iERR _ion_writer_allocate_temp_pool( ION_WRITER *pwriter )
     iENTER;
     void *temp_owner;
 
-    temp_owner = ion_alloc_owner(sizeof(ION_WRITER *));
+    temp_owner = ion_alloc_owner(sizeof(int)); // this is a fake allocation to hold the pool
     if (temp_owner == NULL) {
         FAILWITH(IERR_NO_MEMORY);
     }
@@ -2239,9 +2239,7 @@ iERR _ion_writer_free_temp_pool( ION_WRITER *pwriter )
 {
     iENTER;
 
-    if ((pwriter->_temp_entity_pool != NULL)
- //   && (((ION_WRITER *)pwriter->_temp_entity_pool) != pwriter)
-    ) {
+    if ((pwriter->_temp_entity_pool != NULL)) {
         ion_free_owner( pwriter->_temp_entity_pool );
         pwriter->_temp_entity_pool = NULL;
     }

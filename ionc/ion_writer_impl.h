@@ -112,7 +112,7 @@ typedef struct _ion_writer
     BOOL               _has_local_symbols;
 
     ION_TEMP_BUFFER    temp_buffer;         // holds field names and annotations until the writer needs them
-    ION_WRITER       **_temp_entity_pool;   // memory pool for top level objects that we'll throw away during flush
+    void              *_temp_entity_pool;   // memory pool for top level objects that we'll throw away during flush
 
     BOOL               _in_struct;
     SIZE               depth;
@@ -312,13 +312,9 @@ iERR _ion_writer_binary_pop(ION_WRITER *bwriter);
 iERR _ion_writer_binary_patch_lengths(ION_WRITER *bwriter, int added_length);
 iERR _ion_writer_binary_top_length(ION_WRITER *bwriter, int *plength);
 iERR _ion_writer_binary_top_position(ION_WRITER *bwriter, int *poffset);
-#ifdef NOT_NEEDED
-iERR _ion_writer_binary_top_type(ION_WRITER *bwriter, ION_TYPE *ptype);
-#endif
 iERR _ion_writer_binary_top_in_struct(ION_WRITER *bwriter, BOOL *p_is_in_struct);
 
 iERR _ion_writer_binary_flush_to_output(ION_WRITER *pwriter);
-iERR _ion_writer_binary_calc_serialized_symbol_table_length(ION_WRITER *pwriter, int *p_length);
 iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_STREAM *out, int *p_length);
 int   ion_writer_binary_serialize_import_struct_length(ION_SYMBOL_TABLE_IMPORT *import);
 int   ion_writer_binary_serialize_symbol_length(ION_SYMBOL *symbol);

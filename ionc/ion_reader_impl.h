@@ -174,7 +174,7 @@ struct _ion_reader
 
     ION_SYMBOL_TABLE   *_current_symtab;
     ION_SYMBOL_TABLE   *_local_symtab_pool;         // memory pool for local symbol table we recycle
-    ION_READER        **_temp_entity_pool;          // memory pool for top level objects that we'll throw away
+    void               *_temp_entity_pool;          // memory pool for top level objects that we'll throw away
     
     struct {
         BOOL            _is_ion_int;

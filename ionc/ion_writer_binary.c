@@ -1327,16 +1327,6 @@ iERR _ion_writer_binary_flush_to_output(ION_WRITER *pwriter)
 //
 // as with the rest of the writer this was ported from the Java streaming
 // writer as it's very touchy.  As such it has been simplified somewhat.
- 
-iERR _ion_writer_binary_calc_serialized_symbol_table_length(ION_WRITER *pwriter, int *p_length)
-{
-    iENTER;
-    ION_SYMBOL_TABLE *psymtab = pwriter->symbol_table;
-
-    IONCHECK(_ion_writer_binary_serialize_symbol_table(psymtab, NULL, p_length));
-
-    iRETURN;
-}
 
 iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_STREAM *out, int *p_length)
 {
@@ -1354,7 +1344,6 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
 
     int symbol_list_len, symbol_header_len;
     int  tid;
-    BOOL must_use_struct = FALSE;
     SID  sid;
         
     // first calculate the length of the bits and pieces we will be
@@ -1401,28 +1390,11 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
         for (;;) {
             ION_COLLECTION_NEXT(symbol_cursor, symbol);
             if (!symbol) break;
-            if (symbol_list_len > 0 && symbol->sid != sid + 1) {
-                must_use_struct = TRUE;
-            }
             sid = symbol->sid;
             if (symbol->psymtab != psymtab) continue;
             symbol_list_len += ion_writer_binary_serialize_symbol_length(symbol);
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
-
-        if (must_use_struct) {
-            // if we have discontiguous symbols we use the struct form
-            // of the symbol list - so we need to make room for sid's
-            ION_COLLECTION_OPEN(&psymtab->symbols, symbol_cursor);
-            for (;;) {
-                ION_COLLECTION_NEXT(symbol_cursor, symbol);
-                if (!symbol) break;
-                sid = symbol->sid;
-                if (symbol->psymtab != psymtab) continue;
-                symbol_list_len += ion_binary_len_var_uint_64(sid);
-            }
-            ION_COLLECTION_CLOSE(symbol_cursor);
-        }
 
         if (symbol_list_len > 0) {
             symbol_header_len = ION_BINARY_TYPE_DESC_LENGTH + 1; // fldid + typedesc
@@ -1451,11 +1423,6 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     total_len = annotation_header_len + annotated_value_len;
     if (p_length) {
         *p_length = total_len;
-    }
-        
-    // trick to just get the length and gaurantee it's the same length
-    if (out == NULL) {
-        SUCCEED();
     }
 
     // -------------------------------------------------------------------------
@@ -1523,7 +1490,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     if (symbol_list_len > 0) {
         ION_PUT(out, ION_BINARY_MAKE_1_BYTE_VAR_INT(ION_SYS_SID_SYMBOLS)); // field sid
         // write import field id, list type desc and maybe overflow length
-        tid = must_use_struct ? TID_STRUCT : TID_LIST;
+        tid = TID_LIST;
         if (symbol_list_len >= ION_lnIsVarLen) {
             ION_PUT(out, makeTypeDescriptor(tid, ION_lnIsVarLen));
             IONCHECK(ion_binary_write_var_uint_64(out, symbol_list_len));  // symtab has overflow length
@@ -1538,9 +1505,6 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
             ION_COLLECTION_NEXT(symbol_cursor, symbol);
             if (!symbol) break;
             if (symbol->psymtab != psymtab) continue;
-            if (must_use_struct) {
-                IONCHECK(ion_binary_write_var_uint_64(out, symbol->sid)); // the sid is the field id here
-            }
             IONCHECK(ion_binary_write_string_with_td_byte(out, &symbol->value));
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
@@ -1550,7 +1514,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     if (output_finish - output_start != total_len) {
         FAILWITH(IERR_INVALID_STATE);
     }
-
+    psymtab->flushed_max_id = psymtab->max_id;
     iRETURN;
 }
 
