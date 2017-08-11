@@ -85,3 +85,10 @@ iERR ion_read_string_as_chars(hREADER reader, char **out) {
     *out = ion_string_strdup(&ion_string);
     iRETURN;
 }
+
+void ion_test_print_bytes(BYTE *bytes, SIZE length) {
+    for(int i = 0; i < length; i++) {
+        printf("\\x%02X", bytes[i]);
+    }
+    printf("\n");
+}

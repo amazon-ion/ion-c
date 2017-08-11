@@ -255,6 +255,7 @@ iERR _ion_writer_text_append_unicode_scalar(ION_STREAM *poutput, int unicode_sca
 iERR _ion_writer_text_read_unicode_scalar(char *cp, int *p_chars_read, int *p_unicode_scalar);
 
 iERR _ion_writer_text_initialize(ION_WRITER *pwriter);
+iERR _ion_writer_text_initialize_stack(ION_WRITER *pwriter);
 iERR _ion_writer_text_write_typed_null(ION_WRITER *pwriter, ION_TYPE type);
 iERR _ion_writer_text_write_bool(ION_WRITER *pwriter, BOOL value);
 iERR _ion_writer_text_write_int64(ION_WRITER *pwriter, int64_t value);

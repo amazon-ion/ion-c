@@ -84,4 +84,11 @@ iERR ion_test_new_text_reader(const char *ion_text, hREADER *reader);
  */
 iERR ion_read_string_as_chars(hREADER reader, char **out);
 
+/**
+ * Prints the given bytes in two-digit hexadecimal format, delimited by "\x"
+ * @param bytes - the bytes to print.
+ * @param length - the number of bytes to print.
+ */
+void ion_test_print_bytes(BYTE *bytes, SIZE length);
+
 #endif //IONC_ION_TEST_UTIL_H

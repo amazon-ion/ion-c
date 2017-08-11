@@ -18,6 +18,7 @@
 //
 
 #include "ion_internal.h"
+#include "ion_writer_impl.h"
 
 #define IONCLOSEpWRITER(x)   { if (x != NULL)  { UPDATEERROR(_ion_writer_close_helper(x)); x = NULL;}}
 
@@ -1754,6 +1755,27 @@ iERR ion_writer_flush(hWRITER hwriter, SIZE *p_bytes_flushed)
     iRETURN;
 }
 
+iERR ion_writer_finish(hWRITER hwriter, SIZE *p_bytes_flushed)
+{
+    iENTER;
+    ION_WRITER *pwriter;
+
+    if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
+    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    if (pwriter->depth != 0) {
+        FAILWITHMSG(IERR_INVALID_STATE, "Cannot finish a writer that is not at the top level.");
+    }
+
+    IONCHECK(_ion_writer_flush_helper(pwriter, p_bytes_flushed));
+    IONCHECK(_ion_writer_free_local_symbol_table(pwriter));
+    IONCHECK(_ion_writer_reset_temp_pool(pwriter));
+    if (pwriter->type == ion_type_binary_writer) {
+        pwriter->_typed_writer.binary._version_marker_written = FALSE;
+    }
+    iRETURN;
+}
+
 iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
 {
     iENTER;
@@ -1761,26 +1783,35 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
 
     ASSERT(pwriter);
 
-    // TODO: what about the temp buffer, can we reset it here?
+    // TODO: what about the temp buffer, can we reset it here? Holds annotation scratch space for both writers and
+    // container stack info for text writer, so could only reset it if at the top level. Then stacks would need to be
+    // reinitialized.
 
     switch (pwriter->type) {
     case ion_type_text_writer:
-        // not really anything to do for the text writer
+        // The text writer does not need to buffer data.
         start = 0;
         finish = ion_stream_get_position(pwriter->output);
+        // TODO check the following
+        if (pwriter->depth == 0) {
+            IONCHECK(ion_temp_buffer_reset(&pwriter->temp_buffer));
+            IONCHECK(_ion_writer_text_initialize_stack(pwriter));
+        }
         break;
     case ion_type_binary_writer:
         start =  ion_stream_get_position(pwriter->output);
-        IONCHECK(_ion_writer_binary_flush_to_output(pwriter));
+        if (pwriter->depth == 0) {
+            IONCHECK(_ion_writer_binary_flush_to_output(pwriter));
+            IONCHECK(ion_temp_buffer_reset(&pwriter->temp_buffer)); // TODO check
+        }
         finish = ion_stream_get_position(pwriter->output);
         break;
     default:
         FAILWITH(IERR_INVALID_ARG);
     }
 
-    IONCHECK(_ion_writer_free_local_symbol_table( pwriter ));
-    IONCHECK(_ion_writer_reset_temp_pool(pwriter));
-
+    // TODO ion_stream_flush? (added)
+    IONCHECK(ion_stream_flush(pwriter->output));
     if (p_bytes_flushed) *p_bytes_flushed = (SIZE)(finish - start);    // TODO - this needs 64bit care
 
     iRETURN;
@@ -1804,6 +1835,10 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
     iENTER;
 
     ASSERT(pwriter);
+
+    if (pwriter->depth != 0) {
+        FAILWITHMSG(IERR_INVALID_STATE, "Cannot close writer that is not at the top level.");
+    }
 
     // all the local resources are allocated in the parent
     // (at least at the present time)
@@ -1835,7 +1870,6 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
     // then we free ourselves :) all associated memory, for
     // which we (pwriter) are the owner
     ion_free_owner(pwriter);
-    goto fail;
 
     iRETURN;
 }
