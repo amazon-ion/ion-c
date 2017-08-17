@@ -75,7 +75,7 @@ struct _ion_timestamp {
 #define ION_TS_SEC       (ION_TS_MIN  | ION_TT_BIT_SEC)
 #define ION_TS_FRAC      (ION_TS_SEC | ION_TT_BIT_FRAC)
 
-#define ION_MAX_TIMESTAMP_STRING (26+DECQUAD_String) /* y-m-dTh:m:s.<dec>+h:m */
+#define ION_MAX_TIMESTAMP_STRING (26+DECQUAD_String) /* y-m-dTh:m:s.<dec>+h:m */ // TODO there is another definition of a similar constant in ion_debug.h that is shorter. Investigate.
 
 /** Get the time precision for the given timestamp object.
  * The precision values are defined as ION_TS_YEAR, ION_TS_MONTH, ION_TS_DAY,
@@ -118,6 +118,12 @@ ION_API_EXPORT iERR ion_timestamp_to_time_t(const ION_TIMESTAMP *ptime, time_t *
  */
 ION_API_EXPORT iERR ion_timestamp_equals(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2,
         BOOL *is_equal, decContext *pcontext);
+
+/** Compare timestamps for instant equality only (i.e. precision and local offsets need not be equivalent).
+ *  NOTE: if this has any use externally, it could be exposed. If not, it should be removed.
+ */
+ION_API_EXPORT iERR ion_timestamp_instant_equals(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2,
+                                  BOOL *is_equal, decContext *pcontext);
 
 /** Initialize ION_TIMESTAMP object with value specified.
  * It will have ION_TS_YEAR precision

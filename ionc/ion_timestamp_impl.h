@@ -84,6 +84,9 @@ iERR _ion_timestamp_get_dec_fraction_with_scale(iTIMESTAMP ptime, int32_t scale,
 iERR _ion_timestamp_get_fraction_with_scale(iTIMESTAMP ptime, int32_t scale,
         int32_t *value, decContext *pcontext);
 
+iERR _ion_timestamp_equals_helper(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2,
+                                  BOOL *is_equal, decContext *pcontext, BOOL instant_only);
+
 #ifdef __cplusplus
 }
 #endif
