@@ -312,6 +312,7 @@ iERR _ion_symbol_table_local_load_import_list(ION_READER *preader, hOWNER owner,
 
         import = (ION_SYMBOL_TABLE_IMPORT *)_ion_collection_append(pimport_list);
         memset(import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
+        import->max_id = ION_SYS_SYMBOL_MAX_ID_UNDEFINED;
 
         // step into the import struct
         IONCHECK(_ion_reader_step_in_helper(preader));
@@ -332,24 +333,26 @@ iERR _ion_symbol_table_local_load_import_list(ION_READER *preader, hOWNER owner,
                 if (import->version) FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "too many versions in import list");
                 if (type == tid_INT) {
                     IONCHECK(_ion_reader_read_int32_helper(preader, &import->version));
-                    if (import->version < 1) FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "version must be 1 or greater in import list");
                 }
                 break;
             case ION_SYS_SID_MAX_ID:   /* "max_id" */
-                if (import->max_id) FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "too many max_id fields in import list");
+                // Edge case: the import contains n max_id declarations, and the first x <= n are explicitly -1. In this
+                // case, the following line won't trigger a failure. However, the spec doesn't clearly define what
+                // implementations must do when multiple of the same field is encountered in an import, so it doesn't
+                // seem worth it to address this now.
+                if (import->max_id != ION_SYS_SYMBOL_MAX_ID_UNDEFINED) FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "too many max_id fields in import list");
                 BOOL is_null;
                 IONCHECK(ion_reader_is_null(preader, &is_null));
                 if (type == tid_INT && !is_null) {
-                    int32_t max_id;
-                    IONCHECK(_ion_reader_read_int32_helper(preader, &max_id));
-                    if (max_id >= 0) {
-                        import->max_id = max_id;
-                    }
+                    IONCHECK(_ion_reader_read_int32_helper(preader, &import->max_id));
                 }
                 break;
             default:
                 break;
             }
+        }
+        if (import->version < 1) {
+            import->version = 1;
         }
         // step back out to the list of imports
         IONCHECK(_ion_reader_step_out_helper(preader));
@@ -891,7 +894,7 @@ iERR _ion_symbol_table_get_max_sid_helper(ION_SYMBOL_TABLE *symtab, SID *p_max_i
     ASSERT(p_max_id != NULL);
 
     max_id = symtab->max_id;
-    if (max_id <= UNKNOWN_SID) {
+    if (max_id <= 0) {
         ASSERT(symtab->system_symbol_table != NULL);
         max_id = symtab->system_symbol_table->max_id;
 
@@ -1074,6 +1077,7 @@ iERR _ion_symbol_table_add_import_helper(ION_SYMBOL_TABLE        *symtab
 {
     iENTER;
     ION_SYMBOL_TABLE *import_symbol_table;
+    int32_t version = (p_import->version < 1) ? 1 : p_import->version;
 
     ASSERT(symtab != NULL);
     ASSERT(p_import != NULL);
@@ -1082,7 +1086,7 @@ iERR _ion_symbol_table_add_import_helper(ION_SYMBOL_TABLE        *symtab
 
     if (!pcatalog) FAILWITH(IERR_IMPORT_NOT_FOUND);
 
-    IONCHECK(_ion_catalog_find_best_match_helper(pcatalog, &p_import->name, p_import->version, &import_symbol_table));
+    IONCHECK(_ion_catalog_find_best_match_helper(pcatalog, &p_import->name, version, p_import->max_id, &import_symbol_table));
     if (import_symbol_table == NULL) {
         IONCHECK(_ion_symbol_table_create_substitute(p_import, pcatalog, &import_symbol_table));
     }
@@ -1145,6 +1149,7 @@ iERR _ion_symbol_table_local_find_by_name(ION_SYMBOL_TABLE *symtab, ION_STRING *
     ION_SYMBOL             *sym;
     int                     ii, c;
     SID                     sid;
+    ION_SYMBOL_TABLE       *system_table;
 
     if(ION_STRING_IS_NULL(name)) {
         FAILWITH(IERR_NULL_VALUE);
@@ -1184,16 +1189,27 @@ iERR _ion_symbol_table_local_find_by_name(ION_SYMBOL_TABLE *symtab, ION_STRING *
             c = name->value[ii];
             if (c < '0' || c > '9') {
                 sid = UNKNOWN_SID;
-                break;
+                goto done;
             }
             sid *= 10;
             sid += c - '0';
         }
+        if (sid == 0) {
+            goto done;
+        }
         IONCHECK(_ion_symbol_table_local_find_by_sid(symtab, sid, &sym));
+        if (!sym) {
+            IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system_table, ION_SYSTEM_VERSION));
+            IONCHECK(_ion_symbol_table_local_find_by_sid(system_table, sid, &sym));
+            if (!sym) {
+                FAILWITH(IERR_INVALID_SYMBOL); // The requested SID is out of range for the current symtab context.
+            }
+        }
     }
     else {
         sid = UNKNOWN_SID;
     }
+done:
     if (p_sid) *p_sid = sid;
     if (p_sym) *p_sym = sym;
 
@@ -1392,9 +1408,9 @@ iERR _ion_symbol_table_is_symbol_known_helper(ION_SYMBOL_TABLE *symtab, SID sid,
 
     ASSERT(symtab != NULL);
     ASSERT(p_is_known != NULL);
-
     IONCHECK(_ion_symbol_table_find_by_sid_helper(symtab, sid, &pname));
 
+    // TODO is this ever FALSE? Also should succeed on IERR_UNKNOWN_SYMBOL
     *p_is_known = (pname != NULL);
 
     iRETURN;
@@ -1922,7 +1938,7 @@ ION_SYMBOL *_ion_symbol_table_index_find_by_sid_helper(ION_SYMBOL_TABLE *symtab,
     ASSERT(symtab);
     ASSERT(INDEX_IS_ACTIVE(symtab));
 
-    if (sid < 1 || sid > symtab->by_id_max) {
+    if (sid <= UNKNOWN_SID || sid > symtab->by_id_max) {
         found_sym = NULL;
     }
     else {        

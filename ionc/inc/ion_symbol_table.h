@@ -37,7 +37,7 @@ typedef enum _ION_SYMBOL_TABLE_TYPE {
     ist_SYSTEM = 3
 } ION_SYMBOL_TABLE_TYPE;
 
-#define UNKNOWN_SID 0 /* symbol id's presume not only is this unknown, but sid's must be positive */
+#define UNKNOWN_SID -1 /* symbol id's presume not only is this unknown, but sid's must be positive */
 
 //
 // Ion Symbol table implementation
@@ -53,6 +53,8 @@ typedef enum _ION_SYMBOL_TABLE_TYPE {
 #define ION_SYS_SYMBOL_IMPORTS             "imports"
 #define ION_SYS_SYMBOL_SYMBOLS             "symbols"
 #define ION_SYS_SYMBOL_MAX_ID              "max_id"
+
+#define ION_SYS_SYMBOL_MAX_ID_UNDEFINED    -1
 
 #define ION_SYS_SID_UNKNOWN                0 /* not necessarily NULL */
 #define ION_SYS_SID_ION                    1 /* "$ion" */

@@ -32,7 +32,7 @@ iERR _ion_catalog_open_with_owner_helper(ION_CATALOG **p_pcatalog, hOWNER owner)
 iERR _ion_catalog_get_symbol_table_count_helper(ION_CATALOG *pcatalog, int32_t *p_count);
 iERR _ion_catalog_add_symbol_table_helper(ION_CATALOG *pcatalog, ION_SYMBOL_TABLE *psymtab);
 iERR _ion_catalog_find_symbol_table_helper(ION_CATALOG *pcatalog, ION_STRING *name, int32_t version, ION_SYMBOL_TABLE **p_psymtab);
-iERR _ion_catalog_find_best_match_helper(ION_CATALOG *pcatalog, ION_STRING *name, int32_t version, ION_SYMBOL_TABLE **p_psymtab);
+iERR _ion_catalog_find_best_match_helper(ION_CATALOG *pcatalog, ION_STRING *name, int32_t version, int32_t max_id, ION_SYMBOL_TABLE **p_psymtab);
 iERR _ion_catalog_release_symbol_table_helper(ION_CATALOG *pcatalog, ION_SYMBOL_TABLE *psymtab);
 iERR _ion_catalog_close_helper(ION_CATALOG *pcatalog);
 
