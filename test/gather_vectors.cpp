@@ -150,7 +150,7 @@ std::vector<std::string> *skip_list() {
 
         add_to_skip(good_equivs_path, "zeroDecimals.ion");
         add_to_skip(good_equivs_path, "zeroFloats.ion");
-        add_to_skip(good_equivs_path, "bigInts.ion");
+
         add_to_skip(good_equivs_path, "timestampsLargeFractionalPrecision.ion");
 
         add_to_skip(good_nonequivs_path, "floatsVsDecimals.ion");

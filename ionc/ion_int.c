@@ -656,17 +656,13 @@ iERR ion_int_from_decimal(ION_INT *iint, const decQuad *p_value)
     ii_length = (SIZE)((bits - 1) / II_BITS_PER_II_DIGIT) + 1;
     IONCHECK(_ion_int_extend_digits(iint, ii_length, TRUE));
 
-_ion_int_dump_quad(&temp1, (int64_t)0);
-
     for (digit_idx = iint->_len-1; ; digit_idx--) 
     {
-_ion_int_dump_quad(&temp1, (int64_t)1);
         is_zero = decQuadIsZero(&temp1);
         if (is_zero) break; // so I can see this in a debugger
 
 //        decQuadAnd(&temp2, &temp1, &g_decQuad_Mask, &g_Context);
         decQuadRemainder(&temp2, &temp1, &g_digit_base, &g_Context);
-_ion_int_dump_quad(&temp2, (int64_t)2);
         digit = decQuadToUInt32(&temp2, &g_Context, DEC_ROUND_DOWN);
         iint->_digits[digit_idx] = digit;
 //        decQuadShift(&temp1, &temp1, &g_decQuad_Shift, &g_Context);
@@ -948,16 +944,6 @@ iERR ion_int_to_decimal(ION_INT *iint, decQuad *p_quad)
 //
 ///////////////////////////////////////////////////////////////////
 
-void _ion_int_dump_quad(decQuad *quad, int64_t expected)
-{
-    char temp[100];
-if (quad) return;
-    decQuadToEngString(quad, temp);
-    fprintf(stderr, "dump of %ld ", expected);
-    fprintf(stderr, " as quad: %s\n", temp);
-    return;
-}
-
 int _int_int_init_globals()
 {
     decQuad two;
@@ -970,7 +956,7 @@ int _int_int_init_globals()
     // invariant needed for multiply and add
     ASSERT((UINT64_MAX) >= ( (((II_LONG_DIGIT)II_MAX_DIGIT) * ((II_LONG_DIGIT)II_MAX_DIGIT)) + (((II_LONG_DIGIT)II_MAX_DIGIT)*2) )); 
 
-    decContextDefault(&g_Context, DEC_INIT_DECQUAD);
+    decContextDefault(&g_Context, DEC_INIT_BASE);
 
     decQuadFromInt32(&two, 2);
     temp = (int32_t)(II_BASE / 2);
@@ -979,12 +965,6 @@ int _int_int_init_globals()
 
     decQuadFromInt32(&g_decQuad_Mask, (int32_t)II_MASK);
     decQuadFromInt32(&g_decQuad_Shift, (int32_t)II_SHIFT);
-
-#if 1
-    _ion_int_dump_quad(&g_digit_base, (int64_t)II_BASE);
-    _ion_int_dump_quad(&g_decQuad_Mask, (int64_t)II_MASK);
-    _ion_int_dump_quad(&g_decQuad_Shift, (int64_t)II_SHIFT);
-#endif
 
     return 0;
 }
