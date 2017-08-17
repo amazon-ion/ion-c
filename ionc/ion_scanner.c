@@ -39,14 +39,19 @@ static inline BOOL _ion_scanner_is_newline(int c)
     return c == 0x0A || c == 0x0D;
 }
 
+static inline BOOL _ion_scanner_is_non_newline_whitespace(int c)
+{
+    return c == 0x09 || c == 0x0B || c == 0x0C; // Tab, vertical tab, and form feed, respectively.
+}
+
 static inline BOOL _ion_scanner_is_valid_plain_char(int c)
 {
-    return !_ion_scanner_is_control_character(c);
+    return !_ion_scanner_is_control_character(c) || _ion_scanner_is_non_newline_whitespace(c);
 }
 
 static inline BOOL _ion_scanner_is_valid_long_char(int c)
 {
-    return !_ion_scanner_is_control_character(c) || _ion_scanner_is_newline(c);
+    return !_ion_scanner_is_control_character(c) || _ion_scanner_is_newline(c) || _ion_scanner_is_non_newline_whitespace(c);
 }
 
 static inline iERR _ion_scanner_get_terminator_for_sub_type(ION_SUB_TYPE ist, int* terminator)
