@@ -2132,9 +2132,17 @@ iERR _ion_scanner_read_possible_number(ION_SCANNER *scanner, int c, int sign, IO
         // if the char is a digit, it's the leading digits of a decimal, float or the year of a timestamp
         // or the entire decimal integer - so we'll read those digits in until we hit a char that will
         // let us distinguish which it is
-        if (IS_1_BYTE_UTF8(c) && isdigit(c)) {
-            PUSH_VALUE_BYTE(c);
-            IONCHECK(_ion_scanner_read_digits(scanner, &dst, &remaining, &c));
+        if (IS_1_BYTE_UTF8(c) && (isdigit(c) || c == '_')) {
+            if (isdigit(c)) {
+                PUSH_VALUE_BYTE(c);
+                IONCHECK(_ion_scanner_read_digits_with_underscores(scanner, &dst, &remaining, &c, TRUE));
+            }
+            else { // c == '_'
+                IONCHECK(_ion_scanner_read_digits_with_underscores(scanner, &dst, &remaining, &c, FALSE));
+                if ((remaining_before - remaining) == 1) { // Didn't find any more digits after the underscore.
+                    FAILWITHMSG(IERR_INVALID_TOKEN_CHAR, "Illegal underscore in number.");
+                }
+            }
         }
 
         // we read all the leading digits - we check for timestamp first
@@ -2161,7 +2169,7 @@ iERR _ion_scanner_read_possible_number(ION_SCANNER *scanner, int c, int sign, IO
             // for the exponent
             if (c == '.') {
                 PUSH_VALUE_BYTE(c);
-                IONCHECK(_ion_scanner_read_digits(scanner, &dst, &remaining, &c));
+                IONCHECK(_ion_scanner_read_digits_with_underscores(scanner, &dst, &remaining, &c, FALSE));
                 // with a decimal point we'll presume this is a a decimal unless we see a 'e'
                 t = IST_DECIMAL;
             }
@@ -2204,7 +2212,7 @@ iERR _ion_scanner_read_possible_number(ION_SCANNER *scanner, int c, int sign, IO
     iRETURN;
 }
 
-iERR _ion_scanner_read_radix_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, ION_INT_RADIX radix)
+iERR _ion_scanner_read_radix_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char, ION_INT_RADIX radix, BOOL underscore_allowed)
 {
     iENTER;
     int   c, remaining = *p_remaining;
@@ -2212,14 +2220,28 @@ iERR _ion_scanner_read_radix_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_rem
 
     for (;;) {
         IONCHECK(_ion_scanner_read_char(scanner, &c));
-        if (!IS_1_BYTE_UTF8(c) || !IS_RADIX_CHAR(c, radix)) {
+        if (!IS_1_BYTE_UTF8(c)) {
+            break;
+        }
+        if (c == '_') {
+            if (!underscore_allowed) {
+                FAILWITHMSG(IERR_INVALID_TOKEN_CHAR, "Illegal underscore in number.");
+            }
+            underscore_allowed = FALSE;
+            continue; // Do not append the underscore.
+        }
+        if (!IS_RADIX_CHAR(c, radix)) {
             break;
         }
         PUSH_VALUE_BYTE(c);
+        underscore_allowed = TRUE;
     }
 
-    IONCHECK(_ion_scanner_unread_char(scanner, c));
+    if (dst != *p_dst && !underscore_allowed) {
+        FAILWITHMSG(IERR_INVALID_TOKEN_CHAR, "Illegal underscore in number.")
+    }
 
+    *p_char = c;
     *p_remaining = remaining;
     *p_dst = dst;
 
@@ -2229,14 +2251,18 @@ iERR _ion_scanner_read_radix_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_rem
 iERR _ion_scanner_read_hex_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining)
 {
     iENTER;
-    IONCHECK(_ion_scanner_read_radix_int(scanner, p_dst, p_remaining, ION_INT_HEX));
+    int c;
+    IONCHECK(_ion_scanner_read_radix_int(scanner, p_dst, p_remaining, &c, ION_INT_HEX, FALSE));
+    IONCHECK(_ion_scanner_unread_char(scanner, c));
     iRETURN;
 }
 
 iERR _ion_scanner_read_binary_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining)
 {
     iENTER;
-    IONCHECK(_ion_scanner_read_radix_int(scanner, p_dst, p_remaining, ION_INT_BINARY));
+    int c;
+    IONCHECK(_ion_scanner_read_radix_int(scanner, p_dst, p_remaining, &c, ION_INT_BINARY, FALSE));
+    IONCHECK(_ion_scanner_unread_char(scanner, c));
     iRETURN;
 }
 
@@ -2259,6 +2285,13 @@ iERR _ion_scanner_read_digits(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remain
     *p_remaining = remaining;
     *p_dst = dst;
 
+    iRETURN;
+}
+
+iERR _ion_scanner_read_digits_with_underscores(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char, BOOL underscore_allowed)
+{
+    iENTER;
+    IONCHECK(_ion_scanner_read_radix_int(scanner, p_dst, p_remaining, p_char, ION_INT_DECIMAL, underscore_allowed));
     iRETURN;
 }
 

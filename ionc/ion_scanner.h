@@ -279,9 +279,9 @@ GLOBAL BOOL  _ion_binary_character_value[256]
 #endif
 ;
 
-typedef enum { ION_INT_HEX, ION_INT_BINARY } ION_INT_RADIX;
+typedef enum { ION_INT_DECIMAL, ION_INT_HEX, ION_INT_BINARY } ION_INT_RADIX;
 
-#define IS_RADIX_CHAR(x, r) ((r == ION_INT_BINARY && IS_BINARY_CHAR(x)) || (r == ION_INT_HEX && IS_HEX_CHAR(x)))
+#define IS_RADIX_CHAR(x, r) ((r == ION_INT_DECIMAL && isdigit(x)) || (r == ION_INT_BINARY && IS_BINARY_CHAR(x)) || (r == ION_INT_HEX && IS_HEX_CHAR(x)))
 
 typedef enum { ION_TT_NO,   ION_TT_YES, ION_TT_MAYBE } ION_TERM_TYPE;
 //#define ION_IS_MAYBE_VALUE_TERMINATOR(x)  (( _Ion_value_terminators[(x)] == ON_TT_MAYBE ) \x
@@ -456,10 +456,11 @@ iERR _ion_scanner_read_as_base64                    (ION_SCANNER *scanner, BYTE 
 
 
 iERR _ion_scanner_read_possible_number              (ION_SCANNER *scanner, int c, int sign, ION_SUB_TYPE *p_ist);
-iERR _ion_scanner_read_radix_int                    (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, ION_INT_RADIX radix);
+iERR _ion_scanner_read_radix_int                    (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char, ION_INT_RADIX radix, BOOL underscore_allowed);
 iERR _ion_scanner_read_hex_int                      (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining);
 iERR _ion_scanner_read_binary_int                   (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining);
 iERR _ion_scanner_read_digits                       (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char);
+iERR _ion_scanner_read_digits_with_underscores      (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char, BOOL underscore_allowed);
 iERR _ion_scanner_read_exponent                     (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char);
 iERR _ion_scanner_read_timestamp                    (ION_SCANNER *scanner, int c, BYTE **p_dst, SIZE *p_remaining, ION_SUB_TYPE *p_ist );
 
