@@ -23,7 +23,6 @@ extern "C" {
 #endif
 
 #define BILLION      (int64_t)1000000000            /* 10**9                 */
-#define MILLION      (int64_t)1000000               /* 10**6                 */
 
 //
 // these are actually in decQuadHelpers.c
@@ -31,8 +30,8 @@ extern "C" {
 // that's a bit more trouble than it's worth just at the moment (and
 // that would also be more work than the specific cases we need just now as well)
 //
-ION_API_EXPORT void    ion_quad_get_digits_and_exponent_from_quad(const decQuad *quad_value, decContext *set, int64_t *p_value, int32_t *p_exp);
-ION_API_EXPORT void    ion_quad_get_quad_from_digits_and_exponent(int64_t value, int32_t exp, decContext *set, BOOL isNegativeZero, decQuad *p_quad);
+ION_API_EXPORT void    ion_quad_get_exponent_and_shift(const decQuad *quad_value, decContext *set, decQuad *p_int_mantissa, int32_t *p_exp);
+ION_API_EXPORT void    ion_quad_get_quad_from_digits_and_exponent(uint64_t value, int32_t exp, decContext *set, BOOL is_negative, decQuad *p_quad);
 
 // exported method for getting packed representation.
 // decimal package may be statically linked into the DLL (on win32) with no export
@@ -40,8 +39,8 @@ ION_API_EXPORT void    ion_quad_get_quad_from_digits_and_exponent(int64_t value,
 // This is equivalent to decQuadToPacked.
 ION_API_EXPORT void    ion_quad_get_packed_and_exponent_from_quad(const decQuad *quad_value, uint8_t *p_packed, int32_t *p_exp);
 
-int64_t decQuadToInt64(const decQuad *df, decContext *set);
-double  decQuadToDouble(const decQuad *dec, decContext *set);
+uint64_t decQuadToUInt64(const decQuad *df, decContext *set, BOOL *p_overflow, BOOL *p_is_negative);
+double   decQuadToDouble(const decQuad *dec, decContext *set);
 
 #ifdef __cplusplus
 }

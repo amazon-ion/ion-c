@@ -127,6 +127,7 @@ ION_INT_GLOBAL ION_INT         g_Int_Null
 #endif
 ;
 
+ION_INT_GLOBAL BOOL            g_ion_int_globals_initialized; // NOTE: this is initialized to 0 according to C standard.
 ION_INT_GLOBAL decContext      g_Context;
 ION_INT_GLOBAL decQuad         g_digit_base;
 ION_INT_GLOBAL decQuad         g_decQuad_Mask;
@@ -173,7 +174,7 @@ ION_API_EXPORT iERR ion_int_to_decimal      (ION_INT *iint, decQuad *p_quad);
 // internal functions
 //////////////////////////////////////////////////////////////
 void _ion_int_dump_quad(decQuad *quad, int64_t expected);
-int  _int_int_init_globals(void);
+int  _ion_int_init_globals(void);
 
 iERR _ion_int_validate_arg(const ION_INT *iint);
 iERR _ion_int_validate_arg_with_ptr(const ION_INT *iint, const void *ptr);
@@ -207,6 +208,7 @@ SIZE _ion_int_bytes_length_helper(const ION_INT *iint);
 iERR   _ion_int_to_bytes_helper(ION_INT *iint, SIZE bytes_in_int, SIZE starting_int_byte_offset, BOOL is_neg, BYTE *buffer, SIZE buffer_length, SIZE *bytes_written);
 
 SIZE _ion_int_abs_bytes_length_helper(const ION_INT *iint);
+SIZE _ion_int_abs_bytes_signed_length_helper(const ION_INT *iint);
 //iERR   _ion_int_to_abs_bytes_helper(ION_INT *iint, SIZE bytes_in_int, SIZE starting_int_byte_offset, BOOL is_neg, BYTE *buffer, SIZE buffer_length, SIZE *bytes_written);
 
 iERR   _ion_int_to_int64_helper(ION_INT *iint, int64_t *p_int64);

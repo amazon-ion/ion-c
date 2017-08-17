@@ -132,19 +132,6 @@ std::vector<std::string> *skip_list() {
 
         add_to_skip(good_path, "utf16.ion");
         add_to_skip(good_path, "utf32.ion");
-
-        add_to_skip(good_path, "subfieldVarInt.ion");
-        add_to_skip(good_path, "subfieldInt.ion");
-        add_to_skip(good_path, "decimal_zeros.ion");
-        add_to_skip(good_path, "decimal_e_values.ion");
-        add_to_skip(good_path, "testfile23.ion");
-        add_to_skip(good_path, "testfile31.ion");
-
-        add_to_skip(good_equivs_path, "zeroDecimals.ion");
-        add_to_skip(good_equivs_path, "timestampsLargeFractionalPrecision.ion");
-
-        add_to_skip(good_nonequivs_path, "floatsVsDecimals.ion");
-        add_to_skip(good_nonequivs_path, "decimals.ion");
     }
     return &_skip_list;
 }
