@@ -1048,7 +1048,7 @@ iERR _ion_writer_write_timestamp_helper(ION_WRITER *pwriter, ION_TIMESTAMP *valu
     iRETURN;
 }
 
-iERR ion_writer_write_symbol_id(hWRITER hwriter, SID value)
+iERR ion_writer_write_symbol_sid(hWRITER hwriter, SID value)
 {
     iENTER;
     ION_WRITER *pwriter;
