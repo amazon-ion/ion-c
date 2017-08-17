@@ -515,7 +515,7 @@ iERR _ion_writer_write_field_name_helper(ION_WRITER *pwriter, ION_STRING *name)
     ASSERT(pwriter);
     ASSERT(name);
     ASSERT(!ION_STRING_IS_NULL(name));
-    ASSERT(name->length > 0);
+    ASSERT(name->length >= 0);
 
     // we make our own copy of the string so we don't depend on the callers copy
 
@@ -577,7 +577,7 @@ iERR ion_writer_add_annotation(hWRITER hwriter, iSTRING annotation)
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (!annotation || !annotation->value) FAILWITH(IERR_INVALID_ARG);
-    if (annotation->length < 1)  FAILWITH(IERR_INVALID_ARG);
+    if (annotation->length < 0)  FAILWITH(IERR_INVALID_ARG);
 
     // if the caller (or someone) has started with int
     // annotations (sids) then they have to stick with them
@@ -597,7 +597,7 @@ iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotati
     ASSERT(pwriter)
     ASSERT(annotation);
     ASSERT(!ION_STRING_IS_NULL(annotation));
-    ASSERT(annotation->length > 0);
+    ASSERT(annotation->length >= 0);
     if (!(pwriter->annotations_type != tid_INT))
     ASSERT(pwriter->annotations_type != tid_INT);
 
@@ -678,7 +678,7 @@ iERR ion_writer_write_annotations(hWRITER hwriter, iSTRING *p_annotations, int32
         pstr = p_annotations[ii];
         if (!pstr) FAILWITH(IERR_INVALID_ARG);
         if (ION_STRING_IS_NULL(pstr)) FAILWITH(IERR_INVALID_ARG);
-        if (pstr->length < 1) FAILWITH(IERR_INVALID_ARG);
+        if (pstr->length < 0) FAILWITH(IERR_INVALID_ARG);
     }
 
     IONCHECK(_ion_writer_write_annotations_helper(pwriter, p_annotations, count));

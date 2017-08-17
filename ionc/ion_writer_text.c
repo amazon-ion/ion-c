@@ -610,7 +610,7 @@ iERR _ion_writer_text_write_symbol_id(ION_WRITER *pwriter, SID sid)
         IONCHECK(_ion_writer_text_write_typed_null(pwriter, tid_SYMBOL));
     }
     else {
-        ASSERT(pstr->length > 0);
+        ASSERT(pstr->length >= 0);
         poutput = pwriter->output;
 
         IONCHECK(_ion_writer_text_start_value(pwriter));
@@ -652,8 +652,6 @@ iERR _ion_writer_text_write_symbol(ION_WRITER *pwriter, iSTRING pstr)
         IONCHECK(_ion_writer_text_write_typed_null(pwriter, tid_SYMBOL));
     }
     else {
-        // if it's not null, then there better be some characters
-        // because a 0 length symbol isn't valid
         if (pstr->length < 0) FAILWITH(IERR_INVALID_ARG);
         poutput = pwriter->output;
 
@@ -1062,7 +1060,7 @@ iERR _ion_writer_text_append_symbol_string(ION_STREAM *poutput, ION_STRING *p_st
 
     if (!poutput) FAILWITH(IERR_BAD_HANDLE);
     if (!p_str) FAILWITH(IERR_INVALID_ARG);
-    if (p_str->length < 1) FAILWITH(IERR_INVALID_ARG);
+    if (p_str->length < 0) FAILWITH(IERR_INVALID_ARG);
 
     if (_ion_symbol_needs_quotes_string(p_str)) {
         ION_PUT(poutput, '\'');

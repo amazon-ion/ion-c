@@ -88,13 +88,16 @@ iERR _ion_strdup(hOWNER owner, iSTRING dst, iSTRING src)
 {
     iENTER;
 
+    BOOL is_empty = (src->length == 0 && src->value); // Distinguishing from null string, which has NULL value.
+
     if (!owner || !dst || !src) FAILWITH(IERR_INVALID_ARG);
 
-    if (dst->length < src->length) {
-        dst->value = (BYTE *)ion_alloc_with_owner(owner, src->length);
+    if (dst->length < src->length || src->length == 0) {
+        dst->value = (BYTE *)ion_alloc_with_owner(owner, (is_empty) ? 1 : src->length);
         if (!dst->value) FAILWITH(IERR_NO_MEMORY);
     }
-    memcpy(dst->value, src->value, src->length);
+    memcpy(dst->value, (is_empty) ? "\0" : src->value, (is_empty) ? 1 : src->length);
+
     dst->length = src->length;
 
     iRETURN;
