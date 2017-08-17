@@ -73,8 +73,10 @@ Follow Container Flags (from ion_reader_text.h):
 
     IST_RECORD( IST_INT_NEG_DECIMAL,            tid_INT,        IPS_AFTER_VALUE,      (FCF_DATAGRAM | FCF_SEXP | FCF_IS_NUMBER) )
     IST_RECORD( IST_INT_NEG_HEX,                tid_INT,        IPS_AFTER_VALUE,      (FCF_DATAGRAM | FCF_SEXP | FCF_IS_NUMBER) )
+    IST_RECORD( IST_INT_NEG_BINARY,             tid_INT,        IPS_AFTER_VALUE,      (FCF_DATAGRAM | FCF_SEXP | FCF_IS_NUMBER) )
     IST_RECORD( IST_INT_POS_DECIMAL,            tid_INT,        IPS_AFTER_VALUE,      (FCF_DATAGRAM | FCF_SEXP | FCF_IS_NUMBER) )
     IST_RECORD( IST_INT_POS_HEX,                tid_INT,        IPS_AFTER_VALUE,      (FCF_DATAGRAM | FCF_SEXP | FCF_IS_NUMBER) )
+    IST_RECORD( IST_INT_POS_BINARY,             tid_INT,        IPS_AFTER_VALUE,      (FCF_DATAGRAM | FCF_SEXP | FCF_IS_NUMBER) )
     IST_RECORD( IST_FLOAT_64,                   tid_FLOAT,      IPS_AFTER_VALUE,      (FCF_DATAGRAM | FCF_SEXP | FCF_IS_NUMBER) )
     IST_RECORD( IST_FLOAT_32,                   tid_FLOAT,      IPS_AFTER_VALUE,      (FCF_DATAGRAM | FCF_SEXP | FCF_IS_NUMBER) )
     IST_RECORD( IST_DECIMAL,                    tid_DECIMAL,    IPS_AFTER_VALUE,      (FCF_DATAGRAM | FCF_SEXP | FCF_IS_NUMBER) )

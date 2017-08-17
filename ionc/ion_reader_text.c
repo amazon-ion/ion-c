@@ -1356,6 +1356,13 @@ iERR _ion_reader_text_read_mixed_int_helper(ION_READER *preader)
             preader->_int_helper._is_ion_int = FALSE;
         }
     }
+    else if (text->_value_sub_type == IST_INT_NEG_BINARY) {
+        len --; // discount the "-"
+        len -= 2; // discount the "0b" prefix
+        if ((len / 2) < 64) { // 64 bit int is 64 binary chars
+            preader->_int_helper._is_ion_int = FALSE;
+        }
+    }
     else if (text->_value_sub_type == IST_INT_POS_DECIMAL) {
         /* no adjustment */
         if (len < 19) { // 9,223,372,036,854,775,807 is max signed int64, 19 decimal chars
@@ -1365,6 +1372,12 @@ iERR _ion_reader_text_read_mixed_int_helper(ION_READER *preader)
     else if (text->_value_sub_type == IST_INT_POS_HEX) {
         len -= 2; // discount the "0x" prefix
         if ((len / 2) < 16) { // 64 bit int is 16 hex chars
+            preader->_int_helper._is_ion_int = FALSE;
+        }
+    }
+    else if (text->_value_sub_type == IST_INT_POS_BINARY) {
+        len -= 2; // discount the "0b" prefix
+        if ((len / 2) < 64) { // 64 bit int is 64 binary chars
             preader->_int_helper._is_ion_int = FALSE;
         }
     }
@@ -1432,12 +1445,20 @@ iERR _ion_reader_text_read_int64(ION_READER *preader, int64_t *p_value)
         magnitude = STR_TO_UINT64(value_start + 1, &value_end, 10);
     }
     else if (text->_value_sub_type == IST_INT_POS_HEX) {
-        // base is now 16, and we add 3 to the start for the "0x"
-        magnitude = STR_TO_UINT64(value_start + 2, &value_end, 16);
+        // base is now 16, and we add 2 to the start for the "0x"
+        magnitude = STR_TO_UINT64(value_start + 2, &value_end, II_HEX_BASE);
     }
     else if (text->_value_sub_type == IST_INT_NEG_HEX) {
         // base is now 16, and we add 3 to the start for the "-0x"
-        magnitude = STR_TO_UINT64(value_start + 3, &value_end, 16);
+        magnitude = STR_TO_UINT64(value_start + 3, &value_end, II_HEX_BASE);
+    }
+    else if (text->_value_sub_type == IST_INT_POS_BINARY) {
+        // base is now 2, and we add 2 to the start for the "0b"
+        magnitude = STR_TO_UINT64(value_start + 2, &value_end, II_BINARY_BASE);
+    }
+    else if (text->_value_sub_type == IST_INT_NEG_BINARY) {
+        // base is now 2, and we add 3 to the start for the "-0b"
+        magnitude = STR_TO_UINT64(value_start + 3, &value_end, II_BINARY_BASE);
     }
     else {
         FAILWITH(IERR_PARSER_INTERNAL);
@@ -1483,6 +1504,9 @@ iERR _ion_reader_text_read_ion_int_helper(ION_READER *preader, ION_INT *p_value)
     }
     else if (text->_value_sub_type == IST_INT_POS_HEX || text->_value_sub_type == IST_INT_NEG_HEX) {
         IONCHECK(ion_int_from_hex_string(p_value, &text->_scanner._value_image));
+    }
+    else if (text->_value_sub_type == IST_INT_POS_BINARY || text->_value_sub_type == IST_INT_NEG_BINARY) {
+        IONCHECK(ion_int_from_binary_string(p_value, &text->_scanner._value_image));
     }
     else {
         FAILWITH(IERR_PARSER_INTERNAL);

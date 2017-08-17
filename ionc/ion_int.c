@@ -311,49 +311,81 @@ iERR _ion_int_from_chars_helper(ION_INT *iint, const char *str, SIZE len)
 iERR ion_int_from_hex_string(ION_INT *iint, const iSTRING p_str)
 {
     iENTER;
-    
+
     IONCHECK(_ion_int_validate_arg_with_ptr(iint, p_str));
     IONCHECK(_ion_int_from_hex_chars_helper(iint, (const char *)(p_str->value), p_str->length));
     SUCCEED();
-  
+
+    iRETURN;
+}
+
+iERR ion_int_from_binary_string(ION_INT *iint, const iSTRING p_str)
+{
+    iENTER;
+
+    IONCHECK(_ion_int_validate_arg_with_ptr(iint, p_str));
+    IONCHECK(_ion_int_from_binary_chars_helper(iint, (const char *)(p_str->value), p_str->length));
+    SUCCEED();
+
     iRETURN;
 }
 
 iERR ion_int_from_hex_chars(ION_INT *iint, const char *p_chars, SIZE char_limit)
 {
     iENTER;
-    
+
     IONCHECK(_ion_int_validate_arg_with_ptr(iint, p_chars));
     IONCHECK(_ion_int_from_hex_chars_helper(iint, p_chars, char_limit));
     SUCCEED();
-  
+
+    iRETURN;
+}
+iERR ion_int_from_binary_chars(ION_INT *iint, const char *p_chars, SIZE char_limit)
+{
+    iENTER;
+
+    IONCHECK(_ion_int_validate_arg_with_ptr(iint, p_chars));
+    IONCHECK(_ion_int_from_binary_chars_helper(iint, p_chars, char_limit));
+    SUCCEED();
+
     iRETURN;
 }
 
-static int _ion_int_hex_digit_values[] = {
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //   0-15
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  16-31
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  32-47
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, //  48-63 0-9
-	0,10,11,12,13,14,15, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  64-79 A-F
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  80-95
-	0,10,11,12,13,14,15, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  96-111 a-f
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 112-127
+static unsigned int _ion_int_hex_digit_values[] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //   0-15
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  16-31
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  32-47
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, //  48-63 0-9
+        0,10,11,12,13,14,15, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  64-79 A-F
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  80-95
+        0,10,11,12,13,14,15, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  96-111 a-f
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 112-127
 };
 
-iERR _ion_int_from_hex_chars_helper(ION_INT *iint, const char *str, SIZE len)
+static unsigned int _ion_int_binary_digit_values[] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //   0-15
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  16-31
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  32-47
+        0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  48-63 0-1
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  64-79
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  80-95
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //  96-111
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 112-127
+};
+
+iERR _ion_int_from_radix_chars_helper(ION_INT *iint, const char *str, SIZE len, unsigned int *digit_values, unsigned int base, unsigned int bits_per_digit, const char *radix_chars)
 {
     iENTER;
     const char *cp, *end;
     char       c;
     int        signum = 1;
-    SIZE       hex_digits, bits, ii_length;
+    SIZE       num_digits, bits, ii_length;
     BOOL       is_zero;
     II_DIGIT  *digits, d;
- 
+
     cp = str;
     end = cp + len;
-      
+
     // skip leading white space
     while (cp < end && isspace(*cp)) cp++;
     if (cp >= end) goto bad_syntax;
@@ -365,10 +397,10 @@ iERR _ion_int_from_hex_chars_helper(ION_INT *iint, const char *str, SIZE len)
         if (cp >= end) goto bad_syntax;
         if (*cp != '0') goto bad_syntax;
         // fall through to leading 0
-    case '0': 
+    case '0':
         cp++;
         if (cp >= end) goto bad_syntax;
-        if (*cp != 'x' && *cp != 'X') goto bad_syntax;
+        if (*cp != radix_chars[0] && *cp != radix_chars[1]) goto bad_syntax;
         cp++;
         if (cp >= end) goto bad_syntax;
         break;
@@ -382,22 +414,22 @@ iERR _ion_int_from_hex_chars_helper(ION_INT *iint, const char *str, SIZE len)
         if (cp >= end) break;
     }
 
-    hex_digits = (SIZE)(end - cp); // since strings are limited to length SIZE
-    bits = (SIZE)((II_BITS_PER_HEX_DIGIT * hex_digits) + 1);
+    num_digits = (SIZE)(end - cp); // since strings are limited to length SIZE
+    bits = (SIZE)((bits_per_digit * num_digits) + 1);
     ii_length = (SIZE)(((double)(bits - 1) / II_BITS_PER_II_DIGIT) + 1);
     IONCHECK(_ion_int_extend_digits(iint, ii_length, TRUE));
-    
+
     is_zero = TRUE;
     digits = iint->_digits;
     while (cp < end) {
         c = *cp++;
         if (!isxdigit(c)) goto bad_syntax;
-        d = _ion_int_hex_digit_values[c];
+        d = digit_values[c];
         if (d) is_zero = FALSE;
-        //mult_add(iint, iint, 10, d); 
-        IONCHECK(_ion_int_multiply_and_add(digits, iint->_len, II_HEX_BASE, d));
+        //mult_add(iint, iint, 10, d);
+        IONCHECK(_ion_int_multiply_and_add(digits, iint->_len, base, d));
     }
-    
+
     // set the signum value now
     if (is_zero) {
         iint->_signum = 0;
@@ -409,7 +441,21 @@ iERR _ion_int_from_hex_chars_helper(ION_INT *iint, const char *str, SIZE len)
 
 bad_syntax:
     FAILWITH(IERR_INVALID_SYNTAX);
-  
+
+    iRETURN;
+}
+
+iERR _ion_int_from_hex_chars_helper(ION_INT *iint, const char *str, SIZE len)
+{
+    iENTER;
+    IONCHECK(_ion_int_from_radix_chars_helper(iint, str, len, _ion_int_hex_digit_values, II_HEX_BASE, II_BITS_PER_HEX_DIGIT, II_HEX_RADIX_CHARS));
+    iRETURN;
+}
+
+iERR _ion_int_from_binary_chars_helper(ION_INT *iint, const char *str, SIZE len)
+{
+    iENTER;
+    IONCHECK(_ion_int_from_radix_chars_helper(iint, str, len, _ion_int_binary_digit_values, II_BINARY_BASE, II_BITS_PER_BINARY_DIGIT, II_BINARY_RADIX_CHARS));
     iRETURN;
 }
 

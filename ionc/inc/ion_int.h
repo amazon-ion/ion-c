@@ -79,6 +79,10 @@ typedef uint64_t II_LONG_DIGIT;
 
 #define II_BITS_PER_HEX_DIGIT       4
 #define II_HEX_BASE                 16
+#define II_HEX_RADIX_CHARS          "xX"
+#define II_BITS_PER_BINARY_DIGIT    1
+#define II_BINARY_BASE              2
+#define II_BINARY_RADIX_CHARS       "bB"
 
 #define II_MAX_DIGIT               (II_MASK)  /* aka 2,147,483,647 decimal, 2 gig */
 #define II_BITS_PER_BYTE            8
@@ -144,8 +148,10 @@ ION_API_EXPORT iERR ion_int_highest_bit_set (ION_INT *iint, SIZE *p_pos);
 
 ION_API_EXPORT iERR ion_int_from_string     (ION_INT *iint, const iSTRING p_str);
 ION_API_EXPORT iERR ion_int_from_hex_string (ION_INT *iint, const iSTRING p_str);
+ION_API_EXPORT iERR ion_int_from_binary_string(ION_INT *iint, const iSTRING p_str);
 ION_API_EXPORT iERR ion_int_from_chars      (ION_INT *iint, const char *p_chars, SIZE char_limit);
 ION_API_EXPORT iERR ion_int_from_hex_chars  (ION_INT *iint, const char *p_chars, SIZE char_limit);
+ION_API_EXPORT iERR ion_int_from_binary_chars(ION_INT *iint, const char *p_chars, SIZE char_limit);
 ION_API_EXPORT iERR ion_int_from_bytes      (ION_INT *iint, BYTE *buf, SIZE limit);
 ION_API_EXPORT iERR ion_int_from_abs_bytes  (ION_INT *iint, BYTE *buf, SIZE limit, BOOL is_negative);
 ION_API_EXPORT iERR ion_int_from_long       (ION_INT *iint, int64_t value);
@@ -183,7 +189,9 @@ void      _ion_int_free_temp(II_DIGIT *temp_buffer, II_DIGIT *cache_buffer);
 
 BOOL      _ion_int_from_bytes_helper(ION_INT *iint, BYTE *buf, SIZE byte_idx, SIZE limit, BOOL invert, BOOL includes_sign_byte);
 iERR      _ion_int_from_chars_helper(ION_INT *iint, const char *str, SIZE len);
+iERR      _ion_int_from_radix_chars_helper(ION_INT *iint, const char *str, SIZE len, unsigned int *digit_values, unsigned int base, unsigned int bits_per_digit, const char *radix_chars);
 iERR      _ion_int_from_hex_chars_helper(ION_INT *iint, const char *str, SIZE len);
+iERR      _ion_int_from_binary_chars_helper(ION_INT *iint, const char *str, SIZE len);
 
 BOOL _ion_int_is_null_helper(const ION_INT *iint);
 BOOL _ion_int_is_zero(const ION_INT *iint);
