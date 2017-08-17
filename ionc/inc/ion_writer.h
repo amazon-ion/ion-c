@@ -193,7 +193,7 @@ ION_API_EXPORT iERR ion_writer_write_all_values     (hWRITER hwriter, hREADER hr
  * Flushes pending bytes without forcing an Ion Version Marker or ending the current symbol table context.
  * If writer was created using open_stream, also flushes write buffer to stream. If not at the top level, flushing a
  * binary writer will do nothing.
- * @param   p_bytes_flushed - he number of bytes written into the buffer/stream.
+ * @param   p_bytes_flushed - the number of bytes written into the buffer/stream.
  */
 ION_API_EXPORT iERR ion_writer_flush                (hWRITER hwriter, SIZE *p_bytes_flushed);
 
@@ -201,7 +201,7 @@ ION_API_EXPORT iERR ion_writer_flush                (hWRITER hwriter, SIZE *p_by
  * Flushes pending bytes, ending the current symbol table context and forcing an Ion Version Marker if the writer
  * continues writing to the stream. If writer was created using open_stream, also flushes write buffer to stream.
  * If not at the top level, finishing any writer is an error.
- * @param   p_bytes_flushed - he number of bytes written into the buffer/stream.
+ * @param   p_bytes_flushed - the number of bytes written into the buffer/stream.
  */
 ION_API_EXPORT iERR ion_writer_finish               (hWRITER hwriter, SIZE *p_bytes_flushed);
 
