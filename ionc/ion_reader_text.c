@@ -30,7 +30,7 @@ double _ION_FLOAT64_POS_INF() {
 
 #define ION_FLOAT64_NEG_INF (_ION_FLOAT64_NEG_INF())
 double _ION_FLOAT64_NEG_INF() { 
-  static const uint64_t value = 0x7FF0000000000000;
+  static const uint64_t value = 0xFFF0000000000000;
   return *(double*)&value; 
 }
 
