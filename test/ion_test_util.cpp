@@ -17,6 +17,10 @@
 #include "ion_test_util.h"
 #include "ion_assert.h"
 
+void BinaryAndTextTest::SetUp() {
+    is_binary = GetParam();
+}
+
 void ion_test_initialize_writer_options(ION_WRITER_OPTIONS *options) {
     memset(options, 0, sizeof(ION_WRITER_OPTIONS));
     options->decimal_context = &g_TestDecimalContext;

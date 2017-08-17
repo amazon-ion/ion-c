@@ -15,7 +15,21 @@
 #ifndef IONC_ION_TEST_UTIL_H
 #define IONC_ION_TEST_UTIL_H
 
+#include <gtest/gtest.h>
 #include "ion.h"
+
+#define INSTANTIATE_TEST_CASE_BOOLEAN_PARAM(instantiation_name) \
+    INSTANTIATE_TEST_CASE_P(instantiation_name, BinaryAndTextTest, ::testing::Bool())
+
+/**
+ * Parameterized test fixture for tests that should be run for both text and binary.
+ * Use by declaring a test with TEST_P(BinaryAndTextTest, TestName) {...}.
+ */
+class BinaryAndTextTest : public ::testing::TestWithParam<bool> {
+    virtual void SetUp();
+public:
+    BOOL is_binary;
+};
 
 /**
  * Initializes the given writer options to the test defaults, which provide

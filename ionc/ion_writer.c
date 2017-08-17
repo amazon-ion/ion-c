@@ -100,13 +100,49 @@ iERR ion_writer_open(
 
     iRETURN;
 }
+
+// TODO this should be done for each new symbol table context.
+iERR _ion_writer_initialize_local_symbol_table(ION_WRITER *pwriter)
+{
+    iENTER;
+    ION_SYMBOL_TABLE *psymtab, *system, *import;
+    ION_SYMBOL_TABLE_TYPE table_type;
+    int i;
+
+    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
+    ASSERT( pwriter->symbol_table == NULL || pwriter->symbol_table == system );
+
+    IONCHECK(_ion_symbol_table_open_helper(&psymtab, pwriter->_temp_entity_pool, system));
+    // NOTE: This table and its imports must be in the writer's catalog. If they aren't, their symbols will be
+    // treated as unknown.
+    for (i = 0; i < pwriter->options.encoding_psymbol_table_count; i++) {
+        import = &pwriter->options.encoding_psymbol_table[i];
+        if (import) {
+            IONCHECK(ion_symbol_table_get_type(import, &table_type));
+            if (table_type == ist_SHARED) {
+                IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, import));
+            }
+            else if (i == 0 && table_type == ist_SYSTEM) {
+                // Do nothing; every local symbol table implicitly imports the system symbol table.
+            }
+            else {
+                FAILWITHMSG(IERR_INVALID_ARG, "A writer's imported symbol tables must be shared.");
+            }
+        }
+    }
+
+    psymtab->catalog = pwriter->pcatalog; // TODO why can't a symbol table be present in more than one catalog?
+
+    pwriter->symbol_table = psymtab;
+    pwriter->_local_symbol_table = TRUE;
+    iRETURN;
+}
     
 iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRITER_OPTIONS *p_options)
 {
     iENTER;
     ION_WRITER         *pwriter = NULL;
-    ION_OBJ_TYPE        writer_type = ion_type_unknown_writer;
-    ION_SYMBOL_TABLE   *psymtab, *system;
+    ION_OBJ_TYPE        writer_type;
 
     pwriter = ion_alloc_owner(sizeof(ION_WRITER));
     if (!pwriter) FAILWITH(IERR_NO_MEMORY);
@@ -133,6 +169,8 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
     else {
         memcpy(&pwriter->deccontext, pwriter->options.decimal_context, sizeof(decContext));
     }
+
+    pwriter->pcatalog = pwriter->options.pcatalog; // TODO redundant...
 
     // our default is unknown, so if the option says "binary" we need to 
     // change the underlying writer's obj type we'll use the presence of 
@@ -167,17 +205,8 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
         FAILWITH(IERR_INVALID_ARG);
     }
 
-    if (pwriter->options.encoding_psymbol_table) {
-        IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-        ASSERT( pwriter->symbol_table == NULL || pwriter->symbol_table == system );
-
-        IONCHECK(_ion_symbol_table_open_helper(&psymtab, pwriter->_temp_entity_pool, system));
-        // NOTE: This table and its imports must be in the writer's catalog. If they aren't, their symbols will be
-        // treated as unknown.
-        IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, pwriter->options.encoding_psymbol_table));
-
-        pwriter->symbol_table = psymtab;
-        pwriter->_local_symbol_table = TRUE;
+    if (pwriter->options.encoding_psymbol_table && pwriter->options.encoding_psymbol_table_count > 0) {
+        IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
     }
 
     return err;

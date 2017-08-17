@@ -26,6 +26,10 @@ iERR _ion_symbol_table_local_find_by_sid(ION_SYMBOL_TABLE *symtab, SID sid, ION_
 
 iERR ion_symbol_table_open(hSYMTAB *p_hsymtab, hOWNER owner)
 {
+    return ion_symbol_table_open_with_type(p_hsymtab, owner, ist_LOCAL);
+}
+
+iERR ion_symbol_table_open_with_type(hSYMTAB *p_hsymtab, hOWNER owner, ION_SYMBOL_TABLE_TYPE type) {
     iENTER;
     ION_SYMBOL_TABLE *table, *system;
 
@@ -34,7 +38,17 @@ iERR ion_symbol_table_open(hSYMTAB *p_hsymtab, hOWNER owner)
     }
 
     IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-    IONCHECK(_ion_symbol_table_open_helper(&table, owner, system));
+    switch (type) {
+        case ist_LOCAL:
+            IONCHECK(_ion_symbol_table_open_helper(&table, owner, system));
+            break;
+        case ist_SHARED:
+            IONCHECK(_ion_symbol_table_open_helper(&table, owner, NULL));
+            table->system_symbol_table = system;
+            break;
+        default:
+            FAILWITH(IERR_INVALID_ARG);
+    }
 
     *p_hsymtab = PTR_TO_HANDLE(table);
 
@@ -469,6 +483,7 @@ iERR _ion_symbol_table_append(ION_READER *preader, hOWNER owner, ION_SYMBOL_TABL
                 appended_symbol->sid = UNKNOWN_SID; // This is assigned correctly later.
             }
         }
+        cloned->catalog = preader->_current_symtab->catalog; // TODO why can't a symbol table be present in more than one catalog?
         // This overwrites p_symtab's reference, which will be cleaned up when its owner is freed.
         *p_symtab = cloned;
     }
@@ -638,6 +653,8 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
     }
 
     IONCHECK(_ion_symbol_table_initialize_indices_helper(symtab));
+
+    symtab->catalog = preader->_catalog; // TODO why should a symbol table need a catalog (besides the fact that it fails without one)?
 
     *p_psymtab = symtab;
 

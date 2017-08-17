@@ -85,11 +85,17 @@ typedef struct _ion_writer_options
      */
     ION_CATALOG *pcatalog;
 
-    /** Set the symbol table on the writer to be used for binary encoding
-     *
+    /** Array of shared symbol tables that the writer will import into each new local symbol table context. The user
+     *  owns the associated memory, and must ensure it stays in scope for the lifetime of the writer.
      */
     // TODO this should be a collection of imported tables to use for both binary AND text.
+    // TODO this could just be a list of ION_SYMBOL_TABLE_IMPORT, and the actual tables only live in the catalog.
     ION_SYMBOL_TABLE *encoding_psymbol_table;
+
+    /** Number of symbol tables in the `encoding_psymbol_table` array.
+     *
+     */
+    SIZE encoding_psymbol_table_count;
 
     /** Handle to the decNumber context for the writer to use. This allows configuration of the maximum number of
      * decimal digits, decimal exponent range, etc. See decContextDefault in decContext.h for simple initialization.
