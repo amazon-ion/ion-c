@@ -198,6 +198,7 @@ iERR _ion_writer_write_typed_null_helper(ION_WRITER *pwriter, ION_TYPE type);
 iERR _ion_writer_write_bool_helper(ION_WRITER *pwriter, BOOL value);
 iERR _ion_writer_write_int32_helper(ION_WRITER *pwriter, int32_t value);
 iERR _ion_writer_write_int64_helper(ION_WRITER *pwriter, int64_t value);
+iERR _ion_writer_write_ion_int_helper(ION_WRITER *pwriter, ION_INT *value);
 iERR _ion_writer_write_mixed_int_helper(ION_WRITER *pwriter, ION_READER *preader);
 iERR _ion_writer_write_double_helper(ION_WRITER *pwriter, double value);
 iERR _ion_writer_write_decimal_helper(ION_WRITER *pwriter, decQuad *value);

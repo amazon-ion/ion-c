@@ -62,7 +62,7 @@ void ion_int_free(ION_INT *iint)
     if (iint && NULL == iint->_owner) {
         if (iint->_digits) {
             ion_xfree(iint->_digits);
-            iint->_digits = NULL;;
+            iint->_digits = NULL;
         }
         ion_xfree(iint);  // TODO: what allocator cover should I be using here?  xalloc?
     }
@@ -1033,7 +1033,6 @@ iERR _ion_int_extend_digits(ION_INT *iint, SIZE digits_needed, BOOL zero_fill)
 
     ASSERT(iint);
 
-    digits_needed += 100;
     if (iint->_len < digits_needed) {
         // realloc
         len = digits_needed * sizeof(II_DIGIT);
