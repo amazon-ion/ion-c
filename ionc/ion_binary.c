@@ -117,7 +117,7 @@ int ion_binary_len_ion_decimal(decQuad *value, decContext *context )
 int ion_binary_len_ion_float( double value )
 {
     int len = 0;
-    if (value == 0) {
+    if (value == 0 && !ion_float_is_negative_zero(value)) {
         len = 0;
     }
     else {
