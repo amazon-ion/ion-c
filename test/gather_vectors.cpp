@@ -140,7 +140,6 @@ std::vector<std::string> *skip_list() {
         add_to_skip(good_path, "float_zeros.ion");
         add_to_skip(good_path, "decimal_zeros.ion");
         add_to_skip(good_path, "decimal_e_values.ion");
-        add_to_skip(good_path, "clobs.ion");
 
         add_to_skip(good_path, "testfile14.ion");
         add_to_skip(good_path, "testfile15.ion");

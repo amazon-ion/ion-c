@@ -54,6 +54,16 @@ static inline BOOL _ion_scanner_is_valid_long_char(int c)
     return !_ion_scanner_is_control_character(c) || _ion_scanner_is_newline(c) || _ion_scanner_is_non_newline_whitespace(c);
 }
 
+static inline BOOL _ion_scanner_is_valid_plain_clob_char(int c)
+{
+    return _ion_scanner_is_valid_plain_char(c) && c <= 0x7F; // Raw clob bytes must be printable ASCII.
+}
+
+static inline BOOL _ion_scanner_is_valid_long_clob_char(int c)
+{
+    return _ion_scanner_is_valid_long_char(c) && c <= 0x7F; // Raw clob bytes must be printable ASCII.
+}
+
 static inline iERR _ion_scanner_get_terminator_for_sub_type(ION_SUB_TYPE ist, int* terminator)
 {
     iENTER;
@@ -452,10 +462,14 @@ iERR _ion_scanner_read_char_with_validation(ION_SCANNER* scanner, ION_SUB_TYPE i
     BOOL is_valid;
     if (ist == IST_SYMBOL_QUOTED) {
         is_valid = TRUE;
-    } else if (ist == IST_STRING_PLAIN || ist == IST_CLOB_PLAIN) {
+    } else if (ist == IST_STRING_PLAIN) {
         is_valid = _ion_scanner_is_valid_plain_char(c);
-    } else if (ist == IST_STRING_LONG || ist == IST_CLOB_LONG) {
+    } else if (ist == IST_CLOB_PLAIN) {
+        is_valid = _ion_scanner_is_valid_plain_clob_char(c);
+    } else if (ist == IST_STRING_LONG) {
         is_valid = _ion_scanner_is_valid_long_char(c);
+    } else if (ist == IST_CLOB_LONG) {
+        is_valid = _ion_scanner_is_valid_long_clob_char(c);
     } else {
         FAILWITH(IERR_PARSER_INTERNAL);
     }
@@ -1584,6 +1598,13 @@ iERR _ion_scanner_read_as_string_to_quote(ION_SCANNER *scanner, BYTE *buf, SIZE 
 
         // here we write the char to the output buffer either the easy way or the hard way
         if (IS_1_BYTE_UTF8(c)) {
+            PUSH_VALUE_BYTE(c);
+        }
+        else if (ist == IST_CLOB_LONG || ist == IST_CLOB_PLAIN) {
+            // Preceding logic disallows unicode escapes and unescaped bytes above 0x7F.
+            if (c > 0xFF) {
+                FAILWITHMSG(IERR_INVALID_TOKEN_CHAR, "Illegal character in clob.");
+            }
             PUSH_VALUE_BYTE(c);
         }
         else {
