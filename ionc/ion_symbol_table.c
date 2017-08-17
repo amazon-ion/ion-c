@@ -1505,7 +1505,7 @@ iERR _ion_symbol_table_add_symbol_and_sid_helper(ION_SYMBOL_TABLE *symtab, ION_S
 
     ASSERT(symtab != NULL);
     ASSERT(!ION_STRING_IS_NULL(name));
-    ASSERT(name->length > 0);
+    ASSERT(name->length >= 0);
     ASSERT(sid > UNKNOWN_SID);
 
     if (symtab->is_locked) FAILWITH(IERR_IS_IMMUTABLE);

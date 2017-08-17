@@ -676,34 +676,14 @@ iERR _ion_writer_binary_write_string(ION_WRITER *pwriter, ION_STRING *pstr )
 iERR _ion_writer_binary_write_symbol_id(ION_WRITER *pwriter, SID sid)
 {
     iENTER;
-    int  len;
-    SIZE written;
-    ION_BINARY_WRITER *bwriter = &pwriter->_typed_writer.binary;
-
-    len = ion_binary_len_uint_64(sid);
+    int  len = ion_binary_len_uint_64(sid);
     ASSERT( len < ION_lnIsVarLen );
 
-    // if the user happens to write out a version marker
-    // at the datagram level, then we won't have to do that later
-    if (sid == ION_SYS_SID_IVM
-     && ION_COLLECTION_IS_EMPTY(&bwriter->_patch_stack)
-    ) {
-        // but in this case (vtm & depth == 0) we translate the symbol
-        // to the magic 4 byte marker
-        ASSERT(ION_VERSION_MARKER_LENGTH == sizeof(ION_VERSION_MARKER));
-        IONCHECK( ion_stream_write( bwriter->_value_stream, ION_VERSION_MARKER, ION_VERSION_MARKER_LENGTH, &written ));
-        if (written != ION_VERSION_MARKER_LENGTH) FAILWITH(IERR_WRITE_ERROR);
-        // and we don't patch anything, because there shouldn't be any
-        // values to patch !!
-        bwriter->_version_marker_written = TRUE;
-    }
-    else {
-        // otherwise do a normal write symbol type descriptor and int value out and patch lens
-        IONCHECK( _ion_writer_binary_start_value( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
-        ION_PUT( pwriter->_typed_writer.binary._value_stream, makeTypeDescriptor(TID_SYMBOL, len));
-        IONCHECK( ion_binary_write_uint_64( pwriter->_typed_writer.binary._value_stream, sid ));
-        IONCHECK( _ion_writer_binary_patch_lengths( pwriter, len + ION_BINARY_TYPE_DESC_LENGTH ));
-    }
+    // Write symbol type descriptor and int value out and patch lens.
+    IONCHECK( _ion_writer_binary_start_value( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
+    ION_PUT( pwriter->_typed_writer.binary._value_stream, makeTypeDescriptor(TID_SYMBOL, len));
+    IONCHECK( ion_binary_write_uint_64( pwriter->_typed_writer.binary._value_stream, sid ));
+    IONCHECK( _ion_writer_binary_patch_lengths( pwriter, len + ION_BINARY_TYPE_DESC_LENGTH ));
 
     iRETURN;
 }
