@@ -1,12 +1,27 @@
-add_executable(tester
-  ion_binary_test.c
-  ion_unit_test.c
-  test_internal.c
-  tester.c
-  testfiles.c
+
+# Avoid macro definition collisions between ionc and googletest.
+set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DGTEST_DONT_DEFINE_SUCCEED=1 -DGTEST_DONT_DEFINE_FAIL=1")
+
+# Disable verbose parameterized test names in debug configuration. These don't always integrate well with IDEs
+# (e.g. CLion), but are nice to have from the command line.
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -Wall")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0 -Wall")
+
+add_subdirectory(googletest)
+
+add_executable(all_tests
+    gather_vectors.cpp
+    ion_event_stream.cpp
+    ion_assert.cpp
+    test_vectors.cpp
+    test_ion_binary.cpp
+    test_ion_text.cpp
 )
-set_property(TARGET tester PROPERTY C_STANDARD 99)
-target_include_directories(tester PRIVATE
-  .
+
+include_directories(
+    .
+    googletest/googletest/include/gtest
 )
-target_link_libraries(tester ionc)
+
+# Linking against gtest_main provides a basic main() method, which detects all tests, for free.
+target_link_libraries(all_tests ionc gtest_main)
