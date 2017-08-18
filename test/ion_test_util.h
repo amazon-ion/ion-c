@@ -18,6 +18,7 @@
 #include "ion.h"
 
 #define ION_ASSERT_OK(x) ASSERT_EQ(IERR_OK, x)
+#define ION_ASSERT_FAIL(x) ASSERT_FALSE(IERR_OK == (x))
 
 /**
  * Initializes and opens a new in-memory writer.
