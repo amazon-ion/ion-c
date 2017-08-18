@@ -15,6 +15,7 @@
 #include "gather_vectors.h"
 #include "ion_event_stream.h"
 #include "ion_assert.h"
+#include "ion_timestamp_impl.h"
 
 // NOTE: custom parameterized test names are not supported well by some IDEs (e.g. CLion). They will still run,
 // but they don't integrate well with the GUI. Hence, it is best to disable then when debugging within an IDE.

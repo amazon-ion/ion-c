@@ -1018,7 +1018,7 @@ iERR _ion_timestamp_to_utc(const ION_TIMESTAMP *ptime, ION_TIMESTAMP *pout) {
 
     if (pout->month < 1) {
         pout->year -= 1;
-        pout->month = 11;
+        pout->month = 12;
     }
     else if (pout->month > 12) {
         pout->year += 1;
