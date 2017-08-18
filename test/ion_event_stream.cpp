@@ -217,6 +217,9 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
             break;
         }
         case tid_SYMBOL_INT: // intentional fall-through
+            // TODO when vectors that contain symbols with unknown text are added, this will need to retrieve a full
+            // ION_SYMBOL (text and SID) for proper roundtripping. If the text is unknown, the SID needs to be written.
+            // see: _ion_writer_write_one_value_helper
         case tid_STRING_INT:
         {
             ION_STRING tmp;

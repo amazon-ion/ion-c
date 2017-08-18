@@ -246,7 +246,6 @@ iERR _ion_catalog_find_best_match_helper(ION_CATALOG *pcatalog, ION_STRING *name
 
     ASSERT(pcatalog != NULL);
     ASSERT(!ION_STRING_IS_NULL(name));
-    ASSERT(p_psymtab != NULL);
 
     // check for the system table first (mostly because it's not
     // really in the list of symbol tables in the catalog)
@@ -286,7 +285,7 @@ iERR _ion_catalog_find_best_match_helper(ION_CATALOG *pcatalog, ION_STRING *name
         // should manually validate that the max_id isn't also undefined.
         FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "Invalid symbol table import: found undefined max_id without exact match.")
     }
-    *p_psymtab = best;
+    if (p_psymtab) *p_psymtab = best;
     SUCCEED();
 
     iRETURN;

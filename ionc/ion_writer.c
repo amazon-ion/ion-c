@@ -166,6 +166,8 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
         ASSERT( pwriter->symbol_table == NULL || pwriter->symbol_table == system );
 
         IONCHECK(_ion_symbol_table_open_helper(&psymtab, pwriter->_temp_entity_pool, system));
+        // NOTE: This table and its imports must be in the writer's catalog. If they aren't, their symbols will be
+        // treated as unknown.
         IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, pwriter->options.encoding_psymbol_table));
 
         pwriter->symbol_table = psymtab;
@@ -420,7 +422,7 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
         IONCHECK(_ion_symbol_table_get_name_helper(psymtab, &import.name));
         IONCHECK(_ion_symbol_table_get_version_helper(psymtab, &import.version));
         IONCHECK(_ion_symbol_table_get_max_sid_helper(psymtab, &import.max_id));
-        IONCHECK(_ion_symbol_table_add_import_helper(plocal, &import, pwriter->options.pcatalog));
+        IONCHECK(_ion_symbol_table_local_incorporate_symbols(plocal, plocal->catalog, &import.name, import.version, import.max_id));
         psymtab = plocal;
         break;
     case ist_LOCAL:
@@ -1398,7 +1400,7 @@ iERR _ion_writer_start_container_helper(ION_WRITER *pwriter, ION_TYPE container_
     default:
         FAILWITH(IERR_INVALID_ARG);
     }
-
+    pwriter->depth++;
     iRETURN;
 }
 
@@ -1431,7 +1433,7 @@ iERR _ion_writer_finish_container_helper(ION_WRITER *pwriter)
     default:
         FAILWITH(IERR_INVALID_ARG);
     }
-
+    pwriter->depth--;
     iRETURN;
 }
 
@@ -1484,8 +1486,10 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
 
     ION_TYPE      type;
     ION_STRING   *fld_name, string_value;
+    ION_SYMBOL    symbol_value;
+    SID           sid;
     int32_t       count, ii;
-    BOOL          is_null, bool_value;
+    BOOL          is_null, bool_value, is_in_struct;
     double        double_value;
     decQuad       decimal_value;
     ION_TIMESTAMP timestamp_value;
@@ -1517,9 +1521,15 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
         break;
     }
 
-    IONCHECK(_ion_reader_get_field_name_helper(preader, &fld_name));
-    if (!ION_STRING_IS_NULL(fld_name)) {
-        IONCHECK(_ion_writer_write_field_name_helper(pwriter, fld_name));
+    IONCHECK(ion_reader_is_in_struct(preader, &is_in_struct));
+    if (is_in_struct) {
+        IONCHECK(_ion_reader_get_field_name_helper(preader, &fld_name));
+        if (ION_STRING_IS_NULL(fld_name)) {
+            IONCHECK(_ion_reader_get_field_sid_helper(preader, &sid));
+            IONCHECK(_ion_writer_write_field_sid_helper(pwriter, sid));
+        } else {
+            IONCHECK(_ion_writer_write_field_name_helper(pwriter, fld_name));
+        }
     }
 
     IONCHECK(_ion_reader_get_annotation_count_helper(preader, &count));
@@ -1527,7 +1537,13 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
         ION_STRING_INIT(&string_value);
         for (ii=0; ii<count; ii++) {
             IONCHECK(_ion_reader_get_an_annotation_helper(preader, ii, &string_value));
-            IONCHECK(_ion_writer_add_annotation_helper(pwriter, &string_value));
+            if (ION_STRING_IS_NULL(&string_value)) {
+                IONCHECK(_ion_reader_get_an_annotation_sid_helper(preader, ii, &sid));
+                IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, sid));
+            }
+            else {
+                IONCHECK(_ion_writer_add_annotation_helper(pwriter, &string_value));
+            }
         }
     }
 
@@ -1585,9 +1601,13 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
         IONCHECK(_ion_writer_write_string_helper(pwriter, &string_value));
         break;
     case (intptr_t)tid_SYMBOL:
-        ION_STRING_INIT(&string_value);
-        IONCHECK(_ion_reader_read_string_helper(preader, &string_value));
-        IONCHECK(_ion_writer_write_symbol_helper(pwriter, &string_value));
+        IONCHECK(_ion_reader_read_symbol_helper(preader, &symbol_value));
+        if (ION_STRING_IS_NULL(&symbol_value.value)) {
+            IONCHECK(_ion_writer_write_symbol_id_helper(pwriter, symbol_value.sid));
+        }
+        else {
+            IONCHECK(_ion_writer_write_symbol_helper(pwriter, &symbol_value.value));
+        }
         break;
     case (intptr_t)tid_CLOB:
     case (intptr_t)tid_BLOB:
@@ -1779,22 +1799,6 @@ iERR _ion_writer_free_local_symbol_table( ION_WRITER *pwriter )
     iRETURN;
 }
 
-
-iERR ion_writer_make_symbol(hWRITER hwriter, ION_STRING *pstr, SID *p_sid)
-{
-    iENTER;
-    ION_WRITER *pwriter;
-
-    if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
-    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
-    if (!pstr || ION_STRING_IS_NULL(pstr)) FAILWITH(IERR_INVALID_ARG);
-    if (!p_sid) FAILWITH(IERR_INVALID_ARG);
-
-    IONCHECK(_ion_writer_make_symbol_helper(pwriter, pstr, p_sid));
-
-    iRETURN;
-}
-
 iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *p_sid)
 {
     iENTER;
@@ -1821,7 +1825,7 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
 
     // we'll remember what the top symbol is to see if add_symbol changes it
     old_max_id = psymtab->max_id;
-    IONCHECK( _ion_symbol_table_add_symbol_helper( psymtab, pstr, &sid ));
+    IONCHECK( _ion_symbol_table_add_symbol_helper( psymtab, pstr, &sid));
 
     // see if this symbol ended up changing the symbol list (if it already
     // was present the max_id doesn't change and we don't reuse 
@@ -1891,7 +1895,7 @@ iERR _ion_writer_get_field_name_as_string_helper(ION_WRITER *pwriter, ION_STRING
         IONCHECK(_ion_writer_get_local_symbol_table(pwriter, &psymtab));
         assert(psymtab != NULL);
         if (pwriter->field_name_sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
-        IONCHECK(_ion_symbol_table_find_by_sid_helper(psymtab, pwriter->field_name_sid, &pstr));
+        IONCHECK(_ion_symbol_table_find_by_sid_force(psymtab, pwriter->field_name_sid, &pstr));
         ION_STRING_ASSIGN(p_str, pstr);
         break;
     default:
@@ -2016,7 +2020,7 @@ iERR _ion_writer_get_annotation_as_string_helper(ION_WRITER *pwriter, int32_t id
         assert(psymtab != NULL);
         sid = pwriter->annotation_sids[idx];
         if (sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
-        IONCHECK(_ion_symbol_table_find_by_sid_helper(psymtab, sid, &pstr));
+        IONCHECK(_ion_symbol_table_find_by_sid_force(psymtab, sid, &pstr));
         ION_STRING_ASSIGN(p_str, pstr);
         break;
     default:

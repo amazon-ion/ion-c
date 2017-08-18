@@ -26,16 +26,23 @@ char *ionIntToString(ION_INT *value) {
 }
 
 char *ionStringToString(ION_STRING *value) {
-    if (!value) {
-        return (char *)"NULL";
+    BYTE *src, *dst;
+    SIZE len;
+    if (value) {
+        src = value->value;
+        len = value->length;
     }
-    char *str = (char *)malloc(((size_t)value->length + 1) * sizeof(char));
-    if (!str) return NULL;
+    else {
+        src = (BYTE *)"NULL";
+        len = 4;
+    }
+    dst = (BYTE *)malloc(((size_t)len + 1) * sizeof(char));
+    if (!dst) return NULL;
 
-    memcpy(str, value->value, (size_t)value->length);
-    str[value->length] = 0;
+    memcpy(dst, src, (size_t)len);
+    dst[len] = 0;
 
-    return str;
+    return (char *)dst;
 }
 
 ::testing::AssertionResult assertIonStringEq(ION_STRING *expected, ION_STRING *actual) {
@@ -286,6 +293,14 @@ void assertBytesEqual(const char *expected, SIZE expected_len, const BYTE *actua
     if (bytes_not_equal) {
         ASSERT_FALSE(bytes_not_equal) << _bytesToHexString((BYTE *)expected, expected_len) << " vs. " << std::endl
                                       << _bytesToHexString(actual, actual_len);
+    }
+}
+
+void assertStringsEqual(const char *expected, const char *actual, SIZE actual_len) {
+    BOOL strings_not_equal = strncmp(expected, actual, (size_t)actual_len);
+    if (strings_not_equal) {
+        ASSERT_FALSE(strings_not_equal) << std::string(expected) << " vs. " << std::endl
+                                        << std::string(actual, (unsigned long)actual_len);
     }
 }
 

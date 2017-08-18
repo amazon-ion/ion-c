@@ -132,6 +132,8 @@ std::vector<std::string> *skip_list() {
 
         add_to_skip(good_path, "utf16.ion");
         add_to_skip(good_path, "utf32.ion");
+
+        add_to_skip(good_path, "subfieldVarUInt32bit.ion"); // NOTE: the implementation caps SIDs at 32 bits. This contains a SID that overflows.
     }
     return &_skip_list;
 }
