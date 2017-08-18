@@ -18,6 +18,7 @@ add_executable(all_tests
     test_ion_binary.cpp
     test_ion_text.cpp
     test_ion_values.cpp
+    test_ion_extractor.cpp
 )
 
 include_directories(
