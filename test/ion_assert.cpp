@@ -271,3 +271,21 @@ BOOL assertIonEventStreamEq(IonEventStream *expected, IonEventStream *actual, AS
     ION_EXIT_ASSERTIONS;
 }
 
+std::string _bytesToHexString(const BYTE *bytes, SIZE len) {
+    std::stringstream ss;
+    ss << std::hex;
+    for (int i = 0; i < len; ++i) {
+        ss << std::setfill('0') << std::setw(2) << (int)bytes[i] << " ";
+    }
+    return ss.str();
+}
+
+void assertBytesEqual(const char *expected, SIZE expected_len, const BYTE *actual, SIZE actual_len) {
+    ASSERT_EQ(expected_len, actual_len);
+    BOOL bytes_not_equal = memcmp((BYTE *)expected, actual, (size_t)actual_len);
+    if (bytes_not_equal) {
+        ASSERT_FALSE(bytes_not_equal) << _bytesToHexString((BYTE *)expected, expected_len) << " vs. " << std::endl
+                                      << _bytesToHexString(actual, actual_len);
+    }
+}
+
