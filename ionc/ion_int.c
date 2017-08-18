@@ -959,7 +959,7 @@ int _ion_int_init_globals_helper()
     // invariant needed for multiply and add
     ASSERT((UINT64_MAX) >= ( (((II_LONG_DIGIT)II_MAX_DIGIT) * ((II_LONG_DIGIT)II_MAX_DIGIT)) + (((II_LONG_DIGIT)II_MAX_DIGIT)*2) )); 
 
-    decContextDefault(&g_Context, DEC_INIT_DECQUAD);
+    decContextDefault(&g_Context, DEC_INIT_BASE);
 
     decQuadFromInt32(&two, 2);
     temp = (int32_t)(II_BASE / 2);

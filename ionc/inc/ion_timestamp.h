@@ -119,6 +119,12 @@ ION_API_EXPORT iERR ion_timestamp_to_time_t(const ION_TIMESTAMP *ptime, time_t *
 ION_API_EXPORT iERR ion_timestamp_equals(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2,
         BOOL *is_equal, decContext *pcontext);
 
+/** Compare timestamps for instant equality only (i.e. precision and local offsets need not be equivalent).
+ *  NOTE: if this has any use externally, it could be exposed. If not, it should be removed.
+ */
+ION_API_EXPORT iERR ion_timestamp_instant_equals(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2,
+                                  BOOL *is_equal, decContext *pcontext);
+
 /** Initialize ION_TIMESTAMP object with value specified.
  * It will have ION_TS_YEAR precision
  *
