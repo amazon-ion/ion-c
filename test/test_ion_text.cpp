@@ -13,72 +13,65 @@
  */
 
 #include "ion_assert.h"
+#include "ion_helpers.h"
+#include "ion_test_util.h"
 
-iERR test_open_string_reader(const char* ion_text, hREADER* reader)
-{
-    iENTER;
-
-    size_t buffer_length = strlen(ion_text);
-    BYTE* buffer = (BYTE *)calloc(buffer_length, sizeof(BYTE));
-    memcpy((char *)(&buffer[0]), ion_text, buffer_length);
-
-    ION_READER_OPTIONS options;
-    memset(&options, 0, sizeof(options));
-    options.return_system_values = TRUE;
-
-    IONCHECK(ion_reader_open_buffer(reader, buffer, buffer_length, &options));
-    iRETURN;
-}
-
-iERR test_read_string_as_char(hREADER reader, char **out)
-{
-    iENTER;
-    ION_STRING ion_string;
-    IONCHECK(ion_reader_read_string(reader, &ion_string));
-    *out = ion_string_strdup(&ion_string);
-    iRETURN;
-}
-
-TEST(TextReader, HandlesNestedSexps)
+TEST(IonTextSexp, ReaderHandlesNested)
 {
     const char* ion_text = "((first)(second))((third)(fourth))";
     char *third, *fourth;
 
     hREADER reader;
-    ASSERT_EQ(IERR_OK, test_open_string_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
 
     ION_TYPE type;
-    ASSERT_EQ(IERR_OK, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SEXP, type);
-    ASSERT_EQ(IERR_OK, ion_reader_step_in(reader));
-    ASSERT_EQ(IERR_OK, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SEXP, type);
-    ASSERT_EQ(IERR_OK, ion_reader_step_out(reader));
-    ASSERT_EQ(IERR_OK, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SEXP, type);
-    ASSERT_EQ(IERR_OK, ion_reader_step_in(reader));
-    ASSERT_EQ(IERR_OK, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SEXP, type);
-    ASSERT_EQ(IERR_OK, ion_reader_step_in(reader));
-    ASSERT_EQ(IERR_OK, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ASSERT_EQ(IERR_OK, test_read_string_as_char(reader, &third));
+    ION_ASSERT_OK(ion_read_string_as_chars(reader, &third));
     ASSERT_STREQ("third", third);
-    ASSERT_EQ(IERR_OK, ion_reader_step_out(reader));
-    ASSERT_EQ(IERR_OK, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SEXP, type);
-    ASSERT_EQ(IERR_OK, ion_reader_step_in(reader));
-    ASSERT_EQ(IERR_OK, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ASSERT_EQ(IERR_OK, test_read_string_as_char(reader, &fourth));
+    ION_ASSERT_OK(ion_read_string_as_chars(reader, &fourth));
     ASSERT_STREQ("fourth", fourth);
-    ASSERT_EQ(IERR_OK, ion_reader_step_out(reader));
-    ASSERT_EQ(IERR_OK, ion_reader_next(reader, &type));
-    ASSERT_EQ(IERR_OK, ion_reader_step_out(reader));
-    ASSERT_EQ(IERR_OK, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_EOF, type);
 
-    if (reader != NULL) {
-        ion_reader_close(reader);
-    }
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonTextTimestamp, WriterIgnoresSuperfluousOffset) {
+    hWRITER writer = NULL;
+    ION_STREAM *ion_stream = NULL;
+    BYTE *result;
+    SIZE result_len;
+    ION_TIMESTAMP timestamp;
+
+    ION_ASSERT_OK(ion_timestamp_for_year(&timestamp, 1));
+    SET_FLAG_ON(timestamp.precision, ION_TT_BIT_TZ);
+    timestamp.tz_offset = 1;
+
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, FALSE));
+    ION_ASSERT_OK(ion_writer_write_timestamp(writer, &timestamp));
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
+
+    ASSERT_STREQ("0001T", (char *)result);
 }
