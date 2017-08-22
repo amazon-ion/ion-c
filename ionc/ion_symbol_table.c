@@ -483,7 +483,7 @@ iERR _ion_symbol_table_append(ION_READER *preader, hOWNER owner, ION_SYMBOL_TABL
                 appended_symbol->sid = UNKNOWN_SID; // This is assigned correctly later.
             }
         }
-        cloned->catalog = preader->_current_symtab->catalog; // TODO why can't a symbol table be present in more than one catalog?
+        cloned->catalog = preader->_current_symtab->catalog;
         // This overwrites p_symtab's reference, which will be cleaned up when its owner is freed.
         *p_symtab = cloned;
     }
@@ -654,7 +654,7 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
 
     IONCHECK(_ion_symbol_table_initialize_indices_helper(symtab));
 
-    symtab->catalog = preader->_catalog; // TODO why should a symbol table need a catalog (besides the fact that it fails without one)?
+    symtab->catalog = preader->_catalog;
 
     *p_psymtab = symtab;
 

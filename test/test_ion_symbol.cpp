@@ -277,3 +277,8 @@ TEST(IonSymbolTable, SettingSharedSymbolTableMaxIdLargerThanLengthOfSymbolsExten
 TEST(IonSymbolTable, NullSlotsInSharedSymbolTableAreSIDsWithUnknownText) {
     // A shared symbol table with NULL elements within its symbols list are valid SID mappings with unknown text.
 }
+
+TEST(IonSymbolTable, WriterWithImportsListIncludesThoseImportsWithEveryNewLSTContext) {
+    // A writer that was constructed with a list of shared imports to use must include those imports in each new local
+    // symbol table context.
+}

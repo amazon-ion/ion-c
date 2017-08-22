@@ -85,11 +85,10 @@ typedef struct _ion_writer_options
      */
     ION_CATALOG *pcatalog;
 
-    /** Array of shared symbol tables that the writer will import into each new local symbol table context. The user
-     *  owns the associated memory, and must ensure it stays in scope for the lifetime of the writer.
+    /** Pointer to the first element of an array of shared symbol tables that the writer will import into each new local
+     *  symbol table context. The size of the array is specified by `encoding_psymbol_table_count`. The user owns the
+     *  associated memory, and must ensure it stays in scope for the lifetime of the writer.
      */
-    // TODO this should be a collection of imported tables to use for both binary AND text.
-    // TODO this could just be a list of ION_SYMBOL_TABLE_IMPORT, and the actual tables only live in the catalog.
     ION_SYMBOL_TABLE *encoding_psymbol_table;
 
     /** Number of symbol tables in the `encoding_psymbol_table` array.

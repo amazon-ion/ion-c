@@ -101,7 +101,6 @@ iERR ion_writer_open(
     iRETURN;
 }
 
-// TODO this should be done for each new symbol table context.
 iERR _ion_writer_initialize_local_symbol_table(ION_WRITER *pwriter)
 {
     iENTER;
@@ -131,7 +130,7 @@ iERR _ion_writer_initialize_local_symbol_table(ION_WRITER *pwriter)
         }
     }
 
-    psymtab->catalog = pwriter->pcatalog; // TODO why can't a symbol table be present in more than one catalog?
+    psymtab->catalog = pwriter->pcatalog;
 
     pwriter->symbol_table = psymtab;
     pwriter->_local_symbol_table = TRUE;
@@ -170,7 +169,7 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
         memcpy(&pwriter->deccontext, pwriter->options.decimal_context, sizeof(decContext));
     }
 
-    pwriter->pcatalog = pwriter->options.pcatalog; // TODO redundant...
+    pwriter->pcatalog = pwriter->options.pcatalog;
 
     // our default is unknown, so if the option says "binary" we need to 
     // change the underlying writer's obj type we'll use the presence of 
@@ -1812,16 +1811,11 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
 
     ASSERT(pwriter);
 
-    // TODO: what about the temp buffer, can we reset it here? Holds annotation scratch space for both writers and
-    // container stack info for text writer, so could only reset it if at the top level. Then stacks would need to be
-    // reinitialized.
-
     switch (pwriter->type) {
     case ion_type_text_writer:
         // The text writer does not need to buffer data.
         start = 0;
         finish = ion_stream_get_position(pwriter->output);
-        // TODO check the following
         if (pwriter->depth == 0) {
             IONCHECK(ion_temp_buffer_reset(&pwriter->temp_buffer));
             IONCHECK(_ion_writer_text_initialize_stack(pwriter));
@@ -1831,7 +1825,7 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
         start =  ion_stream_get_position(pwriter->output);
         if (pwriter->depth == 0) {
             IONCHECK(_ion_writer_binary_flush_to_output(pwriter));
-            IONCHECK(ion_temp_buffer_reset(&pwriter->temp_buffer)); // TODO check
+            IONCHECK(ion_temp_buffer_reset(&pwriter->temp_buffer));
         }
         finish = ion_stream_get_position(pwriter->output);
         break;
@@ -1839,7 +1833,6 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
         FAILWITH(IERR_INVALID_ARG);
     }
 
-    // TODO ion_stream_flush? (added)
     IONCHECK(ion_stream_flush(pwriter->output));
     if (p_bytes_flushed) *p_bytes_flushed = (SIZE)(finish - start);    // TODO - this needs 64bit care
 
@@ -1926,7 +1919,7 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
     iENTER;
     SID               sid = UNKNOWN_SID;
     SID               old_max_id;
-    ION_SYMBOL_TABLE *psymtab, *system;
+    ION_SYMBOL_TABLE *psymtab;
 
     ASSERT(pwriter);
     ASSERT(pstr);
@@ -1937,11 +1930,7 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
     psymtab = pwriter->symbol_table;
     if (!psymtab || psymtab->is_locked) 
     {
-        IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-        ASSERT( pwriter->symbol_table == NULL || pwriter->symbol_table == system );
-
-        IONCHECK(_ion_symbol_table_open_helper(&pwriter->symbol_table, pwriter->_temp_entity_pool, system));
-        pwriter->_local_symbol_table = TRUE;
+        IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
         psymtab = pwriter->symbol_table;
     }
 

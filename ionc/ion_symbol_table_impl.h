@@ -28,7 +28,7 @@ extern "C" {
 struct _ion_symbol_table
 {
     void               *owner;          // this may be a reader, writer, catalog or itself
-    ION_CATALOG        *catalog;
+    ION_CATALOG        *catalog;        // TODO a symbol table should support being in more than one catalog at once. Ideally, this reference would not be needed.
     BOOL                is_locked;
     BOOL                has_local_symbols;
     ION_STRING          name;

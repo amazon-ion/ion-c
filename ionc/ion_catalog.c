@@ -155,7 +155,7 @@ iERR _ion_catalog_add_symbol_table_helper(ION_CATALOG *pcatalog, ION_SYMBOL_TABL
     if (!ppsymtab) FAILWITH(IERR_NO_MEMORY);
     *ppsymtab = psymtab;
 
-    psymtab->catalog = pcatalog; // TODO why can't one symbol table be present in more than one catalog?
+    psymtab->catalog = pcatalog;
 
     iRETURN;
 }
