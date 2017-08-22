@@ -122,7 +122,10 @@ typedef struct _ion_catalog             ION_CATALOG;
 
 typedef struct _ion_string              ION_STRING;
 typedef struct _ion_symbol              ION_SYMBOL;
-typedef struct _ion_symbol_table_import ION_SYMBOL_TABLE_IMPORT;
+
+typedef struct _ion_symbol_table_import_descriptor ION_SYMBOL_TABLE_IMPORT_DESCRIPTOR;
+typedef struct _ion_symbol_table_import            ION_SYMBOL_TABLE_IMPORT;
+
 typedef struct _ion_reader              ION_READER;
 typedef struct _ion_writer              ION_WRITER;
 typedef struct _ion_int                 ION_INT;

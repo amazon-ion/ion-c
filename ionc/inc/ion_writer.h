@@ -88,6 +88,7 @@ typedef struct _ion_writer_options
     /** Pointer to the first element of an array of shared symbol tables that the writer will import into each new local
      *  symbol table context. The size of the array is specified by `encoding_psymbol_table_count`. The user owns the
      *  associated memory, and must ensure it stays in scope for the lifetime of the writer.
+     *  NOTE: the system symbol table is always used as the first import; it need not be provided here.
      */
     ION_SYMBOL_TABLE *encoding_psymbol_table;
 

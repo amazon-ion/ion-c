@@ -28,7 +28,6 @@ extern "C" {
 struct _ion_symbol_table
 {
     void               *owner;          // this may be a reader, writer, catalog or itself
-    ION_CATALOG        *catalog;        // TODO a symbol table should support being in more than one catalog at once. Ideally, this reference would not be needed.
     BOOL                is_locked;
     BOOL                has_local_symbols;
     ION_STRING          name;
@@ -46,12 +45,18 @@ struct _ion_symbol_table
 
 };
 
-struct _ion_symbol_table_import
+struct _ion_symbol_table_import_descriptor
 {
     ION_STRING name;
     int32_t    version;
     int32_t    max_id;
 
+};
+
+struct _ion_symbol_table_import
+{
+    ION_SYMBOL_TABLE_IMPORT_DESCRIPTOR descriptor;  // Description of the import.
+    ION_SYMBOL_TABLE *shared_symbol_table;          // The resolved import. NULL if no match was found in the catalog.
 };
 
 // "locals" in ion_symbol_table.c
@@ -103,8 +108,8 @@ iERR _ion_symbol_table_local_load_symbol_struct (ION_READER *preader, hOWNER own
 iERR _ion_symbol_table_local_load_symbol_list   (ION_READER *preader, hOWNER owner, ION_COLLECTION *psymbol_list);
 
 iERR _ion_symbol_table_import_symbol_table_helper(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE *import_symtab);
-iERR _ion_symbol_table_local_incorporate_symbols(ION_SYMBOL_TABLE *symtab, ION_CATALOG *catalog, ION_STRING *import_name, int32_t import_version, int32_t import_max_id);
-iERR _ion_symbol_table_local_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID sid, ION_SYMBOL_TABLE *symbol_owning_table, ION_SYMBOL **p_psym);
+iERR _ion_symbol_table_local_incorporate_symbols(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE *shared, int32_t import_max_id);
+iERR _ion_symbol_table_local_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID sid, ION_SYMBOL **p_psym);
 
 iERR _ion_symbol_local_copy_same_owner(void *context, void *dst, void *src, int32_t data_size);
 iERR _ion_symbol_local_copy_new_owner(void *context, void *dst, void *src, int32_t data_size);

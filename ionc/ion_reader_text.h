@@ -282,7 +282,6 @@ iERR _ion_reader_text_open                      (ION_READER *preader);
 iERR _ion_reader_text_open_alloc_buffered_string(ION_READER *preader, SIZE len, ION_STRING *p_string, BYTE **p_buf, SIZE *p_buf_len);
 iERR _ion_reader_text_reset                     (ION_READER *preader, ION_TYPE parent_tid, POSITION local_end);
 iERR _ion_reader_text_reset_value               (ION_READER *preader);
-iERR _ion_reader_text_close                     (ION_READER *preader);
 
 // support for "next" functions
 iERR _ion_reader_text_next                      (ION_READER *preader, ION_TYPE *p_value_type);

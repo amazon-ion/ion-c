@@ -26,7 +26,7 @@ struct _ion_symbol
 {
     SID               sid;
     ION_STRING        value;
-    ION_SYMBOL_TABLE *psymtab;
+    // TODO this is only needed for symbol usage metrics. Consider removal.
     int32_t           add_count;
 };
 
@@ -219,17 +219,58 @@ GLOBAL char *SYSTEM_SYMBOLS []
 
 /**
  * Allocates a new local symbol table.
+ * @param p_hsymtab - Pointer to a handle to the newly-allocated symbol table.
+ * @param owner - Handle to the new symbol table's memory owner. If NULL, the resulting symbol table is its own memory
+ *  owner and must be freed using `ion_symbol_table_close`.
  */
 ION_API_EXPORT iERR ion_symbol_table_open               (hSYMTAB *p_hsymtab, hOWNER owner);
 
 /**
- * Allocates a new local symbol table of the given type.
+ * Allocates a new local symbol table of the given type (i.e. shared or local).
+ * @param p_hsymtab - Pointer to a handle to the newly-allocated symbol table.
+ * @param owner - Handle to the new symbol table's memory owner. If NULL, the resulting symbol table is its own memory
+ *  owner and must be freed using `ion_symbol_table_close`.
  */
 ION_API_EXPORT iERR ion_symbol_table_open_with_type     (hSYMTAB *p_hsymtab, hOWNER owner, ION_SYMBOL_TABLE_TYPE type);
+
+/**
+ * Clones the given symbol table, using that symbol table's memory owner as the owner of the newly allocated symbol
+ * table.
+ * @param hsymtab - They symbol table to clone.
+ * @param p_hclone - Pointer to a handle to the newly-allocated symbol table clone.
+ */
 ION_API_EXPORT iERR ion_symbol_table_clone              (hSYMTAB hsymtab, hSYMTAB *p_hclone);
+
+/**
+ * Clones the given symbol table, using the given owner as the newly-allocated symbol table's memory owner.
+ * @param hsymtab - They symbol table to clone.
+ * @param p_hclone - Pointer to a handle to the newly-allocated symbol table clone.
+ * @param owner - Handle to the new symbol table's memory owner. If NULL, the resulting symbol table is its own memory
+ *  owner and must be freed using `ion_symbol_table_close`.
+ */
 ION_API_EXPORT iERR ion_symbol_table_clone_with_owner   (hSYMTAB hsymtab, hSYMTAB *p_hclone, hOWNER owner);
+
+/**
+ * Gets the global system symbol table for the given Ion version. This global system symbol table must never be closed.
+ * @param p_hsystem_table - Pointer to a handle to the global system symbol table.
+ * @param version - The Ion version. Currently, must be 1.
+ */
 ION_API_EXPORT iERR ion_symbol_table_get_system_table   (hSYMTAB *p_hsystem_table, int32_t version);
+
+/**
+ * Deserializes a symbol table (shared or local) from the given reader.
+ * @param hreader - The reader, positioned at the start of the symbol table struct.
+ * @param owner - Handle to the new symbol table's memory owner. If NULL, the resulting symbol table is its own memory
+ *  owner and must be freed using `ion_symbol_table_close`.
+ * @param p_hsymtab - Pointer to a handle to the newly-allocated symbol table.
+ */
 ION_API_EXPORT iERR ion_symbol_table_load               (hREADER hreader, hOWNER owner, hSYMTAB *p_hsymtab);
+
+/**
+ * Serializes a symbol table (shared or local) using the given writer.
+ * @param hsymtab - The symbol table to serialize.
+ * @param hwriter - The writer (text or binary).
+ */
 ION_API_EXPORT iERR ion_symbol_table_unload             (hSYMTAB hsymtab, hWRITER hwriter);
 
 ION_API_EXPORT iERR ion_symbol_table_lock               (hSYMTAB hsymtab);
@@ -245,13 +286,22 @@ ION_API_EXPORT iERR ion_symbol_table_set_version        (hSYMTAB hsymtab, int32_
 ION_API_EXPORT iERR ion_symbol_table_set_max_sid        (hSYMTAB hsymtab, SID max_id);
 
 ION_API_EXPORT iERR ion_symbol_table_get_imports        (hSYMTAB hsymtab, ION_COLLECTION **p_imports);
-ION_API_EXPORT iERR ion_symbol_table_add_import         (hSYMTAB hsymtab, ION_SYMBOL_TABLE_IMPORT *pimport);
 
 /**
- * Imports one symbol table into another. NOTE: the imported symbol table must be accessible through the parent symbol
- * table's catalog, otherwise all of its symbols will be considered to have unknown text.
- * @param hsymtab - The symbol table into which the imported symbol table will be incorporated.
- * @param hsymtab_import - The symbol table to import.
+ * Imports a shared symbol table into a local symbol table, given a description of the import and the catalog in which
+ * it can be found.
+ * NOTE: the best match for the described shared symbol table import that is available in the catalog will be used. If
+ * no match is found, all of the import's symbols will be considered to have unknown text.
+ * @param hsymtab - The local symbol table into which the imported symbol table will be incorporated.
+ * @param pimport - The description of the shared symbol table to be imported.
+ * @param catalog - The catalog to query for the matching shared symbol table.
+ */
+ION_API_EXPORT iERR ion_symbol_table_add_import         (hSYMTAB hsymtab, ION_SYMBOL_TABLE_IMPORT_DESCRIPTOR *pimport, hCATALOG catalog);
+
+/**
+ * Imports a shared symbol table into a local symbol table.
+ * @param hsymtab - The local symbol table into which the imported symbol table will be incorporated.
+ * @param hsymtab_import - The shared symbol table to import.
  */
 ION_API_EXPORT iERR ion_symbol_table_import_symbol_table(hSYMTAB hsymtab, hSYMTAB hsymtab_import);
 
@@ -263,10 +313,15 @@ ION_API_EXPORT iERR ion_symbol_table_get_symbol         (hSYMTAB hsymtab, SID si
 ION_API_EXPORT iERR ion_symbol_table_get_local_symbol   (hSYMTAB hsymtab, SID sid, ION_SYMBOL **p_sym); // get symbols by sid, iterate from 1 to max_sid - returns only locally defined symbols
 
 ION_API_EXPORT iERR ion_symbol_table_add_symbol         (hSYMTAB hsymtab, iSTRING name, SID *p_sid);
-// TODO: do we want this? iERR ion_symbol_table_add_symbol_and_sid   (hSYMTAB hsymtab, iSTRING name, SID sid);
 
+/**
+ * If the given symbol table is its own memory owner, its memory and everything it owns is freed. If the given symbol
+ * table has an external owner and that owner has not been freed, this does nothing; this symbol table will be freed
+ * when its memory owner is freed. If the given symbol table has an external owner which has been freed, the behavior of
+ * this function is undefined.
+ * NOTE: Symbol tables constructed and returned by readers and writers are owned by those readers and writers.
+ */
 ION_API_EXPORT iERR ion_symbol_table_close              (hSYMTAB hsymtab);
-ION_API_EXPORT iERR ion_symbol_table_free_system_table  ();
 
 ION_API_EXPORT const char *ion_symbol_table_type_to_str (ION_SYMBOL_TABLE_TYPE t);
 

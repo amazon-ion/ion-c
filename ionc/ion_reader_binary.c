@@ -83,21 +83,6 @@ iERR _ion_reader_binary_reset(ION_READER *preader, int parent_tid, POSITION loca
     iRETURN;
 }
 
-iERR _ion_reader_binary_close(ION_READER *preader)
-{
-    iENTER;
-
-    // we need to free the local symbol table, if we allocated one
-    if (preader->_local_symtab_pool != NULL) {
-        ion_free_owner( preader->_local_symtab_pool );
-        preader->_local_symtab_pool = NULL;
-    }
-
-    SUCCEED();
-
-    iRETURN;
-}
-
 iERR _ion_reader_binary_next(ION_READER *preader, ION_TYPE *p_value_type)
 {
     iENTER;
@@ -1163,7 +1148,6 @@ iERR _ion_reader_binary_read_symbol(ION_READER *preader, ION_SYMBOL *p_symbol)
         ION_STRING_ASSIGN(&p_symbol->value, text);
     }
     p_symbol->sid = sid;
-    p_symbol->psymtab = preader->_current_symtab;
     p_symbol->add_count = 1;
     iRETURN;
 }
