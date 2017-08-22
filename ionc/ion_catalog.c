@@ -155,8 +155,6 @@ iERR _ion_catalog_add_symbol_table_helper(ION_CATALOG *pcatalog, ION_SYMBOL_TABL
     if (!ppsymtab) FAILWITH(IERR_NO_MEMORY);
     *ppsymtab = psymtab;
 
-    psymtab->catalog = pcatalog;
-
     iRETURN;
 }
 
@@ -316,7 +314,7 @@ iERR _ion_catalog_release_symbol_table_helper(ION_CATALOG *pcatalog, ION_SYMBOL_
     ASSERT(pcatalog != NULL);
     ASSERT(psymtab != NULL);
 
-    // if this symbol table is "foriegn" get "our copy" of the table
+    // if this symbol table is "foreign" get "our copy" of the table
     if (psymtab->owner != pcatalog->owner) {
         IONCHECK(_ion_catalog_find_symbol_table_helper(pcatalog, &psymtab->name, psymtab->version, &test));
         if (!test) {

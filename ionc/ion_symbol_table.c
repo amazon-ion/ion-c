@@ -81,7 +81,7 @@ iERR _ion_symbol_table_open_helper(ION_SYMBOL_TABLE **p_psymtab, hOWNER owner, I
     // create the system symbol table) we need to copy the system
     // symbols to seed our symbol list
     if (system) {
-        IONCHECK(_ion_symbol_table_local_incorporate_symbols(symtab, NULL, &system->name, system->version, system->max_id));
+        IONCHECK(_ion_symbol_table_local_incorporate_symbols(symtab, NULL, system->max_id));
     }
     *p_psymtab = symtab;
 
@@ -290,23 +290,6 @@ iERR _ion_symbol_table_local_make_system_symbol_table_helper(int32_t version)
     iRETURN;
 }
 
-iERR ion_symbol_table_free_system_table() 
-{
-    iENTER;
-    ION_SYMBOL_TABLE *psymtab = p_system_symbol_table_version_1;
-
-    if (!psymtab) {
-        SUCCEED();
-    }
-    p_system_symbol_table_version_1 = NULL;
-
-    // we don't free the system symbol table, since it isn't allocated
-    // see: smallLocalAllocationBlock() which has a small global buffer for this
-    // ion_free_owner(psymtab);
-
-    iRETURN;
-}
-
 iERR _ion_symbol_table_local_load_import_list(ION_READER *preader, hOWNER owner, ION_COLLECTION *pimport_list)
 {
     iENTER;
@@ -314,6 +297,8 @@ iERR _ion_symbol_table_local_load_import_list(ION_READER *preader, hOWNER owner,
     ION_TYPE   type;
     ION_STRING str;
     SID        fld_sid;
+
+    ASSERT(preader->_catalog != NULL);
 
     ION_STRING_INIT(&str);
 
@@ -325,7 +310,7 @@ iERR _ion_symbol_table_local_load_import_list(ION_READER *preader, hOWNER owner,
 
         import = (ION_SYMBOL_TABLE_IMPORT *)_ion_collection_append(pimport_list);
         memset(import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
-        import->max_id = ION_SYS_SYMBOL_MAX_ID_UNDEFINED;
+        import->descriptor.max_id = ION_SYS_SYMBOL_MAX_ID_UNDEFINED;
 
         // step into the import struct
         IONCHECK(_ion_reader_step_in_helper(preader));
@@ -336,16 +321,16 @@ iERR _ion_symbol_table_local_load_import_list(ION_READER *preader, hOWNER owner,
             IONCHECK(_ion_symbol_table_get_field_sid_force(preader, &fld_sid));
             switch(fld_sid) {
             case ION_SYS_SID_NAME:     /* "name" */
-                if (!ION_STRING_IS_NULL(&import->name)) FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "too many names in import list");
+                if (!ION_STRING_IS_NULL(&import->descriptor.name)) FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "too many names in import list");
                 if (type == tid_STRING) {
                     IONCHECK(_ion_reader_read_string_helper(preader, &str));
-                    IONCHECK(ion_string_copy_to_owner(owner, &import->name, &str));
+                    IONCHECK(ion_string_copy_to_owner(owner, &import->descriptor.name, &str));
                 }
                 break;
             case ION_SYS_SID_VERSION:  /* "version" */
-                if (import->version) FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "too many versions in import list");
+                if (import->descriptor.version) FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "too many versions in import list");
                 if (type == tid_INT) {
-                    IONCHECK(_ion_reader_read_int32_helper(preader, &import->version));
+                    IONCHECK(_ion_reader_read_int32_helper(preader, &import->descriptor.version));
                 }
                 break;
             case ION_SYS_SID_MAX_ID:   /* "max_id" */
@@ -353,20 +338,26 @@ iERR _ion_symbol_table_local_load_import_list(ION_READER *preader, hOWNER owner,
                 // case, the following line won't trigger a failure. However, the spec doesn't clearly define what
                 // implementations must do when multiple of the same field is encountered in an import, so it doesn't
                 // seem worth it to address this now.
-                if (import->max_id != ION_SYS_SYMBOL_MAX_ID_UNDEFINED) FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "too many max_id fields in import list");
+                if (import->descriptor.max_id != ION_SYS_SYMBOL_MAX_ID_UNDEFINED) FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "too many max_id fields in import list");
                 BOOL is_null;
                 IONCHECK(ion_reader_is_null(preader, &is_null));
                 if (type == tid_INT && !is_null) {
-                    IONCHECK(_ion_reader_read_int32_helper(preader, &import->max_id));
+                    IONCHECK(_ion_reader_read_int32_helper(preader, &import->descriptor.max_id));
                 }
                 break;
             default:
                 break;
             }
         }
-        if (import->version < 1) {
-            import->version = 1;
+        if (import->descriptor.version < 1) {
+            import->descriptor.version = 1;
         }
+
+        if (ION_STRING_IS_NULL(&import->descriptor.name)) {
+            FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "A shared symbol table must have a name.");
+        }
+
+        IONCHECK(_ion_catalog_find_best_match_helper(preader->_catalog, &import->descriptor.name, import->descriptor.version, import->descriptor.max_id, &import->shared_symbol_table));
         // step back out to the list of imports
         IONCHECK(_ion_reader_step_out_helper(preader));
     }
@@ -424,7 +415,6 @@ iERR ion_symbol_table_load(hREADER hreader, hOWNER owner, hSYMTAB *p_hsymtab)
 
 
     if (hreader   == NULL) FAILWITH(IERR_INVALID_ARG);
-    if (owner     == NULL) FAILWITH(IERR_INVALID_ARG);
     if (p_hsymtab == NULL) FAILWITH(IERR_INVALID_ARG);
 
     preader = HANDLE_TO_PTR(hreader, ION_READER);
@@ -483,7 +473,6 @@ iERR _ion_symbol_table_append(ION_READER *preader, hOWNER owner, ION_SYMBOL_TABL
                 appended_symbol->sid = UNKNOWN_SID; // This is assigned correctly later.
             }
         }
-        cloned->catalog = preader->_current_symtab->catalog;
         // This overwrites p_symtab's reference, which will be cleaned up when its owner is freed.
         *p_symtab = cloned;
     }
@@ -505,7 +494,6 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
     ION_COLLECTION_CURSOR    import_cursor, symbol_cursor;
 
     ASSERT(preader   != NULL);
-    ASSERT(owner     != NULL);
     ASSERT(p_psymtab != NULL);
 
     ION_STRING_INIT(&name);
@@ -528,6 +516,9 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
     else {
         IONCHECK(_ion_symbol_table_open_helper(&symtab, owner, system));
     }
+
+    owner = symtab->owner;
+    ASSERT(owner != NULL);
 
     // now we step into the struct that has the data we actually use to fill out the table
     IONCHECK(_ion_reader_step_in_helper(preader));
@@ -570,11 +561,7 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
                     for (;;) {
                         ION_COLLECTION_NEXT(import_cursor, import);
                         if (!import) break;
-                        if (!preader->_catalog) {
-                            IONCHECK(_ion_catalog_open_with_owner_helper(&preader->_catalog, preader));
-                        }
-                        IONCHECK(_ion_symbol_table_local_incorporate_symbols(symtab, preader->_catalog, &import->name,
-                                                                             import->version, import->max_id));
+                        IONCHECK(_ion_symbol_table_local_incorporate_symbols(symtab, import->shared_symbol_table, import->descriptor.max_id));
                     }
                     ION_COLLECTION_CLOSE(import_cursor);
                 }
@@ -653,8 +640,6 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
     }
 
     IONCHECK(_ion_symbol_table_initialize_indices_helper(symtab));
-
-    symtab->catalog = preader->_catalog;
 
     *p_psymtab = symtab;
 
@@ -738,17 +723,17 @@ iERR _ion_symbol_table_unload_helper(ION_SYMBOL_TABLE *symtab, ION_WRITER *pwrit
             if (!import) break;
         
             IONCHECK(_ion_writer_start_container_helper(pwriter, tid_STRUCT));
-            if (!ION_STRING_IS_NULL(&import->name)) {
+            if (!ION_STRING_IS_NULL(&import->descriptor.name)) {
                 IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_NAME));
-                IONCHECK(_ion_writer_write_string_helper(pwriter, &import->name));
+                IONCHECK(_ion_writer_write_string_helper(pwriter, &import->descriptor.name));
             }
-            if (import->version > 0) {
+            if (import->descriptor.version > 0) {
                 IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_VERSION));
-                IONCHECK(_ion_writer_write_int64_helper(pwriter, import->version));
+                IONCHECK(_ion_writer_write_int64_helper(pwriter, import->descriptor.version));
             }
-            if (import->max_id > 0) {
+            if (import->descriptor.max_id > 0) {
                 IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_MAX_ID));
-                IONCHECK(_ion_writer_write_int64_helper(pwriter, import->max_id));
+                IONCHECK(_ion_writer_write_int64_helper(pwriter, import->descriptor.max_id));
             }
             IONCHECK(_ion_writer_finish_container_helper(pwriter));
         }
@@ -1112,42 +1097,51 @@ iERR _ion_symbol_table_import_symbol_table_helper(ION_SYMBOL_TABLE *symtab, ION_
     if (!import) FAILWITH(IERR_NO_MEMORY);
 
     memset(import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
-    import->max_id = import_symtab->max_id;
-    import->version = import_symtab->version;
-    IONCHECK(ion_string_copy_to_owner(symtab->owner, &import->name, &import_symtab->name));
+    import->descriptor.max_id = import_symtab->max_id;
+    import->descriptor.version = import_symtab->version;
+    IONCHECK(ion_string_copy_to_owner(symtab->owner, &import->descriptor.name, &import_symtab->name));
+    import->shared_symbol_table = import_symtab;
 
-    IONCHECK(_ion_symbol_table_local_incorporate_symbols(symtab, symtab->catalog, &import_symtab->name, import_symtab->version, import_symtab->max_id));
+    IONCHECK(_ion_symbol_table_local_incorporate_symbols(symtab, import_symtab, import_symtab->max_id));
 
     iRETURN;
 }
 
-iERR ion_symbol_table_add_import(hSYMTAB hsymtab, ION_SYMBOL_TABLE_IMPORT *p_import)
+iERR ion_symbol_table_add_import(hSYMTAB hsymtab, ION_SYMBOL_TABLE_IMPORT_DESCRIPTOR *p_import, hCATALOG hcatalog)
 {
     iENTER;
-    ION_SYMBOL_TABLE *symtab;
+    ION_SYMBOL_TABLE *symtab, *shared;
+    ION_CATALOG      *catalog;
 
     if (hsymtab == NULL) FAILWITH(IERR_INVALID_ARG);
+    if (hcatalog == NULL) FAILWITH(IERR_INVALID_ARG);
     symtab = HANDLE_TO_PTR(hsymtab, ION_SYMBOL_TABLE);
+    catalog = HANDLE_TO_PTR(hcatalog, ION_CATALOG);
     if (p_import == NULL) FAILWITH(IERR_INVALID_ARG);
     if (symtab->is_locked) FAILWITH(IERR_IS_IMMUTABLE);
     if (symtab->has_local_symbols) FAILWITH(IERR_HAS_LOCAL_SYMBOLS);
 
-    IONCHECK(_ion_symbol_table_local_incorporate_symbols(symtab, symtab->catalog, &p_import->name, p_import->version, p_import->max_id));
+    IONCHECK(_ion_catalog_find_best_match_helper(catalog, &p_import->name, p_import->version, p_import->max_id, &shared));
+
+    IONCHECK(_ion_symbol_table_import_symbol_table_helper(symtab, shared));
 
     iRETURN;
 }
 
-iERR _ion_symbol_table_local_incorporate_symbols(ION_SYMBOL_TABLE *symtab, ION_CATALOG *catalog,
-                                                 ION_STRING *import_name, int32_t import_version, int32_t import_max_id)
+iERR _ion_symbol_table_local_incorporate_symbols(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE *shared, int32_t import_max_id)
 {
     iENTER;
+    ION_SYMBOL_TABLE_TYPE type;
+
     ASSERT(symtab != NULL);
     ASSERT(!symtab->is_locked);
     ASSERT(!symtab->has_local_symbols);
 
-    if (catalog) {
-        // Ensures this is a valid import. NOTE: doesn't ensure that the import is found in the catalog.
-        IONCHECK(_ion_catalog_find_best_match_helper(catalog, import_name, import_version, import_max_id, NULL));
+    if (shared) {
+        IONCHECK(ion_symbol_table_get_type(shared, &type));
+        if (type == ist_LOCAL || type == ist_EMPTY) {
+            FAILWITH(IERR_INVALID_ARG);
+        }
     }
     else if (import_max_id <= ION_SYS_SYMBOL_MAX_ID_UNDEFINED) {
         FAILWITH(IERR_INVALID_SYMBOL_TABLE);
@@ -1297,29 +1291,24 @@ iERR _ion_symbol_table_find_by_name_helper(ION_SYMBOL_TABLE *symtab, ION_STRING 
    IONCHECK(_ion_symbol_table_local_find_by_name(symtab->system_symbol_table, name, &sid, &sym));
 
     // first we have to look in the imported tables
-    // TODO:  make this smarter
-
-    // really if this is a local symbol table there should be only 1 import
-    // and if this is a shared (named) symbol table you only have to look
-    // locally since shared table have all the imported symbols in their list
-    if (sid == UNKNOWN_SID && symtab->catalog && !ION_COLLECTION_IS_EMPTY(&symtab->import_list)) {
+    if (sid == UNKNOWN_SID && !ION_COLLECTION_IS_EMPTY(&symtab->import_list)) {
         offset = symtab->system_symbol_table->max_id;
 
         ION_COLLECTION_OPEN(&symtab->import_list, import_cursor);
         for (;;) {
             ION_COLLECTION_NEXT(import_cursor, imp);
             if (!imp) break;
-            IONCHECK(_ion_catalog_find_best_match_helper(symtab->catalog, &imp->name, imp->version, imp->max_id, &imported));
+            imported = imp->shared_symbol_table;
             // If the import is not found, skip it -- its symbols have unknown text and therefore cannot be looked up by name.
             if (imported != NULL) {
                 IONCHECK(_ion_symbol_table_local_find_by_name(imported, name, &sid, &sym));
-                if (sid > imp->max_id) sid = UNKNOWN_SID;
+                if (sid > imp->descriptor.max_id) sid = UNKNOWN_SID;
                 if (sid != UNKNOWN_SID) {
                     sid += offset;
                     break;
                 }
             }
-            offset += imp->max_id;
+            offset += imp->descriptor.max_id;
         }
         ION_COLLECTION_CLOSE(import_cursor);
     }
@@ -1416,12 +1405,8 @@ iERR _ion_symbol_table_find_symbol_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID s
             for (;;) {
                 ION_COLLECTION_NEXT(import_cursor, imp);
                 if (!imp) break;
-                if (sid - offset <= imp->max_id) {
-                    imported = NULL; // i.e. not found.
-                    if (symtab->catalog) {
-                        IONCHECK(_ion_catalog_find_best_match_helper(symtab->catalog, &imp->name, imp->version,
-                                                                     imp->max_id, &imported));
-                    }
+                if (sid - offset <= imp->descriptor.max_id) {
+                    imported = imp->shared_symbol_table;
                     if (imported == NULL) {
                         // The SID is in range, but the shared symbol table is not found. This symbol has unknown text.
                         // NOTE: 'symtab' isn't the true owner of this symbol -- the not-found import is. But since
@@ -1436,7 +1421,7 @@ iERR _ion_symbol_table_find_symbol_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID s
                     ASSERT(sym);
                     break;
                 }
-                offset += imp->max_id;
+                offset += imp->descriptor.max_id;
             }
             ION_COLLECTION_CLOSE(import_cursor);
         }
@@ -1682,12 +1667,14 @@ iERR ion_symbol_table_close(hSYMTAB hsymtab)
 iERR _ion_symbol_table_close_helper(ION_SYMBOL_TABLE *symtab)
 {
     iENTER;
+    ION_SYMBOL_TABLE_TYPE table_type;
 
     ASSERT(symtab != NULL);
 
-    if (symtab->catalog) {
-        IONCHECK(_ion_catalog_release_symbol_table_helper(symtab->catalog, symtab));
-        symtab->catalog = NULL;
+    IONCHECK(ion_symbol_table_get_type(symtab, &table_type));
+
+    if (table_type == ist_SYSTEM) {
+        FAILWITH(IERR_INVALID_ARG);
     }
 
     if (symtab->owner == symtab) {
@@ -1859,7 +1846,7 @@ iERR _ion_symbol_table_local_import_copy_new_owner(void *context, void *dst, voi
     ASSERT(context);
 
     memcpy(import_dst, import_src, data_size);
-    IONCHECK(ion_string_copy_to_owner(context, &import_dst->name, &import_src->name));
+    IONCHECK(ion_string_copy_to_owner(context, &import_dst->descriptor.name, &import_src->descriptor.name));
 
     iRETURN;
 }
@@ -1875,7 +1862,7 @@ iERR _ion_symbol_table_local_import_copy_same_owner(void *context, void *dst, vo
     ASSERT(src);
 
     memcpy(import_dst, import_src, data_size);
-    ION_STRING_ASSIGN(&import_dst->name, &import_src->name);
+    ION_STRING_ASSIGN(&import_dst->descriptor.name, &import_src->descriptor.name);
 
     iRETURN;
 }

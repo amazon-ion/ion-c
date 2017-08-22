@@ -1367,7 +1367,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
             for (;;) {
                 ION_COLLECTION_NEXT(import_cursor, import);
                 if (!import) break;
-                import_len = ion_writer_binary_serialize_import_struct_length(import);
+                import_len = ion_writer_binary_serialize_import_struct_length(&import->descriptor);
                 if (import_len >= ION_lnIsVarLen) {
                     import_len += ion_binary_len_var_uint_64(import_len); // the overflow length if this is longer than 14
                 }
@@ -1476,7 +1476,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
                 ION_COLLECTION_NEXT(import_cursor, import);
                 if (!import) break;
 
-                import_len = ion_writer_binary_serialize_import_struct_length(import);
+                import_len = ion_writer_binary_serialize_import_struct_length(&import->descriptor);
                 if (import_len >= ION_lnIsVarLen) {
                     ION_PUT(out, makeTypeDescriptor(TID_STRUCT, ION_lnIsVarLen));
                     IONCHECK(ion_binary_write_var_uint_64(out, import_len));  // symtab has overflow length
@@ -1484,10 +1484,10 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
                     ION_PUT(out, makeTypeDescriptor(TID_STRUCT, import_len));
                 }
                 // now we write the name, version, and max id
-                IONCHECK(ion_binary_write_string_with_field_sid(out, ION_SYS_SID_NAME, &import->name));
-                IONCHECK(ion_binary_write_int32_with_field_sid(out, ION_SYS_SID_VERSION, import->version));
-                if (import->max_id > 0) {
-                    IONCHECK(ion_binary_write_int32_with_field_sid(out, ION_SYS_SID_MAX_ID, import->max_id));
+                IONCHECK(ion_binary_write_string_with_field_sid(out, ION_SYS_SID_NAME, &import->descriptor.name));
+                IONCHECK(ion_binary_write_int32_with_field_sid(out, ION_SYS_SID_VERSION, import->descriptor.version));
+                if (import->descriptor.max_id > 0) {
+                    IONCHECK(ion_binary_write_int32_with_field_sid(out, ION_SYS_SID_MAX_ID, import->descriptor.max_id));
                 }
             }
             ION_COLLECTION_CLOSE(import_cursor);
@@ -1525,7 +1525,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     iRETURN;
 }
 
-int ion_writer_binary_serialize_import_struct_length(ION_SYMBOL_TABLE_IMPORT *import)
+int ion_writer_binary_serialize_import_struct_length(ION_SYMBOL_TABLE_IMPORT_DESCRIPTOR *import)
 {
     int len;
 

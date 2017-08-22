@@ -179,21 +179,6 @@ iERR _ion_reader_text_reset_value(ION_READER *preader)
     iRETURN;
 }
 
-iERR _ion_reader_text_close(ION_READER *preader)
-{
-    iENTER;
-
-    // we need to free the local symbol table, if we allocated one
-    if (preader->_local_symtab_pool != NULL) {
-        ion_free_owner( preader->_local_symtab_pool );
-        preader->_local_symtab_pool = NULL;
-    }
-
-    SUCCEED();
-
-    iRETURN;
-}
-
 /**
  *   public APIs for actual operations - starting with NEXT()
  *

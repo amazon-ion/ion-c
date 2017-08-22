@@ -130,8 +130,6 @@ fail:// this is iRETURN expanded so I can set a break point on it
         ionizer_stop_timing();
     }
 
-    ion_symbol_table_free_system_table();
-
     if (non_argv) free(non_argv);
     return err;
 }
@@ -499,7 +497,6 @@ iERR ionizer_load_catalog_list(hCATALOG *p_catalog)
     hREADER               hreader;
     ION_TYPE              t;
     BOOL                  is_symtab;
-    BOOL                  saved_flag_return_shared_symbol_tables;
     hSYMTAB               hsymtab;
     ION_STRING            annotion_name;
 
@@ -507,11 +504,6 @@ iERR ionizer_load_catalog_list(hCATALOG *p_catalog)
     ion_string_assign_cstr(&annotion_name, ION_SYS_SYMBOL_SHARED_SYMBOL_TABLE, ION_SYS_STRLEN_SHARED_SYMBOL_TABLE);
 
     CHECK(ion_catalog_open(&catalog), "create empty catalog");
-
-    // since we (Ionize) want to handle the symbol table management we need to
-    // tell the reader no to bother (we'll go back to what others wanted later)
-    saved_flag_return_shared_symbol_tables = g_reader_options.return_shared_symbol_tables;
-    g_reader_options.return_shared_symbol_tables = TRUE;
 
     for (str_node=g_ionizer_catalogs; str_node; str_node = str_node->next) 
     {
@@ -521,9 +513,7 @@ iERR ionizer_load_catalog_list(hCATALOG *p_catalog)
             fprintf(stderr, "ERROR: can't open the catalog file: %s\n", str_node->str);
             FAILWITH(IERR_CANT_FIND_FILE);
         }
-// XXX        g_reader_options.return_shared_symbol_tables = TRUE;
         CHECK(ionizer_reader_open_fstream(&reader, f_catalog, &g_reader_options), "catalog reader open failed");
-// XXX        g_reader_options.return_shared_symbol_tables = FALSE;
 
         // read the file and load all structs with the ion_shared_symbol_table
         // annotation into the hcatalog
@@ -541,9 +531,6 @@ iERR ionizer_load_catalog_list(hCATALOG *p_catalog)
         CHECK(ionizer_reader_close_fstream(reader), "closing a catalog reader");
         // ion_reader_close_fstream closes this already: fclose(f_catalog);
     }
-
-    // now return to our regularly scheduled behavior ...
-    g_reader_options.return_shared_symbol_tables = saved_flag_return_shared_symbol_tables;
 
     *p_catalog = catalog;
     iRETURN;
