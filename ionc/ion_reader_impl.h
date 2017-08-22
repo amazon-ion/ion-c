@@ -266,7 +266,6 @@ iERR _ion_reader_get_position_helper(ION_READER *preader, int64_t *p_bytes, int3
 //
 iERR _ion_reader_binary_open                (ION_READER *preader);
 iERR _ion_reader_binary_reset               (ION_READER *preader, int parent_tid, POSITION local_end);
-iERR _ion_reader_binary_close               (ION_READER *preader);
 
 iERR _ion_reader_binary_next                (ION_READER *preader, ION_TYPE *p_value_type);
 iERR _ion_reader_binary_get_local_symbol_table_helper(ION_READER *preader, ION_SYMBOL_TABLE **pplocal );

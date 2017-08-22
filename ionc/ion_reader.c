@@ -89,11 +89,7 @@ iERR ion_reader_reset_stream_with_length(hREADER   *p_hreader
 
     // here we reset what little state the reader need to address directly
     IONCHECK(_ion_reader_reset_temp_pool(*p_hreader));
-
-    if ((*p_hreader)->_local_symtab_pool != NULL) {
-        ion_free_owner( (*p_hreader)->_local_symtab_pool );
-        (*p_hreader)->_local_symtab_pool = NULL;
-    }
+    IONCHECK(_ion_reader_free_local_symbol_table(*p_hreader));
 
     // initialize given stream with handler
     ion_stream_open_handler_in(fn_input_handler, handler_state, &pstream);
@@ -112,12 +108,10 @@ iERR ion_reader_reset_stream_with_length(hREADER   *p_hreader
     // Parser will subsequently return EOF when "length" number of bytes is reached.
     switch((*p_hreader)->type) {
         case ion_type_text_reader:
-            IONCHECK(_ion_reader_text_close(*p_hreader));
             IONCHECK(_ion_reader_text_open(*p_hreader));
-            //IONCHECK(_ion_reader_text_reset((*p_hreader), tid_DATAGRAM, local_end));
             break;
         case ion_type_binary_reader:
-            _ion_reader_binary_reset((*p_hreader), TID_DATAGRAM, local_end);
+            IONCHECK(_ion_reader_binary_reset((*p_hreader), TID_DATAGRAM, local_end));
             break;
         case ion_type_unknown_reader:
         default:
@@ -146,10 +140,7 @@ iERR ion_reader_reset_stream(hREADER *p_hreader, void *handler_state, ION_STREAM
     pstream = NULL;
 
     IONCHECK(_ion_reader_reset_temp_pool(*p_hreader));
-    if ((*p_hreader)->_local_symtab_pool != NULL) {
-        ion_free_owner( (*p_hreader)->_local_symtab_pool );
-        (*p_hreader)->_local_symtab_pool = NULL;
-    }
+    IONCHECK(_ion_reader_free_local_symbol_table(*p_hreader));
 
     // initialize given stream with handler
     ion_stream_open_handler_in(fn_input_handler, handler_state, &pstream);
@@ -178,11 +169,9 @@ iERR ion_reader_reset_stream(hREADER *p_hreader, void *handler_state, ION_STREAM
     // @see _ion_reader_initialize impl.
     is_binary_stream = ion_helper_is_ion_version_marker(ivm_buffer, pos);
     if ( is_binary_stream && ((*p_hreader)->type == ion_type_binary_reader)) {
-        IONCHECK(_ion_reader_binary_close(*p_hreader));
         IONCHECK(_ion_reader_binary_open(*p_hreader));
     }
     else if ( (!is_binary_stream) && ((*p_hreader)->type == ion_type_text_reader) ){
-        IONCHECK(_ion_reader_text_close(*p_hreader));
         IONCHECK(_ion_reader_text_open(*p_hreader));
     }
     else {
@@ -1786,21 +1775,7 @@ iERR _ion_reader_close_helper(ION_READER *preader)
 
     ASSERT(preader);
 
-    switch(preader->type) {
-    case ion_type_text_reader:
-        UPDATEERROR(_ion_reader_text_close(preader));
-        break;
-    case ion_type_binary_reader:
-        UPDATEERROR(_ion_reader_binary_close(preader));
-        break;
-    case ion_type_unknown_reader:
-    default:
-        UPDATEERROR(IERR_INVALID_STATE);
-    }
-
-    // in both cases we need to release the stream and
-    // then free whatever memory we have attached to the reader
-    // Close stream.
+    // Release the stream, then free any memory attached to the reader.
     if (preader->_reader_owns_stream) {
         ion_stream_close(preader->istream);
     }
@@ -1811,10 +1786,7 @@ iERR _ion_reader_close_helper(ION_READER *preader)
         preader->_temp_entity_pool = NULL;
     }
 
-    if (preader->_local_symtab_pool != NULL) {
-        ion_free_owner( preader->_local_symtab_pool );
-        preader->_local_symtab_pool = NULL;
-    }
+    IONCHECK(_ion_reader_free_local_symbol_table(preader));
 
     ion_free_owner(preader);
     SUCCEED();
@@ -1885,7 +1857,7 @@ iERR _ion_reader_process_possible_symbol_table(ION_READER *preader, BOOL *is_sym
      * readers must throw if the annotation wrapper is malformed (e.g. has no annotation SIDs).
      */
     iENTER;
-    BOOL              is_local_symbol_table, is_shared_symbol_table = FALSE, has_previous_local_symbol_table = TRUE;
+    BOOL              is_local_symbol_table, has_previous_local_symbol_table = TRUE;
     ION_SYMBOL_TABLE *system, *local = NULL;
     void             *owner = NULL;
     ION_STRING        annotation;
@@ -1920,26 +1892,7 @@ iERR _ion_reader_process_possible_symbol_table(ION_READER *preader, BOOL *is_sym
         preader->_local_symtab_pool = owner;
         preader->_current_symtab = local;
     }
-    else if (preader->options.return_shared_symbol_tables != TRUE) {
-        // it wasn't a local symbol table, it might still be a shared symbol table,
-        // but we only process this if the user did not tell us to return shared symbol tables
-        IONCHECK(_ion_reader_get_an_annotation_helper(preader, 0, &annotation));
-        is_shared_symbol_table = ION_STRING_EQUALS(&ION_SYMBOL_SHARED_SYMBOL_TABLE_STRING, &annotation);
-        if (is_shared_symbol_table) {
-            IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
-            if (preader->type == ion_type_text_reader) {
-                // fake the state values so the symbol table load helper will "next" properly
-                preader->typed_reader.text._state = IPS_BEFORE_CONTAINER;
-                preader->typed_reader.text._value_type = tid_STRUCT;
-            }
-            IONCHECK(_ion_symbol_table_load_helper(preader, preader->_catalog->owner, system, &local));
-            if (local == NULL) {
-                FAILWITH(IERR_NOT_A_SYMBOL_TABLE);
-            }
-            IONCHECK(_ion_catalog_add_symbol_table_helper(preader->_catalog, local));
-        }
-    }
-    *is_symbol_table = (is_local_symbol_table || is_shared_symbol_table);
+    *is_symbol_table = is_local_symbol_table;
     iRETURN;
 }
 

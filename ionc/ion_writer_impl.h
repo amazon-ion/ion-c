@@ -107,6 +107,7 @@ typedef struct _ion_writer
     decContext         deccontext;                  // working context
 
     ION_CATALOG       *pcatalog;
+    ION_COLLECTION     _imported_symbol_tables; // Collection of ION_SYMBOL_TABLE*
     ION_SYMBOL_TABLE  *symbol_table;        // if there are local symbols defined this will be a seperately allocated table, and should be freed as we close the top level value
     BOOL               _local_symbol_table; // identifies the current symbol table as a symbol table that we'll have to free
     BOOL               _has_local_symbols;
@@ -317,7 +318,7 @@ iERR _ion_writer_binary_top_in_struct(ION_WRITER *bwriter, BOOL *p_is_in_struct)
 
 iERR _ion_writer_binary_flush_to_output(ION_WRITER *pwriter);
 iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_STREAM *out, int *p_length);
-int   ion_writer_binary_serialize_import_struct_length(ION_SYMBOL_TABLE_IMPORT *import);
+int   ion_writer_binary_serialize_import_struct_length(ION_SYMBOL_TABLE_IMPORT_DESCRIPTOR *import);
 int   ion_writer_binary_serialize_symbol_length(ION_SYMBOL *symbol);
 
 #ifdef __cplusplus
