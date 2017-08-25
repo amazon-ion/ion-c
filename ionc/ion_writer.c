@@ -593,7 +593,8 @@ iERR _ion_writer_write_field_sid_helper(ION_WRITER *pwriter, SID sid)
     iENTER;
 
     ASSERT(pwriter);
-    ASSERT(sid > UNKNOWN_SID);
+
+    IONCHECK(_ion_writer_validate_symbol_id(pwriter, sid));
 
     pwriter->field_name_sid = sid;
 
@@ -637,7 +638,6 @@ iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotati
     ASSERT(annotation);
     ASSERT(!ION_STRING_IS_NULL(annotation));
     ASSERT(annotation->length >= 0);
-    if (!(pwriter->annotations_type != tid_INT))
     ASSERT(pwriter->annotations_type != tid_INT);
 
     if (!pwriter->annotations) {
@@ -662,7 +662,6 @@ iERR ion_writer_add_annotation_sid(hWRITER hwriter, SID sid)
 
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
-    if (sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_ARG);
 
     // if the caller (or someone) has started with int
     // annotations (sids) then they have to stick with them
@@ -680,8 +679,9 @@ iERR _ion_writer_add_annotation_sid_helper(ION_WRITER *pwriter, SID sid)
     iENTER;
 
     ASSERT(pwriter);
-    ASSERT(sid > UNKNOWN_SID);
     ASSERT(pwriter->annotations_type != tid_STRING);
+
+    IONCHECK(_ion_writer_validate_symbol_id(pwriter, sid));
 
     if (!pwriter->annotations) {
         IONCHECK(_ion_writer_set_max_annotation_count_helper(pwriter, DEFAULT_ANNOTATION_LIMIT));
@@ -765,11 +765,11 @@ iERR ion_writer_write_annotation_sids(hWRITER hwriter, int32_t *p_sids, int32_t 
     if (!p_sids)        FAILWITH(IERR_INVALID_ARG);
     if (pwriter->annotations_type == tid_STRING) FAILWITH(IERR_INVALID_STATE);
 
-    // here we check to make sure the caller really
-    // passed us valid annoations sid's
+    // Verify that all of the SIDs are valid before adding any of them; otherwise, reject the whole set to avoid partial
+    // success.
     for (ii = 0; ii<count; ii++) {
         sid = p_sids[ii];
-        if (sid < UNKNOWN_SID) FAILWITH(IERR_INVALID_ARG);
+        IONCHECK(_ion_writer_validate_symbol_id(pwriter, sid));
     }
 
     IONCHECK(_ion_writer_write_annotation_sids_helper(pwriter, p_sids, count));
@@ -1172,6 +1172,17 @@ iERR _ion_writer_write_timestamp_helper(ION_WRITER *pwriter, ION_TIMESTAMP *valu
     iRETURN;
 }
 
+iERR _ion_writer_validate_symbol_id(ION_WRITER *pwriter, SID sid) {
+    iENTER;
+    ION_SYMBOL_TABLE *symtab;
+
+    IONCHECK(_ion_writer_get_symbol_table_helper(pwriter, &symtab));
+    if (sid > symtab->max_id || sid <= UNKNOWN_SID) {
+        FAILWITHMSG(IERR_INVALID_SYMBOL, "Attempted to write out-of-range symbol ID.");
+    }
+    iRETURN;
+}
+
 iERR ion_writer_write_symbol_sid(hWRITER hwriter, SID value)
 {
     iENTER;
@@ -1190,7 +1201,8 @@ iERR _ion_writer_write_symbol_id_helper(ION_WRITER *pwriter, SID value)
     iENTER;
 
     ASSERT(pwriter);
-    ASSERT(value > UNKNOWN_SID);
+
+    IONCHECK(_ion_writer_validate_symbol_id(pwriter, value));
 
     switch (pwriter->type) {
     case ion_type_text_writer:
@@ -1804,6 +1816,9 @@ iERR ion_writer_finish(hWRITER hwriter, SIZE *p_bytes_flushed)
     if (pwriter->type == ion_type_binary_writer) {
         pwriter->_typed_writer.binary._version_marker_written = FALSE;
     }
+    // The writer may be reused. Therefore, its local symbol table (which may include imports provided by the user)
+    // needs to be reinitialized.
+    IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
     iRETURN;
 }
 

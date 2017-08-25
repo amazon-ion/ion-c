@@ -206,6 +206,7 @@ iERR _ion_writer_write_decimal_helper(ION_WRITER *pwriter, decQuad *value);
 iERR _ion_writer_write_ion_decimal_helper(ION_WRITER *pwriter, ION_DECIMAL *value);
 iERR _ion_writer_write_timestamp_helper(ION_WRITER *pwriter, ION_TIMESTAMP *value);
 iERR _ion_writer_write_symbol_id_helper(ION_WRITER *pwriter, SID value);
+iERR _ion_writer_validate_symbol_id(ION_WRITER *pwriter, SID sid);
 iERR _ion_writer_write_symbol_helper(ION_WRITER *pwriter, ION_STRING *symbol);
 iERR _ion_writer_write_string_helper(ION_WRITER *pwriter, ION_STRING *pstr);
 iERR _ion_writer_write_clob_helper(ION_WRITER *pwriter, BYTE *p_buf, SIZE length);
