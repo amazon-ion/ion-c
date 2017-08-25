@@ -109,7 +109,7 @@ iERR _ion_symbol_table_local_load_symbol_list   (ION_READER *preader, hOWNER own
 
 iERR _ion_symbol_table_import_symbol_table_helper(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE *import_symtab);
 iERR _ion_symbol_table_local_incorporate_symbols(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE *shared, int32_t import_max_id);
-iERR _ion_symbol_table_local_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID sid, ION_SYMBOL_TABLE *symbol_owning_table, ION_SYMBOL **p_psym);
+iERR _ion_symbol_table_local_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID sid, ION_SYMBOL **p_psym);
 
 iERR _ion_symbol_local_copy_same_owner(void *context, void *dst, void *src, int32_t data_size);
 iERR _ion_symbol_local_copy_new_owner(void *context, void *dst, void *src, int32_t data_size);

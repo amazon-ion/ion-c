@@ -189,9 +189,6 @@ iERR _ion_symbol_table_clone_with_owner_helper(ION_SYMBOL_TABLE **p_pclone, ION_
     for (;;) {
         ION_COLLECTION_NEXT(symbol_cursor, p_symbol);
         if (!p_symbol) break;
-        if (p_symbol->psymtab == orig) {
-            p_symbol->psymtab = clone;
-        }
     }
     ION_COLLECTION_CLOSE(symbol_cursor);
 
@@ -271,15 +268,15 @@ iERR _ion_symbol_table_local_make_system_symbol_table_helper(int32_t version)
     ION_STRING_ASSIGN(&psymtab->name, &ION_SYMBOL_ION_STRING);
     psymtab->system_symbol_table = psymtab; // the system symbol table is it's own system symbol table (hmmm)
 
-    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_ION_STRING, ION_SYS_SID_ION, psymtab, NULL));
-    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_VTM_STRING, ION_SYS_SID_IVM, psymtab, NULL));
-    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_SYMBOL_TABLE_STRING, ION_SYS_SID_SYMBOL_TABLE, psymtab, NULL));
-    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_NAME_STRING, ION_SYS_SID_NAME, psymtab, NULL));
-    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_VERSION_STRING, ION_SYS_SID_VERSION, psymtab, NULL));
-    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_IMPORTS_STRING, ION_SYS_SID_IMPORTS, psymtab, NULL));
-    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_SYMBOLS_STRING, ION_SYS_SID_SYMBOLS, psymtab, NULL));
-    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_MAX_ID_STRING, ION_SYS_SID_MAX_ID, psymtab, NULL));
-    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_SHARED_SYMBOL_TABLE_STRING, ION_SYS_SID_SHARED_SYMBOL_TABLE, psymtab, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_ION_STRING, ION_SYS_SID_ION, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_VTM_STRING, ION_SYS_SID_IVM, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_SYMBOL_TABLE_STRING, ION_SYS_SID_SYMBOL_TABLE, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_NAME_STRING, ION_SYS_SID_NAME, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_VERSION_STRING, ION_SYS_SID_VERSION, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_IMPORTS_STRING, ION_SYS_SID_IMPORTS, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_SYMBOLS_STRING, ION_SYS_SID_SYMBOLS, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_MAX_ID_STRING, ION_SYS_SID_MAX_ID, NULL));
+    IONCHECK(_ion_symbol_table_local_add_symbol_helper(psymtab, &ION_SYMBOL_SHARED_SYMBOL_TABLE_STRING, ION_SYS_SID_SHARED_SYMBOL_TABLE, NULL));
 
     IONCHECK(_ion_symbol_table_lock_helper(psymtab));
 
@@ -399,7 +396,6 @@ iERR _ion_symbol_table_local_load_symbol_list(ION_READER *preader, hOWNER owner,
             ION_STRING_ASSIGN(&sym->value, &str);
         }
         sym->sid = UNKNOWN_SID;
-        sym->psymtab = NULL;
     }
     // step back out to the symbol table struct
     IONCHECK(_ion_reader_step_out_helper(preader));
@@ -616,9 +612,6 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
                 sid++;
                 symbol->sid = sid;
             }
-            if (symbol->psymtab == NULL) {
-                symbol->psymtab = symtab;
-            }
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
         symtab->max_id = sid;
@@ -668,8 +661,7 @@ iERR _ion_symbol_table_unload_helper(ION_SYMBOL_TABLE *symtab, ION_WRITER *pwrit
     iENTER;
     ION_SYMBOL_TABLE_IMPORT *import;
     ION_SYMBOL              *sym;
-    BOOL                     has_symbols;
-    SID                      sid, annotation;
+    SID                      annotation;
     ION_COLLECTION_CURSOR    symbol_cursor, import_cursor;
     ION_SYMBOL_TABLE_TYPE    table_type;
 
@@ -741,37 +733,21 @@ iERR _ion_symbol_table_unload_helper(ION_SYMBOL_TABLE *symtab, ION_WRITER *pwrit
         IONCHECK(_ion_writer_finish_container_helper(pwriter));
     }
 
-    has_symbols = FALSE;
-    sid = 0;
+    ION_COLLECTION_CLOSE(symbol_cursor);
+
+    // start the symbols list
+    IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_SYMBOLS));
+    IONCHECK(_ion_writer_start_container_helper(pwriter, tid_LIST));
+
     ION_COLLECTION_OPEN(&symtab->symbols, symbol_cursor);
     for (;;) {
         ION_COLLECTION_NEXT(symbol_cursor, sym);
         if (!sym) break;
-        if (sym->psymtab == symtab) {
-            has_symbols = TRUE;
-            break;
-        }
-        sid = sym->sid;
+        IONCHECK(_ion_writer_write_string_helper(pwriter, &sym->value));
     }
     ION_COLLECTION_CLOSE(symbol_cursor);
 
-    if (has_symbols) {
-        // start the symbols list
-        IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_SYMBOLS));
-        IONCHECK(_ion_writer_start_container_helper(pwriter, tid_LIST));
-
-        ION_COLLECTION_OPEN(&symtab->symbols, symbol_cursor);
-        for (;;) {
-            ION_COLLECTION_NEXT(symbol_cursor, sym);
-            if (!sym) break;
-            if (sym->psymtab == symtab) {
-                IONCHECK(_ion_writer_write_string_helper(pwriter, &sym->value));
-            }
-        }
-        ION_COLLECTION_CLOSE(symbol_cursor);
-
-        IONCHECK(_ion_writer_finish_container_helper(pwriter)); // close the symbol list
-    }
+    IONCHECK(_ion_writer_finish_container_helper(pwriter)); // close the symbol list
 
     IONCHECK(_ion_writer_finish_container_helper(pwriter));
 
@@ -1560,9 +1536,6 @@ iERR ion_symbol_table_get_local_symbol(hSYMTAB hsymtab, SID sid, ION_SYMBOL **p_
     if (!p_sym) FAILWITH(IERR_INVALID_ARG);
 
     IONCHECK(_ion_symbol_table_local_find_by_sid(symtab, sid, &sym));
-    if (sym) {
-        if (sym->psymtab != symtab) sym = NULL;
-    }
     *p_sym = sym;
 
     iRETURN;
@@ -1601,7 +1574,7 @@ iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *n
 
         // we'll assign this symbol to the next id (_add_ will update max_id for us)
         sid = symtab->max_id + 1;
-        IONCHECK(_ion_symbol_table_local_add_symbol_helper(symtab, name, sid, symtab, &sym));
+        IONCHECK(_ion_symbol_table_local_add_symbol_helper(symtab, name, sid, &sym));
     }
 
     if (sym) sym->add_count++;
@@ -1610,7 +1583,7 @@ iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *n
     iRETURN;
 }
 
-iERR _ion_symbol_table_local_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID sid, ION_SYMBOL_TABLE *symbol_owning_table, ION_SYMBOL **p_psym)
+iERR _ion_symbol_table_local_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID sid, ION_SYMBOL **p_psym)
 {
     iENTER;
     ION_SYMBOL *sym;
@@ -1638,8 +1611,7 @@ iERR _ion_symbol_table_local_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STR
     {
         symtab->max_id = sym->sid;
     }
-    sym->psymtab = symbol_owning_table;
-    if (symbol_owning_table == symtab) symtab->has_local_symbols = TRUE;
+    symtab->has_local_symbols = TRUE;
 
     if (INDEX_IS_ACTIVE(symtab)) {
         IONCHECK(_ion_symbol_table_index_insert_helper(symtab, sym));
@@ -1811,7 +1783,6 @@ iERR _ion_symbol_local_copy_new_owner(void *context, void *dst, void *src, int32
     ASSERT(context);
 
     symbol_dst->sid     = symbol_src->sid;
-    symbol_dst->psymtab = symbol_src->psymtab;
     IONCHECK(ion_string_copy_to_owner(context, &symbol_dst->value, &symbol_src->value));
 
     iRETURN;
@@ -1828,7 +1799,6 @@ iERR _ion_symbol_local_copy_same_owner(void *context, void *dst, void *src, int3
     ASSERT(src);
 
     symbol_dst->sid = symbol_src->sid;
-    symbol_dst->psymtab = symbol_src->psymtab;
     ION_STRING_ASSIGN(&symbol_dst->value, &symbol_src->value);
 
     iRETURN;
@@ -2058,7 +2028,6 @@ void _ion_symbol_table_allocate_symbol_unknown_text(ION_SYMBOL_TABLE *symtab, SI
     ION_SYMBOL *symbol = _ion_alloc_with_owner(symtab->owner, sizeof(ION_SYMBOL));
     ION_STRING_INIT(&symbol->value); // NULLS the value.
     symbol->sid = sid;
-    symbol->psymtab = symtab;
     symbol->add_count++;
 
     *p_symbol = symbol;

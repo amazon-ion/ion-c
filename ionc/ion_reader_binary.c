@@ -1148,7 +1148,6 @@ iERR _ion_reader_binary_read_symbol(ION_READER *preader, ION_SYMBOL *p_symbol)
         ION_STRING_ASSIGN(&p_symbol->value, text);
     }
     p_symbol->sid = sid;
-    p_symbol->psymtab = preader->_current_symtab;
     p_symbol->add_count = 1;
     iRETURN;
 }

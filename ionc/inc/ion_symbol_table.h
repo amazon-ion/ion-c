@@ -26,8 +26,7 @@ struct _ion_symbol
 {
     SID               sid;
     ION_STRING        value;
-    // TODO the need for these is not clear. Consider removal.
-    ION_SYMBOL_TABLE *psymtab;
+    // TODO this is only needed for symbol usage metrics. Consider removal.
     int32_t           add_count;
 };
 

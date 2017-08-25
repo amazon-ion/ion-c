@@ -167,7 +167,6 @@ iERR _ion_reader_text_reset_value(ION_READER *preader)
     ION_STRING_INIT(&text->_field_name.value);
     text->_field_name.add_count = 0;
     text->_field_name.sid = UNKNOWN_SID;
-    text->_field_name.psymtab = NULL;
 
     text->_value_type               =  tid_none;
     text->_value_sub_type           =  IST_NONE;
@@ -346,7 +345,6 @@ iERR _ion_reader_text_load_fieldname(ION_READER *preader, ION_SUB_TYPE *p_ist)
         if (sym) {
             ION_STRING_ASSIGN(&text->_field_name.value, &sym->value);
             text->_field_name.sid = sym->sid;
-            text->_field_name.psymtab = sym->psymtab;
             text->_field_name.add_count = sym->add_count;
         }
 
@@ -495,7 +493,6 @@ iERR _ion_reader_text_load_utas(ION_READER *preader, ION_SUB_TYPE *p_ist)
                 ASSERT(sym->sid > UNKNOWN_SID);
                 ION_STRING_ASSIGN(&str->value, &sym->value);
                 str->sid = sym->sid;
-                str->psymtab = sym->psymtab;
                 str->add_count = sym->add_count;
             }
 

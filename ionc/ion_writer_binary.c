@@ -1390,7 +1390,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
         for (;;) {
             ION_COLLECTION_NEXT(symbol_cursor, symbol);
             if (!symbol) break;
-            if (symbol->sid <= psymtab->flushed_max_id || symbol->psymtab != psymtab) continue;
+            if (symbol->sid <= psymtab->flushed_max_id) continue;
             symbol_list_len += ion_writer_binary_serialize_symbol_length(symbol);
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
@@ -1511,7 +1511,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
         for (;;) {
             ION_COLLECTION_NEXT(symbol_cursor, symbol);
             if (!symbol) break;
-            if (symbol->sid <= psymtab->flushed_max_id || symbol->psymtab != psymtab) continue;
+            if (symbol->sid <= psymtab->flushed_max_id) continue;
             IONCHECK(ion_binary_write_string_with_td_byte(out, &symbol->value));
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
