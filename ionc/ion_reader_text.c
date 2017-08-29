@@ -187,18 +187,7 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
 {
     iENTER;
     ION_TEXT_READER *text = &preader->typed_reader.text;
-    ION_TYPE         t   = tid_none;
     ION_SUB_TYPE     ist = IST_NONE;
-
-#ifdef DEBUG
-    static long _value_counter = 0;
-
-    _value_counter++;
-    if (_value_counter == 99999912) { // 7238 || scanner->_has_marked_value) {
-        ion_helper_breakpoint();
-        _value_counter = _value_counter + 0;;
-    }
-#endif
 
     ASSERT(preader);
 

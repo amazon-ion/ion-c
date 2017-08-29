@@ -140,7 +140,7 @@ TEST(IonSymbolTable, WriterAppendsLocalSymbolsOnFlush) {
     ION_ASSERT_OK(ion_writer_write_symbol(writer, &sym4));
     ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 10)); // sym1 is no longer in scope. This refers to sym4.
 
-    ION_SYMBOL_TEST_REWRITE_FROM_WRITER_AND_ASSERT_TEXT("sym1\nsym2\nsym3\nsym1\nsym3\nsym4\nsym4");
+    ION_SYMBOL_TEST_REWRITE_FROM_WRITER_AND_ASSERT_TEXT("sym1 sym2 sym3 sym1 sym3 sym4 sym4");
 }
 
 TEST_P(BinaryAndTextTest, WriterAppendsLocalSymbolsWithImportsOnFlush) {
@@ -171,7 +171,8 @@ TEST_P(BinaryAndTextTest, WriterAppendsLocalSymbolsWithImportsOnFlush) {
         ION_ASSERT_OK(ion_writer_write_symbol(writer, &sym4));
     }
 
-    ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT("sym1\nsym2\nsym3\nsym1\nsym3\nsym4\nsym4");
+    ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT(
+            "$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1},{name:\"import2\",version:1,max_id:2}]} sym1 sym2 sym3 sym1 sym3 sym4 sym4");
     ION_ASSERT_OK(ion_catalog_close(catalog)); // Closes the catalog and releases its tables.
 }
 
@@ -181,7 +182,7 @@ TEST(IonSymbolTable, AppendingAfterIVMDoesNothing) {
     // $4 $ion_symbol_table::{symbols:["sym"], imports:$ion_symbol_table} $10
     ION_SYMBOL_TEST_REWRITE_FROM_BUFFER_AND_ASSERT_TEXT(
         (BYTE *)"\xE0\x01\x00\xEA\x71\x04\xEC\x81\x83\xD9\x87\xB4\x83sym\x86\x71\x03\x71\x0A", 21,
-        "name\nsym"
+        "name sym"
     );
 }
 
@@ -205,7 +206,7 @@ TEST(IonSymbolTable, AppendingNoSymbolsDoesNotWriteSymbolTable) {
     ION_ASSERT_OK(ion_writer_flush(writer, &bytes_flushed));
     ASSERT_EQ(1, bytes_flushed); // int 0 occupies a single byte. An LST would require more.
 
-    ION_SYMBOL_TEST_REWRITE_FROM_WRITER_AND_ASSERT_TEXT("sym1\nsym2\n0");
+    ION_SYMBOL_TEST_REWRITE_FROM_WRITER_AND_ASSERT_TEXT("sym1 sym2 0");
 }
 
 TEST(IonSymbolTable, SharedSymbolTableCanBelongToMultipleCatalogs) {
@@ -315,13 +316,41 @@ TEST(IonSymbolTable, TextWritingKnownSymbolFromSIDResolvesText) {
     ION_ASSERT_OK(ion_writer_finish_container(writer));
 
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
-    assertStringsEqual("{sym1:sym2::sym3}", (char *)result, bytes_flushed);
+    assertStringsEqual("$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1},{name:\"import2\",version:1,max_id:2}]} {sym1:sym2::sym3}", (char *)result, bytes_flushed);
 }
 
-TEST(IonSymbolTable, TextWritingSymbolFromNotFoundImportWritesIdentifierAndForcesSymbolTable) {
+TEST(IonSymbolTable, TextWritingSymbolWithUnknownTextFromImportWritesIdentifierAndForcesSymbolTable) {
     // If the user writes a SID in the import range and that import is not found in the catalog, the SID must be
     // written as $<int> and the symbol table must be included in the stream. Future consumers may have access to
     // that import and be able to resolve the identifier.
+    // This test also verifies that a shared symbol table with NULL elements within its symbols list are valid SID
+    // mappings with unknown text.
+    const char *shared_table = "$ion_shared_symbol_table::{name:'''foo''', version: 1, symbols:['''abc''', null, '''def''']}";
+    hREADER shared_symtab_reader;
+    ION_TYPE type;
+    ION_SYMBOL_TABLE *import;
+    ION_CATALOG *catalog = NULL;
+    BYTE *result;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(shared_table, &shared_symtab_reader));
+    ION_ASSERT_OK(ion_reader_next(shared_symtab_reader, &type));
+    ION_ASSERT_OK(ion_symbol_table_load(shared_symtab_reader, NULL, &import));
+    ION_ASSERT_OK(ion_reader_close(shared_symtab_reader));
+
+    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(FALSE, import, 1);
+
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 10));
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 11));
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 12));
+
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
+    assertStringsEqual("$ion_symbol_table::{imports:[{name:\"foo\",version:1,max_id:3}]} abc $11 def", (char *)result, bytes_flushed);
+}
+
+TEST(IonSymbolTable, TextWritingSymbolWithUnknownTextFromManuallyWrittenSymbolTableWritesIdentifierAndForcesSymbolTable) {
+    // If the user writes a SID in the import range of a manually written symbol table with import(s) and that import is
+    // not found in the catalog, the SID must be written as $<int> and the symbol table must be included in the stream.
+    // Future consumers may have access to that import and be able to resolve the identifier.
 }
 
 TEST_P(BinaryAndTextTest, WritingOutOfRangeSIDFails) {
@@ -353,10 +382,51 @@ TEST_P(BinaryAndTextTest, WritingOutOfRangeSIDFails) {
 TEST(IonSymbolTable, SettingSharedSymbolTableMaxIdLargerThanLengthOfSymbolsExtendsWithUnknownSymbols) {
     // If the user adds N symbols to a shared symbol table and sets that symbol table's maxId to N + M, there should
     // be M SIDs with unknown text.
-}
+    // NOTE: the data below declares import1 with version 2, which is greater than version 1 available in the catalog.
+    // Because the max_id is defined in the import declaration, the catalog will return version 1 as the best match and
+    // allocate enough symbols with unknown text to match the declared max_id of 3. As a result, import1's SIDs will
+    // range from 10 through 12 (with 11 and 12 having unknown text); import2's SIDs will range from 13 through 14.
+    const char *ion_data = "$ion_symbol_table::{imports:[{name:\"import1\",version:2,max_id:3},{name:\"import2\",version:1,max_id:2}]} $10 $11 $12 $13 $14";
+    ION_SYMBOL_TEST_POPULATE_CATALOG;
 
-TEST(IonSymbolTable, NullSlotsInSharedSymbolTableAreSIDsWithUnknownText) {
-    // A shared symbol table with NULL elements within its symbols list are valid SID mappings with unknown text.
+    hREADER reader;
+    ION_READER_OPTIONS reader_options;
+    ION_TYPE type;
+    ion_test_initialize_reader_options(&reader_options);
+    reader_options.pcatalog = catalog;
+
+    ION_STRING sid_10, sid_11, sid_12, sid_13, sid_14;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, (SIZE)strlen(ion_data), &reader_options));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &sid_10));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &sid_11));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &sid_12));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &sid_13));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &sid_14));
+
+    assertStringsEqual("sym1", (char *)sid_10.value, (SIZE)sid_10.length);
+    ASSERT_TRUE(ION_STRING_IS_NULL(&sid_11));
+    ASSERT_TRUE(ION_STRING_IS_NULL(&sid_12));
+    assertStringsEqual("sym2", (char *)sid_13.value, (SIZE)sid_13.length);
+    assertStringsEqual("sym3", (char *)sid_14.value, (SIZE)sid_14.length);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+    ION_ASSERT_OK(ion_catalog_close(catalog));
 }
 
 TEST_P(BinaryAndTextTest, WriterWithImportsListIncludesThoseImportsWithEveryNewLSTContext) {
@@ -389,6 +459,70 @@ TEST_P(BinaryAndTextTest, WriterWithImportsListIncludesThoseImportsWithEveryNewL
         ION_ASSERT_OK(ion_writer_write_symbol(writer, &sym4));
     }
 
-    ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT("sym1\nsym2\nsym3\nsym1\nsym2\nsym3\nsym4\nsym4");
+    ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT(
+            "$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1},{name:\"import2\",version:1,max_id:2}]} sym1 sym2 sym3 sym1 sym2 sym3 sym4 sym4");
     ION_ASSERT_OK(ion_catalog_close(catalog)); // Closes the catalog and releases its tables.
+}
+
+TEST_P(BinaryAndTextTest, FlushingOrFinishingOrClosingWriterBelowTopLevelFails) {
+    // Symbol table structs are only treated as system values at the top level. Both flushing and finishing have the
+    // potential to require a symbol table to be written immediately afterward. Therefore, these must only be done
+    // at the top level.
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    BYTE *result;
+    bytes_flushed = 0;
+
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, is_binary));
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
+    ASSERT_EQ(IERR_INVALID_STATE, ion_writer_flush(writer, &bytes_flushed));
+    ASSERT_EQ(0, bytes_flushed);
+    ASSERT_EQ(IERR_INVALID_STATE, ion_writer_finish(writer, &bytes_flushed));
+    ASSERT_EQ(0, bytes_flushed);
+    ASSERT_EQ(IERR_INVALID_STATE, ion_writer_close(writer));
+    ION_ASSERT_OK(ion_writer_finish_container(writer));
+
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
+    if (is_binary) {
+        assertBytesEqual("\xE0\x01\x00\xEA\xD0", 5, result, bytes_flushed);
+    }
+    else {
+        assertStringsEqual("{}", (char *)result, bytes_flushed);
+    }
+    free(result);
+}
+
+TEST_P(BinaryAndTextTest, ClosingWriterWithPendingLobFails) {
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    BYTE *result;
+    bytes_flushed = 0;
+
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, is_binary));
+    ION_ASSERT_OK(ion_writer_start_lob(writer, tid_CLOB));
+    ASSERT_EQ(IERR_INVALID_STATE, ion_writer_flush(writer, &bytes_flushed));
+    ASSERT_EQ(0, bytes_flushed);
+    ASSERT_EQ(IERR_INVALID_STATE, ion_writer_finish(writer, &bytes_flushed));
+    ASSERT_EQ(0, bytes_flushed);
+    ASSERT_EQ(IERR_INVALID_STATE, ion_writer_close(writer));
+    ION_ASSERT_OK(ion_writer_finish_lob(writer));
+
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
+    if (is_binary) {
+        assertBytesEqual("\xE0\x01\x00\xEA\x90", 5, result, bytes_flushed);
+    }
+    else {
+        assertStringsEqual("{{\"\"}}", (char *)result, bytes_flushed);
+    }
+    free(result);
+}
+
+TEST(IonSymbolTable, LoadSymbolTableWithAnnotationSecondFails) {
+    const char *ion_data = "annotated::$local_symbol_table::{'''symbols''':['''foo''']}";
+    hREADER reader;
+    hSYMTAB symbol_table;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_data, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(IERR_NOT_A_SYMBOL_TABLE, ion_symbol_table_load(reader, reader, &symbol_table));
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
