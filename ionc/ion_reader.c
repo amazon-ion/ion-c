@@ -1857,7 +1857,7 @@ iERR _ion_reader_process_possible_symbol_table(ION_READER *preader, BOOL *is_sym
      * readers must throw if the annotation wrapper is malformed (e.g. has no annotation SIDs).
      */
     iENTER;
-    BOOL              is_local_symbol_table, has_previous_local_symbol_table = TRUE;
+    BOOL              has_previous_local_symbol_table = TRUE;
     ION_SYMBOL_TABLE *system, *local = NULL;
     void             *owner = NULL;
     ION_STRING        annotation;
@@ -1868,9 +1868,9 @@ iERR _ion_reader_process_possible_symbol_table(ION_READER *preader, BOOL *is_sym
     // TODO - this should be done with flags set while we're
     // recognizing the annotations below (in the fullness of time)
     IONCHECK(_ion_reader_get_an_annotation_helper(preader, 0, &annotation));
-    is_local_symbol_table = ION_STRING_EQUALS(&ION_SYMBOL_SYMBOL_TABLE_STRING, &annotation);
+    *is_symbol_table = ION_STRING_EQUALS(&ION_SYMBOL_SYMBOL_TABLE_STRING, &annotation);
     // if we return system values we don't process them
-    if (is_local_symbol_table && preader->options.return_system_values != TRUE) {
+    if (*is_symbol_table && preader->options.return_system_values != TRUE) {
         // this is a local symbol table and the user has not *insisted* we return system values, so we process it
         IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
         IONCHECK(_ion_reader_allocate_pool_owner(&owner));
@@ -1892,7 +1892,6 @@ iERR _ion_reader_process_possible_symbol_table(ION_READER *preader, BOOL *is_sym
         preader->_local_symtab_pool = owner;
         preader->_current_symtab = local;
     }
-    *is_symbol_table = is_local_symbol_table;
     iRETURN;
 }
 

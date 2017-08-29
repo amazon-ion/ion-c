@@ -61,12 +61,14 @@ ION_STRING *ion_string_assign_cstr(ION_STRING *str, char *val, SIZE len)
 }
 
 // assignment with ownership move
-// was" iERR ion_string_copy_to_owner(hOWNER owner, ION_STRING *dst, ION_STRING *src)
 iERR  ion_string_copy_to_owner(hOWNER owner, ION_STRING *dst, ION_STRING *src)
 {
     iENTER;
 
-    dst->length = 0;
+    ASSERT(dst != NULL);
+
+    ION_STRING_INIT(dst);
+    if (ION_STRING_IS_NULL(src)) SUCCEED();
     dst->value = ion_alloc_with_owner(owner, src->length);
     if (dst->value == NULL) FAILWITH(IERR_NO_MEMORY);
     memcpy(dst->value, src->value, src->length);
