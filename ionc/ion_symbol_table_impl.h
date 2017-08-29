@@ -87,7 +87,7 @@ iERR _ion_symbol_table_find_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID sid, ION
 iERR _ion_symbol_table_find_symbol_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID sid, ION_SYMBOL **p_sym);
 iERR _ion_symbol_table_get_unknown_symbol_name(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name);
 iERR _ion_symbol_table_find_by_sid_force(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name);
-void _ion_symbol_table_allocate_symbol_unknown_text(ION_SYMBOL_TABLE *symtab, SID sid, ION_SYMBOL **p_symbol);
+void _ion_symbol_table_allocate_symbol_unknown_text(hOWNER owner, SID sid, ION_SYMBOL **p_symbol);
 iERR _ion_symbol_table_is_symbol_known_helper(ION_SYMBOL_TABLE *symtab, SID sid, BOOL *p_is_known);
 iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid);
 iERR _ion_symbol_table_close_helper(ION_SYMBOL_TABLE *symtab);

@@ -90,7 +90,7 @@ TEST(IonTextSymbol, WriterWritesSymbolValueZero) {
     ION_ASSERT_OK(ion_writer_write_symbol(writer, &symbol_zero));
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
-    assertStringsEqual("$0\n'$0'", (char *)result, result_len);
+    assertStringsEqual("$0 '$0'", (char *)result, result_len);
 }
 
 TEST(IonTextSymbol, WriterWritesSymbolAnnotationZero) {
@@ -113,7 +113,7 @@ TEST(IonTextSymbol, WriterWritesSymbolAnnotationZero) {
 
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
-    assertStringsEqual("'$0'::$0\n$0::$0::'$0'", (char *)result, result_len);
+    assertStringsEqual("'$0'::$0 $0::$0::'$0'", (char *)result, result_len);
 }
 
 TEST(IonTextSymbol, WriterWritesSymbolFieldNameZero) {
@@ -326,7 +326,7 @@ TEST(IonTextSymbol, WriterWritesSymbolValueIVMTextAsNoOp) {
 
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
-    assertStringsEqual("123\n456\n789", (char *)result, result_len);
+    assertStringsEqual("123 456 789", (char *)result, result_len);
 }
 
 TEST(IonTextSymbol, ReaderReadsSymbolValueIVM) {
@@ -423,7 +423,7 @@ TEST(IonTextSymbol, WriterWritesKeywordsAsQuotedSymbols) {
 
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
-    assertStringsEqual("'false'\n'true'\n'nan'", (char *)result, result_len);
+    assertStringsEqual("'false' 'true' 'nan'", (char *)result, result_len);
 }
 
 TEST(IonTextSymbol, ReaderChoosesLowestSIDForDuplicateSymbol) {
