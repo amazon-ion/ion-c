@@ -201,14 +201,14 @@ iERR _ion_writer_initialize_local_symbol_table(ION_WRITER *pwriter)
         }
         else {
             IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, import->shared_symbol_table,
-                                                                  &import->descriptor.name, import->descriptor.version,
+                                                                  &import->descriptor.name,
+                                                                  import->descriptor.version,
                                                                   import->descriptor.max_id));
         }
     }
     ION_COLLECTION_CLOSE(import_cursor);
 
     pwriter->symbol_table = psymtab;
-    pwriter->_local_symbol_table = TRUE;
     iRETURN;
 }
 
@@ -526,6 +526,9 @@ iERR ion_writer_set_symbol_table(hWRITER hwriter, hSYMTAB hsymtab)
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (!hsymtab) FAILWITH(IERR_INVALID_ARG);
     psymtab = HANDLE_TO_PTR(hsymtab, ION_SYMBOL_TABLE);
+    if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
+        FAILWITHMSG(IERR_INVALID_STATE, "Cannot set a symbol table while manually writing a local symbol table.");
+    }
 
     IONCHECK(_ion_writer_set_symbol_table_helper(pwriter, psymtab));
 
@@ -559,6 +562,8 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
         // just checking - just set it
         break;
     }
+
+    // TODO the writer should be required to be at the top level, and this should force a flush of the previous LST.
 
     // before assigning a new symtab, free a local one if we allocated it
     // in reality this should only happen in the case of a local table
@@ -596,10 +601,11 @@ iERR _ion_writer_get_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
 
     if (!pwriter->symbol_table)
     {
-        IONCHECK(_ion_symbol_table_get_system_symbol_helper(&pwriter->symbol_table, ION_SYSTEM_VERSION));
+        IONCHECK(_ion_symbol_table_get_system_symbol_helper(p_psymtab, ION_SYSTEM_VERSION));
     }
-
-    *p_psymtab = pwriter->symbol_table;
+    else {
+        *p_psymtab = pwriter->symbol_table;
+    }
     SUCCEED();
 
     iRETURN;
@@ -626,6 +632,114 @@ iERR _ion_writer_get_local_symbol_table(ION_WRITER *pwriter, ION_SYMBOL_TABLE **
     iRETURN;
 }
 
+#define ION_WRITER_SYMTAB_INTERCEPT_CLEAR_SCALAR_STATE(writer) \
+    switch (writer->_current_symtab_intercept_state) { \
+        case iWSIS_SYMBOLS: \
+            ION_WRITER_SI_COMPLETE_SYMBOLS(writer); \
+            break; \
+        case iWSIS_IMPORTS: \
+            ION_WRITER_SI_COMPLETE_IMPORTS(writer); \
+            break; \
+        case iWSIS_IMPORT_VERSION: \
+            ION_WRITER_SI_COMPLETE_IMPORT_VERSION(writer); \
+            break; \
+        case iWSIS_IMPORT_MAX_ID: \
+            ION_WRITER_SI_COMPLETE_IMPORT_MAX_ID(writer); \
+            break; \
+        case iWSIS_IMPORT_NAME: \
+            ION_WRITER_SI_COMPLETE_IMPORT_NAME(writer); \
+            break; \
+        default: \
+            break; \
+    } \
+    IONCHECK(_ion_writer_clear_field_name_helper(writer)); \
+
+// TODO in iWSIS_IN_SYMBOLS_LIST, any type but STRING should create a null slot
+
+#define ION_WRITER_SYMTAB_INTERCEPT_AT(states, writer, then_execute) \
+    if (writer->_current_symtab_intercept_state != iWSIS_NONE) { \
+        if (writer->_current_symtab_intercept_state & (states)) { \
+            then_execute; \
+        } \
+        else { \
+            ION_WRITER_SYMTAB_INTERCEPT_CLEAR_SCALAR_STATE(writer); \
+        } \
+        /* A symbol table is being intercepted. Don't actually write the value. Note that open content is lost. */ \
+        SUCCEED(); \
+    } \
+
+#define ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(writer) \
+    if (writer->_current_symtab_intercept_state != iWSIS_NONE) { \
+        SUCCEED(); \
+    }
+
+#define ION_WRITER_SYMTAB_INTERCEPT_IGNORE(writer) \
+    if (writer->_current_symtab_intercept_state != iWSIS_NONE) { \
+        ION_WRITER_SYMTAB_INTERCEPT_CLEAR_SCALAR_STATE(writer); \
+        SUCCEED(); \
+    }
+
+iERR _ion_writer_change_symtab_intercept_state(ION_WRITER *pwriter, ION_STRING *field_name) {
+    iENTER;
+    switch(pwriter->_current_symtab_intercept_state) {
+        case iWSIS_IN_LST_STRUCT:
+            if (ION_STRING_EQUALS(&ION_SYMBOL_IMPORTS_STRING, field_name)) {
+                if (ION_WRITER_SI_HAS_IMPORTS(pwriter)) {
+                    FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "Attempted to write a symbol table with multiple imports fields.");
+                }
+                pwriter->_current_symtab_intercept_state = iWSIS_IMPORTS;
+            }
+            else if(ION_STRING_EQUALS(&ION_SYMBOL_SYMBOLS_STRING, field_name)) {
+                if (ION_WRITER_SI_HAS_SYMBOLS(pwriter)) {
+                    FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "Attempted to write a symbol table with multiple symbols fields.");
+                }
+                pwriter->_current_symtab_intercept_state = iWSIS_SYMBOLS;
+            }
+            break;
+        case iWSIS_IN_IMPORTS_STRUCT:
+            if (ION_STRING_EQUALS(&ION_SYMBOL_MAX_ID_STRING, field_name)) {
+                if (ION_WRITER_SI_HAS_IMPORT_MAX_ID(pwriter)) {
+                    FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "Attempted to write a symbol table import with multiple max_id fields.");
+                }
+                pwriter->_current_symtab_intercept_state = iWSIS_IMPORT_MAX_ID;
+            }
+            else if (ION_STRING_EQUALS(&ION_SYMBOL_NAME_STRING, field_name)) {
+                if (ION_WRITER_SI_HAS_IMPORT_NAME(pwriter)) {
+                    FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "Attempted to write a symbol table import with multiple name fields.");
+                }
+                pwriter->_current_symtab_intercept_state = iWSIS_IMPORT_NAME;
+            }
+            else if (ION_STRING_EQUALS(&ION_SYMBOL_VERSION_STRING, field_name)) {
+                if (ION_WRITER_SI_HAS_IMPORT_VERSION(pwriter)) {
+                    FAILWITHMSG(IERR_INVALID_SYMBOL_TABLE, "Attempted to write a symbol table import with multiple version fields.");
+                }
+                pwriter->_current_symtab_intercept_state = iWSIS_IMPORT_VERSION;
+            }
+            break;
+        default:
+            FAILWITH(IERR_INVALID_SYMBOL_TABLE);
+    }
+    iRETURN;
+}
+
+iERR _ion_writer_change_symtab_intercept_state_sid(ION_WRITER *pwriter, SID field_sid) {
+    iENTER;
+    ION_SYMBOL_TABLE *system;
+    ION_STRING *field_name = NULL;
+
+    if (pwriter->_current_symtab_intercept_state != iWSIS_IN_LST_STRUCT
+        && pwriter->_current_symtab_intercept_state != iWSIS_IN_IMPORTS_STRUCT) {
+        SUCCEED();
+    }
+
+    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
+    IONCHECK(_ion_symbol_table_find_by_sid_helper(system, field_sid, &field_name));
+    if (!ION_STRING_IS_NULL(field_name)) {
+        IONCHECK(_ion_writer_change_symtab_intercept_state(pwriter, field_name));
+    }
+
+    iRETURN;
+}
 
 iERR ion_writer_write_field_name(hWRITER hwriter, iSTRING name)
 {
@@ -634,6 +748,11 @@ iERR ion_writer_write_field_name(hWRITER hwriter, iSTRING name)
 
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+
+    if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
+        IONCHECK(_ion_writer_change_symtab_intercept_state(pwriter, name));
+    }
 
     IONCHECK(_ion_writer_write_field_name_helper(pwriter, name));
 
@@ -676,6 +795,11 @@ iERR ion_writer_write_field_sid(hWRITER hwriter, SID sid)
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (sid < 0)  FAILWITH(IERR_INVALID_ARG);
 
+
+    if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
+        IONCHECK(_ion_writer_change_symtab_intercept_state_sid(pwriter, sid));
+    }
+
     IONCHECK(_ion_writer_write_field_sid_helper(pwriter, sid));
 
     iRETURN;
@@ -717,6 +841,7 @@ iERR ion_writer_add_annotation(hWRITER hwriter, iSTRING annotation)
     // no mix and match here
     if (pwriter->annotations_type == tid_INT) FAILWITH(IERR_INVALID_STATE);
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
 
     IONCHECK(_ion_writer_add_annotation_helper(pwriter, annotation));
 
@@ -760,6 +885,8 @@ iERR ion_writer_add_annotation_sid(hWRITER hwriter, SID sid)
     // annotations (sids) then they have to stick with them
     // no mix and match here
     if (pwriter->annotations_type == tid_STRING) FAILWITH(IERR_INVALID_STATE);
+
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
 
     IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, sid));
 
@@ -813,6 +940,8 @@ iERR ion_writer_write_annotations(hWRITER hwriter, iSTRING *p_annotations, int32
         if (pstr->length < 0) FAILWITH(IERR_INVALID_ARG);
     }
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
+
     IONCHECK(_ion_writer_write_annotations_helper(pwriter, p_annotations, count));
 
     iRETURN;
@@ -865,6 +994,8 @@ iERR ion_writer_write_annotation_sids(hWRITER hwriter, int32_t *p_sids, int32_t 
         IONCHECK(_ion_writer_validate_symbol_id(pwriter, sid));
     }
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
+
     IONCHECK(_ion_writer_write_annotation_sids_helper(pwriter, p_sids, count));
 
     iRETURN;
@@ -903,6 +1034,8 @@ iERR ion_writer_write_null(hWRITER hwriter)
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
+
     // yeah, we skip 1 layer of indirection here since it's otherwise silly
     IONCHECK(_ion_writer_write_typed_null_helper(pwriter, tid_NULL));
 
@@ -918,6 +1051,8 @@ iERR ion_writer_write_typed_null(hWRITER hwriter, ION_TYPE type)
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (type < tid_NULL || type > tid_STRUCT) FAILWITH(IERR_INVALID_ARG);
+
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
 
     IONCHECK(_ion_writer_write_typed_null_helper(pwriter, type));
 
@@ -952,6 +1087,8 @@ iERR ion_writer_write_bool(hWRITER hwriter, BOOL value)
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
+
     IONCHECK(_ion_writer_write_bool_helper(pwriter, value));
 
     iRETURN;
@@ -983,13 +1120,6 @@ iERR ion_writer_write_int32(hWRITER hwriter, int32_t value)
     return ion_writer_write_int64(hwriter, value);
 }
 
-iERR _ion_writer_write_int32_helper(ION_WRITER *pwriter, int32_t value)
-{
-    iENTER;
-    IONCHECK(_ion_writer_write_int64_helper(pwriter, value));
-    iRETURN;
-}
-
 iERR ion_writer_write_int(hWRITER hwriter, int value)
 {
     iENTER;
@@ -1004,6 +1134,43 @@ iERR ion_writer_write_int(hWRITER hwriter, int value)
     iRETURN;
 }
 
+iERR _ion_writer_intercept_max_sid_or_version(ION_WRITER *pwriter, int64_t value)
+{
+    iENTER;
+    ION_SYMBOL_TABLE_IMPORT *import;
+    ASSERT(pwriter->depth == 3);
+    //ASSERT(pwriter->_in_struct); // TODO intercepted step-ins don't set this...
+    ASSERT(!ION_COLLECTION_IS_EMPTY(&pwriter->_pending_symbol_table->import_list));
+
+    import = _ion_collection_tail(&pwriter->_pending_symbol_table->import_list);
+    ASSERT(import != NULL);
+
+    switch (pwriter->_current_symtab_intercept_state) {
+        case iWSIS_IMPORT_MAX_ID:
+            import->descriptor.max_id = (SID)value;
+            ION_WRITER_SI_COMPLETE_IMPORT_MAX_ID(pwriter);
+            break;
+        case iWSIS_IMPORT_VERSION:
+            import->descriptor.version = (int32_t)value;
+            ION_WRITER_SI_COMPLETE_IMPORT_VERSION(pwriter);
+            break;
+         default:
+            FAILWITH(IERR_INVALID_STATE);
+    }
+    iRETURN;
+}
+
+iERR _ion_writer_intercept_max_sid_or_version_ion_int(ION_WRITER *pwriter, ION_INT *value)
+{
+    iENTER;
+    int64_t int_value;
+
+    // TODO detect overflow
+    IONCHECK(ion_int_to_int64(value, &int_value));
+    IONCHECK(_ion_writer_intercept_max_sid_or_version(pwriter, int_value));
+    iRETURN;
+}
+
 iERR ion_writer_write_int64(hWRITER hwriter, int64_t value)
 {
     iENTER;
@@ -1011,6 +1178,8 @@ iERR ion_writer_write_int64(hWRITER hwriter, int64_t value)
 
     if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    ION_WRITER_SYMTAB_INTERCEPT_AT(iWSIS_IMPORT_MAX_ID | iWSIS_IMPORT_VERSION, pwriter, IONCHECK(_ion_writer_intercept_max_sid_or_version(pwriter, value)));
 
     IONCHECK(_ion_writer_write_int64_helper(pwriter, value));
 
@@ -1044,6 +1213,8 @@ iERR ion_writer_write_ion_int(hWRITER hwriter, ION_INT *value)
 
     if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    ION_WRITER_SYMTAB_INTERCEPT_AT(iWSIS_IMPORT_MAX_ID | iWSIS_IMPORT_VERSION, pwriter, IONCHECK(_ion_writer_intercept_max_sid_or_version_ion_int(pwriter, value)));
 
     IONCHECK(_ion_writer_write_ion_int_helper(pwriter, value));
 
@@ -1121,6 +1292,8 @@ iERR ion_writer_write_double(hWRITER hwriter, double value)
     if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
+
     IONCHECK(_ion_writer_write_double_helper(pwriter, value));
 
     iRETURN;
@@ -1154,6 +1327,8 @@ iERR ion_writer_write_decimal(hWRITER hwriter, decQuad *value)
     if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
+
     IONCHECK(_ion_writer_write_decimal_helper(pwriter, value));
 
     iRETURN;
@@ -1186,6 +1361,8 @@ iERR ion_writer_write_ion_decimal(hWRITER hwriter, ION_DECIMAL *value)
 
     if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
 
     IONCHECK(_ion_writer_write_ion_decimal_helper(pwriter, value));
 
@@ -1240,6 +1417,8 @@ iERR ion_writer_write_timestamp(hWRITER hwriter, iTIMESTAMP value)
     if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
+
     IONCHECK(_ion_writer_write_timestamp_helper(pwriter, value));
 
     iRETURN;
@@ -1276,6 +1455,24 @@ iERR _ion_writer_validate_symbol_id(ION_WRITER *pwriter, SID sid) {
     iRETURN;
 }
 
+iERR _ion_writer_intercept_imports_symbol(ION_WRITER *pwriter, ION_STRING *value) {
+    iENTER;
+    if (ION_STRING_EQUALS(&ION_SYMBOL_SYMBOL_TABLE_STRING, value)) {
+        ION_WRITER_SI_MARK_LST_APPEND(pwriter);
+    }
+    ION_WRITER_SI_COMPLETE_IMPORTS(pwriter);
+    iRETURN;
+}
+
+iERR _ion_writer_intercept_imports_symbol_sid(ION_WRITER *pwriter, SID value) {
+    iENTER;
+    if (value == ION_SYS_SID_SYMBOL_TABLE) {
+        ION_WRITER_SI_MARK_LST_APPEND(pwriter);
+    }
+    ION_WRITER_SI_COMPLETE_IMPORTS(pwriter);
+    iRETURN;
+}
+
 iERR ion_writer_write_symbol_sid(hWRITER hwriter, SID value)
 {
     iENTER;
@@ -1283,6 +1480,8 @@ iERR ion_writer_write_symbol_sid(hWRITER hwriter, SID value)
 
     if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    ION_WRITER_SYMTAB_INTERCEPT_AT(iWSIS_IMPORTS, pwriter, IONCHECK(_ion_writer_intercept_imports_symbol_sid(pwriter, value)));
 
     IONCHECK(_ion_writer_write_symbol_id_helper(pwriter, value));
 
@@ -1319,6 +1518,8 @@ iERR ion_writer_write_symbol(hWRITER hwriter, iSTRING symbol)
     if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
+    ION_WRITER_SYMTAB_INTERCEPT_AT(iWSIS_IMPORTS, pwriter, IONCHECK(_ion_writer_intercept_imports_symbol(pwriter, symbol)));
+
     IONCHECK(_ion_writer_write_symbol_helper(pwriter, symbol));
 
     iRETURN;
@@ -1345,6 +1546,41 @@ iERR _ion_writer_write_symbol_helper(ION_WRITER *pwriter, ION_STRING *symbol)
     iRETURN;
 }
 
+iERR _ion_writer_intercept_import_name(ION_WRITER *pwriter, ION_STRING *name)
+{
+    iENTER;
+    ION_SYMBOL_TABLE_IMPORT *import;
+    ASSERT(!ION_COLLECTION_IS_EMPTY(&pwriter->_pending_symbol_table->import_list));
+    //ASSERT(pwriter->_in_struct); // TODO intercepted doesn't set this
+    ASSERT(pwriter->depth == 3);
+
+    import = _ion_collection_tail(&pwriter->_pending_symbol_table->import_list);
+    ASSERT(import != NULL);
+
+    IONCHECK(ion_string_copy_to_owner(pwriter->_pending_symbol_table->owner, &import->descriptor.name, name));
+    ION_WRITER_SI_COMPLETE_IMPORT_NAME(pwriter);
+
+    iRETURN;
+}
+
+iERR _ion_writer_intercept_name_or_symbols(ION_WRITER *pwriter, ION_STRING *pstr)
+{
+    iENTER;
+    switch (pwriter->_current_symtab_intercept_state) {
+        case iWSIS_IN_SYMBOLS_LIST:
+            ASSERT(pwriter->depth == 2);
+            IONCHECK(_ion_symbol_table_local_add_symbol_helper(pwriter->_pending_symbol_table, pstr,
+                                                               pwriter->_pending_symbol_table->max_id + 1, NULL));
+            break;
+        case iWSIS_IMPORT_NAME:
+            IONCHECK(_ion_writer_intercept_import_name(pwriter, pstr));
+            break;
+        default:
+            FAILWITH(IERR_INVALID_STATE);
+    }
+    iRETURN;
+}
+
 iERR ion_writer_write_string(hWRITER hwriter, iSTRING pstr)
 {
     iENTER;
@@ -1352,6 +1588,8 @@ iERR ion_writer_write_string(hWRITER hwriter, iSTRING pstr)
 
     if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    ION_WRITER_SYMTAB_INTERCEPT_AT(iWSIS_IN_SYMBOLS_LIST | iWSIS_IMPORT_NAME, pwriter, IONCHECK(_ion_writer_intercept_name_or_symbols(pwriter, pstr)));
 
     IONCHECK(_ion_writer_write_string_helper(pwriter, pstr));
 
@@ -1385,6 +1623,8 @@ iERR ion_writer_write_clob(hWRITER hwriter, BYTE *p_buf, SIZE length)
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     // p_buf can be null for a null value
     if (length < 0) FAILWITH(IERR_INVALID_ARG);
+
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
 
     IONCHECK(_ion_writer_write_clob_helper(pwriter, p_buf, length));
 
@@ -1423,6 +1663,8 @@ iERR ion_writer_write_blob(hWRITER hwriter, BYTE *p_buf, SIZE length)
     // p_buf can be null for a null value
     if (length < 0) FAILWITH(IERR_INVALID_ARG);
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
+
     IONCHECK(_ion_writer_write_blob_helper(pwriter, p_buf, length));
 
     iRETURN;
@@ -1458,6 +1700,8 @@ iERR ion_writer_start_lob(hWRITER hwriter, ION_TYPE lob_type)
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (lob_type != tid_BLOB && lob_type != tid_CLOB) FAILWITH(IERR_BAD_HANDLE);
+
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
 
     IONCHECK(_ion_writer_start_lob_helper(pwriter, lob_type));
 
@@ -1495,6 +1739,8 @@ iERR ion_writer_append_lob(hWRITER hwriter, BYTE *p_buf, SIZE length)
     if (!p_buf) FAILWITH(IERR_INVALID_ARG);
     if (length < 0) FAILWITH(IERR_INVALID_ARG);
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
+
     IONCHECK(_ion_writer_append_lob_helper(pwriter, p_buf, length));
 
     iRETURN;
@@ -1530,6 +1776,8 @@ iERR ion_writer_finish_lob(hWRITER hwriter)
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
+
     IONCHECK(_ion_writer_finish_lob_helper(pwriter));
 
     iRETURN;
@@ -1555,6 +1803,55 @@ iERR _ion_writer_finish_lob_helper(ION_WRITER *pwriter)
     iRETURN;
 }
 
+iERR _ion_writer_transition_to_symtab_intercept_state(ION_WRITER *pwriter, ION_TYPE container_type)
+{
+    iENTER;
+    SID annotation_sid;
+    ION_SYMBOL_TABLE_IMPORT *new_import;
+
+    switch (ION_TYPE_INT(container_type)) {
+        case tid_STRUCT_INT:
+            if (pwriter->depth == 0 && pwriter->annotation_curr > 0) {
+                IONCHECK(_ion_writer_get_annotation_as_sid_helper(pwriter, 0, &annotation_sid));
+                if (annotation_sid == ION_SYS_SID_SYMBOL_TABLE) {
+                    ASSERT(pwriter->_current_symtab_intercept_state == iWSIS_NONE);
+                    ASSERT(pwriter->_completed_symtab_intercept_states == 0);
+                    pwriter->_current_symtab_intercept_state = iWSIS_IN_LST_STRUCT;
+                    ASSERT(pwriter->_pending_symbol_table == NULL && pwriter->_pending_temp_entity_pool == NULL);
+                    pwriter->_pending_temp_entity_pool = ion_alloc_owner(sizeof(int)); // this is a fake allocation to hold the pool
+                    if (pwriter->_pending_temp_entity_pool == NULL) {
+                        FAILWITH(IERR_NO_MEMORY);
+                    }
+                    // Initialize the LST without imports -- those must be added manually.
+                    IONCHECK(ion_symbol_table_open(&pwriter->_pending_symbol_table, pwriter->_pending_temp_entity_pool));
+                    IONCHECK(_ion_writer_clear_annotations_helper(pwriter));
+                }
+            }
+            else if (pwriter->depth == 2 && pwriter->_current_symtab_intercept_state == iWSIS_IN_IMPORTS_LIST) {
+                pwriter->_current_symtab_intercept_state = iWSIS_IN_IMPORTS_STRUCT;
+                new_import = _ion_collection_append(&pwriter->_pending_symbol_table->import_list);
+                new_import->descriptor.version = 1;
+                new_import->descriptor.max_id = ION_SYS_SYMBOL_MAX_ID_UNDEFINED;
+            }
+            break;
+        case tid_LIST_INT:
+            if (pwriter->depth == 1) {
+                if (pwriter->_current_symtab_intercept_state == iWSIS_IMPORTS) {
+                    pwriter->_current_symtab_intercept_state = iWSIS_IN_IMPORTS_LIST;
+                }
+                else if (pwriter->_current_symtab_intercept_state == iWSIS_SYMBOLS) {
+                    pwriter->_current_symtab_intercept_state = iWSIS_IN_SYMBOLS_LIST;
+                }
+            }
+        case tid_SEXP_INT:
+            // Ignore sexps.
+            break;
+        default:
+            FAILWITH(IERR_INVALID_ARG);
+    }
+    iRETURN;
+}
+
 iERR ion_writer_start_container(hWRITER hwriter, ION_TYPE container_type)
 {
     iENTER;
@@ -1573,6 +1870,12 @@ iERR ion_writer_start_container(hWRITER hwriter, ION_TYPE container_type)
         FAILWITH(IERR_INVALID_ARG);
     }
 
+    IONCHECK(_ion_writer_transition_to_symtab_intercept_state(pwriter, container_type));
+    if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
+        // A symbol table is being intercepted. Don't write the start of the container, but record the depth.
+        pwriter->depth++;
+        SUCCEED();
+    }
     IONCHECK(_ion_writer_start_container_helper(pwriter, container_type));
 
     iRETURN;
@@ -1599,6 +1902,117 @@ iERR _ion_writer_start_container_helper(ION_WRITER *pwriter, ION_TYPE container_
     iRETURN;
 }
 
+iERR _ion_writer_validate_intercepted_symtab_import(ION_WRITER *pwriter)
+{
+    iENTER;
+    ASSERT(pwriter->_pending_symbol_table);
+    ASSERT(!ION_COLLECTION_IS_EMPTY(&pwriter->_pending_symbol_table->import_list));
+    ION_SYMBOL_TABLE_IMPORT *import = _ion_collection_tail(&pwriter->_pending_symbol_table->import_list);
+    ASSERT(import);
+
+    if (ION_STRING_IS_NULL(&import->descriptor.name) || ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &import->descriptor.name)) {
+        // In this case, the import is ignored.
+        _ion_collection_pop_tail(&pwriter->_pending_symbol_table->import_list);
+        SUCCEED();
+    }
+
+    if (import->descriptor.version < 1) {
+        import->descriptor.version = 1;
+    }
+
+    iRETURN;
+}
+
+iERR _ion_writer_symbol_table_append(ION_WRITER *pwriter)
+{
+    iENTER;
+    ION_COLLECTION_CURSOR symbol_cursor;
+    ION_SYMBOL *symbol_to_append;
+    if (pwriter->symbol_table == NULL) {
+        IONCHECK(ion_symbol_table_open(&pwriter->symbol_table, pwriter->_temp_entity_pool));
+    }
+    ASSERT(pwriter->symbol_table && pwriter->_pending_symbol_table);
+    if (!ION_COLLECTION_IS_EMPTY(&pwriter->_pending_symbol_table->symbols)) {
+        ION_COLLECTION_OPEN(&pwriter->_pending_symbol_table->symbols, symbol_cursor);
+        for (;;) {
+            ION_COLLECTION_NEXT(symbol_cursor, symbol_to_append);
+            if (!symbol_to_append) break;
+            IONCHECK(_ion_symbol_table_local_add_symbol_helper(pwriter->symbol_table, &symbol_to_append->value, pwriter->symbol_table->max_id + 1, NULL));
+        }
+        ION_COLLECTION_CLOSE(symbol_cursor);
+    }
+    iRETURN;
+}
+
+iERR _ion_writer_transition_from_symtab_intercept_state(ION_WRITER *pwriter)
+{
+    iENTER;
+    ION_SYMBOL_TABLE_IMPORT *import;
+    switch (pwriter->depth) {
+        case 0:
+            if (pwriter->_current_symtab_intercept_state) {
+                // The previous LST context has ended. It must be flushed to avoid having to buffer N LSTs.
+                IONCHECK(_ion_writer_flush_helper(pwriter, NULL));
+                if (ION_WRITER_SI_IS_LST_APPEND(pwriter)) {
+                    // Add the pending symbol table's symbols into the current symbol table and throw away the pending
+                    // symbol table.
+                    IONCHECK(_ion_writer_symbol_table_append(pwriter));
+                    ion_free_owner(pwriter->_pending_temp_entity_pool);
+                }
+                else {
+                    // Free _temp_entity_pool and replace with _pending_temp_entity_pool (which will be freed as
+                    // _temp_entity_pool).
+                    IONCHECK(_ion_writer_free_temp_pool(pwriter));
+                    ASSERT(pwriter->_temp_entity_pool == NULL && pwriter->_pending_temp_entity_pool != NULL);
+                    pwriter->_temp_entity_pool = pwriter->_pending_temp_entity_pool;
+                    pwriter->symbol_table = pwriter->_pending_symbol_table;
+                    pwriter->_has_local_symbols = TRUE; // TODO does it matter whether the new LST actually has a non-empty symbols list?
+                }
+                pwriter->_pending_temp_entity_pool = NULL;
+                pwriter->_pending_symbol_table = NULL;
+                pwriter->_current_symtab_intercept_state = iWSIS_NONE;
+                pwriter->_completed_symtab_intercept_states = 0;
+            }
+            ASSERT(!pwriter->_current_symtab_intercept_state && !pwriter->_completed_symtab_intercept_states);
+            break;
+        case 1:
+            // Just stepped out of either the symbols or imports lists.
+            switch (pwriter->_current_symtab_intercept_state) {
+                case iWSIS_IN_SYMBOLS_LIST:
+                    ION_WRITER_SI_COMPLETE_SYMBOLS(pwriter);
+                    break;
+                case iWSIS_IN_IMPORTS_LIST:
+                    ION_WRITER_SI_COMPLETE_IMPORTS(pwriter);
+                    break;
+                default:
+                    SUCCEED(); // This is some open content that will be ignored (and lost).
+            }
+            break;
+        case 2:
+            // Just stepped out of an import struct.
+            if (pwriter->_current_symtab_intercept_state != iWSIS_IN_IMPORTS_STRUCT) {
+                SUCCEED(); // This is some open content that will be ignored (and lost).
+            }
+            IONCHECK(_ion_writer_validate_intercepted_symtab_import(pwriter));
+            import = _ion_collection_tail(&pwriter->_pending_symbol_table->import_list);
+            // import will be NULL when it is ignored.
+            if (import != NULL) {
+                if (pwriter->pcatalog != NULL) {
+                    IONCHECK(_ion_catalog_find_best_match_helper(pwriter->pcatalog, &import->descriptor.name,
+                                                                 import->descriptor.version, import->descriptor.max_id,
+                                                                 &import->shared_symbol_table));
+                }
+                IONCHECK(_ion_symbol_table_local_incorporate_symbols(pwriter->_pending_symbol_table, import->shared_symbol_table,
+                                                                     import->descriptor.max_id));
+            }
+            ION_WRITER_SI_COMPLETE_IMPORT(pwriter);
+            break;
+        default:
+            SUCCEED(); // This is some open content that will be ignored (and lost).
+    }
+    iRETURN;
+}
+
 iERR ion_writer_finish_container(hWRITER hwriter)
 {
     iENTER;
@@ -1607,8 +2021,15 @@ iERR ion_writer_finish_container(hWRITER hwriter)
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
+    if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
+        // A symbol table is being intercepted.  Don't write the end of the container, but record the depth.
+        pwriter->depth--;
+        IONCHECK(_ion_writer_transition_from_symtab_intercept_state(pwriter));
+        SUCCEED();
+    }
     IONCHECK(_ion_writer_finish_container_helper(pwriter));
 
+    ASSERT(pwriter->_completed_symtab_intercept_states == 0);
     iRETURN;
 }
 
@@ -1929,7 +2350,7 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
     ASSERT(pwriter);
 
     if (pwriter->depth != 0) {
-        FAILWITHMSG(IERR_INVALID_STATE, "Cannot flush a writer that is not at the top level.");
+        FAILWITHMSG(IERR_UNEXPECTED_EOF, "Cannot flush a writer that is not at the top level.");
     }
 
     ASSERT(!pwriter->_in_struct);
@@ -1937,7 +2358,7 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
     switch (pwriter->type) {
     case ion_type_text_writer:
         if (pwriter->_typed_writer.text._top > 0) {
-            FAILWITHMSG(IERR_INVALID_STATE, "Cannot flush a text writer with a value in progress.");
+            FAILWITHMSG(IERR_UNEXPECTED_EOF, "Cannot flush a text writer with a value in progress.");
         }
         // The text writer does not need to buffer data.
         start = 0;
@@ -1949,7 +2370,7 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
         break;
     case ion_type_binary_writer:
         if (pwriter->_typed_writer.binary._lob_in_progress != tid_none) {
-            FAILWITHMSG(IERR_INVALID_STATE, "Cannot flush a binary writer with a lob in progress.");
+            FAILWITHMSG(IERR_UNEXPECTED_EOF, "Cannot flush a binary writer with a lob in progress.");
         }
         start =  ion_stream_get_position(pwriter->output);
         if (pwriter->depth == 0) {
@@ -1981,6 +2402,23 @@ iERR ion_writer_close(hWRITER hwriter)
     iRETURN;
 }
 
+iERR _ion_writer_free(ION_WRITER *pwriter)
+{
+    iENTER;
+    // Free the writer's members.
+    UPDATEERROR(_ion_writer_free_local_symbol_table( pwriter ));
+    UPDATEERROR( _ion_writer_free_temp_pool( pwriter ));
+
+    // If the writer allocated the stream, free it.
+    if (pwriter->writer_owns_stream) {
+        UPDATEERROR(ion_stream_close(pwriter->output));
+    }
+
+    // Free the writer and all associated memory.
+    ion_free_owner(pwriter);
+    iRETURN;
+}
+
 iERR _ion_writer_close_helper(ION_WRITER *pwriter)
 {
     iENTER;
@@ -1988,7 +2426,8 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
     ASSERT(pwriter);
 
     if (pwriter->depth != 0) {
-        FAILWITHMSG(IERR_INVALID_STATE, "Cannot close writer that is not at the top level.");
+        UPDATEERROR(_ion_writer_free(pwriter));
+        FAILWITHMSG(IERR_UNEXPECTED_EOF, "Writer freed; cannot flush a writer that is not at the top level.");
     }
 
     // all the local resources are allocated in the parent
@@ -2001,13 +2440,15 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
         break;
     case ion_type_text_writer:
         if (pwriter->_typed_writer.text._top > 0) {
-            FAILWITHMSG(IERR_INVALID_STATE, "Cannot flush a text writer with a value in progress.");
+            UPDATEERROR(_ion_writer_free(pwriter));
+            FAILWITHMSG(IERR_UNEXPECTED_EOF, "Cannot flush a text writer with a value in progress.");
         }
         UPDATEERROR(_ion_writer_text_close(pwriter));
         break;
     case ion_type_binary_writer:
         if (pwriter->_typed_writer.binary._lob_in_progress != tid_none) {
-            FAILWITHMSG(IERR_INVALID_STATE, "Cannot flush a binary writer with a lob in progress.");
+            UPDATEERROR(_ion_writer_free(pwriter));
+            FAILWITHMSG(IERR_UNEXPECTED_EOF, "Cannot flush a binary writer with a lob in progress.");
         }
         UPDATEERROR(_ion_writer_binary_close(pwriter));
         break;
@@ -2015,18 +2456,7 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
         UPDATEERROR(IERR_INVALID_ARG);
     }
 
-    // now we close our base members
-    UPDATEERROR(_ion_writer_free_local_symbol_table( pwriter ));
-    UPDATEERROR( _ion_writer_free_temp_pool( pwriter ));
-
-    // if we allocated the stream we need to free it
-    if (pwriter->writer_owns_stream) {
-        UPDATEERROR(ion_stream_close(pwriter->output));
-    }
-
-    // then we free ourselves :) all associated memory, for
-    // which we (pwriter) are the owner
-    ion_free_owner(pwriter);
+    UPDATEERROR(_ion_writer_free(pwriter));
 
     iRETURN;
 }
@@ -2037,14 +2467,8 @@ iERR _ion_writer_free_local_symbol_table( ION_WRITER *pwriter )
     iENTER;
     ASSERT(pwriter);
 
-    if (pwriter->_local_symbol_table) {
-        ASSERT(pwriter->symbol_table);
-        // local symbol tables are owned by the _temp_entity_pool, which is freed upon flush and close.
-        pwriter->symbol_table = NULL;
-        pwriter->_local_symbol_table = FALSE;
-    }
-    
-    SUCCEED();
+    // local symbol tables are owned by the _temp_entity_pool, which is freed upon flush and close.
+    pwriter->symbol_table = NULL;
 
     iRETURN;
 }
@@ -2415,9 +2839,8 @@ iERR _ion_writer_reset_temp_pool( ION_WRITER *pwriter )
     iENTER;
 
     IONCHECK( _ion_writer_free_temp_pool( pwriter ));
-    if (pwriter->_temp_entity_pool == NULL) {
-        IONCHECK( _ion_writer_allocate_temp_pool( pwriter ));
-    }
+    ASSERT(pwriter->_temp_entity_pool == NULL);
+    IONCHECK( _ion_writer_allocate_temp_pool( pwriter ));
     SUCCEED();
 
     iRETURN;
