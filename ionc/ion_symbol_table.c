@@ -468,6 +468,7 @@ iERR _ion_symbol_table_append(ION_READER *preader, hOWNER owner, ION_SYMBOL_TABL
                 ION_STRING_ASSIGN(&appended_symbol->value, &symbol_to_append->value);
                 appended_symbol->sid = UNKNOWN_SID; // This is assigned correctly later.
             }
+            ION_COLLECTION_CLOSE(symbol_cursor);
         }
         // This overwrites p_symtab's reference, which will be cleaned up when its owner is freed.
         *p_symtab = cloned;

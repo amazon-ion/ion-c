@@ -64,6 +64,40 @@ typedef enum _ION_WRITER_OUTPUT_TYPE {
     iWOT_PRETTY_UTF8 = 3
 } ION_WRITER_OUTPUT_TYPE;
 
+typedef enum _ION_WRITER_SYMTAB_INTERCEPT_STATE {
+    iWSIS_NONE               = 0x000,
+    iWSIS_IN_LST_STRUCT      = 0x001,
+    iWSIS_SYMBOLS            = 0x002,
+    iWSIS_IN_SYMBOLS_LIST    = 0x004,
+    iWSIS_IMPORTS            = 0x008,
+    iWSIS_IN_IMPORTS_LIST    = 0x010,
+    iWSIS_IN_IMPORTS_STRUCT  = 0x020,
+    iWSIS_IMPORT_VERSION     = 0x040,
+    iWSIS_IMPORT_MAX_ID      = 0x080,
+    iWSIS_IMPORT_NAME        = 0x100,
+} ION_WRITER_SYMTAB_INTERCEPT_STATE;
+
+#define ION_WRITER_SI_LST_APPEND (uint16_t)0x8000
+
+#define ION_WRITER_SI_HAS_SYMBOLS(writer) (writer->_completed_symtab_intercept_states & iWSIS_SYMBOLS)
+#define ION_WRITER_SI_HAS_IMPORTS(writer) (writer->_completed_symtab_intercept_states & iWSIS_IMPORTS)
+#define ION_WRITER_SI_HAS_IMPORT_NAME(writer) (writer->_completed_symtab_intercept_states & iWSIS_IMPORT_NAME)
+#define ION_WRITER_SI_HAS_IMPORT_VERSION(writer) (writer->_completed_symtab_intercept_states & iWSIS_IMPORT_VERSION)
+#define ION_WRITER_SI_HAS_IMPORT_MAX_ID(writer) (writer->_completed_symtab_intercept_states & iWSIS_IMPORT_MAX_ID)
+#define ION_WRITER_SI_IS_LST_APPEND(writer) (writer->_completed_symtab_intercept_states & ION_WRITER_SI_LST_APPEND)
+
+#define _ION_WRITER_SI_COMPLETE(writer, completed, next) \
+    writer->_completed_symtab_intercept_states |= (completed); \
+    writer->_current_symtab_intercept_state = next;
+
+#define ION_WRITER_SI_COMPLETE_SYMBOLS(writer) _ION_WRITER_SI_COMPLETE(writer, iWSIS_SYMBOLS, iWSIS_IN_LST_STRUCT);
+#define ION_WRITER_SI_COMPLETE_IMPORTS(writer) _ION_WRITER_SI_COMPLETE(writer, iWSIS_IMPORTS, iWSIS_IN_LST_STRUCT);
+#define ION_WRITER_SI_COMPLETE_IMPORT_NAME(writer) _ION_WRITER_SI_COMPLETE(writer, iWSIS_IMPORT_NAME, iWSIS_IN_IMPORTS_STRUCT);
+#define ION_WRITER_SI_COMPLETE_IMPORT_VERSION(writer) _ION_WRITER_SI_COMPLETE(writer, iWSIS_IMPORT_VERSION, iWSIS_IN_IMPORTS_STRUCT);
+#define ION_WRITER_SI_COMPLETE_IMPORT_MAX_ID(writer) _ION_WRITER_SI_COMPLETE(writer, iWSIS_IMPORT_MAX_ID, iWSIS_IN_IMPORTS_STRUCT);
+#define ION_WRITER_SI_COMPLETE_IMPORT(writer) _ION_WRITER_SI_COMPLETE(writer, (writer->_completed_symtab_intercept_states &= iWSIS_SYMBOLS), iWSIS_IN_IMPORTS_LIST);
+#define ION_WRITER_SI_MARK_LST_APPEND(writer) _ION_WRITER_SI_COMPLETE(writer, ION_WRITER_SI_LST_APPEND, iWSIS_IN_LST_STRUCT);
+
 typedef struct _ion_text_writer
 {
     BOOL       _no_output;           // is true until at least 1 char is written to the stream
@@ -109,11 +143,15 @@ typedef struct _ion_writer
     ION_CATALOG       *pcatalog;
     ION_COLLECTION     _imported_symbol_tables; // Collection of ION_SYMBOL_TABLE_IMPORT
     ION_SYMBOL_TABLE  *symbol_table;        // if there are local symbols defined this will be a seperately allocated table, and should be freed as we close the top level value
-    BOOL               _local_symbol_table; // identifies the current symbol table as a symbol table that we'll have to free
+    ION_SYMBOL_TABLE  *_pending_symbol_table;// The in-progress manually-written LST, if applicable. Becomes `symbol_table` when the LST struct is finished.
     BOOL               _has_local_symbols;
+
+    ION_WRITER_SYMTAB_INTERCEPT_STATE   _current_symtab_intercept_state;
+    uint16_t                            _completed_symtab_intercept_states;
 
     ION_TEMP_BUFFER    temp_buffer;         // holds field names and annotations until the writer needs them
     void              *_temp_entity_pool;   // memory pool for top level objects that we'll throw away during flush
+    void              *_pending_temp_entity_pool; // Owns the in-progress manually-written LST, if applicable. Becomes `_temp_entity_pool` on flush.
 
     BOOL               _in_struct;
     SIZE               depth;
@@ -197,7 +235,6 @@ iERR _ion_writer_write_annotation_sids_helper(ION_WRITER *pwriter, int32_t *p_si
 iERR _ion_writer_clear_annotations_helper(ION_WRITER *pwriter);
 iERR _ion_writer_write_typed_null_helper(ION_WRITER *pwriter, ION_TYPE type);
 iERR _ion_writer_write_bool_helper(ION_WRITER *pwriter, BOOL value);
-iERR _ion_writer_write_int32_helper(ION_WRITER *pwriter, int32_t value);
 iERR _ion_writer_write_int64_helper(ION_WRITER *pwriter, int64_t value);
 iERR _ion_writer_write_ion_int_helper(ION_WRITER *pwriter, ION_INT *value);
 iERR _ion_writer_write_mixed_int_helper(ION_WRITER *pwriter, ION_READER *preader);
