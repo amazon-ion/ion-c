@@ -64,6 +64,34 @@ typedef enum _ION_WRITER_OUTPUT_TYPE {
     iWOT_PRETTY_UTF8 = 3
 } ION_WRITER_OUTPUT_TYPE;
 
+typedef enum _ION_WRITER_SYMTAB_INTERCEPT_STATE {
+    iWSIS_NONE               = 0x00,
+    iWSIS_IN_LST_STRUCT      = 0x01,
+    iWSIS_LOCAL_SYMBOLS      = 0x02,
+    iWSIS_IMPORTS            = 0x04,
+    iWSIS_IN_IMPORTS_STRUCT  = 0x08,
+    iWSIS_IMPORT_VERSION     = 0x10,
+    iWSIS_IMPORT_MAX_ID      = 0x20,
+    iWSIS_IMPORT_NAME        = 0x40,
+} ION_WRITER_SYMTAB_INTERCEPT_STATE;
+
+#define ION_WRITER_SI_HAS_LOCAL_SYMBOLS(flags) ((flags) & iWSIS_LOCAL_SYMBOLS)
+#define ION_WRITER_SI_HAS_IMPORTS(flags) ((flags) & iWSIS_IMPORTS)
+#define ION_WRITER_SI_HAS_IMPORT_SYMBOLS(flags) ((flags) & iWSIS_IMPORT_SYMBOLS)
+#define ION_WRITER_SI_HAS_IMPORT_VERSION(flags) ((flags) & iWSIS_IMPORT_VERSION
+#define ION_WRITER_SI_HAS_IMPORT_MAX_ID(flags) ((flags) & iWSIS_IMPORT_MAX_ID)
+
+#define ION_WRITER_SI_COMPLETE_LOCAL_SYMBOLS(flags) flags |= iWSIS_LOCAL_SYMBOLS
+#define ION_WRITER_SI_COMPLETE_IMPORTS(flags) flags |= iWSIS_IMPORTS
+#define ION_WRITER_SI_COMPLETE_IMPORT_NAME(flags) flags |= iWSIS_IMPORT_NAME
+#define ION_WRITER_SI_COMPLETE_IMPORT_VERSION(flags) flags |= iWSIS_IMPORT_VERSION
+#define ION_WRITER_SI_COMPLETE_IMPORT_MAX_ID(flags) flags |= iWSIS_IMPORT_MAX_ID
+#define ION_WRITER_SI_COMPLETE_IMPORT(flags) flags &= iWSIS_LOCAL_SYMBOLS
+
+#define ION_WRITER_SI_CLEAR_STATE(writer) \
+    writer->_current_symtab_intercept_state = iWSIS_NONE; \
+    writer->_completed_symtab_intercept_states = 0;
+
 typedef struct _ion_text_writer
 {
     BOOL       _no_output;           // is true until at least 1 char is written to the stream
@@ -111,6 +139,9 @@ typedef struct _ion_writer
     ION_SYMBOL_TABLE  *symbol_table;        // if there are local symbols defined this will be a seperately allocated table, and should be freed as we close the top level value
     BOOL               _local_symbol_table; // identifies the current symbol table as a symbol table that we'll have to free
     BOOL               _has_local_symbols;
+
+    ION_WRITER_SYMTAB_INTERCEPT_STATE   _current_symtab_intercept_state;
+    int8_t                              _completed_symtab_intercept_states;
 
     ION_TEMP_BUFFER    temp_buffer;         // holds field names and annotations until the writer needs them
     void              *_temp_entity_pool;   // memory pool for top level objects that we'll throw away during flush
@@ -197,7 +228,6 @@ iERR _ion_writer_write_annotation_sids_helper(ION_WRITER *pwriter, int32_t *p_si
 iERR _ion_writer_clear_annotations_helper(ION_WRITER *pwriter);
 iERR _ion_writer_write_typed_null_helper(ION_WRITER *pwriter, ION_TYPE type);
 iERR _ion_writer_write_bool_helper(ION_WRITER *pwriter, BOOL value);
-iERR _ion_writer_write_int32_helper(ION_WRITER *pwriter, int32_t value);
 iERR _ion_writer_write_int64_helper(ION_WRITER *pwriter, int64_t value);
 iERR _ion_writer_write_ion_int_helper(ION_WRITER *pwriter, ION_INT *value);
 iERR _ion_writer_write_mixed_int_helper(ION_WRITER *pwriter, ION_READER *preader);

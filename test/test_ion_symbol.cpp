@@ -274,7 +274,7 @@ TEST(IonSymbolTable, SharedSymbolTableCanBelongToMultipleCatalogs) {
 
 }
 
-TEST(IonSymbolTable, ManuallyWritingSymbolTableStructIsRecognizedAsSymbolTable) {
+TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructIsRecognizedAsSymbolTable) {
     // If the user manually writes a struct that is a local symbol table, it should become the active LST, and it
     // should be possible for the user to subsequently write any SID within the new table's max_id.
     // It should also be possible for the user to subsequently write additional symbols within the same context and
@@ -287,7 +287,7 @@ TEST(IonSymbolTable, ManuallyWritingSymbolTableStructIsRecognizedAsSymbolTable) 
     ION_ASSERT_OK(ion_string_from_cstr("sym1", &sym1));
     ION_ASSERT_OK(ion_string_from_cstr("sym2", &sym2));
 
-    ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, TRUE));
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, is_binary));
     ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, ION_SYS_SID_SYMBOL_TABLE)); // $ion_symbol_table
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_SYMBOLS));
@@ -297,13 +297,120 @@ TEST(IonSymbolTable, ManuallyWritingSymbolTableStructIsRecognizedAsSymbolTable) 
     ION_ASSERT_OK(ion_writer_finish_container(writer)); // end symbols list
     ION_ASSERT_OK(ion_writer_finish_container(writer)); // end LST struct
 
-    //ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 10)); // This maps to sym1.
-    // TODO implement this functionality
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 10)); // This maps to sym1.
+
+    ION_SYMBOL_TEST_REWRITE_FROM_WRITER_AND_ASSERT_TEXT("sym1");
+}
+
+TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsIsRecognizedAsSymbolTable) {
+    // Same as the previous test, but with imports.
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    ION_SYMBOL_TEST_POPULATE_CATALOG; // Declares 'catalog' and initializes it with 'import1' and 'import2' with 3 symbols.
+
+    ION_WRITER_OPTIONS writer_options;
+    ion_test_initialize_writer_options(&writer_options);
+    writer_options.pcatalog = catalog; // This contains 'import1' and 'import2'.
+    writer_options.output_as_binary = is_binary;
+    ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
+    ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
+
+    ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, ION_SYS_SID_SYMBOL_TABLE)); // $ion_symbol_table
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_IMPORTS));
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_LIST));
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_NAME));
+    ION_ASSERT_OK(ion_writer_write_string(writer, &import1_name));
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_VERSION));
+    ION_ASSERT_OK(ion_writer_write_int(writer, 1));
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_MAX_ID));
+    ION_ASSERT_OK(ion_writer_write_int(writer, 1));
+    ION_ASSERT_OK(ion_writer_finish_container(writer)); // end import struct
+    ION_ASSERT_OK(ion_writer_finish_container(writer)); // end imports list
+    ION_ASSERT_OK(ion_writer_finish_container(writer)); // end LST struct
+
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 10)); // This maps to sym1.
+
+    ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT("sym1");
+}
+
+TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsAndOpenContentIsRecognizedAsSymbolTable) {
+    // Same as the previous test, but with imports.
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    ION_SYMBOL_TEST_POPULATE_CATALOG; // Declares 'catalog' and initializes it with 'import1' and 'import2' with 3 symbols.
+
+    ION_STRING foo_name;
+    ION_ASSERT_OK(ion_string_from_cstr("foo", &foo_name));
+
+    ION_WRITER_OPTIONS writer_options;
+    ion_test_initialize_writer_options(&writer_options);
+    writer_options.pcatalog = catalog; // This contains 'import1' and 'import2'.
+    writer_options.output_as_binary = is_binary;
+    ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
+    ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
+
+    ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, ION_SYS_SID_SYMBOL_TABLE)); // $ion_symbol_table
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_IMPORTS));
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_LIST));
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_NAME));
+    ION_ASSERT_OK(ion_writer_write_string(writer, &import1_name));
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_VERSION));
+    ION_ASSERT_OK(ion_writer_write_int(writer, 1));
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_MAX_ID));
+    ION_ASSERT_OK(ion_writer_write_int(writer, 1)); // $10 = sym1
+    ION_ASSERT_OK(ion_writer_finish_container(writer)); // end import struct
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_NAME));
+    ION_ASSERT_OK(ion_writer_write_string(writer, &foo_name)); // Not in catalog.
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_VERSION));
+    ION_ASSERT_OK(ion_writer_write_int(writer, 1));
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_MAX_ID));
+    ION_ASSERT_OK(ion_writer_write_int(writer, 2)); // $11 and $12
+    ION_ASSERT_OK(ion_writer_finish_container(writer)); // end import struct
+    ION_ASSERT_OK(ion_writer_finish_container(writer)); // end imports list
+    ION_ASSERT_OK(ion_writer_finish_container(writer)); // end LST struct
+
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 10)); // This maps to sym1.
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 12)); // This maps to unknown text.
+    // TODO need to rewrite with a writer that has the shared symbol table from which $12 comes
+    // NOTE: the user should only have to provide "foo" to this writer; the symbol token should contain the import
+    // location, which the writer will use to serialize the symbol instead of the local symbol ID (which is currently
+    // used).
+
+    // TODO there currently isn't a way to provide a writer with a not-found shared symbol table to use while writing.
+    /*
+    hREADER reader;
+    BYTE *result;
+    ION_READER_OPTIONS reader_options;
+    hWRITER roundtrip_writer;
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
+    ion_test_initialize_reader_options(&reader_options);
+    reader_options.pcatalog = catalog;
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, result, bytes_flushed, &reader_options));
+    ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
+    writer_options.output_as_binary = TRUE;
+    writer_options.encoding_psymbol_table_count = 2;
+    writer_options.encoding_psymbol_table = writer_imports; // TODO wrong. This needs to include import1 and foo (which has unknown symbols)
+    ION_ASSERT_OK(ion_writer_open(&roundtrip_writer, stream, &writer_options));
+    ION_ASSERT_OK(ion_writer_write_all_values(roundtrip_writer, reader));
+    ION_ASSERT_OK(ion_reader_close(reader));
+    free(result);
+
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed)); \
+    assertStringsEqual("sym1 $12", (char *)result, bytes_flushed); \
+    free(result);
+     */
 }
 
 TEST(IonSymbolTable, ManuallyWriteSymbolTableAppendSucceeds) {
     // Like the previous test, but the manually written symbol table contains appended symbols.
 }
+
+// TODO symbol table getters on writer while a manual LST is in progress should return the system symbol table
+// TODO symbol table setters on writer while a manual LST is in progress should fail
+// TODO in test harness, annotations (field names too?) with unknown text seem to be being represented as symbols with empty text. How is symbolZero.ion passing roundtrip?
 
 TEST(IonSymbolTable, TextWritingKnownSymbolFromSIDResolvesText) {
     // If the user writes a SID in the import range and that import is found in the writer's imports list, that SID
