@@ -78,8 +78,8 @@ INSTANTIATE_TEST_CASE_BOOLEAN_PARAM(IonSymbolTable);
     _ION_SYMBOL_TEST_REWRITE_FROM_WRITER_AND_ASSERT_TEXT(_ION_SYMBOL_TEST_REWRITE_AND_ASSERT, expected);
 
 #define ION_SYMBOL_TEST_POPULATE_CATALOG \
-    ION_SYMBOL_TABLE writer_imports[2]; \
-    hSYMTAB import1 = &writer_imports[0], import2 = &writer_imports[1]; \
+    ION_SYMBOL_TABLE *writer_imports[2]; \
+    hSYMTAB import1, import2; \
     ION_STRING import1_name, import2_name, sym1, sym2, sym3; \
     SID sid; \
     hCATALOG catalog; \
@@ -89,8 +89,10 @@ INSTANTIATE_TEST_CASE_BOOLEAN_PARAM(IonSymbolTable);
     ION_ASSERT_OK(ion_string_from_cstr("sym2", &sym2)); \
     ION_ASSERT_OK(ion_string_from_cstr("sym3", &sym3)); \
     ION_ASSERT_OK(ion_catalog_open(&catalog)); \
-    ION_ASSERT_OK(ion_symbol_table_open_with_type(&import1, catalog, ist_SHARED)); \
-    ION_ASSERT_OK(ion_symbol_table_open_with_type(&import2, catalog, ist_SHARED)); \
+    ION_ASSERT_OK(ion_symbol_table_open_with_type(&writer_imports[0], catalog, ist_SHARED)); \
+    ION_ASSERT_OK(ion_symbol_table_open_with_type(&writer_imports[1], catalog, ist_SHARED)); \
+    import1 = writer_imports[0]; \
+    import2 = writer_imports[1]; \
     ION_ASSERT_OK(ion_symbol_table_set_name(import1, &import1_name)); \
     ION_ASSERT_OK(ion_symbol_table_set_name(import2, &import2_name)); \
     ION_ASSERT_OK(ion_symbol_table_set_version(import1, 1)); \
@@ -105,8 +107,8 @@ INSTANTIATE_TEST_CASE_BOOLEAN_PARAM(IonSymbolTable);
     ION_SYMBOL_TEST_DECLARE_WRITER; \
     ION_WRITER_OPTIONS writer_options; \
     ion_test_initialize_writer_options(&writer_options); \
-    writer_options.encoding_psymbol_table_count = import_count; \
-    writer_options.encoding_psymbol_table = imports; \
+    ION_ASSERT_OK(ion_writer_options_initialize_shared_imports(&writer_options)); \
+    ION_ASSERT_OK(ion_writer_options_add_shared_imports_symbol_tables(&writer_options, imports, import_count)); \
     writer_options.output_as_binary = is_binary; \
     writer_options.pcatalog = catalog; \
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream)); \
@@ -150,7 +152,7 @@ TEST_P(BinaryAndTextTest, WriterAppendsLocalSymbolsWithImportsOnFlush) {
     ION_ASSERT_OK(ion_string_from_cstr("sym4", &sym4));
 
     ION_SYMBOL_TEST_POPULATE_CATALOG;
-    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, import1, 2);
+    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, writer_imports, 2);
 
     ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 10));
     ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 11));
@@ -174,6 +176,7 @@ TEST_P(BinaryAndTextTest, WriterAppendsLocalSymbolsWithImportsOnFlush) {
     ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT(
             "$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1},{name:\"import2\",version:1,max_id:2}]} sym1 sym2 sym3 sym1 sym3 sym4 sym4");
     ION_ASSERT_OK(ion_catalog_close(catalog)); // Closes the catalog and releases its tables.
+    ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
 }
 
 TEST(IonSymbolTable, AppendingAfterIVMDoesNothing) {
@@ -306,7 +309,8 @@ TEST(IonSymbolTable, TextWritingKnownSymbolFromSIDResolvesText) {
     // If the user writes a SID in the import range and that import is found in the writer's imports list, that SID
     // should be resolved to its text representation. There is no need to include the local symbol table in the stream.
     ION_SYMBOL_TEST_POPULATE_CATALOG;
-    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(FALSE, import1, 2);
+    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(FALSE, writer_imports, 2);
+    ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
     BYTE *result;
 
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
@@ -337,7 +341,8 @@ TEST(IonSymbolTable, TextWritingSymbolWithUnknownTextFromImportWritesIdentifierA
     ION_ASSERT_OK(ion_symbol_table_load(shared_symtab_reader, NULL, &import));
     ION_ASSERT_OK(ion_reader_close(shared_symtab_reader));
 
-    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(FALSE, import, 1);
+    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(FALSE, &import, 1);
+    ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
 
     ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 10));
     ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 11));
@@ -437,7 +442,7 @@ TEST_P(BinaryAndTextTest, WriterWithImportsListIncludesThoseImportsWithEveryNewL
     ION_ASSERT_OK(ion_string_from_cstr("sym4", &sym4));
 
     ION_SYMBOL_TEST_POPULATE_CATALOG;
-    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, import1, 2);
+    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, writer_imports, 2);
 
     ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 10));
     ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 11));
@@ -462,6 +467,7 @@ TEST_P(BinaryAndTextTest, WriterWithImportsListIncludesThoseImportsWithEveryNewL
     ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT(
             "$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1},{name:\"import2\",version:1,max_id:2}]} sym1 sym2 sym3 sym1 sym2 sym3 sym4 sym4");
     ION_ASSERT_OK(ion_catalog_close(catalog)); // Closes the catalog and releases its tables.
+    ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
 }
 
 TEST_P(BinaryAndTextTest, FlushingOrFinishingOrClosingWriterBelowTopLevelFails) {
@@ -516,7 +522,7 @@ TEST_P(BinaryAndTextTest, ClosingWriterWithPendingLobFails) {
 }
 
 TEST(IonSymbolTable, LoadSymbolTableWithAnnotationSecondFails) {
-    const char *ion_data = "annotated::$local_symbol_table::{'''symbols''':['''foo''']}";
+    const char *ion_data = "annotated::$ion_symbol_table::{'''symbols''':['''foo''']}";
     hREADER reader;
     hSYMTAB symbol_table;
     ION_TYPE type;
@@ -525,4 +531,48 @@ TEST(IonSymbolTable, LoadSymbolTableWithAnnotationSecondFails) {
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(IERR_NOT_A_SYMBOL_TABLE, ion_symbol_table_load(reader, reader, &symbol_table));
     ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonSymbolTable, ReadThenWriteSymbolsWithUnknownText) {
+    const char *ion_data = "$ion_symbol_table::{imports:[{name:\"foo\",version:1,max_id:2}]} {$10:$11}";
+    hREADER reader;
+    ION_TYPE type;
+    ION_SYMBOL_TABLE *reader_symtab;
+    ION_COLLECTION *imports;
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    ION_WRITER_OPTIONS writer_options;
+    BYTE *result;
+    SID sid;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_data, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_STRUCT, type);
+    // TODO it should be possible to simply use ion_writer_write_all_values and have the reader hand off its imports
+    // to the writer as it changes symbol table contexts.
+    ION_ASSERT_OK(ion_reader_get_symbol_table(reader, &reader_symtab));
+    ION_ASSERT_OK(ion_symbol_table_get_imports(reader_symtab, &imports));
+
+    ion_test_initialize_writer_options(&writer_options);
+    ION_ASSERT_OK(ion_writer_options_initialize_shared_imports(&writer_options));
+    ION_ASSERT_OK(ion_writer_options_add_shared_imports(&writer_options, imports));
+    writer_options.output_as_binary = FALSE;
+    ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
+    ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
+    ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
+
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_OK(ion_writer_start_container(writer, type));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_get_field_sid(reader, &sid));
+    ION_ASSERT_OK(ion_writer_write_field_sid(writer, sid));
+    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, sid));
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+    ION_ASSERT_OK(ion_writer_finish_container(writer));
+    ION_ASSERT_OK(ion_reader_close(reader));
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
+
+    assertStringsEqual(ion_data, (char *)result, bytes_flushed);
+    free(result);
 }

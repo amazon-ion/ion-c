@@ -1052,12 +1052,12 @@ iERR ion_symbol_table_import_symbol_table(hSYMTAB hsymtab, hSYMTAB hsymtab_impor
 
     if (symtab->is_locked) FAILWITH(IERR_IS_IMMUTABLE);
 
-    IONCHECK(_ion_symbol_table_import_symbol_table_helper(symtab, import));
+    IONCHECK(_ion_symbol_table_import_symbol_table_helper(symtab, import, &import->name, import->version, import->max_id));
 
     iRETURN;
 }
 
-iERR _ion_symbol_table_import_symbol_table_helper(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE *import_symtab)
+iERR _ion_symbol_table_import_symbol_table_helper(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE *import_symtab, ION_STRING *import_name, int32_t import_version, int32_t import_max_id)
 {
     iENTER;
     ION_SYMBOL_TABLE_IMPORT *import;
@@ -1066,12 +1066,18 @@ iERR _ion_symbol_table_import_symbol_table_helper(ION_SYMBOL_TABLE *symtab, ION_
     if (!import) FAILWITH(IERR_NO_MEMORY);
 
     memset(import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
-    import->descriptor.max_id = import_symtab->max_id;
-    import->descriptor.version = import_symtab->version;
-    IONCHECK(ion_string_copy_to_owner(symtab->owner, &import->descriptor.name, &import_symtab->name));
-    import->shared_symbol_table = import_symtab;
+    import->descriptor.max_id = import_max_id;
+    import->descriptor.version = import_version;
+    IONCHECK(ion_string_copy_to_owner(symtab->owner, &import->descriptor.name, import_name));
+    if (import_symtab && symtab->owner != import_symtab->owner) {
+        IONCHECK(_ion_symbol_table_clone_with_owner_helper(&import->shared_symbol_table, import_symtab, symtab->owner,
+                                                           import_symtab->system_symbol_table));
+    }
+    else {
+        import->shared_symbol_table = import_symtab;
+    }
 
-    IONCHECK(_ion_symbol_table_local_incorporate_symbols(symtab, import_symtab, import_symtab->max_id));
+    IONCHECK(_ion_symbol_table_local_incorporate_symbols(symtab, import_symtab, import_max_id));
 
     iRETURN;
 }
@@ -1092,7 +1098,7 @@ iERR ion_symbol_table_add_import(hSYMTAB hsymtab, ION_SYMBOL_TABLE_IMPORT_DESCRI
 
     IONCHECK(_ion_catalog_find_best_match_helper(catalog, &p_import->name, p_import->version, p_import->max_id, &shared));
 
-    IONCHECK(_ion_symbol_table_import_symbol_table_helper(symtab, shared));
+    IONCHECK(_ion_symbol_table_import_symbol_table_helper(symtab, shared, &p_import->name, p_import->version, p_import->max_id));
 
     iRETURN;
 }
