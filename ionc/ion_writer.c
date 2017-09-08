@@ -22,6 +22,85 @@
 
 #define IONCLOSEpWRITER(x)   { if (x != NULL)  { UPDATEERROR(_ion_writer_close_helper(x)); x = NULL;}}
 
+iERR ion_writer_options_initialize_shared_imports(ION_WRITER_OPTIONS *options)
+{
+    iENTER;
+    hOWNER owner = ion_alloc_owner(sizeof(int)); // Dummy allocation to create an owning pool for the collection.
+    if (owner == NULL) FAILWITH(IERR_NO_MEMORY);
+    _ion_collection_initialize(owner, &options->encoding_psymbol_table, sizeof(ION_SYMBOL_TABLE_IMPORT));
+    iRETURN;
+}
+
+iERR ion_writer_options_add_shared_imports(ION_WRITER_OPTIONS *options, ION_COLLECTION *imports)
+{
+    iENTER;
+    ION_SYMBOL_TABLE_IMPORT *user_import, *option_import;
+    ION_COLLECTION_CURSOR import_cursor;
+    ASSERT(options != NULL);
+    ASSERT(imports != NULL);
+
+    ION_COLLECTION_OPEN(imports, import_cursor);
+    for (;;) {
+        ION_COLLECTION_NEXT(import_cursor, user_import);
+        if (!user_import) break;
+        option_import = _ion_collection_append(&options->encoding_psymbol_table);
+        if (!option_import) FAILWITH(IERR_NO_MEMORY);
+        memset(option_import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
+        if (options->encoding_psymbol_table._owner == imports->_owner) {
+            IONCHECK(_ion_symbol_table_local_import_copy_same_owner(NULL, option_import, user_import, sizeof(ION_SYMBOL_TABLE_IMPORT)));
+        }
+        else {
+            IONCHECK(_ion_symbol_table_local_import_copy_new_owner(options->encoding_psymbol_table._owner,
+                                                                   option_import, user_import, sizeof(ION_SYMBOL_TABLE_IMPORT)));
+        }
+        ASSERT(option_import->shared_symbol_table == user_import->shared_symbol_table);
+        if (option_import->shared_symbol_table) {
+            if (option_import->shared_symbol_table->owner != options->encoding_psymbol_table._owner) {
+                IONCHECK(ion_symbol_table_clone_with_owner(option_import->shared_symbol_table,
+                                                           &option_import->shared_symbol_table,
+                                                           options->encoding_psymbol_table._owner));
+            }
+        }
+    }
+    ION_COLLECTION_CLOSE(import_cursor);
+    iRETURN;
+}
+
+iERR ion_writer_options_add_shared_imports_symbol_tables(ION_WRITER_OPTIONS *options, ION_SYMBOL_TABLE **imports, SIZE imports_count)
+{
+    iENTER;
+    ION_SYMBOL_TABLE_IMPORT *import;
+    int i;
+    for (i = 0; i < imports_count; i++) {
+        import = _ion_collection_append(&options->encoding_psymbol_table);
+        if (!import) FAILWITH(IERR_NO_MEMORY);
+        if (imports[i] == NULL) FAILWITH(IERR_INVALID_ARG);
+        memset(import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
+        import->descriptor.max_id = imports[i]->max_id;
+        import->descriptor.version = imports[i]->version;
+        IONCHECK(ion_string_copy_to_owner(options->encoding_psymbol_table._owner, &import->descriptor.name, &imports[i]->name));
+        if (imports[i]->owner != options->encoding_psymbol_table._owner) {
+            IONCHECK(ion_symbol_table_clone_with_owner(imports[i],
+                                                       &import->shared_symbol_table,
+                                                       options->encoding_psymbol_table._owner));
+        }
+        else {
+            import->shared_symbol_table = imports[i];
+        }
+
+    }
+    iRETURN;
+}
+
+iERR ion_writer_options_close_shared_imports(ION_WRITER_OPTIONS *options)
+{
+    if (options->encoding_psymbol_table._owner) {
+        ion_free_owner(options->encoding_psymbol_table._owner);
+        options->encoding_psymbol_table._owner = NULL;
+    }
+    return IERR_OK;
+}
+
 iERR ion_writer_open_buffer(
          hWRITER *p_hwriter
         ,BYTE *buffer
@@ -104,8 +183,8 @@ iERR ion_writer_open(
 iERR _ion_writer_initialize_local_symbol_table(ION_WRITER *pwriter)
 {
     iENTER;
-    ION_SYMBOL_TABLE *psymtab, *system, **import;
-    ION_SYMBOL_TABLE_TYPE table_type;
+    ION_SYMBOL_TABLE *psymtab, *system;
+    ION_SYMBOL_TABLE_IMPORT *import;
     ION_COLLECTION_CURSOR import_cursor;
 
     IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
@@ -117,22 +196,41 @@ iERR _ion_writer_initialize_local_symbol_table(ION_WRITER *pwriter)
     for (;;) {
         ION_COLLECTION_NEXT(import_cursor, import);
         if (!import) break;
-        ASSERT(*import != NULL);
-
-        IONCHECK(ion_symbol_table_get_type(*import, &table_type));
-        if (table_type == ist_SHARED) {
-            IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, *import));
-        }
-        else if (table_type == ist_SYSTEM) {
+        if (ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &import->descriptor.name)) {
             // Do nothing; every local symbol table implicitly imports the system symbol table.
         }
         else {
-            FAILWITHMSG(IERR_INVALID_ARG, "A writer's imported symbol tables must be shared.");
+            IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, import->shared_symbol_table,
+                                                                  &import->descriptor.name, import->descriptor.version,
+                                                                  import->descriptor.max_id));
         }
     }
+    ION_COLLECTION_CLOSE(import_cursor);
 
     pwriter->symbol_table = psymtab;
     pwriter->_local_symbol_table = TRUE;
+    iRETURN;
+}
+
+iERR _ion_writer_initialize_imports(ION_WRITER *pwriter) {
+    iENTER;
+    ION_SYMBOL_TABLE_IMPORT     *import;
+    ION_COLLECTION_CURSOR       import_cursor;
+    ION_COPY_FN                 copy_fn;
+    copy_fn = pwriter->options.encoding_psymbol_table._owner != pwriter ? _ion_symbol_table_local_import_copy_new_owner
+                                                                        : _ion_symbol_table_local_import_copy_same_owner;
+    IONCHECK(_ion_collection_copy(&pwriter->_imported_symbol_tables, &pwriter->options.encoding_psymbol_table, copy_fn, pwriter));
+    ION_COLLECTION_OPEN(&pwriter->_imported_symbol_tables, import_cursor);
+    for (;;) {
+        ION_COLLECTION_NEXT(import_cursor, import);
+        if (!import) break;
+        if (import->shared_symbol_table) {
+            IONCHECK(ion_symbol_table_clone_with_owner(import->shared_symbol_table, &import->shared_symbol_table,
+                                                       pwriter));
+        }
+    }
+    ION_COLLECTION_CLOSE(import_cursor);
+
     iRETURN;
 }
     
@@ -141,8 +239,6 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
     iENTER;
     ION_WRITER         *pwriter = NULL;
     ION_OBJ_TYPE        writer_type;
-    int i;
-    ION_SYMBOL_TABLE **imported_table;
 
     pwriter = ion_alloc_owner(sizeof(ION_WRITER));
     if (!pwriter) FAILWITH(IERR_NO_MEMORY);
@@ -206,14 +302,10 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
         FAILWITH(IERR_INVALID_ARG);
     }
 
-    _ion_collection_initialize(pwriter, &pwriter->_imported_symbol_tables, sizeof(ION_SYMBOL_TABLE *));
+    _ion_collection_initialize(pwriter, &pwriter->_imported_symbol_tables, sizeof(ION_SYMBOL_TABLE_IMPORT));
 
-    if (pwriter->options.encoding_psymbol_table && pwriter->options.encoding_psymbol_table_count > 0) {
-        for (i = 0; i < pwriter->options.encoding_psymbol_table_count; i++) {
-            // Clone the user's imported tables into the writer.
-            imported_table = (ION_SYMBOL_TABLE **)_ion_collection_append(&pwriter->_imported_symbol_tables);
-            IONCHECK(ion_symbol_table_clone_with_owner(&pwriter->options.encoding_psymbol_table[i], imported_table, pwriter));
-        }
+    if (!ION_COLLECTION_IS_EMPTY(&pwriter->options.encoding_psymbol_table)) {
+        IONCHECK(_ion_writer_initialize_imports(pwriter));
         IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
     }
 
@@ -1780,6 +1872,8 @@ iERR _ion_writer_write_all_values_helper(ION_WRITER *pwriter, ION_READER *preade
         IONCHECK(_ion_reader_next_helper(preader, &type));
         if (type == tid_EOF) break;
         count++;
+        // TODO support hand-off of shared imports from the reader to the writer as the reader changes symbol table
+        // contexts.
         IONCHECK(_ion_writer_write_one_value_helper(pwriter, preader));
     }
 

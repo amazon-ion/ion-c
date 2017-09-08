@@ -85,17 +85,14 @@ typedef struct _ion_writer_options
      */
     ION_CATALOG *pcatalog;
 
-    /** Pointer to the first element of an array of shared symbol tables that the writer will import into each new local
-     *  symbol table context. The size of the array is specified by `encoding_psymbol_table_count`. The user owns the
-     *  associated memory, and must ensure it stays in scope for the lifetime of the writer.
+    /** An ordered list of ION_SYMBOL_TABLE_IMPORT that the writer will import into each new local
+     *  symbol table context. Should be initialized by calling `ion_writer_options_initialize_shared_imports`,
+     *  populated by calling `ion_writer_options_add_shared_imports` and/or
+     *  `ion_writer_options_add_shared_imports_symbol_tables`, and freed by calling
+     *  `ion_writer_options_close_shared_imports`.
      *  NOTE: the system symbol table is always used as the first import; it need not be provided here.
      */
-    ION_SYMBOL_TABLE *encoding_psymbol_table;
-
-    /** Number of symbol tables in the `encoding_psymbol_table` array.
-     *
-     */
-    SIZE encoding_psymbol_table_count;
+    ION_COLLECTION encoding_psymbol_table;
 
     /** Handle to the decNumber context for the writer to use. This allows configuration of the maximum number of
      * decimal digits, decimal exponent range, etc. See decContextDefault in decContext.h for simple initialization.
@@ -109,6 +106,31 @@ typedef struct _ion_writer_options
 
 } ION_WRITER_OPTIONS;
 
+
+/**
+ * Initializes the options' imports list. This must be done before calling `ion_writer_options_add_*`.
+ * NOTE: This does NOT need to be called if the writer does not need to use shared imports.
+ * @param options - The writer options containing the imports list to initialize.
+ */
+ION_API_EXPORT iERR ion_writer_options_initialize_shared_imports(ION_WRITER_OPTIONS *options);
+
+/**
+ * Adds the imports from the given collection of ION_SYMBOL_TABLE_IMPORT to the options' imports list.
+ * `ion_writer_options_initialize_shared_imports` must have been called first.
+ */
+ION_API_EXPORT iERR ion_writer_options_add_shared_imports(ION_WRITER_OPTIONS *options, ION_COLLECTION *imports);
+
+/**
+ * Adds the given array of ION_SYMBOL_TABLE (which must be shared symbol tables) to the options' imports list.
+ * `ion_writer_options_initialize_shared_imports` must have been called first.
+ */
+ION_API_EXPORT iERR ion_writer_options_add_shared_imports_symbol_tables(ION_WRITER_OPTIONS *options, ION_SYMBOL_TABLE **imports, SIZE imports_count);
+
+/**
+ * Frees the options' imports list. This must be done once the options are no longer needed, and only if
+ * `ion_writer_options_initialize_shared_imports` was called.
+ */
+ION_API_EXPORT iERR ion_writer_options_close_shared_imports(ION_WRITER_OPTIONS *options);
 
 /** Ion Writer interfaces. Takes a byte buffer and length which
  *  will contain the text or binary content, returns handle to a writer.
