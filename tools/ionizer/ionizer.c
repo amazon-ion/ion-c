@@ -130,6 +130,7 @@ fail:// this is iRETURN expanded so I can set a break point on it
         ionizer_stop_timing();
     }
 
+    ion_writer_options_close_shared_imports(&g_writer_options);
     if (non_argv) free(non_argv);
     return err;
 }
@@ -602,8 +603,8 @@ iERR ionizer_load_symbol_table(void)
         fprintf(stderr, "ERROR - couldn't find the symbol table \"%s\" in the catalog or as a file\n", g_ionizer_writer_symtab);
         FAILWITH(IERR_CANT_FIND_FILE);
     }
-    g_writer_options.encoding_psymbol_table = (ION_SYMBOL_TABLE *)g_writer_hsymtab;  // HACK - TODO - do the same that that we do for catalog
-    g_writer_options.encoding_psymbol_table_count = 1;
+    IONCHECK(ion_writer_options_initialize_shared_imports(&g_writer_options));
+    IONCHECK(ion_writer_options_add_shared_imports_symbol_tables(&g_writer_options, &g_writer_hsymtab, 1));
 
     iRETURN;
 }
