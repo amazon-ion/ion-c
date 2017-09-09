@@ -229,8 +229,8 @@ ION_API_EXPORT iERR ion_writer_finish               (hWRITER hwriter, SIZE *p_by
 
 /**
  * Finishes the writer, frees the writer's associated resources, and finally frees the writer itself. The writer may
- * not continue writing to the stream after this function is called. If any value is in-progress, closing any writer is
- * an error.
+ * not continue writing to the stream after this function is called. If any value is in-progress, closing any writer
+ * raises an error, but still frees the writer and any associated memory.
  */
 ION_API_EXPORT iERR ion_writer_close                (hWRITER hwriter);
 

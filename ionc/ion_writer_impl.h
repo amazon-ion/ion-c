@@ -65,28 +65,34 @@ typedef enum _ION_WRITER_OUTPUT_TYPE {
 } ION_WRITER_OUTPUT_TYPE;
 
 typedef enum _ION_WRITER_SYMTAB_INTERCEPT_STATE {
-    iWSIS_NONE               = 0x00,
-    iWSIS_IN_LST_STRUCT      = 0x01,
-    iWSIS_LOCAL_SYMBOLS      = 0x02,
-    iWSIS_IMPORTS            = 0x04,
-    iWSIS_IN_IMPORTS_STRUCT  = 0x08,
-    iWSIS_IMPORT_VERSION     = 0x10,
-    iWSIS_IMPORT_MAX_ID      = 0x20,
-    iWSIS_IMPORT_NAME        = 0x40,
+    iWSIS_NONE               = 0x000,
+    iWSIS_IN_LST_STRUCT      = 0x001,
+    iWSIS_SYMBOLS            = 0x002,
+    iWSIS_IN_SYMBOLS_LIST    = 0x004,
+    iWSIS_IMPORTS            = 0x008,
+    iWSIS_IN_IMPORTS_LIST    = 0x010,
+    iWSIS_IN_IMPORTS_STRUCT  = 0x020,
+    iWSIS_IMPORT_VERSION     = 0x040,
+    iWSIS_IMPORT_MAX_ID      = 0x080,
+    iWSIS_IMPORT_NAME        = 0x100,
 } ION_WRITER_SYMTAB_INTERCEPT_STATE;
 
-#define ION_WRITER_SI_HAS_LOCAL_SYMBOLS(flags) ((flags) & iWSIS_LOCAL_SYMBOLS)
-#define ION_WRITER_SI_HAS_IMPORTS(flags) ((flags) & iWSIS_IMPORTS)
-#define ION_WRITER_SI_HAS_IMPORT_SYMBOLS(flags) ((flags) & iWSIS_IMPORT_SYMBOLS)
-#define ION_WRITER_SI_HAS_IMPORT_VERSION(flags) ((flags) & iWSIS_IMPORT_VERSION
-#define ION_WRITER_SI_HAS_IMPORT_MAX_ID(flags) ((flags) & iWSIS_IMPORT_MAX_ID)
+#define ION_WRITER_SI_HAS_SYMBOLS(writer) (writer->_completed_symtab_intercept_states & iWSIS_SYMBOLS)
+#define ION_WRITER_SI_HAS_IMPORTS(writer) (writer->_completed_symtab_intercept_states & iWSIS_IMPORTS)
+#define ION_WRITER_SI_HAS_IMPORT_NAME(writer) (writer->_completed_symtab_intercept_states & iWSIS_IMPORT_NAME)
+#define ION_WRITER_SI_HAS_IMPORT_VERSION(writer) (writer->_completed_symtab_intercept_states & iWSIS_IMPORT_VERSION)
+#define ION_WRITER_SI_HAS_IMPORT_MAX_ID(writer) (writer->_completed_symtab_intercept_states & iWSIS_IMPORT_MAX_ID)
 
-#define ION_WRITER_SI_COMPLETE_LOCAL_SYMBOLS(flags) flags |= iWSIS_LOCAL_SYMBOLS
-#define ION_WRITER_SI_COMPLETE_IMPORTS(flags) flags |= iWSIS_IMPORTS
-#define ION_WRITER_SI_COMPLETE_IMPORT_NAME(flags) flags |= iWSIS_IMPORT_NAME
-#define ION_WRITER_SI_COMPLETE_IMPORT_VERSION(flags) flags |= iWSIS_IMPORT_VERSION
-#define ION_WRITER_SI_COMPLETE_IMPORT_MAX_ID(flags) flags |= iWSIS_IMPORT_MAX_ID
-#define ION_WRITER_SI_COMPLETE_IMPORT(flags) flags &= iWSIS_LOCAL_SYMBOLS
+#define _ION_WRITER_SI_COMPLETE(writer, completed, next) \
+    writer->_completed_symtab_intercept_states |= (completed); \
+    writer->_current_symtab_intercept_state = next;
+
+#define ION_WRITER_SI_COMPLETE_SYMBOLS(writer) _ION_WRITER_SI_COMPLETE(writer, iWSIS_SYMBOLS, iWSIS_IN_LST_STRUCT);
+#define ION_WRITER_SI_COMPLETE_IMPORTS(writer) _ION_WRITER_SI_COMPLETE(writer, iWSIS_IMPORTS, iWSIS_IN_LST_STRUCT);
+#define ION_WRITER_SI_COMPLETE_IMPORT_NAME(writer) _ION_WRITER_SI_COMPLETE(writer, iWSIS_IMPORT_NAME, iWSIS_IN_IMPORTS_STRUCT);
+#define ION_WRITER_SI_COMPLETE_IMPORT_VERSION(writer) _ION_WRITER_SI_COMPLETE(writer, iWSIS_IMPORT_VERSION, iWSIS_IN_IMPORTS_STRUCT);
+#define ION_WRITER_SI_COMPLETE_IMPORT_MAX_ID(writer) _ION_WRITER_SI_COMPLETE(writer, iWSIS_IMPORT_MAX_ID, iWSIS_IN_IMPORTS_STRUCT);
+#define ION_WRITER_SI_COMPLETE_IMPORT(writer) _ION_WRITER_SI_COMPLETE(writer, (writer->_completed_symtab_intercept_states &= iWSIS_SYMBOLS), iWSIS_IN_IMPORTS_LIST);
 
 #define ION_WRITER_SI_CLEAR_STATE(writer) \
     writer->_current_symtab_intercept_state = iWSIS_NONE; \
@@ -141,7 +147,7 @@ typedef struct _ion_writer
     BOOL               _has_local_symbols;
 
     ION_WRITER_SYMTAB_INTERCEPT_STATE   _current_symtab_intercept_state;
-    int8_t                              _completed_symtab_intercept_states;
+    uint16_t                            _completed_symtab_intercept_states;
 
     ION_TEMP_BUFFER    temp_buffer;         // holds field names and annotations until the writer needs them
     void              *_temp_entity_pool;   // memory pool for top level objects that we'll throw away during flush
