@@ -485,16 +485,18 @@ iERR _ion_reader_text_load_utas(ION_READER *preader, ION_SUB_TYPE *p_ist)
                 str->add_count = sym->add_count;
             }
 
-            // now we check to make sure we have buffer space left for the
-            // characters (as bytes of utf8) and a "bonus" null terminator (for safety)
-            if (remaining < str->value.length + 1) {
-               FAILWITH(IERR_BUFFER_TOO_SMALL);
+            if (!ION_STRING_IS_NULL(&str->value)) {
+                // now we check to make sure we have buffer space left for the
+                // characters (as bytes of utf8) and a "bonus" null terminator (for safety)
+                if (remaining < str->value.length + 1) {
+                    FAILWITH(IERR_BUFFER_TOO_SMALL);
+                }
+                memcpy(next_dst, str->value.value, str->value.length);
+                next_dst[str->value.length] = '\0'; // remember we should be writing into the annotation value buffer
+                str->value.value = next_dst; // Point the annotation pool at the copied text, not the scanner's buffer.
+                next_dst += str->value.length + 1;   // +1 for the null terminator
+                remaining -= str->value.length + 1;
             }
-            memcpy(next_dst, str->value.value, str->value.length);
-            next_dst[str->value.length] = '\0'; // remember we should be writing into the annotation value buffer
-            str->value.value = next_dst; // Point the annotation pool at the copied text, not the scanner's buffer.
-            next_dst  += str->value.length + 1;   // +1 for the null terminator
-            remaining -=  str->value.length + 1;
         }
         // we have reached the first bytes of the actual value (after any fieldname or any annotations)
 
@@ -1082,6 +1084,23 @@ iERR _ion_reader_text_get_field_name(ION_READER *preader, ION_STRING **p_pstr)
     iRETURN;
 }
 
+iERR _ion_reader_text_get_field_name_symbol(ION_READER *preader, ION_SYMBOL **p_psymbol)
+{
+    iENTER;
+    ION_TEXT_READER  *text = &preader->typed_reader.text;
+
+    ASSERT(preader && preader->type == ion_type_text_reader);
+    ASSERT(p_psymbol);
+
+    if (text->_state == IPS_ERROR || text->_state == IPS_NONE) {
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    *p_psymbol = &text->_field_name;
+
+    iRETURN;
+}
+
 iERR _ion_reader_text_get_symbol_table(ION_READER *preader, ION_SYMBOL_TABLE **p_return)
 {
     iENTER;
@@ -1134,6 +1153,39 @@ iERR _ion_reader_text_get_annotation_sids(ION_READER *preader, SID *p_sids, SIZE
         p_sids[ii] = str->sid;
     }
     *p_count = count;
+
+    iRETURN;
+}
+
+iERR _ion_reader_text_get_annotation_symbols(ION_READER *preader, ION_SYMBOL *p_symbols, SIZE max_count, SIZE *p_count)
+{
+    iENTER;
+    ION_TEXT_READER  *text = &preader->typed_reader.text;
+    ION_SYMBOL       *src;
+    ION_SYMBOL       *dst;
+    int32_t           idx;
+
+    ASSERT(preader && preader->type == ion_type_text_reader);
+    ASSERT(p_symbols != NULL);
+    ASSERT(p_count != NULL);
+
+    if (text->_state == IPS_ERROR || text->_state == IPS_NONE) {
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    if (max_count < text->_annotation_count) {
+        FAILWITH(IERR_BUFFER_TOO_SMALL);
+    }
+
+    src = text->_annotation_string_pool;
+    dst = p_symbols;
+    for (idx = 0; idx < text->_annotation_count; idx++) {
+        IONCHECK(ion_symbol_copy_to_owner(preader->_temp_entity_pool, dst, src));
+        dst++;
+        src++;
+    }
+
+    *p_count = text->_annotation_count;
 
     iRETURN;
 }

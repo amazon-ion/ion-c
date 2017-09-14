@@ -340,7 +340,7 @@ void testComparisonSets(IonEventStream *stream, COMPARISON_TYPE comparison_type)
             ASSERT_EQ(CONTAINER_START, event->event_type);
             ASSERT_TRUE((tid_SEXP == event->ion_type) || (tid_LIST == event->ion_type));
             size_t step = valueEventLength(stream, i);
-            char *first_annotation = (event->num_annotations == 1) ? ionStringToString(event->annotations[0]) : NULL;
+            char *first_annotation = (event->num_annotations == 1) ? ionStringToString(&event->annotations[0]->value) : NULL;
             if (first_annotation && !strcmp(first_annotation, embeddedDocumentsAnnotation)) {
                 testEmbeddedDocumentSet(stream, i + 1, 0, comparison_type);
             } else {

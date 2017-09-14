@@ -640,6 +640,51 @@ return_value:
     iRETURN;
 }
 
+iERR _ion_reader_binary_get_annotation_symbols(ION_READER *preader, ION_SYMBOL *p_annotations, SIZE max_count, SIZE *p_count)
+{
+    iENTER;
+    ION_BINARY_READER    *binary;
+    ION_SYMBOL           *pstr;
+    int                   ii, count;
+    SID                  *psid;
+    ION_COLLECTION_CURSOR cursor;
+
+    ASSERT(preader && preader->type == ion_type_binary_reader);
+    ASSERT(p_annotations != NULL);
+    ASSERT(p_count != NULL);
+
+    binary = &preader->typed_reader.binary;
+
+    count = ION_COLLECTION_SIZE(&binary->_annotation_sids);
+    if (count > max_count) {
+        FAILWITH(IERR_BUFFER_TOO_SMALL);
+    }
+
+    ION_COLLECTION_OPEN(&binary->_annotation_sids, cursor);
+    for (ii=0; ;ii++) {
+        ION_COLLECTION_NEXT(cursor, psid);
+        if (!psid) break;
+        if ((*psid) <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
+
+        IONCHECK(_ion_symbol_table_find_symbol_by_sid_helper(preader->_current_symtab, *psid, &pstr));
+        if (pstr == NULL) {
+            pstr = ion_alloc_with_owner(preader->_temp_entity_pool, sizeof (ION_SYMBOL));
+            ION_STRING_INIT(&pstr->value);
+            pstr->sid = *psid;
+            ION_STRING_ASSIGN(&p_annotations[ii].value, &pstr->value);
+            p_annotations[ii].sid = pstr->sid;
+        }
+        else {
+            IONCHECK(ion_symbol_copy_to_owner(preader->_temp_entity_pool, &p_annotations[ii], pstr));
+        }
+    }
+    ION_COLLECTION_CLOSE(cursor);
+
+    *p_count = count;
+
+    iRETURN;
+}
+
 iERR _ion_reader_binary_get_annotation_sids(ION_READER *preader, SID *p_sids, SIZE max_count, SIZE *p_count)
 {
     iENTER;
@@ -712,6 +757,25 @@ iERR _ion_reader_binary_get_field_sid(ION_READER *preader, SID *p_sid)
 
     *p_sid = binary->_value_field_id;
 
+    iRETURN;
+}
+
+iERR _ion_reader_binary_get_field_symbol(ION_READER *preader, ION_SYMBOL **p_psymbol)
+{
+    iENTER;
+    ION_BINARY_READER *binary;
+
+    ASSERT(preader && preader->type == ion_type_binary_reader);
+
+    binary = &preader->typed_reader.binary;
+
+    IONCHECK(_ion_symbol_table_find_symbol_by_sid_helper(preader->_current_symtab, binary->_value_field_id, p_psymbol));
+    // TODO duplicated in _ion_reader_binary_get_annotation_symbols
+    if (*p_psymbol == NULL) {
+        *p_psymbol = ion_alloc_with_owner(preader->_temp_entity_pool, sizeof (ION_SYMBOL));
+        ION_STRING_INIT(&(*p_psymbol)->value);
+        (*p_psymbol)->sid = binary->_value_field_id;
+    }
     iRETURN;
 }
 

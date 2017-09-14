@@ -1000,6 +1000,8 @@ iERR _ion_reader_get_field_name_helper(ION_READER *preader, ION_STRING **p_pstr)
     case ion_type_binary_reader:
         IONCHECK(_ion_reader_binary_get_field_name(preader, p_pstr));
         break;
+    default:
+        FAILWITH(IERR_INVALID_STATE);
     }
 
     iRETURN;
@@ -1036,6 +1038,28 @@ iERR _ion_reader_get_field_sid_helper(ION_READER *preader, SID *p_sid)
     case ion_type_unknown_reader:
     default:
         FAILWITH(IERR_INVALID_STATE);
+    }
+
+    iRETURN;
+}
+
+iERR _ion_reader_get_field_symbol_helper(ION_READER *preader, ION_SYMBOL **p_symbol)
+{
+    iENTER;
+
+    ASSERT(preader);
+    ASSERT(p_symbol);
+
+    switch(preader->type) {
+        case ion_type_text_reader:
+            IONCHECK(_ion_reader_text_get_field_name_symbol(preader, p_symbol));
+            break;
+        case ion_type_binary_reader:
+            IONCHECK(_ion_reader_binary_get_field_symbol(preader, p_symbol));
+            break;
+        case ion_type_unknown_reader:
+        default:
+            FAILWITH(IERR_INVALID_STATE);
     }
 
     iRETURN;
@@ -1099,6 +1123,28 @@ iERR ion_reader_get_annotation_sids(hREADER hreader, SID *p_sids, SIZE max_count
     case ion_type_unknown_reader:
     default:
         FAILWITH(IERR_INVALID_STATE);
+    }
+
+    iRETURN;
+}
+
+iERR _ion_reader_get_annotation_symbols_helper(ION_READER *preader, ION_SYMBOL *p_symbols, SIZE max_count, SIZE *p_count)
+{
+    iENTER;
+    ASSERT(preader);
+    ASSERT(p_symbols);
+    ASSERT(p_count);
+
+    switch(preader->type) {
+        case ion_type_text_reader:
+            IONCHECK(_ion_reader_text_get_annotation_symbols(preader, p_symbols, max_count, p_count));
+            break;
+        case ion_type_binary_reader:
+            IONCHECK(_ion_reader_binary_get_annotation_symbols(preader, p_symbols, max_count, p_count));
+            break;
+        case ion_type_unknown_reader:
+        default:
+            FAILWITH(IERR_INVALID_STATE);
     }
 
     iRETURN;

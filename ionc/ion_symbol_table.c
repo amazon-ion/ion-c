@@ -1310,6 +1310,8 @@ iERR _ion_symbol_table_local_find_by_sid(ION_SYMBOL_TABLE *symtab, SID sid, ION_
     ASSERT(symtab != NULL);
     ASSERT(p_sym != NULL);
 
+    // TODO if found and this is a shared symtab, set the import location
+
     if (!INDEX_IS_ACTIVE(symtab) && symtab->max_id > DEFAULT_INDEX_BUILD_THRESHOLD) {
         IONCHECK(_ion_symbol_table_initialize_indices_helper(symtab));
     }
@@ -2046,6 +2048,62 @@ ION_SYMBOL *_ion_symbol_table_index_find_by_sid_helper(ION_SYMBOL_TABLE *symtab,
     }
 
     return found_sym;
+}
+
+iERR ion_symbol_copy_to_owner(hOWNER owner, ION_SYMBOL *dst, ION_SYMBOL *src)
+{
+    iENTER;
+
+    ASSERT(dst);
+    ASSERT(src);
+
+    //dst = ion_alloc_with_owner(owner, sizeof(ION_SYMBOL));
+    //if (!dst) FAILWITH(IERR_NO_MEMORY);
+    dst->sid = src->sid;
+    dst->add_count = 0;
+    IONCHECK(ion_string_copy_to_owner(owner, &dst->value, &src->value));
+
+    iRETURN;
+}
+
+iERR ion_symbol_is_equal(ION_SYMBOL *lhs, ION_SYMBOL *rhs, BOOL *is_equal)
+{
+    iENTER;
+
+    ASSERT(is_equal);
+
+    if (lhs == rhs) {
+        // Both inputs are the same reference, or NULL.
+        *is_equal = TRUE;
+        SUCCEED();
+    }
+    if (!lhs ^ !rhs) {
+        // Only one of the inputs is NULL.
+        *is_equal = FALSE;
+        SUCCEED();
+    }
+    // Both are non-NULL, and are not the same reference.
+    if (ION_STRING_IS_NULL(&lhs->value) ^ ION_STRING_IS_NULL(&rhs->value)) {
+        // Only one of the inputs has unknown text.
+        *is_equal = FALSE;
+        SUCCEED();
+    }
+    if (ION_STRING_IS_NULL(&lhs->value)) {
+        ASSERT(ION_STRING_IS_NULL(&rhs->value));
+        if (lhs->sid <= UNKNOWN_SID || rhs->sid <= UNKNOWN_SID) {
+            FAILWITH(IERR_INVALID_SYMBOL);
+        }
+        // TODO if import location is present, compare the import locations. Otherwise, they are equivalent to symbol zero.
+        *is_equal = TRUE;
+        SUCCEED();
+    }
+    if (ION_STRING_EQUALS(&lhs->value, &rhs->value)) {
+        // Both inputs have the same text. They are equivalent regardless of SID or import location.
+        *is_equal = TRUE;
+        SUCCEED();
+    }
+    *is_equal = FALSE;
+    iRETURN;
 }
 
 const char *ion_symbol_table_type_to_str(ION_SYMBOL_TABLE_TYPE t)

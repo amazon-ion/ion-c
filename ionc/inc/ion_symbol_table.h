@@ -323,6 +323,16 @@ ION_API_EXPORT iERR ion_symbol_table_add_symbol         (hSYMTAB hsymtab, iSTRIN
  */
 ION_API_EXPORT iERR ion_symbol_table_close              (hSYMTAB hsymtab);
 
+/**
+ * Copies an ION_SYMBOL to a new memory owner.
+ */
+ION_API_EXPORT iERR ion_symbol_copy_to_owner(hOWNER owner, ION_SYMBOL *dst, ION_SYMBOL *src);
+
+/**
+ * Compares the two given ION_SYMBOLs for equality under the Ion data model.
+ */
+ION_API_EXPORT iERR ion_symbol_is_equal(ION_SYMBOL *lhs, ION_SYMBOL *rhs, BOOL *is_equal);
+
 ION_API_EXPORT const char *ion_symbol_table_type_to_str (ION_SYMBOL_TABLE_TYPE t);
 
 #ifdef __cplusplus

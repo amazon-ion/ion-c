@@ -243,7 +243,7 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
     // write field name
     if (pwriter->_in_struct) {
         IONCHECK(_ion_writer_get_field_name_as_string_helper(pwriter, &str));
-        IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii, pwriter->field_name_type == tid_STRING));
+        IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii, !ION_STRING_IS_NULL(&pwriter->field_name.value)));
         ION_TEXT_WRITER_APPEND_CHAR(':');
         IONCHECK(_ion_writer_clear_field_name_helper(pwriter));
     }
@@ -253,7 +253,7 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
     if (count > 0) {
         for (ii=0; ii<count; ii++) {
             IONCHECK(_ion_writer_get_annotation_as_string_helper(pwriter, ii, &str));
-            IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii, pwriter->annotations_type == tid_STRING));
+            IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii, !ION_STRING_IS_NULL(&pwriter->annotations[ii].value)));
             ION_TEXT_WRITER_APPEND_CHAR(':');
             ION_TEXT_WRITER_APPEND_CHAR(':');
         }
