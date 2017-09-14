@@ -22,10 +22,17 @@
 extern "C" {
 #endif
 
+typedef struct _ion_symbol_import_location
+{
+    ION_STRING name;
+    SID        location;
+} ION_SYMBOL_IMPORT_LOCATION;
+
 struct _ion_symbol
 {
-    SID               sid;
-    ION_STRING        value;
+    SID                         sid;
+    ION_STRING                  value;
+    ION_SYMBOL_IMPORT_LOCATION  import_location;
     // TODO this is only needed for symbol usage metrics. Consider removal.
     int32_t           add_count;
 };
@@ -36,6 +43,8 @@ typedef enum _ION_SYMBOL_TABLE_TYPE {
     ist_SHARED = 2,
     ist_SYSTEM = 3
 } ION_SYMBOL_TABLE_TYPE;
+
+#define ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol) ION_STRING_IS_NULL(&(symbol)->import_location.name)
 
 #define UNKNOWN_SID -1 /* symbol id's presume not only is this unknown, but sid's must be positive */
 
@@ -322,6 +331,16 @@ ION_API_EXPORT iERR ion_symbol_table_add_symbol         (hSYMTAB hsymtab, iSTRIN
  * NOTE: Symbol tables constructed and returned by readers and writers are owned by those readers and writers.
  */
 ION_API_EXPORT iERR ion_symbol_table_close              (hSYMTAB hsymtab);
+
+/**
+ * Copies an ION_SYMBOL to a new memory owner.
+ */
+ION_API_EXPORT iERR ion_symbol_copy_to_owner(hOWNER owner, ION_SYMBOL *dst, ION_SYMBOL *src);
+
+/**
+ * Compares the two given ION_SYMBOLs for equality under the Ion data model.
+ */
+ION_API_EXPORT iERR ion_symbol_is_equal(ION_SYMBOL *lhs, ION_SYMBOL *rhs, BOOL *is_equal);
 
 ION_API_EXPORT const char *ion_symbol_table_type_to_str (ION_SYMBOL_TABLE_TYPE t);
 

@@ -273,7 +273,7 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
     iRETURN;
 }
 
-iERR _ion_reader_text_intern_symbol(ION_READER *preader, ION_STRING *symbol_name, ION_SYMBOL **psym, BOOL parse_symbol_identifiers) {
+iERR _ion_reader_text_intern_symbol(ION_READER *preader, ION_STRING *symbol_name, SID *local_sid, ION_SYMBOL **psym, BOOL parse_symbol_identifiers) {
     iENTER;
     ION_SYMBOL       *sym = NULL;
     ION_SYMBOL_TABLE *symbols;
@@ -283,7 +283,7 @@ iERR _ion_reader_text_intern_symbol(ION_READER *preader, ION_STRING *symbol_name
 
     if (parse_symbol_identifiers) {
         IONCHECK(_ion_reader_text_get_symbol_table(preader, &symbols));
-        IONCHECK(_ion_symbol_table_parse_possible_symbol_identifier(symbols, symbol_name, NULL, &sym, &is_symbol_identifier));
+        IONCHECK(_ion_symbol_table_parse_possible_symbol_identifier(symbols, symbol_name, local_sid, &sym, &is_symbol_identifier));
         ASSERT(!(is_symbol_identifier ^ (sym != NULL)));
     }
 
@@ -299,6 +299,7 @@ iERR _ion_reader_text_load_fieldname(ION_READER *preader, ION_SUB_TYPE *p_ist)
     ION_SUB_TYPE     ist = IST_NONE;
     BOOL             eos_encountered = FALSE;
     ION_SYMBOL      *sym;
+    SID              local_sid;
 
     ASSERT(preader);
     ASSERT(text);
@@ -330,10 +331,13 @@ iERR _ion_reader_text_load_fieldname(ION_READER *preader, ION_SUB_TYPE *p_ist)
         }
 
         text->_field_name.value.value = text->_field_name_buffer;
-        IONCHECK(_ion_reader_text_intern_symbol(preader, &text->_field_name.value, &sym, ist != IST_SYMBOL_QUOTED));
+        ION_STRING_INIT(&text->_field_name.import_location.name);
+        IONCHECK(_ion_reader_text_intern_symbol(preader, &text->_field_name.value, &local_sid, &sym, ist != IST_SYMBOL_QUOTED));
         if (sym) {
             ION_STRING_ASSIGN(&text->_field_name.value, &sym->value);
-            text->_field_name.sid = sym->sid;
+            ION_STRING_ASSIGN(&text->_field_name.import_location.name, &sym->import_location.name);
+            text->_field_name.sid = local_sid;
+            text->_field_name.import_location.location = sym->import_location.location;
             text->_field_name.add_count = sym->add_count;
         }
 
@@ -363,7 +367,7 @@ iERR _ion_reader_text_check_for_no_op_IVM(ION_READER *preader, ION_SUB_TYPE ist,
     str.value = text->_scanner._value_buffer;
     str.length = text->_scanner._value_image.length;
     if (ist != IST_SYMBOL_QUOTED) {
-        IONCHECK(_ion_reader_text_intern_symbol(preader, &str, &sym, TRUE));
+        IONCHECK(_ion_reader_text_intern_symbol(preader, &str, NULL, &sym, TRUE));
         if (sym) {
             if (ION_STRING_EQUALS(&ION_SYMBOL_VTM_STRING, &sym->value)) {
                 // This is a symbol identifier, e.g. $2, pointing to the text $ion_1_0, which is a no-op
@@ -392,6 +396,7 @@ iERR _ion_reader_text_load_utas(ION_READER *preader, ION_SUB_TYPE *p_ist)
     BYTE            *next_dst;
     BOOL             is_double_colon;
     BOOL             eos_encountered = FALSE, is_system_value;
+    SID              local_sid;
 
     ASSERT(preader);
     ASSERT(text);
@@ -476,25 +481,30 @@ iERR _ion_reader_text_load_utas(ION_READER *preader, ION_SUB_TYPE *p_ist)
             str->value.value = text->_scanner._value_buffer;
             str->value.length = text->_scanner._value_image.length;
             str->sid = UNKNOWN_SID; // Known symbols don't necessarily have local symbol table mappings in text.
-            IONCHECK(_ion_reader_text_intern_symbol(preader, &str->value, &sym, ist != IST_SYMBOL_QUOTED));
+            ION_STRING_INIT(&str->import_location.name);
+            IONCHECK(_ion_reader_text_intern_symbol(preader, &str->value, &local_sid, &sym, ist != IST_SYMBOL_QUOTED));
             if (sym) {
                 // The original text was a symbol identifier.
                 ASSERT(sym->sid > UNKNOWN_SID);
                 ION_STRING_ASSIGN(&str->value, &sym->value);
-                str->sid = sym->sid;
+                ION_STRING_ASSIGN(&str->import_location.name, &sym->import_location.name);
+                str->sid = local_sid;
+                str->import_location.location = sym->import_location.location;
                 str->add_count = sym->add_count;
             }
 
-            // now we check to make sure we have buffer space left for the
-            // characters (as bytes of utf8) and a "bonus" null terminator (for safety)
-            if (remaining < str->value.length + 1) {
-               FAILWITH(IERR_BUFFER_TOO_SMALL);
+            if (!ION_STRING_IS_NULL(&str->value)) {
+                // now we check to make sure we have buffer space left for the
+                // characters (as bytes of utf8) and a "bonus" null terminator (for safety)
+                if (remaining < str->value.length + 1) {
+                    FAILWITH(IERR_BUFFER_TOO_SMALL);
+                }
+                memcpy(next_dst, str->value.value, str->value.length);
+                next_dst[str->value.length] = '\0'; // remember we should be writing into the annotation value buffer
+                str->value.value = next_dst; // Point the annotation pool at the copied text, not the scanner's buffer.
+                next_dst += str->value.length + 1;   // +1 for the null terminator
+                remaining -= str->value.length + 1;
             }
-            memcpy(next_dst, str->value.value, str->value.length);
-            next_dst[str->value.length] = '\0'; // remember we should be writing into the annotation value buffer
-            str->value.value = next_dst; // Point the annotation pool at the copied text, not the scanner's buffer.
-            next_dst  += str->value.length + 1;   // +1 for the null terminator
-            remaining -=  str->value.length + 1;
         }
         // we have reached the first bytes of the actual value (after any fieldname or any annotations)
 
@@ -922,6 +932,22 @@ iERR _ion_reader_text_has_any_annotations(ION_READER *preader, BOOL *p_has_annot
     iRETURN;
 }
 
+iERR _ion_reader_text_validate_symbol_token(ION_READER *preader, ION_SYMBOL *p_symbol) {
+    iENTER;
+    ION_SYMBOL_TABLE *symbol_table;
+    ASSERT(preader);
+    ASSERT(p_symbol);
+
+    IONCHECK(_ion_reader_text_get_symbol_table(preader, &symbol_table));
+    ASSERT(symbol_table);
+
+    if (p_symbol->sid > symbol_table->max_id) {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
+
+    iRETURN;
+}
+
 iERR _ion_reader_text_has_annotation(ION_READER *preader, ION_STRING *annotation, BOOL *p_annotation_found)
 {
     iENTER;
@@ -975,7 +1001,7 @@ iERR _ion_reader_text_get_an_annotation(ION_READER *preader, int32_t idx, ION_ST
 {
     iENTER;
     ION_TEXT_READER  *text = &preader->typed_reader.text;
-    ION_SYMBOL       *str;
+    ION_SYMBOL       *symbol;
 
     ASSERT(preader && preader->type == ion_type_text_reader);
     ASSERT(p_str != NULL);
@@ -989,9 +1015,10 @@ iERR _ion_reader_text_get_an_annotation(ION_READER *preader, int32_t idx, ION_ST
     }
 
     // get a pointer to our string header in the annotation string pool
-    str = text->_annotation_string_pool + idx;
-    IONCHECK(ion_string_copy_to_owner(preader->_temp_entity_pool, p_str, &str->value));
-    if (str->sid == 0) {
+    symbol = text->_annotation_string_pool + idx;
+    IONCHECK(_ion_reader_text_validate_symbol_token(preader, symbol));
+    IONCHECK(ion_string_copy_to_owner(preader->_temp_entity_pool, p_str, &symbol->value));
+    if (symbol->sid == 0) {
         ION_STRING_INIT(p_str); // This nulls the string, because symbol 0 has no text representation.
     }
 
@@ -1002,7 +1029,7 @@ iERR _ion_reader_text_get_an_annotation_sid(ION_READER *preader, int32_t idx, SI
 {
     iENTER;
     ION_TEXT_READER  *text = &preader->typed_reader.text;
-    ION_SYMBOL       *str;
+    ION_SYMBOL       *symbol;
 
     ASSERT(preader && preader->type == ion_type_text_reader);
     ASSERT(p_sid != NULL);
@@ -1016,8 +1043,34 @@ iERR _ion_reader_text_get_an_annotation_sid(ION_READER *preader, int32_t idx, SI
     }
 
     // get a pointer to our string header in the annotation string pool
-    str = text->_annotation_string_pool + idx;
-    *p_sid = str->sid;
+    symbol = text->_annotation_string_pool + idx;
+    IONCHECK(_ion_reader_text_validate_symbol_token(preader, symbol));
+    *p_sid = symbol->sid;
+
+    iRETURN;
+}
+
+iERR _ion_reader_text_get_an_annotation_symbol(ION_READER *preader, int32_t idx, ION_SYMBOL *p_symbol)
+{
+    iENTER;
+    ION_TEXT_READER  *text = &preader->typed_reader.text;
+    ION_SYMBOL       *symbol;
+
+    ASSERT(preader && preader->type == ion_type_text_reader);
+    ASSERT(p_symbol != NULL);
+
+    if (text->_state == IPS_ERROR || text->_state == IPS_NONE) {
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    if (idx < 0 || idx >= text->_annotation_count) {
+        FAILWITH(IERR_INVALID_ARG);
+    }
+
+    // get a pointer to our string header in the annotation string pool
+    symbol = text->_annotation_string_pool + idx;
+    IONCHECK(_ion_reader_text_validate_symbol_token(preader, symbol));
+    IONCHECK(ion_symbol_copy_to_owner(preader->_temp_entity_pool, p_symbol, symbol));
 
     iRETURN;
 }
@@ -1045,6 +1098,7 @@ iERR _ion_reader_text_get_annotations(ION_READER *preader, ION_STRING *p_strs, i
     src = text->_annotation_string_pool;
     dst = p_strs;
     for (idx = 0; idx < text->_annotation_count; idx++) {
+        IONCHECK(_ion_reader_text_validate_symbol_token(preader, src));
         IONCHECK(ion_string_copy_to_owner(preader->_temp_entity_pool, dst, &src->value));
         if (src->sid == 0) {
             ION_STRING_INIT(dst); // This nulls the string, because symbol 0 has no text representation.
@@ -1070,6 +1124,7 @@ iERR _ion_reader_text_get_field_name(ION_READER *preader, ION_STRING **p_pstr)
         FAILWITH(IERR_INVALID_STATE);
     }
 
+    IONCHECK(_ion_reader_text_validate_symbol_token(preader, &text->_field_name));
     // TODO: I'm not sure I like this. The caller is getting a pointer 
     //       into the middle of the parser struct
     if (text->_field_name.sid == 0) {
@@ -1078,6 +1133,24 @@ iERR _ion_reader_text_get_field_name(ION_READER *preader, ION_STRING **p_pstr)
     else {
         *p_pstr = &text->_field_name.value;
     }
+
+    iRETURN;
+}
+
+iERR _ion_reader_text_get_field_name_symbol(ION_READER *preader, ION_SYMBOL **p_psymbol)
+{
+    iENTER;
+    ION_TEXT_READER  *text = &preader->typed_reader.text;
+
+    ASSERT(preader && preader->type == ion_type_text_reader);
+    ASSERT(p_psymbol);
+
+    if (text->_state == IPS_ERROR || text->_state == IPS_NONE) {
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    IONCHECK(_ion_reader_text_validate_symbol_token(preader, &text->_field_name));
+    *p_psymbol = &text->_field_name;
 
     iRETURN;
 }
@@ -1109,6 +1182,7 @@ iERR _ion_reader_text_get_field_sid(ION_READER *preader, SID *p_sid)
         FAILWITH(IERR_INVALID_STATE);
     }
 
+    IONCHECK(_ion_reader_text_validate_symbol_token(preader, &text->_field_name));
     *p_sid = text->_field_name.sid;
     iRETURN;
 }
@@ -1131,9 +1205,44 @@ iERR _ion_reader_text_get_annotation_sids(ION_READER *preader, SID *p_sids, SIZE
 
     for (ii = 0; ii<count; ii++) {
         str = &text->_annotation_string_pool[ii];
+        IONCHECK(_ion_reader_text_validate_symbol_token(preader, str));
         p_sids[ii] = str->sid;
     }
     *p_count = count;
+
+    iRETURN;
+}
+
+iERR _ion_reader_text_get_annotation_symbols(ION_READER *preader, ION_SYMBOL *p_symbols, SIZE max_count, SIZE *p_count)
+{
+    iENTER;
+    ION_TEXT_READER  *text = &preader->typed_reader.text;
+    ION_SYMBOL       *src;
+    ION_SYMBOL       *dst;
+    int32_t           idx;
+
+    ASSERT(preader && preader->type == ion_type_text_reader);
+    ASSERT(p_symbols != NULL);
+    ASSERT(p_count != NULL);
+
+    if (text->_state == IPS_ERROR || text->_state == IPS_NONE) {
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    if (max_count < text->_annotation_count) {
+        FAILWITH(IERR_BUFFER_TOO_SMALL);
+    }
+
+    src = text->_annotation_string_pool;
+    dst = p_symbols;
+    for (idx = 0; idx < text->_annotation_count; idx++) {
+        IONCHECK(_ion_reader_text_validate_symbol_token(preader, src));
+        IONCHECK(ion_symbol_copy_to_owner(preader->_temp_entity_pool, dst, src));
+        dst++;
+        src++;
+    }
+
+    *p_count = text->_annotation_count;
 
     iRETURN;
 }
@@ -1591,6 +1700,9 @@ iERR _ion_reader_text_read_symbol_sid(ION_READER *preader, SID *p_value)
 
     IONCHECK(_ion_symbol_table_find_by_name_helper(preader->_current_symtab, &text->_scanner._value_image, p_value, NULL,
                                                   text->_value_sub_type != IST_SYMBOL_QUOTED));
+    if (*p_value > preader->_current_symtab->max_id) {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
 
     iRETURN;
 }
@@ -1601,6 +1713,7 @@ iERR _ion_reader_text_read_symbol(ION_READER *preader, ION_SYMBOL *p_symbol)
     ION_TEXT_READER  *text = &preader->typed_reader.text;
     ION_STRING       *user_str = &text->_scanner._value_image;
     ION_SYMBOL       *sym;
+    SID               local_sid;
 
     ASSERT(preader);
     ASSERT(p_symbol);
@@ -1616,17 +1729,22 @@ iERR _ion_reader_text_read_symbol(ION_READER *preader, ION_SYMBOL *p_symbol)
     }
 
     IONCHECK(_ion_reader_text_load_string_in_value_buffer(preader));
-    IONCHECK(_ion_reader_text_intern_symbol(preader, user_str, &sym, text->_value_sub_type != IST_SYMBOL_QUOTED));
+    IONCHECK(_ion_reader_text_intern_symbol(preader, user_str, &local_sid, &sym, text->_value_sub_type != IST_SYMBOL_QUOTED));
     if (sym) {
+        IONCHECK(_ion_reader_text_validate_symbol_token(preader, sym));
         // This was a symbol identifier, e.g. $10. The user should be presented with the symbol text, not the SID.
         ASSERT(sym->sid > UNKNOWN_SID); // Success to this point means the symbol is defined.
         ION_STRING_ASSIGN(&p_symbol->value, &sym->value);
-        p_symbol->sid = sym->sid;
+        ION_STRING_ASSIGN(&p_symbol->import_location.name, &sym->import_location.name);
+        p_symbol->sid = local_sid;
+        p_symbol->import_location.location = sym->import_location.location;
+        p_symbol->add_count = sym->add_count;
     }
     else {
         // This is a regular text symbol. No local symbol table mapping is required.
         ION_STRING_ASSIGN(&p_symbol->value, user_str);
         p_symbol->sid = UNKNOWN_SID;
+        ION_STRING_INIT(&p_symbol->import_location.name);
     }
     iRETURN;
 }
@@ -1701,10 +1819,11 @@ iERR _ion_reader_text_read_string(ION_READER *preader, ION_STRING *p_user_str)
     IONCHECK(_ion_reader_text_load_string_in_value_buffer(preader));
 
     if (text->_value_sub_type->base_type == tid_SYMBOL) {
-        IONCHECK(_ion_reader_text_intern_symbol(preader, user_str, &sym, text->_value_sub_type != IST_SYMBOL_QUOTED));
+        IONCHECK(_ion_reader_text_intern_symbol(preader, user_str, NULL, &sym, text->_value_sub_type != IST_SYMBOL_QUOTED));
         if (sym) {
             // This was a symbol identifier, e.g. $10. The user should be presented with the symbol text, not the SID.
             ASSERT(sym->sid > UNKNOWN_SID); // Success to this point means the symbol is defined.
+            IONCHECK(_ion_reader_text_validate_symbol_token(preader, sym));
             ION_STRING_ASSIGN(p_user_str, &sym->value);
         }
         else {

@@ -156,15 +156,11 @@ typedef struct _ion_writer
     BOOL               _in_struct;
     SIZE               depth;
 
-    ION_TYPE           field_name_type;     // really ion type is only used for int, string or null (unknown)
-    ION_STRING         field_name;
-    SID                field_name_sid;
+    ION_SYMBOL         field_name;
 
-    ION_TYPE           annotations_type;     // really type is type of annotation, only int, string or null (null for unknown)
     SIZE               annotation_count;
     SIZE               annotation_curr;
-    ION_STRING        *annotations;
-    SID               *annotation_sids;      // new int[10];
+    ION_SYMBOL        *annotations;
 
     BOOL               writer_owns_stream;   // true when open writer created the stream object
     ION_STREAM        *output;
@@ -227,11 +223,14 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
 iERR _ion_writer_get_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE **p_psymtab);
 iERR _ion_writer_write_field_name_helper(ION_WRITER *pwriter, ION_STRING *name);
 iERR _ion_writer_write_field_sid_helper(ION_WRITER *pwriter, SID sid);
+iERR _ion_writer_write_field_name_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *field_name);
 iERR _ion_writer_clear_field_name_helper(ION_WRITER *pwriter);
 iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotation);
 iERR _ion_writer_add_annotation_sid_helper(ION_WRITER *pwriter, SID sid);
+iERR _ion_writer_add_annotation_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *annotation);
 iERR _ion_writer_write_annotations_helper(ION_WRITER *pwriter, ION_STRING **p_annotations, int32_t count);
 iERR _ion_writer_write_annotation_sids_helper(ION_WRITER *pwriter, int32_t *p_sids, SIZE count);
+iERR _ion_writer_write_annotation_symbols_helper(ION_WRITER *pwriter, ION_SYMBOL **annotations, SIZE count);
 iERR _ion_writer_clear_annotations_helper(ION_WRITER *pwriter);
 iERR _ion_writer_write_typed_null_helper(ION_WRITER *pwriter, ION_TYPE type);
 iERR _ion_writer_write_bool_helper(ION_WRITER *pwriter, BOOL value);
@@ -245,6 +244,7 @@ iERR _ion_writer_write_timestamp_helper(ION_WRITER *pwriter, ION_TIMESTAMP *valu
 iERR _ion_writer_write_symbol_id_helper(ION_WRITER *pwriter, SID value);
 iERR _ion_writer_validate_symbol_id(ION_WRITER *pwriter, SID sid);
 iERR _ion_writer_write_symbol_helper(ION_WRITER *pwriter, ION_STRING *symbol);
+iERR _ion_writer_write_ion_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *symbol);
 iERR _ion_writer_write_string_helper(ION_WRITER *pwriter, ION_STRING *pstr);
 iERR _ion_writer_write_clob_helper(ION_WRITER *pwriter, BYTE *p_buf, SIZE length);
 iERR _ion_writer_write_blob_helper(ION_WRITER *pwriter, BYTE *p_buf, SIZE length);

@@ -1219,12 +1219,11 @@ iERR _ion_symbol_table_parse_possible_symbol_identifier(ION_SYMBOL_TABLE *symtab
             sid += c - '0';
         }
         is_symbol_identifier = TRUE;
-        if (sid == 0) {
+        if (sid == 0 || sid > symtab->max_id) {
             // SID 0 is not in any symbol table, but is available in all symbol table contexts.
-            _ion_symbol_table_allocate_symbol_unknown_text(symtab->owner, 0, &sym);
-        }
-        else if (sid > symtab->max_id) {
-            FAILWITH(IERR_INVALID_SYMBOL); // The requested SID is out of range for the current symtab context.
+            // If the requested SID is out of range for the current symtab context, an error will be raised when the
+            // user retrieves the symbol token.
+            _ion_symbol_table_allocate_symbol_unknown_text(symtab->owner, sid, &sym);
         }
         else if (p_sym) {
             IONCHECK(_ion_symbol_table_find_symbol_by_sid_helper(symtab, sid, &sym));
@@ -1332,6 +1331,11 @@ iERR _ion_symbol_table_local_find_by_sid(ION_SYMBOL_TABLE *symtab, SID sid, ION_
         }
 
     }
+    if (sym && !ION_STRING_IS_NULL(&symtab->name)) {
+        // The symbol is found and this is a shared symbol table. Set the import location.
+        ION_STRING_ASSIGN(&sym->import_location.name, &symtab->name);
+        sym->import_location.location = sid;
+    }
     *p_sym = sym;
 
     iRETURN;
@@ -1370,7 +1374,8 @@ iERR _ion_symbol_table_find_symbol_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID s
     ASSERT(sid > UNKNOWN_SID);
     ASSERT(p_sym);
 
-    if (sid <= symtab->system_symbol_table->max_id) {
+    if (ION_STRING_IS_NULL(&symtab->name) && sid <= symtab->system_symbol_table->max_id) {
+        // Only local symbol tables implicitly import the system symbol table. Shared symbol table SIDs start at 1.
         IONCHECK(_ion_symbol_table_local_find_by_sid(symtab->system_symbol_table, sid, &sym));
     }
     else {
@@ -1390,6 +1395,8 @@ iERR _ion_symbol_table_find_symbol_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID s
                         // The SID is in range, but either the shared symbol table is not found, or the SID refers to a
                         // NULL slot in the shared symbol table. This symbol has unknown text.
                         _ion_symbol_table_allocate_symbol_unknown_text(symtab->owner, sid, &sym);
+                        ION_STRING_ASSIGN(&sym->import_location.name, &imp->descriptor.name);
+                        sym->import_location.location = sid - offset;
                     }
                     ASSERT(sym);
                     break;
@@ -1774,12 +1781,9 @@ iERR _ion_symbol_local_copy_new_owner(void *context, void *dst, void *src, int32
     ION_SYMBOL *symbol_src = (ION_SYMBOL *)src;
 
     if (data_size != sizeof(ION_SYMBOL)) FAILWITH(IERR_INVALID_ARG);
-    ASSERT(dst);
-    ASSERT(src);
     ASSERT(context);
 
-    symbol_dst->sid     = symbol_src->sid;
-    IONCHECK(ion_string_copy_to_owner(context, &symbol_dst->value, &symbol_src->value));
+    IONCHECK(ion_symbol_copy_to_owner(context, symbol_dst, symbol_src));
 
     iRETURN;
 }
@@ -1796,6 +1800,8 @@ iERR _ion_symbol_local_copy_same_owner(void *context, void *dst, void *src, int3
 
     symbol_dst->sid = symbol_src->sid;
     ION_STRING_ASSIGN(&symbol_dst->value, &symbol_src->value);
+    ION_STRING_ASSIGN(&symbol_dst->import_location.name, &symbol_src->import_location.name);
+    symbol_dst->import_location.location = symbol_src->import_location.location;
 
     iRETURN;
 }
@@ -2024,6 +2030,8 @@ void _ion_symbol_table_allocate_symbol_unknown_text(hOWNER owner, SID sid, ION_S
     ION_STRING_INIT(&symbol->value); // NULLS the value.
     symbol->sid = sid;
     symbol->add_count++;
+    ION_STRING_INIT(&symbol->import_location.name); // NULLS the value.
+    symbol->import_location.location = UNKNOWN_SID;
 
     *p_symbol = symbol;
 }
@@ -2046,6 +2054,73 @@ ION_SYMBOL *_ion_symbol_table_index_find_by_sid_helper(ION_SYMBOL_TABLE *symtab,
     }
 
     return found_sym;
+}
+
+iERR ion_symbol_copy_to_owner(hOWNER owner, ION_SYMBOL *dst, ION_SYMBOL *src)
+{
+    iENTER;
+
+    ASSERT(dst);
+    ASSERT(src);
+
+    dst->sid = src->sid;
+    dst->add_count = 0;
+    IONCHECK(ion_string_copy_to_owner(owner, &dst->value, &src->value));
+    IONCHECK(ion_string_copy_to_owner(owner, &dst->import_location.name, &src->import_location.name));
+    dst->import_location.location = src->import_location.location;
+
+    iRETURN;
+}
+
+iERR ion_symbol_is_equal(ION_SYMBOL *lhs, ION_SYMBOL *rhs, BOOL *is_equal)
+{
+    iENTER;
+
+    ASSERT(is_equal);
+
+    if (lhs == rhs) {
+        // Both inputs are the same reference, or NULL.
+        *is_equal = TRUE;
+    }
+    else if (!lhs ^ !rhs) {
+        // Only one of the inputs is NULL.
+        *is_equal = FALSE;
+    }
+    // Both are non-NULL, and are not the same reference.
+    else if (ION_STRING_IS_NULL(&lhs->value) ^ ION_STRING_IS_NULL(&rhs->value)) {
+        // Only one of the inputs has unknown text.
+        *is_equal = FALSE;
+    }
+    else if (ION_STRING_IS_NULL(&lhs->value)) {
+        ASSERT(ION_STRING_IS_NULL(&rhs->value));
+        if (ION_SYMBOL_IMPORT_LOCATION_IS_NULL(rhs) ^ ION_SYMBOL_IMPORT_LOCATION_IS_NULL(lhs)) {
+            *is_equal = FALSE;
+        }
+        else if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(rhs)) {
+            ASSERT(!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(lhs));
+            // Both are shared symbols with unknown text. They are equivalent only if their import locations are
+            // equivalent.
+            *is_equal = ION_STRING_EQUALS(&lhs->import_location.name, &rhs->import_location.name)
+                        && (lhs->import_location.location == rhs->import_location.location);
+        }
+        else if (lhs->sid <= UNKNOWN_SID || rhs->sid <= UNKNOWN_SID) {
+            ASSERT(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(lhs));
+            FAILWITH(IERR_INVALID_SYMBOL);
+        }
+        else {
+            // All local symbols with unknown text are equivalent to each other (and to symbol zero).
+            ASSERT(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(lhs));
+            *is_equal = TRUE;
+        }
+    }
+    else if (ION_STRING_EQUALS(&lhs->value, &rhs->value)) {
+        // Both inputs have the same text. They are equivalent regardless of SID or import location.
+        *is_equal = TRUE;
+    }
+    else {
+        *is_equal = FALSE;
+    }
+    iRETURN;
 }
 
 const char *ion_symbol_table_type_to_str(ION_SYMBOL_TABLE_TYPE t)

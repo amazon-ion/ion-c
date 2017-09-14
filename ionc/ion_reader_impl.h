@@ -213,9 +213,11 @@ iERR _ion_reader_has_annotation_helper(ION_READER *preader, ION_STRING *annotati
 iERR _ion_reader_get_annotation_count_helper(ION_READER *preader, int32_t *p_count);
 iERR _ion_reader_get_an_annotation_helper(ION_READER *preader, int32_t idx, ION_STRING *p_str);
 iERR _ion_reader_get_an_annotation_sid_helper(ION_READER *preader, int32_t idx, SID *p_sid);
+iERR _ion_reader_get_an_annotation_symbol_helper(ION_READER *preader, int32_t idx, ION_SYMBOL *p_symbol);
 iERR _ion_reader_is_null_helper(ION_READER *preader, BOOL *p_is_null);
 iERR _ion_reader_get_field_name_helper(ION_READER *preader, ION_STRING **p_pstr);
 iERR _ion_reader_get_field_sid_helper(ION_READER *preader, SID *p_sid);
+iERR _ion_reader_get_field_name_symbol_helper(ION_READER *preader, ION_SYMBOL **p_psymbol);
 iERR _ion_reader_get_annotations_helper(ION_READER *preader, ION_STRING *p_strs, SIZE max_count, SIZE *p_count);
 iERR _ion_reader_read_null_helper(ION_READER *preader, ION_TYPE *p_value);
 iERR _ion_reader_read_bool_helper(ION_READER *preader, BOOL *p_value);
@@ -281,11 +283,14 @@ iERR _ion_reader_binary_has_annotation      (ION_READER *preader, iSTRING annota
 iERR _ion_reader_binary_get_annotation_count(ION_READER *preader, int32_t *p_count);
 iERR _ion_reader_binary_get_an_annotation   (ION_READER *preader, int32_t idx, ION_STRING *p_str);
 iERR _ion_reader_binary_get_an_annotation_sid(ION_READER *preader, int32_t idx, SID *p_sid);
+iERR _ion_reader_binary_get_an_annotation_symbol(ION_READER *preader, int32_t idx, ION_SYMBOL *p_symbol);
 
 iERR _ion_reader_binary_get_field_name     (ION_READER *preader, ION_STRING **pstr);
 iERR _ion_reader_binary_get_field_sid      (ION_READER *preader, SID *p_sid);
+iERR _ion_reader_binary_get_field_name_symbol(ION_READER *preader, ION_SYMBOL **p_psymbol);
 iERR _ion_reader_binary_get_annotations    (ION_READER *preader, iSTRING p_strs, SIZE max_count, SIZE *p_count);
 iERR _ion_reader_binary_get_annotation_sids(ION_READER *preader, SID *p_sids, SIZE max_count, SIZE *p_count);
+iERR _ion_reader_binary_get_annotation_symbols(ION_READER *preader, ION_SYMBOL *p_annotations, SIZE max_count, SIZE *p_count);
 
 iERR _ion_reader_binary_is_null             (ION_READER *preader, BOOL *p_is_null);
 iERR _ion_reader_binary_read_null           (ION_READER *preader, ION_TYPE *p_value);

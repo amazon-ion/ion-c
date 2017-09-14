@@ -60,13 +60,13 @@ class IonEvent {
 public:
     ION_EVENT_TYPE event_type;
     ION_TYPE ion_type;
-    ION_STRING *field_name;
-    ION_STRING **annotations;
+    ION_SYMBOL *field_name;
+    ION_SYMBOL **annotations;
     SIZE num_annotations;
     int depth;
     void *value;
 
-    IonEvent(ION_EVENT_TYPE event_type, ION_TYPE ion_type, ION_STRING *field_name, ION_STRING **annotations, SIZE num_annotations, int depth) {
+    IonEvent(ION_EVENT_TYPE event_type, ION_TYPE ion_type, ION_SYMBOL *field_name, ION_SYMBOL **annotations, SIZE num_annotations, int depth) {
         this->event_type = event_type;
         this->ion_type = ion_type;
         this->field_name = field_name;
@@ -87,8 +87,8 @@ public:
      * Creates a new IonEvent from the given parameters, appends it to the IonEventStream, and returns it.
      * It is up to the caller to set the returned IonEvent's value.
      */
-    IonEvent *append_new(ION_EVENT_TYPE event_type, ION_TYPE ion_type, ION_STRING *field_name,
-                         ION_STRING **annotations, SIZE num_annotations, int depth);
+    IonEvent *append_new(ION_EVENT_TYPE event_type, ION_TYPE ion_type, ION_SYMBOL *field_name,
+                         ION_SYMBOL **annotations, SIZE num_annotations, int depth);
 
     size_t size() {
         return event_stream->size();

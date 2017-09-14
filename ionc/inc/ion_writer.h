@@ -116,13 +116,15 @@ ION_API_EXPORT iERR ion_writer_options_initialize_shared_imports(ION_WRITER_OPTI
 
 /**
  * Adds the imports from the given collection of ION_SYMBOL_TABLE_IMPORT to the options' imports list.
- * `ion_writer_options_initialize_shared_imports` must have been called first.
+ * `ion_writer_options_initialize_shared_imports` must have been called first. The given collection must not contain
+ * a system symbol table.
  */
 ION_API_EXPORT iERR ion_writer_options_add_shared_imports(ION_WRITER_OPTIONS *options, ION_COLLECTION *imports);
 
 /**
  * Adds the given array of ION_SYMBOL_TABLE (which must be shared symbol tables) to the options' imports list.
- * `ion_writer_options_initialize_shared_imports` must have been called first.
+ * `ion_writer_options_initialize_shared_imports` must have been called first. The given array must not contain
+ * a system symbol table.
  */
 ION_API_EXPORT iERR ion_writer_options_add_shared_imports_symbol_tables(ION_WRITER_OPTIONS *options, ION_SYMBOL_TABLE **imports, SIZE imports_count);
 
@@ -171,13 +173,30 @@ ION_API_EXPORT iERR ion_writer_get_catalog          (hWRITER hwriter, hCATALOG *
 ION_API_EXPORT iERR ion_writer_set_symbol_table     (hWRITER hwriter, hSYMTAB     hsymtab);
 ION_API_EXPORT iERR ion_writer_get_symbol_table     (hWRITER hwriter, hSYMTAB  *p_hsymtab);
 
+/**
+ * Sets the writer's current field name. Only valid if the writer is currently in a struct. It is the caller's
+ * responsibility to keep `name` in scope until the writer's next value is written.
+ */
 ION_API_EXPORT iERR ion_writer_write_field_name     (hWRITER hwriter, iSTRING name);
+
+/**
+ * Sets the writer's current field name from a local symbol ID. Only valid if the writer is currently in a struct.
+ */
 ION_API_EXPORT iERR ion_writer_write_field_sid      (hWRITER hwriter, SID sid);
+
+/**
+ * Sets the writer's current field name from the given Ion symbol. Only valid if the writer is currently in a struct.
+ * It is the caller's responsibility to keep `field_name` in scope until the writer's next value is written.
+ */
+ION_API_EXPORT iERR ion_writer_write_field_name_symbol(hWRITER hwriter, ION_SYMBOL *field_name);
+
 ION_API_EXPORT iERR ion_writer_clear_field_name     (hWRITER hwriter);
 ION_API_EXPORT iERR ion_writer_add_annotation       (hWRITER hwriter, iSTRING annotation);
 ION_API_EXPORT iERR ion_writer_add_annotation_sid   (hWRITER hwriter, SID sid);
+ION_API_EXPORT iERR ion_writer_add_annotation_symbol(hWRITER hwriter, ION_SYMBOL *annotation);
 ION_API_EXPORT iERR ion_writer_write_annotations    (hWRITER hwriter, iSTRING *p_annotations, SIZE count);
 ION_API_EXPORT iERR ion_writer_write_annotation_sids(hWRITER hwriter, SID *p_sids, SIZE count);
+ION_API_EXPORT iERR ion_writer_write_annotation_symbols(hWRITER hwriter, ION_SYMBOL **annotations, SIZE count);
 ION_API_EXPORT iERR ion_writer_clear_annotations    (hWRITER hwriter);
 
 ION_API_EXPORT iERR ion_writer_write_null           (hWRITER hwriter);
@@ -198,6 +217,7 @@ ION_API_EXPORT iERR ion_writer_write_ion_decimal    (hWRITER hwriter, ION_DECIMA
 ION_API_EXPORT iERR ion_writer_write_timestamp      (hWRITER hwriter, iTIMESTAMP value);
 ION_API_EXPORT iERR ion_writer_write_symbol_sid     (hWRITER hwriter, SID value);
 ION_API_EXPORT iERR ion_writer_write_symbol         (hWRITER hwriter, iSTRING p_value);
+ION_API_EXPORT iERR ion_writer_write_ion_symbol     (hWRITER hwriter, ION_SYMBOL *symbol);
 ION_API_EXPORT iERR ion_writer_write_string         (hWRITER hwriter, iSTRING p_value);
 ION_API_EXPORT iERR ion_writer_write_clob           (hWRITER hwriter, BYTE *p_buf, SIZE length);
 ION_API_EXPORT iERR ion_writer_write_blob           (hWRITER hwriter, BYTE *p_buf, SIZE length);
