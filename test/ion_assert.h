@@ -127,6 +127,25 @@
     } \
 } \
 
+#define ION_EXPECT_SYMBOL_EQ(x, y) { \
+    switch (assertion_type) { \
+        case ASSERTION_TYPE_NORMAL: \
+            EXPECT_TRUE(assertIonSymbolEq(x, y)) << "Test: " << g_CurrentTest; \
+            break; \
+        case ASSERTION_TYPE_SET_FLAG: \
+            BOOL _ion_symbol_is_equal_result; \
+            if ((x) == NULL ^ (y) == NULL) return FALSE; \
+            if ((x) != NULL) { \
+                ION_EXPECT_OK(ion_symbol_is_equal(x, y, &_ion_symbol_is_equal_result)); \
+                if (!_ion_symbol_is_equal_result) return FALSE; \
+            } \
+            break; \
+        default: \
+            EXPECT_FALSE("Illegal state: unknown assertion type."); \
+            break; \
+    } \
+} \
+
 #define ION_EXPECT_INT_EQ(x, y) { \
     int _ion_int_assertion_result = 0; \
     switch (assertion_type) { \
@@ -228,6 +247,7 @@ char *ionIntToString(ION_INT *value);
 char *ionStringToString(ION_STRING *value);
 
 ::testing::AssertionResult assertIonStringEq(ION_STRING *expected, ION_STRING *actual);
+::testing::AssertionResult assertIonSymbolEq(ION_SYMBOL *expected, ION_SYMBOL *actual);
 ::testing::AssertionResult assertIonIntEq(ION_INT *expected, ION_INT *actual);
 ::testing::AssertionResult assertIonDecimalEq(ION_DECIMAL *expected, ION_DECIMAL *actual);
 
@@ -237,9 +257,9 @@ char *ionStringToString(ION_STRING *value);
 ::testing::AssertionResult assertIonTimestampEq(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual);
 
 /**
- * Returns TRUE if and only if assertIonStringEq succeeds for the inputs.
+ * Returns TRUE if and only if assertIonSymbolEq succeeds for the inputs.
  */
-BOOL ionStringEq(ION_STRING *expected, ION_STRING *actual);
+BOOL ionSymbolEq(ION_SYMBOL *expected, ION_SYMBOL *actual);
 
 /**
  * Tests the values starting at the given indices in the given streams (they may be the same) for equivalence

@@ -160,13 +160,13 @@ TEST(IonTextSymbol, ReaderReadsSymbolValueSymbolZero) {
 
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ION_ASSERT_OK(_ion_reader_read_symbol_helper(reader, &symbol_value));
+    ION_ASSERT_OK(ion_reader_read_symbol(reader, &symbol_value));
     ASSERT_TRUE(ION_STRING_IS_NULL(&symbol_value.value));
     ASSERT_EQ(0, symbol_value.sid); // Because it was unquoted, this represents symbol zero.
 
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ION_ASSERT_OK(_ion_reader_read_symbol_helper(reader, &symbol_value));
+    ION_ASSERT_OK(ion_reader_read_symbol(reader, &symbol_value));
     ASSERT_STREQ("$0", ionStringToString(&symbol_value.value)); // This one just looks like symbol zero, but it's actually a user symbol with the text $0
 
     ION_ASSERT_OK(ion_reader_close(reader));
@@ -200,7 +200,7 @@ TEST(IonTextSymbol, ReaderReadsAnnotationSymbolZero) {
     ION_ASSERT_OK(ion_reader_get_annotations(reader, annotation_strs, 1, &num_annotations));
     ASSERT_EQ(1, num_annotations);
     ASSERT_TRUE(ION_STRING_IS_NULL(&annotation_strs[0]));
-    ION_ASSERT_OK(_ion_reader_read_symbol_helper(reader, &symbol));
+    ION_ASSERT_OK(ion_reader_read_symbol(reader, &symbol));
     ASSERT_STREQ("$0", ionStringToString(&symbol.value)); // This one just looks like symbol zero, but it's actually a user symbol with the text $0
 
     ION_ASSERT_OK(ion_reader_close(reader));
@@ -353,9 +353,11 @@ TEST(IonTextSymbol, ReaderReadsSymbolValueTrueIVM) {
     const char *ion_text = "$ion_symbol_table::{symbols:[\"foo\"]} $ion_1_0 $10";
     hREADER reader;
     ION_TYPE type;
+    SID sid;
 
     ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
-    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_reader_read_symbol_sid(reader, &sid));
 
     ION_ASSERT_OK(ion_reader_close(reader));
 }

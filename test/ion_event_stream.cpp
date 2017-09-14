@@ -21,8 +21,8 @@
 #define IONCHECKORFREE(x, y) { \
     err = x; \
     if (err) { \
-        free_ion_strings(annotations, annotation_count); annotations = NULL; \
-        free_ion_string(field_name); field_name = NULL; \
+        free_ion_symbols(annotations, annotation_count); annotations = NULL; \
+        free_ion_symbol(field_name); field_name = NULL; \
         if (y) free(y); y = NULL; \
         goto fail; \
     } \
@@ -31,8 +31,8 @@
 #define IONCHECKORFREE2(x) { \
     err = x; \
     if (err) { \
-        free_ion_strings(annotations, annotation_count); annotations = NULL; \
-        free_ion_string(field_name); field_name = NULL; \
+        free_ion_symbols(annotations, annotation_count); annotations = NULL; \
+        free_ion_symbol(field_name); field_name = NULL; \
         goto fail; \
     } \
 } \
@@ -42,16 +42,28 @@ void free_ion_string(ION_STRING *str) {
         if (str->value) {
             free(str->value);
         }
+        free(str);
     }
-    free(str);
 }
 
-void free_ion_strings(ION_STRING **strs, SIZE len) {
-    if (strs) {
-        for (int q = 0; q < len; q++) {
-            free_ion_string(strs[q]);
+void free_ion_symbol(ION_SYMBOL *symbol) {
+    if (symbol) {
+        if (symbol->value.value) {
+            free(symbol->value.value);
         }
-        free(strs);
+        if (symbol->import_location.name.value) {
+            free(symbol->import_location.name.value);
+        }
+        free(symbol);
+    }
+}
+
+void free_ion_symbols(ION_SYMBOL **symbols, SIZE len) {
+    if (symbols) {
+        for (int q = 0; q < len; q++) {
+            free_ion_symbol(symbols[q]);
+        }
+        free(symbols);
     }
 }
 
@@ -63,8 +75,8 @@ IonEventStream::~IonEventStream() {
     for (int i = 0; i < event_stream->size(); i++) {
         IonEvent *event = event_stream->at(i);
         if (event) {
-            free_ion_strings(event->annotations, event->num_annotations);
-            free_ion_string(event->field_name);
+            free_ion_symbols(event->annotations, event->num_annotations);
+            free_ion_symbol(event->field_name);
             if (event->value) {
                 int tid = (int)(ION_TYPE_INT(event->ion_type) >> 8);
                 switch (tid) {
@@ -76,6 +88,8 @@ IonEventStream::~IonEventStream() {
                         ion_decimal_free((ION_DECIMAL *) event->value);
                         break;
                     case TID_SYMBOL:
+                        free_ion_symbol((ION_SYMBOL *)event->value);
+                        break;
                     case TID_STRING:
                     case TID_CLOB:
                     case TID_BLOB:
@@ -92,8 +106,8 @@ IonEventStream::~IonEventStream() {
     delete event_stream;
 }
 
-IonEvent * IonEventStream::append_new(ION_EVENT_TYPE event_type, ION_TYPE ion_type, ION_STRING *field_name,
-                                      ION_STRING **annotations, SIZE num_annotations, int depth) {
+IonEvent * IonEventStream::append_new(ION_EVENT_TYPE event_type, ION_TYPE ion_type, ION_SYMBOL *field_name,
+                                      ION_SYMBOL **annotations, SIZE num_annotations, int depth) {
     IonEvent *event = new IonEvent(event_type, ion_type, field_name, annotations, num_annotations, depth);
     event_stream->push_back(event);
     return event;
@@ -135,38 +149,61 @@ iERR read_all(hREADER hreader, IonEventStream *stream, BOOL in_struct, int depth
 ION_STRING *copy_ion_string(ION_STRING *src) {
     ION_STRING *string_value = (ION_STRING *)malloc(sizeof(ION_STRING));
     size_t len = (size_t)src->length;
-    string_value->value = (BYTE *)malloc(len);
-    memcpy(string_value->value, src->value, len);
+    if (src->value == NULL) {
+        ASSERT(len == 0);
+        string_value->value = NULL;
+    }
+    else {
+        string_value->value = (BYTE *) malloc(len);
+        memcpy(string_value->value, src->value, len);
+    }
     string_value->length = (int32_t)len;
     return string_value;
+}
+
+void copy_ion_symbol(ION_SYMBOL **dst, ION_SYMBOL *src) {
+    ION_SYMBOL *copy = (ION_SYMBOL *)calloc(1, sizeof(ION_SYMBOL));
+    copy->value.length = src->value.length;
+    if (src->value.value != NULL) {
+        copy->value.value = (BYTE *)malloc(sizeof(BYTE) * copy->value.length);
+        memcpy(copy->value.value, src->value.value, (size_t)copy->value.length);
+    }
+    ION_STRING_INIT(&copy->import_location.name);
+    if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(src)) {
+        copy->import_location.name.value = (BYTE *)malloc(sizeof(BYTE) * copy->import_location.name.length);
+        memcpy(copy->import_location.name.value, src->import_location.name.value, (size_t)copy->import_location.name.length);
+        copy->import_location.location = src->import_location.location;
+    }
+    copy->sid = src->sid;
+    *dst = copy;
 }
 
 iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth) {
     iENTER;
 
     BOOL        is_null;
-    ION_STRING *field_name = NULL;
+    ION_SYMBOL *field_name = NULL;
     SIZE        annotation_count = 0;
-    ION_STRING *annotations_tmp = NULL;
-    ION_STRING **annotations = NULL;
+    ION_SYMBOL *annotations_tmp = NULL;
+    ION_SYMBOL **annotations = NULL;
     IonEvent *event = NULL;
     ION_EVENT_TYPE event_type = SCALAR;
     int ion_type = ION_TID_INT(t);
 
     if (in_struct) {
-        ION_STRING field_name_tmp;
-        IONCHECKORFREE2(ion_reader_get_field_name(hreader, &field_name_tmp));
-        field_name = copy_ion_string(&field_name_tmp);
+        ION_SYMBOL *field_name_tmp;
+        IONCHECKORFREE2(ion_reader_get_field_name_symbol(hreader, &field_name_tmp));
+        copy_ion_symbol(&field_name, field_name_tmp);
     }
 
     IONCHECKORFREE2(ion_reader_get_annotation_count(hreader, &annotation_count));
     if (annotation_count > 0) {
-        annotations_tmp = (ION_STRING *)malloc(annotation_count * sizeof(ION_STRING));
-        annotations = (ION_STRING **)malloc(annotation_count * sizeof(ION_STRING *));
-        IONCHECKORFREE(ion_reader_get_annotations(hreader, annotations_tmp, annotation_count, &annotation_count),
+        annotations_tmp = (ION_SYMBOL *)calloc((size_t)annotation_count, sizeof(ION_SYMBOL));
+        annotations = (ION_SYMBOL **)calloc((size_t)annotation_count, sizeof(ION_SYMBOL *));
+        IONCHECKORFREE(ion_reader_get_annotation_symbols(hreader, annotations_tmp, annotation_count, &annotation_count),
                        annotations_tmp);
         for (int i = 0; i < annotation_count; i++) {
-            annotations[i] = copy_ion_string(&annotations_tmp[i]);
+            copy_ion_symbol(&annotations[i], &annotations_tmp[i]);
         }
         free(annotations_tmp);
     }
@@ -224,10 +261,14 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
             event->value = timestamp_value;
             break;
         }
-        case TID_SYMBOL: // intentional fall-through
-            // TODO when vectors that contain symbols with unknown text are added, this will need to retrieve a full
-            // ION_SYMBOL (text and SID) for proper roundtripping. If the text is unknown, the SID needs to be written.
-            // see: _ion_writer_write_one_value_helper
+        case TID_SYMBOL:
+        {
+            ION_SYMBOL tmp, *symbol_value;
+            IONCHECKORFREE2(ion_reader_read_symbol(hreader, &tmp));
+            copy_ion_symbol(&symbol_value, &tmp);
+            event->value = symbol_value;
+            break;
+        }
         case TID_STRING:
         {
             ION_STRING tmp;
@@ -258,15 +299,15 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
         }
         case TID_STRUCT: // intentional fall-through
         case TID_SEXP: // intentional fall-through
-        case TID_LIST: IONCHECKORFREE2(ion_reader_step_in(hreader));
+        case TID_LIST:
+            IONCHECKORFREE2(ion_reader_step_in(hreader));
             IONCHECKORFREE2(read_all(hreader, stream, t == tid_STRUCT, depth + 1));
             IONCHECKORFREE2(ion_reader_step_out(hreader));
             stream->append_new(CONTAINER_END, t, /*field_name=*/NULL, /*annotations=*/NULL, /*annotation_count=*/0,
                                depth);
             break;
-
         case TID_DATAGRAM:
-        default: IONCHECKORFREE2(IERR_INVALID_STATE);
+            default: IONCHECKORFREE2(IERR_INVALID_STATE);
     }
     iRETURN;
 }
@@ -390,7 +431,7 @@ iERR write_scalar(hWRITER writer, IonEvent *event) {
             IONCHECK(ion_writer_write_timestamp(writer, (ION_TIMESTAMP *)event->value));
             break;
         case TID_SYMBOL:
-            IONCHECK(ion_writer_write_symbol(writer, (ION_STRING *)event->value));
+            IONCHECK(ion_writer_write_ion_symbol(writer, (ION_SYMBOL *)event->value));
             break;
         case TID_STRING:
             IONCHECK(ion_writer_write_string(writer, (ION_STRING *)event->value));
@@ -411,10 +452,10 @@ iERR write_scalar(hWRITER writer, IonEvent *event) {
 iERR write_event(hWRITER writer, IonEvent *event) {
     iENTER;
     if (event->field_name) {
-        IONCHECK(ion_writer_write_field_name(writer, event->field_name));
+        IONCHECK(ion_writer_write_field_name_symbol(writer, event->field_name));
     }
     if (event->num_annotations) {
-        IONCHECK(ion_writer_write_annotations(writer, event->annotations, event->num_annotations));
+        IONCHECK(ion_writer_write_annotation_symbols(writer, event->annotations, event->num_annotations));
     }
     switch (event->event_type) {
         case CONTAINER_START:

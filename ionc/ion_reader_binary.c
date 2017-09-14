@@ -500,7 +500,7 @@ iERR _ion_reader_binary_has_annotation(ION_READER *preader, ION_STRING *annotati
         goto return_value;
     }
 
-    // and now check the annotation list for the sid of the users string
+    // and now check the annotation list for the sid of the user's string
     ION_COLLECTION_OPEN(&binary->_annotation_sids, cursor);
     for (;;) {
         ION_COLLECTION_NEXT(cursor, psid);
@@ -534,6 +534,22 @@ iERR _ion_reader_binary_get_annotation_count(ION_READER *preader, int32_t *p_cou
     iRETURN;
 }
 
+iERR _ion_reader_binary_validate_symbol_token(ION_READER *preader, SID sid)
+{
+    iENTER;
+    ION_SYMBOL_TABLE *symbol_table;
+    ASSERT(preader);
+
+    symbol_table = preader->_current_symtab;
+    if (!symbol_table) {
+        IONCHECK(ion_symbol_table_get_system_table(&symbol_table, ION_SYSTEM_VERSION));
+    }
+    if (sid <= UNKNOWN_SID || sid > symbol_table->max_id) {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
+    iRETURN;
+}
+
 iERR _ion_reader_binary_get_an_annotation_sid(ION_READER *preader, int32_t idx, SID *p_sid)
 {
     iENTER;
@@ -563,6 +579,8 @@ iERR _ion_reader_binary_get_an_annotation_sid(ION_READER *preader, int32_t idx, 
     if (!psid || ii != idx + 1) {
         FAILWITH(IERR_INVALID_STATE);
     }
+
+    IONCHECK(_ion_reader_binary_validate_symbol_token(preader, *psid));
 
     *p_sid = *psid;
 
@@ -600,6 +618,35 @@ iERR _ion_reader_binary_get_an_annotation(ION_READER *preader, int32_t idx, ION_
     iRETURN;
 }
 
+iERR _ion_reader_binary_get_an_annotation_symbol(ION_READER *preader, int32_t idx, ION_SYMBOL *p_symbol)
+{
+    iENTER;
+    SID               sid;
+    ION_SYMBOL       *psymbol;
+
+    ASSERT(preader && preader->type == ion_type_binary_reader);
+    ASSERT(p_symbol != NULL);
+
+
+    IONCHECK(_ion_reader_binary_get_an_annotation_sid(preader, idx, &sid));
+    if (sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
+
+    if (sid == 0) {
+        ION_STRING_INIT(&p_symbol->value);
+        ION_STRING_INIT(&p_symbol->import_location.name);
+        p_symbol->sid = 0;
+        p_symbol->import_location.location = UNKNOWN_SID;
+        p_symbol->add_count = 0;
+    }
+    else {
+        IONCHECK(_ion_symbol_table_find_symbol_by_sid_helper(preader->_current_symtab, sid, &psymbol));
+        ASSERT(psymbol != NULL);
+        IONCHECK(ion_symbol_copy_to_owner(preader->_temp_entity_pool, p_symbol, psymbol));
+    }
+
+    iRETURN;
+}
+
 iERR _ion_reader_binary_get_annotations(ION_READER *preader, ION_STRING *p_annotations, SIZE max_count, SIZE *p_count)
 {
     iENTER;
@@ -624,8 +671,8 @@ iERR _ion_reader_binary_get_annotations(ION_READER *preader, ION_STRING *p_annot
     for (ii=0; ;ii++) {
         ION_COLLECTION_NEXT(cursor, psid);
         if (!psid) break;
-        if ((*psid) <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
 
+        IONCHECK(_ion_reader_binary_validate_symbol_token(preader, *psid));
         IONCHECK(_ion_symbol_table_find_by_sid_helper(preader->_current_symtab, *psid, &pstr));
         IONCHECK(_ion_reader_binary_string_copy_or_null(preader, &p_annotations[ii], pstr));
     }
@@ -636,6 +683,52 @@ iERR _ion_reader_binary_get_annotations(ION_READER *preader, ION_STRING *p_annot
 return_value:
     *p_count = count;
     SUCCEED();
+
+    iRETURN;
+}
+
+iERR _ion_reader_binary_get_annotation_symbols(ION_READER *preader, ION_SYMBOL *p_annotations, SIZE max_count, SIZE *p_count)
+{
+    iENTER;
+    ION_BINARY_READER    *binary;
+    ION_SYMBOL           *pstr;
+    int                   ii, count;
+    SID                  *psid;
+    ION_COLLECTION_CURSOR cursor;
+
+    ASSERT(preader && preader->type == ion_type_binary_reader);
+    ASSERT(p_annotations != NULL);
+    ASSERT(p_count != NULL);
+
+    binary = &preader->typed_reader.binary;
+
+    count = ION_COLLECTION_SIZE(&binary->_annotation_sids);
+    if (count > max_count) {
+        FAILWITH(IERR_BUFFER_TOO_SMALL);
+    }
+
+    ION_COLLECTION_OPEN(&binary->_annotation_sids, cursor);
+    for (ii=0; ;ii++) {
+        ION_COLLECTION_NEXT(cursor, psid);
+        if (!psid) break;
+        if ((*psid) <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
+
+        IONCHECK(_ion_reader_binary_validate_symbol_token(preader, *psid));
+        IONCHECK(_ion_symbol_table_find_symbol_by_sid_helper(preader->_current_symtab, *psid, &pstr));
+        if (pstr == NULL) {
+            ASSERT(*psid == 0);
+            ION_STRING_INIT(&p_annotations[ii].value);
+            ION_STRING_INIT(&p_annotations[ii].import_location.name);
+            p_annotations[ii].sid = 0;
+        }
+        else {
+            IONCHECK(ion_symbol_copy_to_owner(preader->_temp_entity_pool, &p_annotations[ii], pstr));
+            p_annotations[ii].sid = *psid;
+        }
+    }
+    ION_COLLECTION_CLOSE(cursor);
+
+    *p_count = count;
 
     iRETURN;
 }
@@ -661,6 +754,7 @@ iERR _ion_reader_binary_get_annotation_sids(ION_READER *preader, SID *p_sids, SI
     for (ii=0; ;ii++) {
         ION_COLLECTION_NEXT(cursor, psid);
         if (!psid) break;
+        IONCHECK(_ion_reader_binary_validate_symbol_token(preader, *psid));
         p_sids[ii++] = *psid;
     }
 
@@ -684,9 +778,9 @@ iERR _ion_reader_binary_get_field_name(ION_READER *preader, ION_STRING **p_pstr)
     binary = &preader->typed_reader.binary;
 
     if (binary->_in_struct) {
-        if (binary->_value_field_id <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
         if (preader->_current_symtab == NULL)       FAILWITH(IERR_INVALID_STATE);
 
+        IONCHECK(_ion_reader_binary_validate_symbol_token(preader, binary->_value_field_id));
         IONCHECK(_ion_symbol_table_find_by_sid_helper(preader->_current_symtab, binary->_value_field_id, p_pstr));
     }
     else {
@@ -710,8 +804,32 @@ iERR _ion_reader_binary_get_field_sid(ION_READER *preader, SID *p_sid)
         FAILWITH(IERR_INVALID_STATE);
     }
 
+    IONCHECK(_ion_reader_binary_validate_symbol_token(preader, binary->_value_field_id));
     *p_sid = binary->_value_field_id;
 
+    iRETURN;
+}
+
+iERR _ion_reader_binary_get_field_name_symbol(ION_READER *preader, ION_SYMBOL **p_psymbol)
+{
+    iENTER;
+    ION_BINARY_READER *binary;
+    ION_SYMBOL *field_symbol;
+
+    ASSERT(preader && preader->type == ion_type_binary_reader);
+    ASSERT(p_psymbol);
+
+    binary = &preader->typed_reader.binary;
+
+    IONCHECK(_ion_reader_binary_validate_symbol_token(preader, binary->_value_field_id));
+    IONCHECK(_ion_symbol_table_find_symbol_by_sid_helper(preader->_current_symtab, binary->_value_field_id, &field_symbol));
+    if (field_symbol == NULL) {
+        field_symbol = ion_alloc_with_owner(preader->_temp_entity_pool, sizeof (ION_SYMBOL));
+        ION_STRING_INIT(&field_symbol->value);
+        ION_STRING_INIT(&field_symbol->import_location.name);
+    }
+    field_symbol->sid = binary->_value_field_id;
+    *p_psymbol = field_symbol;
     iRETURN;
 }
 
@@ -1096,7 +1214,6 @@ iERR _ion_reader_binary_read_symbol_sid_helper(ION_READER *preader, ION_BINARY_R
         FAILWITH(IERR_NUMERIC_OVERFLOW);
     }
     IONCHECK(ion_binary_read_uint_32(preader->istream, binary->_value_len, &value));
-
     *p_value = (SID)value;
     iRETURN;
 }
@@ -1125,6 +1242,7 @@ iERR _ion_reader_binary_read_symbol_sid(ION_READER *preader, SID *p_value)
         FAILWITH(IERR_NULL_VALUE);
     }
 
+    IONCHECK(_ion_reader_binary_validate_symbol_token(preader, binary->_value_symbol_id));
     binary->_state = S_BEFORE_TID; // now we (should be) just in front of the next value
     *p_value = binary->_value_symbol_id;
 
@@ -1135,20 +1253,23 @@ iERR _ion_reader_binary_read_symbol(ION_READER *preader, ION_SYMBOL *p_symbol)
 {
     iENTER;
     SID sid;
-    ION_STRING *text;
+    ION_SYMBOL *symbol;
 
     ASSERT(p_symbol);
+
     IONCHECK(_ion_reader_binary_read_symbol_sid(preader, &sid));
     if (sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
-    IONCHECK(_ion_symbol_table_find_by_sid_helper(preader->_current_symtab, sid, &text));
-    if (ION_STRING_IS_NULL(text)) {
-        ION_STRING_INIT(&p_symbol->value);
-    }
-    else {
-        ION_STRING_ASSIGN(&p_symbol->value, text);
-    }
+
+    IONCHECK(_ion_symbol_table_find_symbol_by_sid_helper(preader->_current_symtab, sid, &symbol));
+    ION_STRING_INIT(&p_symbol->value);
+    ION_STRING_INIT(&p_symbol->import_location.name);
     p_symbol->sid = sid;
-    p_symbol->add_count = 1;
+    if (symbol) {
+        ION_STRING_ASSIGN(&p_symbol->value, &symbol->value);
+        ION_STRING_ASSIGN(&p_symbol->import_location.name, &symbol->import_location.name);
+        p_symbol->import_location.location = symbol->import_location.location;
+        p_symbol->add_count = 1;
+    }
     iRETURN;
 }
 
