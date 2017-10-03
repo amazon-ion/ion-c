@@ -43,6 +43,9 @@ iERR ion_writer_options_add_shared_imports(ION_WRITER_OPTIONS *options, ION_COLL
     for (;;) {
         ION_COLLECTION_NEXT(import_cursor, user_import);
         if (!user_import) break;
+        if (ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &user_import->descriptor.name)) {
+            FAILWITH(IERR_INVALID_ARG);
+        }
         option_import = _ion_collection_append(&options->encoding_psymbol_table);
         if (!option_import) FAILWITH(IERR_NO_MEMORY);
         memset(option_import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
@@ -72,9 +75,11 @@ iERR ion_writer_options_add_shared_imports_symbol_tables(ION_WRITER_OPTIONS *opt
     ION_SYMBOL_TABLE_IMPORT *import;
     int i;
     for (i = 0; i < imports_count; i++) {
+        if (imports[i] == NULL || ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &imports[i]->name)) {
+            FAILWITH(IERR_INVALID_ARG);
+        }
         import = _ion_collection_append(&options->encoding_psymbol_table);
         if (!import) FAILWITH(IERR_NO_MEMORY);
-        if (imports[i] == NULL) FAILWITH(IERR_INVALID_ARG);
         memset(import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
         import->descriptor.max_id = imports[i]->max_id;
         import->descriptor.version = imports[i]->version;
@@ -814,18 +819,96 @@ iERR _ion_writer_write_field_sid_helper(ION_WRITER *pwriter, SID sid)
     iRETURN;
 }
 
-iERR _ion_writer_write_field_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *field_name)
+iERR _ion_writer_get_local_symbol_id_from_import_location(ION_WRITER *pwriter,
+                                                          ION_SYMBOL_IMPORT_LOCATION *import_location, SID *p_sid)
+{
+    iENTER;
+    ION_SYMBOL_TABLE_IMPORT     *import;
+    ION_COLLECTION_CURSOR       import_cursor;
+    SID local_offset, sid = UNKNOWN_SID;
+    ION_SYMBOL_TABLE *system;
+
+    ASSERT(import_location && !ION_STRING_IS_NULL(&import_location->name) && import_location->location > 0);
+    ASSERT(p_sid);
+
+    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
+    if (ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &import_location->name)) {
+        // The import location refers to the system symbol table.
+        if (import_location->location > system->max_id) {
+            FAILWITH(IERR_INVALID_SYMBOL);
+        }
+        sid = import_location->location;
+    }
+    else {
+        local_offset = system->max_id;
+        ION_COLLECTION_OPEN(&pwriter->_imported_symbol_tables, import_cursor);
+        for (;;) {
+            ION_COLLECTION_NEXT(import_cursor, import);
+            if (!import) break;
+            if (ION_STRING_EQUALS(&import_location->name, &import->descriptor.name)) {
+                if (import_location->location > import->descriptor.max_id) {
+                    FAILWITH(IERR_INVALID_SYMBOL);
+                }
+                sid = local_offset + import_location->location;
+                break;
+            }
+            local_offset += import->descriptor.max_id;
+        }
+        ION_COLLECTION_CLOSE(import_cursor);
+    }
+    *p_sid = sid;
+    iRETURN;
+}
+
+iERR _ion_writer_get_catalog_text_from_import_location(ION_WRITER *pwriter, ION_SYMBOL_IMPORT_LOCATION *import_location,
+                                                       ION_STRING **text)
+{
+    iENTER;
+    ION_SYMBOL_TABLE *import;
+
+    ASSERT(import_location && !ION_STRING_IS_NULL(&import_location->name) && import_location->location > UNKNOWN_SID);
+    ASSERT(text);
+
+    if (!pwriter->pcatalog) {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
+    // Gets the highest available version with the given name from the catalog, if present.
+    IONCHECK(ion_catalog_find_best_match(pwriter->pcatalog, &import_location->name, 0, &import));
+    if (import == NULL) {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
+    IONCHECK(_ion_symbol_table_find_by_sid_helper(import, import_location->location, text));
+    if (ION_STRING_IS_NULL(*text)) {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
+    iRETURN;
+}
+
+iERR _ion_writer_write_field_name_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *field_name)
 {
     iENTER;
 
     ASSERT(pwriter);
     ASSERT(field_name);
+    SID sid;
+    ION_STRING *text;
 
     if (!ION_STRING_IS_NULL(&field_name->value)) {
         IONCHECK(_ion_writer_write_field_name_helper(pwriter, &field_name->value));
     }
+    else if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(field_name)) {
+        IONCHECK(_ion_writer_get_local_symbol_id_from_import_location(pwriter, &field_name->import_location, &sid));
+        if (sid <= UNKNOWN_SID) {
+            // This symbol with unknown text is not found in the writer's imported tables. This is an error unless its
+            // text can be located in one of the writer's catalog's tables.
+            IONCHECK(_ion_writer_get_catalog_text_from_import_location(pwriter, &field_name->import_location, &text));
+            IONCHECK(_ion_writer_write_field_name_helper(pwriter, text));
+        }
+        else {
+            IONCHECK(_ion_writer_write_field_sid_helper(pwriter, sid));
+        }
+    }
     else if (field_name->sid > UNKNOWN_SID) {
-        // TODO use import location to calculate and set the actual local SID
         IONCHECK(_ion_writer_write_field_sid_helper(pwriter, field_name->sid));
     }
     else {
@@ -1022,6 +1105,8 @@ iERR _ion_writer_write_annotation_symbols_helper(ION_WRITER *pwriter, ION_SYMBOL
 {
     iENTER;
     int32_t ii;
+    ION_STRING *text;
+    SID sid;
 
     ASSERT(pwriter);
     ASSERT(count >= 0);
@@ -1032,8 +1117,21 @@ iERR _ion_writer_write_annotation_symbols_helper(ION_WRITER *pwriter, ION_SYMBOL
         if (!ION_STRING_IS_NULL(&annotations[ii]->value)) {
             IONCHECK(_ion_writer_add_annotation_helper(pwriter, &annotations[ii]->value));
         }
+        else if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(annotations[ii])) {
+            IONCHECK(_ion_writer_get_local_symbol_id_from_import_location(pwriter, &annotations[ii]->import_location,
+                                                                          &sid));
+            if (sid <= UNKNOWN_SID) {
+                // This symbol with unknown text is not found in the writer's imported tables. This is an error unless its
+                // text can be located in one of the writer's catalog's tables.
+                IONCHECK(_ion_writer_get_catalog_text_from_import_location(pwriter, &annotations[ii]->import_location,
+                                                                           &text));
+                IONCHECK(_ion_writer_add_annotation_helper(pwriter, text));
+            }
+            else {
+                IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, sid));
+            }
+        }
         else if (annotations[ii]->sid > UNKNOWN_SID) {
-            // TODO use import location. Calculate and set the local SID based on that.
             IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, annotations[ii]->sid));
         }
         else {
@@ -1564,9 +1662,13 @@ iERR _ion_writer_write_symbol_helper(ION_WRITER *pwriter, ION_STRING *symbol)
     iRETURN;
 }
 
+// TODO public ION_SYMBOL writing APIs need to respect manually written LSTs too
+
 iERR _ion_writer_write_ion_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *symbol)
 {
     iENTER;
+    ION_STRING *text;
+    SID sid;
 
     ASSERT(pwriter);
     ASSERT(symbol);
@@ -1575,7 +1677,23 @@ iERR _ion_writer_write_ion_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *symbol
         // This symbol's text is known. Its previous SID and import location are irrelevant.
         IONCHECK(_ion_writer_write_symbol_helper(pwriter, &symbol->value));
     }
-    else if (symbol->sid > UNKNOWN_SID) { // TODO actually need to consult ImportLocation first.
+    else if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol)) {
+        if (symbol->import_location.location <= 0) {
+            // Within shared symbol tables, SIDs always begin at 1. Symbol zero does not appear in any symbol table.
+            FAILWITH(IERR_INVALID_SYMBOL);
+        }
+        IONCHECK(_ion_writer_get_local_symbol_id_from_import_location(pwriter, &symbol->import_location, &sid));
+        if (sid <= UNKNOWN_SID) {
+            // This symbol with unknown text is not found in the writer's imported tables. This is an error unless its
+            // text can be located in one of the writer's catalog's tables.
+            IONCHECK(_ion_writer_get_catalog_text_from_import_location(pwriter, &symbol->import_location, &text));
+            IONCHECK(_ion_writer_write_symbol_helper(pwriter, text));
+        }
+        else {
+            IONCHECK(_ion_writer_write_symbol_id_helper(pwriter, sid));
+        }
+    }
+    else if (symbol->sid > UNKNOWN_SID) {
         IONCHECK(_ion_writer_write_symbol_id_helper(pwriter, symbol->sid));
     }
     else {
@@ -2569,6 +2687,8 @@ iERR _ion_writer_clear_field_name_helper(ION_WRITER *pwriter)
     ION_STRING_INIT(&pwriter->field_name.value);
     pwriter->field_name.sid = UNKNOWN_SID;
     pwriter->field_name.add_count = 0;
+    ION_STRING_INIT(&pwriter->field_name.import_location.name);
+    pwriter->field_name.import_location.location = UNKNOWN_SID;
 
     iRETURN;
 }
@@ -2637,7 +2757,6 @@ iERR _ion_writer_get_field_name_as_sid_helper(ION_WRITER *pwriter, SID *p_sid)
         IONCHECK(_ion_writer_make_symbol_helper( pwriter, &pwriter->field_name.value, p_sid ));
     }
     else if (pwriter->field_name.sid > UNKNOWN_SID) {
-        // TODO use the import location to get calculate the SID that will actually be written.
         *p_sid = pwriter->field_name.sid;
     }
     else {
@@ -2725,7 +2844,6 @@ iERR _ion_writer_get_annotation_as_string_helper(ION_WRITER *pwriter, int32_t id
         ION_STRING_ASSIGN(p_str, &annotation->value);
     }
     else if (annotation->sid > UNKNOWN_SID) {
-        // TODO use the import location
         IONCHECK(_ion_writer_get_local_symbol_table(pwriter, &psymtab));
         ASSERT(psymtab != NULL);
         IONCHECK(_ion_symbol_table_find_by_sid_force(psymtab, annotation->sid, &text));
@@ -2769,7 +2887,6 @@ iERR _ion_writer_get_annotation_as_sid_helper(ION_WRITER *pwriter, int32_t idx, 
         IONCHECK(_ion_writer_make_symbol_helper(pwriter, &annotation->value, p_sid));
     }
     else if (annotation->sid > UNKNOWN_SID) {
-        // TODO resolve this to the SID that will actually be written (based on import location).
         *p_sid = annotation->sid;
     }
     else {

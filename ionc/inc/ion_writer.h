@@ -116,13 +116,15 @@ ION_API_EXPORT iERR ion_writer_options_initialize_shared_imports(ION_WRITER_OPTI
 
 /**
  * Adds the imports from the given collection of ION_SYMBOL_TABLE_IMPORT to the options' imports list.
- * `ion_writer_options_initialize_shared_imports` must have been called first.
+ * `ion_writer_options_initialize_shared_imports` must have been called first. The given collection must not contain
+ * a system symbol table.
  */
 ION_API_EXPORT iERR ion_writer_options_add_shared_imports(ION_WRITER_OPTIONS *options, ION_COLLECTION *imports);
 
 /**
  * Adds the given array of ION_SYMBOL_TABLE (which must be shared symbol tables) to the options' imports list.
- * `ion_writer_options_initialize_shared_imports` must have been called first.
+ * `ion_writer_options_initialize_shared_imports` must have been called first. The given array must not contain
+ * a system symbol table.
  */
 ION_API_EXPORT iERR ion_writer_options_add_shared_imports_symbol_tables(ION_WRITER_OPTIONS *options, ION_SYMBOL_TABLE **imports, SIZE imports_count);
 

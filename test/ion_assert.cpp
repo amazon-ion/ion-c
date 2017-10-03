@@ -74,6 +74,8 @@ char *ionStringToString(ION_STRING *value) {
 ::testing::AssertionResult assertIonSymbolEq(ION_SYMBOL *expected, ION_SYMBOL *actual) {
     char *expected_str = NULL;
     char *actual_str = NULL;
+    char *expected_import_str = NULL;
+    char *actual_import_str = NULL;
     if (!(expected == NULL ^ actual == NULL)) {
         if (expected == NULL) {
             return ::testing::AssertionSuccess();
@@ -86,10 +88,14 @@ char *ionStringToString(ION_STRING *value) {
     }
     expected_str = ionStringToString(&expected->value);
     actual_str = ionStringToString(&actual->value);
+    expected_import_str = ionStringToString(&expected->import_location.name);
+    actual_import_str = ionStringToString(&actual->import_location.name);
     ::testing::AssertionResult result = ::testing::AssertionFailure()
-            << std::string("(") << expected_str << "," << expected->sid
-            << ")  vs. ("
-            << actual_str << "," << actual->sid << ")"; // TODO add import locations
+            << std::string("(text=") << expected_str << ", local_sid=" << expected->sid
+                << ", location=(" << expected_import_str << ", " << expected->import_location.location << "))"
+            << " vs. "
+            << "(text=" << actual_str << ", local_sid=" << actual->sid
+                << ", location=(" << actual_import_str << ", " << actual->import_location.location << "))";
     free(expected_str);
     free(actual_str);
     return result;

@@ -223,7 +223,7 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
 iERR _ion_writer_get_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE **p_psymtab);
 iERR _ion_writer_write_field_name_helper(ION_WRITER *pwriter, ION_STRING *name);
 iERR _ion_writer_write_field_sid_helper(ION_WRITER *pwriter, SID sid);
-iERR _ion_writer_write_field_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *field_name);
+iERR _ion_writer_write_field_name_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *field_name);
 iERR _ion_writer_clear_field_name_helper(ION_WRITER *pwriter);
 iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotation);
 iERR _ion_writer_add_annotation_sid_helper(ION_WRITER *pwriter, SID sid);

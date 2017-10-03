@@ -353,9 +353,11 @@ TEST(IonTextSymbol, ReaderReadsSymbolValueTrueIVM) {
     const char *ion_text = "$ion_symbol_table::{symbols:[\"foo\"]} $ion_1_0 $10";
     hREADER reader;
     ION_TYPE type;
+    SID sid;
 
     ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
-    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_reader_read_symbol_sid(reader, &sid));
 
     ION_ASSERT_OK(ion_reader_close(reader));
 }

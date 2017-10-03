@@ -51,6 +51,9 @@ void free_ion_symbol(ION_SYMBOL *symbol) {
         if (symbol->value.value) {
             free(symbol->value.value);
         }
+        if (symbol->import_location.name.value) {
+            free(symbol->import_location.name.value);
+        }
         free(symbol);
     }
 }
@@ -163,6 +166,12 @@ void copy_ion_symbol(ION_SYMBOL **dst, ION_SYMBOL *src) {
         copy->value.value = (BYTE *)malloc(sizeof(BYTE) * copy->value.length);
         memcpy(copy->value.value, src->value.value, (size_t)copy->value.length);
     }
+    ION_STRING_INIT(&copy->import_location.name);
+    if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(src)) {
+        copy->import_location.name.value = (BYTE *)malloc(sizeof(BYTE) * copy->import_location.name.length);
+        memcpy(copy->import_location.name.value, src->import_location.name.value, (size_t)copy->import_location.name.length);
+        copy->import_location.location = src->import_location.location;
+    }
     copy->sid = src->sid;
     *dst = copy;
 }
@@ -188,8 +197,8 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
 
     IONCHECKORFREE2(ion_reader_get_annotation_count(hreader, &annotation_count));
     if (annotation_count > 0) {
-        annotations_tmp = (ION_SYMBOL *)malloc(annotation_count * sizeof(ION_SYMBOL));
-        annotations = (ION_SYMBOL **)malloc(annotation_count * sizeof(ION_SYMBOL *));
+        annotations_tmp = (ION_SYMBOL *)calloc((size_t)annotation_count, sizeof(ION_SYMBOL));
+        annotations = (ION_SYMBOL **)calloc((size_t)annotation_count, sizeof(ION_SYMBOL *));
         // TODO this needs to be a public API
         IONCHECKORFREE(_ion_reader_get_annotation_symbols_helper(hreader, annotations_tmp, annotation_count, &annotation_count),
                        annotations_tmp);
@@ -444,7 +453,7 @@ iERR write_event(hWRITER writer, IonEvent *event) {
     iENTER;
     if (event->field_name) {
         // TODO this needs to be a public API
-        IONCHECK(_ion_writer_write_field_symbol_helper(writer, event->field_name));
+        IONCHECK(_ion_writer_write_field_name_symbol_helper(writer, event->field_name));
     }
     if (event->num_annotations) {
         // TODO this needs to be a public API

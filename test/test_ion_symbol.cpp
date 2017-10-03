@@ -383,13 +383,6 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsAndOpenCont
     ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 10)); // This maps to sym1.
     ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 12)); // This maps to unknown text.
 
-    // TODO if the user writes a symbol token with an import location using the writer, writing should succeed if the
-    // import is one of the shared symbol tables the writer is configured to use. Being in the catalog is not sufficient
-    // because (in the case of the text writer) the symbol table has already been written (to avoid buffering) by the
-    // time the writer reaches the value region of the stream -- UNLESS the import is found in the catalog AND the text
-    // is known. In that case, for text writers, the text can simply be written; for binary writers, the text can be
-    // interned into the LST and a local SID written.
-
     hREADER reader;
     BYTE *result;
     ION_READER_OPTIONS reader_options;
@@ -668,8 +661,6 @@ TEST_P(BinaryAndTextTest, SymbolTableSetterWithManualLSTInProgressFails) {
     ION_ASSERT_OK(ion_symbol_table_close(symbol_table));
 }
 
-// TODO in test harness, annotations (field names too?) with unknown text seem to be being represented as symbols with empty text. How is symbolZero.ion passing roundtrip?
-
 TEST(IonSymbolTable, TextWritingKnownSymbolFromSIDResolvesText) {
     // If the user writes a SID in the import range and that import is found in the writer's imports list, that SID
     // should be resolved to its text representation. There is no need to include the local symbol table in the stream.
@@ -688,8 +679,8 @@ TEST(IonSymbolTable, TextWritingKnownSymbolFromSIDResolvesText) {
     assertStringsEqual("$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1},{name:\"import2\",version:1,max_id:2}]} {sym1:sym2::sym3}", (char *)result, bytes_flushed);
 }
 
-TEST(IonSymbolTable, TextWritingSymbolWithUnknownTextFromImportWritesIdentifierAndForcesSymbolTable) {
-    // If the user writes a SID in the import range and that import is not found in the catalog, the SID must be
+TEST(IonSymbolTable, TextWritingSymbolWithUnknownTextAsSidFromImportWritesIdentifierAndForcesSymbolTable) {
+    // If the user writes a local SID in the import range and that import is not found in the catalog, the SID must be
     // written as $<int> and the symbol table must be included in the stream. Future consumers may have access to
     // that import and be able to resolve the identifier.
     // This test also verifies that a shared symbol table with NULL elements within its symbols list are valid SID
@@ -716,6 +707,159 @@ TEST(IonSymbolTable, TextWritingSymbolWithUnknownTextFromImportWritesIdentifierA
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
     assertStringsEqual("$ion_symbol_table::{imports:[{name:\"foo\",version:1,max_id:3}]} abc $11 def", (char *)result, bytes_flushed);
     free(result);
+}
+
+TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromImport) {
+    // If the user writes a symbol token with an import location using the writer, writing should succeed if the
+    // import is one of the shared symbol tables the writer is configured to use. Being in the catalog is not sufficient
+    // because (in the case of the text writer) the symbol table has already been written (to avoid buffering) by the
+    // time the writer reaches the value region of the stream -- UNLESS the import is found in the catalog AND the text
+    // is known. In that case, for text writers, the text can simply be written; for binary writers, the text can be
+    // interned into the LST and a local SID written.
+    // If the user writes an ION_SYMBOL from an import and that import is not found in the catalog, the SID must be
+    // written as $<int> and the symbol table must be included in the stream. Future consumers may have access to
+    // that import and be able to resolve the identifier.
+    const char *shared_table = "$ion_shared_symbol_table::{name:'''foo''', version: 1, symbols:['''abc''', null, '''def''']}";
+    hREADER shared_symtab_reader;
+    ION_TYPE type;
+    ION_SYMBOL_TABLE *import;
+    ION_CATALOG *catalog = NULL;
+    BYTE *result;
+
+    ION_STRING foo;
+    ION_SYMBOL sym1, sym2, sym3;
+    ION_SYMBOL *p_sym2 = &sym2;
+    ION_ASSERT_OK(ion_string_from_cstr("foo", &foo));
+    memset(&sym1, 0, sizeof(ION_SYMBOL));
+    memset(&sym2, 0, sizeof(ION_SYMBOL));
+    memset(&sym3, 0, sizeof(ION_SYMBOL));
+    ION_STRING_ASSIGN(&sym1.import_location.name, &foo);
+    sym1.import_location.location = 1;
+    ION_STRING_ASSIGN(&sym2.import_location.name, &foo);
+    sym2.import_location.location = 2;
+    ION_STRING_ASSIGN(&sym3.import_location.name, &foo);
+    sym3.import_location.location = 3;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(shared_table, &shared_symtab_reader));
+    ION_ASSERT_OK(ion_reader_next(shared_symtab_reader, &type));
+    ION_ASSERT_OK(ion_symbol_table_load(shared_symtab_reader, NULL, &import));
+    ION_ASSERT_OK(ion_reader_close(shared_symtab_reader));
+
+    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, &import, 1);
+
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
+    // TODO these need to be public API
+    ION_ASSERT_OK(_ion_writer_write_field_name_symbol_helper(writer, &sym1));
+    ION_ASSERT_OK(_ion_writer_write_annotation_symbols_helper(writer, &p_sym2, 1));
+    ION_ASSERT_OK(_ion_writer_write_ion_symbol_helper(writer, &sym3));
+
+    ION_ASSERT_OK(ion_writer_finish_container(writer));
+
+    if (!is_binary) {
+        ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
+        assertStringsEqual("$ion_symbol_table::{imports:[{name:\"foo\",version:1,max_id:3}]} {abc:$11::def}", (char *)result, bytes_flushed);
+        free(result);
+    }
+    else {
+        ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT("$ion_symbol_table::{imports:[{name:\"foo\",version:1,max_id:3}]} {abc:$11::def}");
+    }
+    ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
+}
+
+TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromCatalog) {
+    // Tests that a writer can write symbol tokens with import locations that are matched by the catalog even when the
+    // matched shared symbol tables are not in the writer's imports list, as long as the text is known.
+    ION_SYMBOL_TEST_POPULATE_CATALOG;
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    BYTE *result;
+    ION_WRITER_OPTIONS writer_options;
+    ion_test_initialize_writer_options(&writer_options);
+    writer_options.output_as_binary = is_binary;
+    writer_options.pcatalog = catalog;
+    ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
+    ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
+
+    ION_SYMBOL sym1_loc, sym2_loc, sym3_loc;
+    ION_SYMBOL *p_sym2_loc = &sym2_loc;
+    memset(&sym1_loc, 0, sizeof(ION_SYMBOL));
+    memset(&sym2_loc, 0, sizeof(ION_SYMBOL));
+    memset(&sym3_loc, 0, sizeof(ION_SYMBOL));
+    ION_STRING_ASSIGN(&sym1_loc.import_location.name, &import1_name);
+    sym1_loc.import_location.location = 1;
+    ION_STRING_ASSIGN(&sym2_loc.import_location.name, &import2_name);
+    sym2_loc.import_location.location = 1;
+    ION_STRING_ASSIGN(&sym3_loc.import_location.name, &import2_name);
+    sym3_loc.import_location.location = 2;
+
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
+    // TODO these need to be public API
+    ION_ASSERT_OK(_ion_writer_write_field_name_symbol_helper(writer, &sym1_loc));
+    ION_ASSERT_OK(_ion_writer_write_annotation_symbols_helper(writer, &p_sym2_loc, 1));
+    ION_ASSERT_OK(_ion_writer_write_ion_symbol_helper(writer, &sym3_loc));
+
+    ION_ASSERT_OK(ion_writer_finish_container(writer));
+    if (!is_binary) {
+        ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
+        assertStringsEqual("{sym1:sym2::sym3}", (char *)result, bytes_flushed);
+        free(result);
+    }
+    else {
+        ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT("{sym1:sym2::sym3}");
+    }
+}
+
+TEST_P(BinaryAndTextTest, WritingInvalidIonSymbolFails) {
+    // Tests that an invalid ION_SYMBOL (undefined text, import location, and local SID) raises an error.
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    ION_WRITER_OPTIONS writer_options;
+    ION_SYMBOL symbol, *p_symbol = &symbol;
+    memset(&symbol, 0, sizeof(ION_SYMBOL));
+    symbol.sid = UNKNOWN_SID;
+
+    ion_test_initialize_writer_options(&writer_options);
+    writer_options.output_as_binary = is_binary;
+    ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
+    ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_annotation_symbols_helper(writer, &p_symbol, 1));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_ion_symbol_helper(writer, &symbol));
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_field_name_symbol_helper(writer, &symbol));
+    ION_ASSERT_OK(ion_writer_finish_container(writer));
+    ION_ASSERT_OK(ion_writer_close(writer));
+}
+
+TEST_P(BinaryAndTextTest, WritingIonSymbolWithUnknownTextNotFoundInImportsOrCatalogFails) {
+    // Tests that an ION_SYMBOL with a valid import location but undefined text, which is not found in the writer's
+    // shared imports and IS found in the writer's catalog, but with unknown text, raises an error.
+    ION_SYMBOL_TEST_POPULATE_CATALOG;
+    const char *shared_table = "$ion_shared_symbol_table::{name:'''foo''', version: 1, symbols:['''abc''', null, '''def''']}";
+    hREADER shared_symtab_reader;
+    ION_TYPE type;
+    ION_SYMBOL_TABLE *import;
+
+    ION_STRING foo;
+    ION_SYMBOL symbol;
+    ION_SYMBOL *p_symbol = &symbol;
+    ION_ASSERT_OK(ion_string_from_cstr("foo", &foo));
+    memset(&symbol, 0, sizeof(ION_SYMBOL));
+    ION_STRING_ASSIGN(&symbol.import_location.name, &foo);
+    symbol.import_location.location = 2; // $11, unknown text
+
+    ION_ASSERT_OK(ion_test_new_text_reader(shared_table, &shared_symtab_reader));
+    ION_ASSERT_OK(ion_reader_next(shared_symtab_reader, &type));
+    ION_ASSERT_OK(ion_symbol_table_load(shared_symtab_reader, NULL, &import));
+    ION_ASSERT_OK(ion_reader_close(shared_symtab_reader));
+
+    ION_ASSERT_OK(ion_catalog_add_symbol_table(catalog, import)); // In the catalog, not in the writer's imports.
+
+    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, writer_imports, 2);
+    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_annotation_symbols_helper(writer, &p_symbol, 1));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_ion_symbol_helper(writer, &symbol));
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_field_name_symbol_helper(writer, &symbol));
+    ION_ASSERT_OK(ion_writer_finish_container(writer));
+    ION_ASSERT_OK(ion_writer_close(writer));
+    ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
 }
 
 TEST(IonSymbolTable, TextWritingSymbolWithUnknownTextFromManuallyWrittenSymbolTableWritesIdentifierAndForcesSymbolTable) {
@@ -945,4 +1089,189 @@ TEST(IonSymbolTable, ReadThenWriteSymbolsWithUnknownText) {
 
     assertStringsEqual(ion_data, (char *)result, bytes_flushed);
     free(result);
+}
+
+TEST_P(BinaryAndTextTest, WriteAnnotationsFromSidAndText) {
+    // Tests that annotation SIDs and text may be mixed on the same value. Previously, this was not possible.
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    ION_STRING foo;
+
+    ION_ASSERT_OK(ion_string_from_cstr("foo", &foo));
+
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, is_binary));
+    ION_ASSERT_OK(ion_writer_add_annotation(writer, &foo));
+    ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, 4));
+    ION_ASSERT_OK(ion_writer_write_int(writer, 123));
+
+    ION_SYMBOL_TEST_REWRITE_FROM_WRITER_AND_ASSERT_TEXT("foo::name::123");
+}
+
+TEST_P(BinaryAndTextTest, ReaderCorrectlySetsImportLocation) {
+    ION_SYMBOL_TEST_POPULATE_CATALOG;
+    hREADER reader;
+    ION_TYPE type;
+    const char *ion_data = NULL;
+    size_t ion_data_len;
+    if (is_binary) {
+        ion_data = "\xE0\x01\x00\xEA\xEE\xA9\x81\x83\xDE\xA5\x86\xBE\xA2\xDE\x8F\x84\x87import1\x85\x21\x01\x88\x21\x01\xDE\x8F\x84\x87import2\x85\x21\x01\x88\x21\x02\xD6\x8A\xE4\x81\x8B\x71\x0C";
+        ion_data_len = 54;
+    }
+    else {
+        ion_data = "$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1}, {name:\"import2\",version:1,max_id:2}]} {$10:$11::$12}";
+        ion_data_len = strlen((char *)ion_data);
+    }
+    ION_SYMBOL annotation[1], *field_name, value;
+    SIZE annotation_count;
+    ION_READER_OPTIONS reader_options;
+    ion_test_initialize_reader_options(&reader_options);
+    reader_options.pcatalog = catalog;
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, ion_data_len, &reader_options));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ION_ASSERT_OK(_ion_reader_get_annotation_symbols_helper(reader, annotation, 1, &annotation_count));
+    ASSERT_EQ(1, annotation_count);
+    ASSERT_TRUE(assertIonStringEq(&import2_name, &annotation[0].import_location.name));
+    ASSERT_EQ(1, annotation[0].import_location.location);
+    ASSERT_TRUE(assertIonStringEq(&sym2, &annotation[0].value));
+    ASSERT_EQ(11, annotation[0].sid);
+
+    ION_ASSERT_OK(_ion_reader_get_field_symbol_helper(reader, &field_name));
+    ASSERT_TRUE(assertIonStringEq(&import1_name, &field_name->import_location.name));
+    ASSERT_EQ(1, field_name->import_location.location);
+    ASSERT_TRUE(assertIonStringEq(&sym1, &field_name->value));
+    ASSERT_EQ(10, field_name->sid);
+
+    ION_ASSERT_OK(_ion_reader_read_symbol_helper(reader, &value));
+    ASSERT_TRUE(assertIonStringEq(&import2_name, &value.import_location.name));
+    ASSERT_EQ(2, value.import_location.location);
+    ASSERT_TRUE(assertIonStringEq(&sym3, &value.value));
+    ASSERT_EQ(12, value.sid);
+
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+    ION_ASSERT_OK(ion_reader_close(reader));
+    ION_ASSERT_OK(ion_catalog_close(catalog));
+
+}
+
+TEST_P(BinaryAndTextTest, LocalSymbolHasNoImportLocation) {
+    hREADER reader;
+    ION_TYPE type;
+    const char *ion_data = NULL;
+    size_t ion_data_len;
+    if (is_binary) {
+        ion_data = "\xE0\x01\x00\xEA\xEE\x92\x81\x83\xDE\x8E\x87\xBC\x83zoo\x83zar\x83zaz\xD6\x8A\xE4\x81\x8B\x71\x0C";
+        ion_data_len = 31;
+    }
+    else {
+        ion_data = "{zoo:zar::zaz}";
+        ion_data_len = strlen(ion_data);
+    }
+    ION_SYMBOL annotation[1], *field_name, value;
+    ION_STRING zoo, zar, zaz;
+    SIZE annotation_count;
+
+    ION_ASSERT_OK(ion_string_from_cstr("zoo", &zoo));
+    ION_ASSERT_OK(ion_string_from_cstr("zar", &zar));
+    ION_ASSERT_OK(ion_string_from_cstr("zaz", &zaz));
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, ion_data_len, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_STRUCT, type);
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+
+    ION_ASSERT_OK(_ion_reader_get_field_symbol_helper(reader, &field_name));
+    ASSERT_TRUE(assertIonStringEq(&zoo, &field_name->value));
+    ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(field_name));
+    ASSERT_EQ(is_binary ? 10 : UNKNOWN_SID, field_name->sid);
+
+    ION_ASSERT_OK(_ion_reader_get_annotation_symbols_helper(reader, annotation, 1, &annotation_count));
+    ASSERT_EQ(1, annotation_count);
+    ASSERT_TRUE(assertIonStringEq(&zar, &annotation[0].value));
+    ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(&annotation[0]));
+    ASSERT_EQ(is_binary ? 11 : UNKNOWN_SID, annotation[0].sid);
+
+    ION_ASSERT_OK(_ion_reader_read_symbol_helper(reader, &value));
+    ASSERT_TRUE(assertIonStringEq(&zaz, &value.value));
+    ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(&value));
+    ASSERT_EQ(is_binary ? 12 : UNKNOWN_SID, value.sid);
+
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST_P(BinaryAndTextTest, ReadingOutOfRangeAnnotationSIDFails) {
+    // Tests that out-of-range annotation SIDs fail consistently in both text and binary.
+    hREADER reader;
+    ION_TYPE type;
+    const char *ion_data = NULL;
+    size_t ion_data_len;
+    if (is_binary) {
+        ion_data = "\xE0\x01\x00\xEA\xE3\x81\x8A\x20";
+        ion_data_len = 8;
+    }
+    else {
+        ion_data = "$10::0";
+        ion_data_len = strlen(ion_data);
+    }
+    ION_SYMBOL annotations[1];
+    SIZE annotation_count;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, ion_data_len, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_reader_get_annotation_symbols_helper(reader, annotations, 1, &annotation_count));
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST_P(BinaryAndTextTest, ReadingOutOfRangeFieldNameSIDFails) {
+    // Tests that out-of-range field name SIDs fail consistently in both text and binary.
+    hREADER reader;
+    ION_TYPE type;
+    const char *ion_data = NULL;
+    size_t ion_data_len;
+    if (is_binary) {
+        ion_data = "\xE0\x01\x00\xEA\xD2\x8A\x20";
+        ion_data_len = 7;
+    }
+    else {
+        ion_data = "{$10:0}";
+        ion_data_len = strlen(ion_data);
+    }
+    ION_SYMBOL *field_name;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, ion_data_len, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_STRUCT, type);
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_reader_get_field_symbol_helper(reader, &field_name));
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST_P(BinaryAndTextTest, ReadingOutOfRangeSymbolValueSIDFails) {
+    // Tests that out-of-range symbol value SIDs fail consistently in both text and binary.
+    hREADER reader;
+    ION_TYPE type;
+    const char *ion_data = NULL;
+    size_t ion_data_len;
+    if (is_binary) {
+        ion_data = "\xE0\x01\x00\xEA\x71\x0A";
+        ion_data_len = 6;
+    }
+    else {
+        ion_data = "$10";
+        ion_data_len = strlen(ion_data);
+    }
+    ION_SYMBOL symbol;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, ion_data_len, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_reader_read_symbol_helper(reader, &symbol));
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
