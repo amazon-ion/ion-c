@@ -1001,7 +1001,7 @@ iERR _ion_reader_text_get_an_annotation(ION_READER *preader, int32_t idx, ION_ST
 {
     iENTER;
     ION_TEXT_READER  *text = &preader->typed_reader.text;
-    ION_SYMBOL       *str;
+    ION_SYMBOL       *symbol;
 
     ASSERT(preader && preader->type == ion_type_text_reader);
     ASSERT(p_str != NULL);
@@ -1015,10 +1015,10 @@ iERR _ion_reader_text_get_an_annotation(ION_READER *preader, int32_t idx, ION_ST
     }
 
     // get a pointer to our string header in the annotation string pool
-    str = text->_annotation_string_pool + idx;
-    IONCHECK(_ion_reader_text_validate_symbol_token(preader, str));
-    IONCHECK(ion_string_copy_to_owner(preader->_temp_entity_pool, p_str, &str->value));
-    if (str->sid == 0) {
+    symbol = text->_annotation_string_pool + idx;
+    IONCHECK(_ion_reader_text_validate_symbol_token(preader, symbol));
+    IONCHECK(ion_string_copy_to_owner(preader->_temp_entity_pool, p_str, &symbol->value));
+    if (symbol->sid == 0) {
         ION_STRING_INIT(p_str); // This nulls the string, because symbol 0 has no text representation.
     }
 
@@ -1029,7 +1029,7 @@ iERR _ion_reader_text_get_an_annotation_sid(ION_READER *preader, int32_t idx, SI
 {
     iENTER;
     ION_TEXT_READER  *text = &preader->typed_reader.text;
-    ION_SYMBOL       *str;
+    ION_SYMBOL       *symbol;
 
     ASSERT(preader && preader->type == ion_type_text_reader);
     ASSERT(p_sid != NULL);
@@ -1043,9 +1043,34 @@ iERR _ion_reader_text_get_an_annotation_sid(ION_READER *preader, int32_t idx, SI
     }
 
     // get a pointer to our string header in the annotation string pool
-    str = text->_annotation_string_pool + idx;
-    IONCHECK(_ion_reader_text_validate_symbol_token(preader, str));
-    *p_sid = str->sid;
+    symbol = text->_annotation_string_pool + idx;
+    IONCHECK(_ion_reader_text_validate_symbol_token(preader, symbol));
+    *p_sid = symbol->sid;
+
+    iRETURN;
+}
+
+iERR _ion_reader_text_get_an_annotation_symbol(ION_READER *preader, int32_t idx, ION_SYMBOL *p_symbol)
+{
+    iENTER;
+    ION_TEXT_READER  *text = &preader->typed_reader.text;
+    ION_SYMBOL       *symbol;
+
+    ASSERT(preader && preader->type == ion_type_text_reader);
+    ASSERT(p_symbol != NULL);
+
+    if (text->_state == IPS_ERROR || text->_state == IPS_NONE) {
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    if (idx < 0 || idx >= text->_annotation_count) {
+        FAILWITH(IERR_INVALID_ARG);
+    }
+
+    // get a pointer to our string header in the annotation string pool
+    symbol = text->_annotation_string_pool + idx;
+    IONCHECK(_ion_reader_text_validate_symbol_token(preader, symbol));
+    IONCHECK(ion_symbol_copy_to_owner(preader->_temp_entity_pool, p_symbol, symbol));
 
     iRETURN;
 }

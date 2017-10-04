@@ -2381,8 +2381,8 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
     iENTER;
 
     ION_TYPE      type;
-    ION_STRING   *fld_name, string_value;
-    ION_SYMBOL    symbol_value;
+    ION_STRING    string_value;
+    ION_SYMBOL    symbol_value, *fld_name;
     SID           sid;
     int32_t       count, ii;
     BOOL          is_null, bool_value, is_in_struct;
@@ -2416,30 +2416,17 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
     case (intptr_t)tid_SEXP:
         break;
     }
-
     IONCHECK(ion_reader_is_in_struct(preader, &is_in_struct));
     if (is_in_struct) {
-        IONCHECK(_ion_reader_get_field_name_helper(preader, &fld_name));
-        if (ION_STRING_IS_NULL(fld_name)) {
-            IONCHECK(_ion_reader_get_field_sid_helper(preader, &sid));
-            IONCHECK(_ion_writer_write_field_sid_helper(pwriter, sid));
-        } else {
-            IONCHECK(_ion_writer_write_field_name_helper(pwriter, fld_name));
-        }
+        IONCHECK(_ion_reader_get_field_name_symbol_helper(preader, &fld_name));
+        IONCHECK(_ion_writer_write_field_name_symbol_helper(pwriter, fld_name));
     }
 
     IONCHECK(_ion_reader_get_annotation_count_helper(preader, &count));
     if (count > 0) {
-        ION_STRING_INIT(&string_value);
         for (ii=0; ii<count; ii++) {
-            IONCHECK(_ion_reader_get_an_annotation_helper(preader, ii, &string_value));
-            if (ION_STRING_IS_NULL(&string_value)) {
-                IONCHECK(_ion_reader_get_an_annotation_sid_helper(preader, ii, &sid));
-                IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, sid));
-            }
-            else {
-                IONCHECK(_ion_writer_add_annotation_helper(pwriter, &string_value));
-            }
+            IONCHECK(_ion_reader_get_an_annotation_symbol_helper(preader, ii, &symbol_value));
+            IONCHECK(_ion_writer_add_annotation_symbol_helper(pwriter, &symbol_value));
         }
     }
 
@@ -2499,12 +2486,7 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
         break;
     case (intptr_t)tid_SYMBOL:
         IONCHECK(_ion_reader_read_symbol_helper(preader, &symbol_value));
-        if (ION_STRING_IS_NULL(&symbol_value.value)) {
-            IONCHECK(_ion_writer_write_symbol_id_helper(pwriter, symbol_value.sid));
-        }
-        else {
-            IONCHECK(_ion_writer_write_symbol_helper(pwriter, &symbol_value.value));
-        }
+        IONCHECK(_ion_writer_write_ion_symbol_helper(pwriter, &symbol_value));
         break;
     case (intptr_t)tid_CLOB:
     case (intptr_t)tid_BLOB:

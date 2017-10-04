@@ -500,7 +500,7 @@ iERR _ion_reader_binary_has_annotation(ION_READER *preader, ION_STRING *annotati
         goto return_value;
     }
 
-    // and now check the annotation list for the sid of the users string
+    // and now check the annotation list for the sid of the user's string
     ION_COLLECTION_OPEN(&binary->_annotation_sids, cursor);
     for (;;) {
         ION_COLLECTION_NEXT(cursor, psid);
@@ -614,6 +614,35 @@ iERR _ion_reader_binary_get_an_annotation(ION_READER *preader, int32_t idx, ION_
 
     IONCHECK(_ion_symbol_table_find_by_sid_helper(preader->_current_symtab, sid, &pstr));
     IONCHECK(_ion_reader_binary_string_copy_or_null(preader, p_str, pstr));
+
+    iRETURN;
+}
+
+iERR _ion_reader_binary_get_an_annotation_symbol(ION_READER *preader, int32_t idx, ION_SYMBOL *p_symbol)
+{
+    iENTER;
+    SID               sid;
+    ION_SYMBOL       *psymbol;
+
+    ASSERT(preader && preader->type == ion_type_binary_reader);
+    ASSERT(p_symbol != NULL);
+
+
+    IONCHECK(_ion_reader_binary_get_an_annotation_sid(preader, idx, &sid));
+    if (sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
+
+    if (sid == 0) {
+        ION_STRING_INIT(&p_symbol->value);
+        ION_STRING_INIT(&p_symbol->import_location.name);
+        p_symbol->sid = 0;
+        p_symbol->import_location.location = UNKNOWN_SID;
+        p_symbol->add_count = 0;
+    }
+    else {
+        IONCHECK(_ion_symbol_table_find_symbol_by_sid_helper(preader->_current_symtab, sid, &psymbol));
+        ASSERT(psymbol != NULL);
+        IONCHECK(ion_symbol_copy_to_owner(preader->_temp_entity_pool, p_symbol, psymbol));
+    }
 
     iRETURN;
 }
@@ -781,7 +810,7 @@ iERR _ion_reader_binary_get_field_sid(ION_READER *preader, SID *p_sid)
     iRETURN;
 }
 
-iERR _ion_reader_binary_get_field_symbol(ION_READER *preader, ION_SYMBOL **p_psymbol)
+iERR _ion_reader_binary_get_field_name_symbol(ION_READER *preader, ION_SYMBOL **p_psymbol)
 {
     iENTER;
     ION_BINARY_READER *binary;

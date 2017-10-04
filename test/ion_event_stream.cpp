@@ -190,8 +190,7 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
 
     if (in_struct) {
         ION_SYMBOL *field_name_tmp;
-        // TODO this needs to be a public API
-        IONCHECKORFREE2(_ion_reader_get_field_symbol_helper(hreader, &field_name_tmp));
+        IONCHECKORFREE2(ion_reader_get_field_name_symbol(hreader, &field_name_tmp));
         copy_ion_symbol(&field_name, field_name_tmp);
     }
 
@@ -199,8 +198,7 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
     if (annotation_count > 0) {
         annotations_tmp = (ION_SYMBOL *)calloc((size_t)annotation_count, sizeof(ION_SYMBOL));
         annotations = (ION_SYMBOL **)calloc((size_t)annotation_count, sizeof(ION_SYMBOL *));
-        // TODO this needs to be a public API
-        IONCHECKORFREE(_ion_reader_get_annotation_symbols_helper(hreader, annotations_tmp, annotation_count, &annotation_count),
+        IONCHECKORFREE(ion_reader_get_annotation_symbols(hreader, annotations_tmp, annotation_count, &annotation_count),
                        annotations_tmp);
         for (int i = 0; i < annotation_count; i++) {
             copy_ion_symbol(&annotations[i], &annotations_tmp[i]);
@@ -263,8 +261,7 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
         case tid_SYMBOL_INT:
         {
             ION_SYMBOL tmp, *symbol_value;
-            // TODO this should be a public API
-            IONCHECKORFREE2(_ion_reader_read_symbol_helper(hreader, &tmp));
+            IONCHECKORFREE2(ion_reader_read_symbol(hreader, &tmp));
             copy_ion_symbol(&symbol_value, &tmp);
             event->value = symbol_value;
             break;

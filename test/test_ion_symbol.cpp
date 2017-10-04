@@ -1166,20 +1166,20 @@ TEST_P(BinaryAndTextTest, ReaderCorrectlySetsImportLocation) {
     ION_ASSERT_OK(ion_reader_step_in(reader));
 
     ION_ASSERT_OK(ion_reader_next(reader, &type));
-    ION_ASSERT_OK(_ion_reader_get_annotation_symbols_helper(reader, annotation, 1, &annotation_count));
+    ION_ASSERT_OK(ion_reader_get_annotation_symbols(reader, annotation, 1, &annotation_count));
     ASSERT_EQ(1, annotation_count);
     ASSERT_TRUE(assertIonStringEq(&import2_name, &annotation[0].import_location.name));
     ASSERT_EQ(1, annotation[0].import_location.location);
     ASSERT_TRUE(assertIonStringEq(&sym2, &annotation[0].value));
     ASSERT_EQ(11, annotation[0].sid);
 
-    ION_ASSERT_OK(_ion_reader_get_field_symbol_helper(reader, &field_name));
+    ION_ASSERT_OK(ion_reader_get_field_name_symbol(reader, &field_name));
     ASSERT_TRUE(assertIonStringEq(&import1_name, &field_name->import_location.name));
     ASSERT_EQ(1, field_name->import_location.location);
     ASSERT_TRUE(assertIonStringEq(&sym1, &field_name->value));
     ASSERT_EQ(10, field_name->sid);
 
-    ION_ASSERT_OK(_ion_reader_read_symbol_helper(reader, &value));
+    ION_ASSERT_OK(ion_reader_read_symbol(reader, &value));
     ASSERT_TRUE(assertIonStringEq(&import2_name, &value.import_location.name));
     ASSERT_EQ(2, value.import_location.location);
     ASSERT_TRUE(assertIonStringEq(&sym3, &value.value));
@@ -1219,18 +1219,18 @@ TEST_P(BinaryAndTextTest, LocalSymbolHasNoImportLocation) {
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
 
-    ION_ASSERT_OK(_ion_reader_get_field_symbol_helper(reader, &field_name));
+    ION_ASSERT_OK(ion_reader_get_field_name_symbol(reader, &field_name));
     ASSERT_TRUE(assertIonStringEq(&zoo, &field_name->value));
     ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(field_name));
     ASSERT_EQ(is_binary ? 10 : UNKNOWN_SID, field_name->sid);
 
-    ION_ASSERT_OK(_ion_reader_get_annotation_symbols_helper(reader, annotation, 1, &annotation_count));
+    ION_ASSERT_OK(ion_reader_get_annotation_symbols(reader, annotation, 1, &annotation_count));
     ASSERT_EQ(1, annotation_count);
     ASSERT_TRUE(assertIonStringEq(&zar, &annotation[0].value));
     ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(&annotation[0]));
     ASSERT_EQ(is_binary ? 11 : UNKNOWN_SID, annotation[0].sid);
 
-    ION_ASSERT_OK(_ion_reader_read_symbol_helper(reader, &value));
+    ION_ASSERT_OK(ion_reader_read_symbol(reader, &value));
     ASSERT_TRUE(assertIonStringEq(&zaz, &value.value));
     ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(&value));
     ASSERT_EQ(is_binary ? 12 : UNKNOWN_SID, value.sid);
@@ -1259,7 +1259,7 @@ TEST_P(BinaryAndTextTest, ReadingOutOfRangeAnnotationSIDFails) {
     ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, ion_data_len, NULL));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_INT, type);
-    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_reader_get_annotation_symbols_helper(reader, annotations, 1, &annotation_count));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_reader_get_annotation_symbols(reader, annotations, 1, &annotation_count));
     ION_ASSERT_OK(ion_reader_close(reader));
 }
 
@@ -1285,7 +1285,7 @@ TEST_P(BinaryAndTextTest, ReadingOutOfRangeFieldNameSIDFails) {
     ION_ASSERT_OK(ion_reader_step_in(reader));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_INT, type);
-    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_reader_get_field_symbol_helper(reader, &field_name));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_reader_get_field_name_symbol(reader, &field_name));
     ION_ASSERT_OK(ion_reader_close(reader));
 }
 
@@ -1308,6 +1308,6 @@ TEST_P(BinaryAndTextTest, ReadingOutOfRangeSymbolValueSIDFails) {
     ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, ion_data_len, NULL));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_reader_read_symbol_helper(reader, &symbol));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_reader_read_symbol(reader, &symbol));
     ION_ASSERT_OK(ion_reader_close(reader));
 }
