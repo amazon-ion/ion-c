@@ -227,6 +227,7 @@ iERR _ion_writer_write_field_name_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL 
 iERR _ion_writer_clear_field_name_helper(ION_WRITER *pwriter);
 iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotation);
 iERR _ion_writer_add_annotation_sid_helper(ION_WRITER *pwriter, SID sid);
+iERR _ion_writer_add_annotation_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *annotation);
 iERR _ion_writer_write_annotations_helper(ION_WRITER *pwriter, ION_STRING **p_annotations, int32_t count);
 iERR _ion_writer_write_annotation_sids_helper(ION_WRITER *pwriter, int32_t *p_sids, SIZE count);
 iERR _ion_writer_write_annotation_symbols_helper(ION_WRITER *pwriter, ION_SYMBOL **annotations, SIZE count);

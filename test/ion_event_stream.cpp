@@ -430,8 +430,7 @@ iERR write_scalar(hWRITER writer, IonEvent *event) {
             IONCHECK(ion_writer_write_timestamp(writer, (ION_TIMESTAMP *)event->value));
             break;
         case tid_SYMBOL_INT:
-            // TODO this needs to be a public API
-            IONCHECK(_ion_writer_write_ion_symbol_helper(writer, (ION_SYMBOL *)event->value));
+            IONCHECK(ion_writer_write_ion_symbol(writer, (ION_SYMBOL *)event->value));
             break;
         case tid_STRING_INT:
             IONCHECK(ion_writer_write_string(writer, (ION_STRING *)event->value));
@@ -452,12 +451,10 @@ iERR write_scalar(hWRITER writer, IonEvent *event) {
 iERR write_event(hWRITER writer, IonEvent *event) {
     iENTER;
     if (event->field_name) {
-        // TODO this needs to be a public API
-        IONCHECK(_ion_writer_write_field_name_symbol_helper(writer, event->field_name));
+        IONCHECK(ion_writer_write_field_name_symbol(writer, event->field_name));
     }
     if (event->num_annotations) {
-        // TODO this needs to be a public API
-        IONCHECK(_ion_writer_write_annotation_symbols_helper(writer, event->annotations, event->num_annotations));
+        IONCHECK(ion_writer_write_annotation_symbols(writer, event->annotations, event->num_annotations));
     }
     switch (event->event_type) {
         case CONTAINER_START:

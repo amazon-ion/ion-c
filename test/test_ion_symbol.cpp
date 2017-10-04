@@ -314,14 +314,23 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsIsRecognize
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
     ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
 
-    ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, ION_SYS_SID_SYMBOL_TABLE)); // $ion_symbol_table
+    ION_SYMBOL symbol_table_symbol, version_symbol, name_symbol;
+    memset(&symbol_table_symbol, 0, sizeof (ION_SYMBOL));
+    memset(&version_symbol, 0, sizeof (ION_SYMBOL));
+    memset(&name_symbol, 0, sizeof (ION_SYMBOL));
+    symbol_table_symbol.sid = ION_SYS_SID_SYMBOL_TABLE;
+    ION_STRING_ASSIGN(&version_symbol.value, &ION_SYMBOL_VERSION_STRING);
+    ION_STRING_ASSIGN(&name_symbol.import_location.name, &ION_SYMBOL_ION_STRING);
+    name_symbol.import_location.location = ION_SYS_SID_NAME;
+
+    ION_ASSERT_OK(ion_writer_add_annotation_symbol(writer, &symbol_table_symbol)); // $ion_symbol_table
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
-    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_IMPORTS));
+    ION_ASSERT_OK(ion_writer_write_field_name(writer, &ION_SYMBOL_IMPORTS_STRING));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_LIST));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
-    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_NAME));
+    ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &name_symbol));
     ION_ASSERT_OK(ion_writer_write_string(writer, &import1_name));
-    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_VERSION));
+    ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &version_symbol));
     ION_ASSERT_OK(ion_writer_write_int(writer, 1));
     ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_MAX_ID));
     ION_ASSERT_OK(ion_writer_write_int(writer, 1));
@@ -339,7 +348,7 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsAndOpenCont
     ION_SYMBOL_TEST_DECLARE_WRITER;
     ION_SYMBOL_TEST_POPULATE_CATALOG; // Declares 'catalog' and initializes it with 'import1' and 'import2' with 3 symbols.
 
-    ION_STRING foo_name;
+    ION_STRING foo_name, bar_name;
     ION_ASSERT_OK(ion_string_from_cstr("foo", &foo_name));
 
     ION_WRITER_OPTIONS writer_options;
@@ -349,7 +358,17 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsAndOpenCont
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
     ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
 
-    ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, ION_SYS_SID_SYMBOL_TABLE)); // $ion_symbol_table
+    ION_SYMBOL symbol_table_symbol, foo_symbol, bar_symbol;
+    memset(&symbol_table_symbol, 0, sizeof (ION_SYMBOL));
+    memset(&foo_symbol, 0, sizeof (ION_SYMBOL));
+    memset(&bar_symbol, 0, sizeof (ION_SYMBOL));
+    ION_STRING_ASSIGN(&symbol_table_symbol.value, &ION_SYMBOL_SYMBOL_TABLE_STRING);
+    symbol_table_symbol.sid = UNKNOWN_SID; // irrelevant.
+    ION_STRING_ASSIGN(&foo_symbol.value, &foo_name);
+    ION_STRING_ASSIGN(&bar_symbol.import_location.name, &ION_SYMBOL_ION_STRING);
+    bar_symbol.import_location.location = ION_SYS_SID_IVM; // open content; ignored.
+
+    ION_ASSERT_OK(ion_writer_add_annotation_symbol(writer, &symbol_table_symbol)); // $ion_symbol_table
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_IMPORTS));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_LIST));
@@ -358,9 +377,12 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsAndOpenCont
     ION_ASSERT_OK(ion_writer_write_string(writer, &import1_name));
     ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_VERSION));
     ION_ASSERT_OK(ion_writer_add_annotation(writer, &foo_name)); // open content; ignored.
+    ION_ASSERT_OK(ion_writer_add_annotation_symbol(writer, &bar_symbol)); // open content; ignored.
     ION_ASSERT_OK(ion_writer_write_int(writer, 1));
-    ION_ASSERT_OK(ion_writer_write_field_name(writer, &foo_name)); // open content; ignored.
+    ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &foo_symbol)); // open content; ignored.
     ION_ASSERT_OK(ion_writer_write_int(writer, 123)); // open content; ignored.
+    ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &bar_symbol)); // open content; ignored.
+    ION_ASSERT_OK(ion_writer_write_int(writer, 456)); // open content; ignored.
     ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_MAX_ID));
     ION_ASSERT_OK(ion_writer_write_int(writer, 1)); // $10 = sym1
     ION_ASSERT_OK(ion_writer_finish_container(writer)); // end import struct
@@ -452,6 +474,14 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableWithDuplicateFieldsFails) {
 
     ION_STRING foo;
     ION_ASSERT_OK(ion_string_from_cstr("foo", &foo));
+    ION_SYMBOL symbols_symbol, max_id_symbol, name_symbol;
+    memset(&symbols_symbol, 0, sizeof (ION_SYMBOL));
+    memset(&max_id_symbol, 0, sizeof (ION_SYMBOL));
+    memset(&name_symbol, 0, sizeof (ION_SYMBOL));
+    symbols_symbol.sid = ION_SYS_SID_SYMBOLS;
+    ION_STRING_ASSIGN(&max_id_symbol.value, &ION_SYMBOL_MAX_ID_STRING);
+    ION_STRING_ASSIGN(&name_symbol.import_location.name, &ION_SYMBOL_ION_STRING);
+    name_symbol.import_location.location = ION_SYS_SID_NAME;
 
     ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, is_binary));
     ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, ION_SYS_SID_SYMBOL_TABLE)); // $ion_symbol_table
@@ -459,19 +489,19 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableWithDuplicateFieldsFails) {
     ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_IMPORTS));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_LIST));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
-    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_NAME));
+    ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &name_symbol));
     ION_ASSERT_OK(ion_writer_write_string(writer, &foo));
     ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_VERSION));
     ION_ASSERT_OK(ion_writer_write_int(writer, 1));
     ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_MAX_ID));
     ION_ASSERT_OK(ion_writer_write_int(writer, 1));
     ASSERT_EQ(IERR_INVALID_SYMBOL_TABLE, ion_writer_write_field_sid(writer, ION_SYS_SID_VERSION));
-    ASSERT_EQ(IERR_INVALID_SYMBOL_TABLE, ion_writer_write_field_sid(writer, ION_SYS_SID_MAX_ID));
-    ASSERT_EQ(IERR_INVALID_SYMBOL_TABLE, ion_writer_write_field_sid(writer, ION_SYS_SID_NAME));
+    ASSERT_EQ(IERR_INVALID_SYMBOL_TABLE, ion_writer_write_field_name_symbol(writer, &max_id_symbol));
+    ASSERT_EQ(IERR_INVALID_SYMBOL_TABLE, ion_writer_write_field_name_symbol(writer, &name_symbol));
     ION_ASSERT_OK(ion_writer_finish_container(writer)); // end import struct
     ION_ASSERT_OK(ion_writer_finish_container(writer)); // end imports list
-    ASSERT_EQ(IERR_INVALID_SYMBOL_TABLE, ion_writer_write_field_sid(writer, ION_SYS_SID_IMPORTS));
-    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_SYMBOLS));
+    ASSERT_EQ(IERR_INVALID_SYMBOL_TABLE, ion_writer_write_field_name(writer, &ION_SYMBOL_IMPORTS_STRING));
+    ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &symbols_symbol));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_LIST));
     ION_ASSERT_OK(ion_writer_write_string(writer, &foo));
     ION_ASSERT_OK(ion_writer_finish_container(writer)); // end symbols list
@@ -584,8 +614,16 @@ TEST_P(BinaryAndTextTest, ManuallyWriteSymbolTableAppendSucceeds) {
 TEST_P(BinaryAndTextTest, ManuallyWriteSymbolTableAppendWithImportsSucceeds) {
     // Tests a manually written appended symbol table.
     ION_STRING sym4;
-
     ION_ASSERT_OK(ion_string_from_cstr("sym4", &sym4));
+
+    ION_SYMBOL imports_symbol, symbol_table_symbol, symbols_symbol;
+    memset(&imports_symbol, 0, sizeof(ION_SYMBOL));
+    memset(&symbol_table_symbol, 0, sizeof(ION_SYMBOL));
+    memset(&symbols_symbol, 0, sizeof(ION_SYMBOL));
+    imports_symbol.sid = ION_SYS_SID_IMPORTS;
+    ION_STRING_ASSIGN(&symbol_table_symbol.value, &ION_SYMBOL_SYMBOL_TABLE_STRING);
+    ION_STRING_ASSIGN(&symbols_symbol.import_location.name, &ION_SYMBOL_ION_STRING);
+    symbols_symbol.import_location.location = ION_SYS_SID_SYMBOLS;
 
     ION_SYMBOL_TEST_POPULATE_CATALOG;
     ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, writer_imports, 2);
@@ -596,9 +634,9 @@ TEST_P(BinaryAndTextTest, ManuallyWriteSymbolTableAppendWithImportsSucceeds) {
 
     ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, ION_SYS_SID_SYMBOL_TABLE)); // $ion_symbol_table
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
-    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_IMPORTS));
-    ION_ASSERT_OK(ion_writer_write_symbol(writer, &ION_SYMBOL_SYMBOL_TABLE_STRING));
-    ION_ASSERT_OK(ion_writer_write_field_sid(writer, ION_SYS_SID_SYMBOLS));
+    ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &imports_symbol));
+    ION_ASSERT_OK(ion_writer_write_ion_symbol(writer, &symbol_table_symbol));
+    ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &symbols_symbol));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_LIST));
     ION_ASSERT_OK(ion_writer_write_string(writer, &sym4));
     ION_ASSERT_OK(ion_writer_finish_container(writer));
@@ -748,10 +786,9 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromImport) {
     ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, &import, 1);
 
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
-    // TODO these need to be public API
-    ION_ASSERT_OK(_ion_writer_write_field_name_symbol_helper(writer, &sym1));
-    ION_ASSERT_OK(_ion_writer_write_annotation_symbols_helper(writer, &p_sym2, 1));
-    ION_ASSERT_OK(_ion_writer_write_ion_symbol_helper(writer, &sym3));
+    ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &sym1));
+    ION_ASSERT_OK(ion_writer_write_annotation_symbols(writer, &p_sym2, 1));
+    ION_ASSERT_OK(ion_writer_write_ion_symbol(writer, &sym3));
 
     ION_ASSERT_OK(ion_writer_finish_container(writer));
 
@@ -792,10 +829,9 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromCatalog) {
     sym3_loc.import_location.location = 2;
 
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
-    // TODO these need to be public API
-    ION_ASSERT_OK(_ion_writer_write_field_name_symbol_helper(writer, &sym1_loc));
-    ION_ASSERT_OK(_ion_writer_write_annotation_symbols_helper(writer, &p_sym2_loc, 1));
-    ION_ASSERT_OK(_ion_writer_write_ion_symbol_helper(writer, &sym3_loc));
+    ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &sym1_loc));
+    ION_ASSERT_OK(ion_writer_write_annotation_symbols(writer, &p_sym2_loc, 1));
+    ION_ASSERT_OK(ion_writer_write_ion_symbol(writer, &sym3_loc));
 
     ION_ASSERT_OK(ion_writer_finish_container(writer));
     if (!is_binary) {
@@ -820,10 +856,10 @@ TEST_P(BinaryAndTextTest, WritingInvalidIonSymbolFails) {
     writer_options.output_as_binary = is_binary;
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
     ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
-    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_annotation_symbols_helper(writer, &p_symbol, 1));
-    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_ion_symbol_helper(writer, &symbol));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_annotation_symbols(writer, &p_symbol, 1));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_ion_symbol(writer, &symbol));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
-    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_field_name_symbol_helper(writer, &symbol));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_field_name_symbol(writer, &symbol));
     ION_ASSERT_OK(ion_writer_finish_container(writer));
     ION_ASSERT_OK(ion_writer_close(writer));
 }
@@ -853,10 +889,10 @@ TEST_P(BinaryAndTextTest, WritingIonSymbolWithUnknownTextNotFoundInImportsOrCata
     ION_ASSERT_OK(ion_catalog_add_symbol_table(catalog, import)); // In the catalog, not in the writer's imports.
 
     ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, writer_imports, 2);
-    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_annotation_symbols_helper(writer, &p_symbol, 1));
-    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_ion_symbol_helper(writer, &symbol));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_annotation_symbols(writer, &p_symbol, 1));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_ion_symbol(writer, &symbol));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
-    ASSERT_EQ(IERR_INVALID_SYMBOL, _ion_writer_write_field_name_symbol_helper(writer, &symbol));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_field_name_symbol(writer, &symbol));
     ION_ASSERT_OK(ion_writer_finish_container(writer));
     ION_ASSERT_OK(ion_writer_close(writer));
     ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
