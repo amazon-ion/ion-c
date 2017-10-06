@@ -86,9 +86,9 @@ typedef struct ion_type    *ION_TYPE;
 #define tid_STRING       ((ION_TYPE) 0x800)
 #define tid_CLOB         ((ION_TYPE) 0x900)
 #define tid_BLOB         ((ION_TYPE) 0xA00)
-#define tid_STRUCT       ((ION_TYPE) 0xB00)
-#define tid_LIST         ((ION_TYPE) 0xC00)
-#define tid_SEXP         ((ION_TYPE) 0xD00)
+#define tid_LIST         ((ION_TYPE) 0xB00)
+#define tid_SEXP         ((ION_TYPE) 0xC00)
+#define tid_STRUCT       ((ION_TYPE) 0xD00)
 #define tid_DATAGRAM     ((ION_TYPE) 0xF00)
 
 #define tid_none_INT       ION_TYPE_INT(tid_none)

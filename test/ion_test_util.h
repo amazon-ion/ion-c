@@ -21,6 +21,11 @@
 #define ION_ASSERT_FAIL(x) ASSERT_FALSE(IERR_OK == (x))
 
 /**
+ * Converts an ION_TYPE to a switchable int representing the given type's ID.
+ */
+#define ION_TID_INT(type) (int)(ION_TYPE_INT(type) >> 8)
+
+/**
  * Initializes and opens a new in-memory writer.
  * @param writer - the writer to initialize and open.
  * @param ion_stream - output parameter for the underlying in-memory stream.

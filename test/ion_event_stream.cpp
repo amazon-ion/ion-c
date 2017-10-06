@@ -13,8 +13,10 @@
  */
 
 #include "ion_event_stream.h"
+#include "ion_test_util.h"
 #include <iostream>
 #include <ion_helpers.h>
+#include <ion_const.h>
 
 #define IONCHECKORFREE(x, y) { \
     err = x; \
@@ -34,7 +36,6 @@
         goto fail; \
     } \
 } \
-
 
 void free_ion_string(ION_STRING *str) {
     if (str) {
@@ -65,14 +66,16 @@ IonEventStream::~IonEventStream() {
             free_ion_strings(event->annotations, event->num_annotations);
             free_ion_string(event->field_name);
             if (event->value) {
-                switch (ION_TYPE_INT(event->ion_type)) {
-                    case tid_INT_INT:
+                int tid = (int)(ION_TYPE_INT(event->ion_type) >> 8);
+                switch (tid) {
+                    case TID_POS_INT:
+                    case TID_NEG_INT:
                         ion_int_free((ION_INT *)event->value);
                         break;
-                    case tid_SYMBOL_INT:
-                    case tid_STRING_INT:
-                    case tid_CLOB_INT:
-                    case tid_BLOB_INT:
+                    case TID_SYMBOL:
+                    case TID_STRING:
+                    case TID_CLOB:
+                    case TID_BLOB:
                         free_ion_string((ION_STRING *) event->value);
                         break;
                     default:
@@ -145,7 +148,7 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
     ION_STRING **annotations = NULL;
     IonEvent *event = NULL;
     ION_EVENT_TYPE event_type = SCALAR;
-    int ion_type = ION_TYPE_INT(t);
+    int ion_type = ION_TID_INT(t);
 
     if (in_struct) {
         ION_STRING field_name_tmp;
@@ -172,22 +175,23 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
         SUCCEED();
     }
 
-    if (ion_type == tid_STRUCT_INT || ion_type == tid_LIST_INT || ion_type == tid_SEXP_INT) {
+    if (ion_type == TID_STRUCT || ion_type == TID_LIST || ion_type == TID_SEXP) {
         event_type = CONTAINER_START;
     }
     event = stream->append_new(event_type, t, field_name, annotations, annotation_count, depth);
 
     switch (ion_type) {
-        case tid_EOF_INT:
+        case TID_EOF:
             SUCCEED();
-        case tid_BOOL_INT:
+        case TID_BOOL:
         {
             BOOL *bool_value = (BOOL *)malloc(sizeof(BOOL));
             IONCHECKORFREE(ion_reader_read_bool(hreader, bool_value), bool_value);
             event->value = bool_value;
             break;
         }
-        case tid_INT_INT:
+        case TID_POS_INT:
+        case TID_NEG_INT:
         {
             ION_INT *ion_int_value = NULL;
             IONCHECKORFREE2(ion_int_alloc(NULL, &ion_int_value)); // NOTE: owner must be NULL; otherwise, this may be unexpectedly freed.
@@ -195,32 +199,32 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
             event->value = ion_int_value;
             break;
         }
-        case tid_FLOAT_INT:
+        case TID_FLOAT:
         {
             double *double_value = (double *)malloc(sizeof(double));
             IONCHECKORFREE(ion_reader_read_double(hreader, double_value), double_value);
             event->value = double_value;
             break;
         }
-        case tid_DECIMAL_INT:
+        case TID_DECIMAL:
         {
             decQuad *decimal_value = (decQuad *)malloc(sizeof(decQuad));
             IONCHECKORFREE(ion_reader_read_decimal(hreader, decimal_value), decimal_value);
             event->value = decimal_value;
             break;
         }
-        case tid_TIMESTAMP_INT:
+        case TID_TIMESTAMP:
         {
             ION_TIMESTAMP *timestamp_value = (ION_TIMESTAMP *)malloc(sizeof(ION_TIMESTAMP));
             IONCHECKORFREE(ion_reader_read_timestamp(hreader, timestamp_value), timestamp_value);
             event->value = timestamp_value;
             break;
         }
-        case tid_SYMBOL_INT: // intentional fall-through
+        case TID_SYMBOL: // intentional fall-through
             // TODO when vectors that contain symbols with unknown text are added, this will need to retrieve a full
             // ION_SYMBOL (text and SID) for proper roundtripping. If the text is unknown, the SID needs to be written.
             // see: _ion_writer_write_one_value_helper
-        case tid_STRING_INT:
+        case TID_STRING:
         {
             ION_STRING tmp;
             IONCHECKORFREE2(ion_reader_read_string(hreader, &tmp));
@@ -228,8 +232,8 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
             event->value = string_value;
             break;
         }
-        case tid_CLOB_INT: // intentional fall-through
-        case tid_BLOB_INT:
+        case TID_CLOB: // intentional fall-through
+        case TID_BLOB:
         {
             SIZE length, bytes_read;
             IONCHECKORFREE2(ion_reader_get_lob_size(hreader, &length));
@@ -248,16 +252,16 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
             event->value = lob_value;
             break;
         }
-        case tid_STRUCT_INT: // intentional fall-through
-        case tid_SEXP_INT: // intentional fall-through
-        case tid_LIST_INT: IONCHECKORFREE2(ion_reader_step_in(hreader));
+        case TID_STRUCT: // intentional fall-through
+        case TID_SEXP: // intentional fall-through
+        case TID_LIST: IONCHECKORFREE2(ion_reader_step_in(hreader));
             IONCHECKORFREE2(read_all(hreader, stream, t == tid_STRUCT, depth + 1));
             IONCHECKORFREE2(ion_reader_step_out(hreader));
             stream->append_new(CONTAINER_END, t, /*field_name=*/NULL, /*annotations=*/NULL, /*annotation_count=*/0,
                                depth);
             break;
 
-        case tid_DATAGRAM_INT:
+        case TID_DATAGRAM:
         default: IONCHECKORFREE2(IERR_INVALID_STATE);
     }
     iRETURN;
@@ -367,39 +371,41 @@ fail:
 
 iERR write_scalar(hWRITER writer, IonEvent *event) {
     iENTER;
+    int tid = ION_TID_INT(event->ion_type);
     if (!event->value) {
         IONCHECK(ion_writer_write_typed_null(writer, event->ion_type));
         SUCCEED();
     }
-    switch (ION_TYPE_INT(event->ion_type)) {
-        case tid_BOOL_INT:
+    switch (tid) {
+        case TID_BOOL:
             IONCHECK(ion_writer_write_bool(writer, *(BOOL *)event->value));
             break;
-        case tid_INT_INT:
+        case TID_POS_INT:
+        case TID_NEG_INT:
             IONCHECK(ion_writer_write_ion_int(writer, (ION_INT *)event->value));
             break;
-        case tid_FLOAT_INT:
+        case TID_FLOAT:
             IONCHECK(ion_writer_write_double(writer, *(double *)event->value));
             break;
-        case tid_DECIMAL_INT:
+        case TID_DECIMAL:
             IONCHECK(ion_writer_write_decimal(writer, (decQuad *)event->value));
             break;
-        case tid_TIMESTAMP_INT:
+        case TID_TIMESTAMP:
             IONCHECK(ion_writer_write_timestamp(writer, (ION_TIMESTAMP *)event->value));
             break;
-        case tid_SYMBOL_INT:
+        case TID_SYMBOL:
             IONCHECK(ion_writer_write_symbol(writer, (ION_STRING *)event->value));
             break;
-        case tid_STRING_INT:
+        case TID_STRING:
             IONCHECK(ion_writer_write_string(writer, (ION_STRING *)event->value));
             break;
-        case tid_CLOB_INT:
+        case TID_CLOB:
             IONCHECK(ion_writer_write_clob(writer, ((ION_STRING *)event->value)->value, ((ION_STRING *)event->value)->length));
             break;
-        case tid_BLOB_INT:
+        case TID_BLOB:
             IONCHECK(ion_writer_write_blob(writer, ((ION_STRING *)event->value)->value, ((ION_STRING *)event->value)->length));
             break;
-        case tid_NULL_INT: // NOTE: null events can only have NULL values; this is handled before the switch.
+        case TID_NULL: // NOTE: null events can only have NULL values; this is handled before the switch.
         default:
             FAILWITH(IERR_INVALID_ARG);
     }
