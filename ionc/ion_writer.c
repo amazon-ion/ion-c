@@ -787,7 +787,7 @@ iERR ion_writer_write_typed_null(hWRITER hwriter, ION_TYPE type)
 
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
-    if (type < tid_NULL || type > tid_SEXP) FAILWITH(IERR_INVALID_ARG);
+    if (type < tid_NULL || type > tid_STRUCT) FAILWITH(IERR_INVALID_ARG);
 
     IONCHECK(_ion_writer_write_typed_null_helper(pwriter, type));
 

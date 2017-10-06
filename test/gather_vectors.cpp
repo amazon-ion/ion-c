@@ -81,9 +81,12 @@ inline BOOL directory_exists(std::string path) {
 }
 
 inline std::string find_ion_tests_path() {
-    // IDEs typically perform in-source builds, in which case this will be executed directly from the tests directory.
-    // For out-of-source builds (such as the one performed by the build-release.sh script), this will be run from
-    // build/release/test. This attempts to locate the ion-tests directory from both locations.
+    // IDEs typically perform in-source builds, in which case this will be executed directly from either the root or the
+    // tests directory. Common out-of-source builds, including those performed by build-release.sh script, will be run
+    // from build/release/test. This attempts to locate the ion-tests directory from those locations.
+    if (directory_exists("ion-tests")) {
+        return "ion-tests";
+    }
     std::string from_test_directory = join_path(/*ion-c*/"..", "ion-tests");
     if (directory_exists(from_test_directory)) {
         return from_test_directory;
@@ -92,6 +95,11 @@ inline std::string find_ion_tests_path() {
     test_concat_filenames(&from_build_directory, 5, /*test*/"..", /*release*/"..", /*build*/"..", /*ion-c*/"..", "ion-tests");
     if (directory_exists(from_build_directory)) {
         return from_build_directory;
+    }
+    std::string from_out_of_source_test_directory;
+    test_concat_filenames(&from_out_of_source_test_directory, 3, /*e.g., cmake-build-debug*/"..", /*..ion-c*/"..", "ion-tests");
+    if (directory_exists(from_out_of_source_test_directory)) {
+        return from_out_of_source_test_directory;
     }
     return "";
 }

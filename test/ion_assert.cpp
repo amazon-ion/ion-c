@@ -13,6 +13,8 @@
  */
 
 #include "ion_assert.h"
+#include "ion_const.h"
+#include "ion_test_util.h"
 
 TIMESTAMP_COMPARISON_FN g_TimestampEquals = ion_timestamp_equals;
 std::string g_CurrentTest = "NONE";
@@ -116,31 +118,33 @@ BOOL assertIonScalarEq(IonEvent *expected, IonEvent *actual, ASSERTION_TYPE asse
     ION_ENTER_ASSERTIONS;
     void *expected_value = expected->value;
     void *actual_value = actual->value;
+    int tid = ION_TID_INT(expected->ion_type);
     ION_EXPECT_FALSE((expected_value == NULL) ^ (actual_value == NULL));
     if (expected_value == NULL) {
         // Equivalence of ion types has already been tested.
         return TRUE;
     }
-    switch (ION_TYPE_INT(expected->ion_type)) {
-        case tid_BOOL_INT:
+    switch (tid) {
+        case TID_BOOL:
         ION_EXPECT_EQ(*(BOOL *) expected_value, *(BOOL *) actual_value);
             break;
-        case tid_INT_INT:
+        case TID_POS_INT:
+        case TID_NEG_INT:
         ION_EXPECT_INT_EQ((ION_INT *) expected_value, (ION_INT *) actual_value);
             break;
-        case tid_FLOAT_INT:
+        case TID_FLOAT:
         ION_EXPECT_DOUBLE_EQ(*(double *) expected_value, *(double *) actual_value);
             break;
-        case tid_DECIMAL_INT:
+        case TID_DECIMAL:
         ION_EXPECT_DECIMAL_EQ((decQuad *) expected_value, (decQuad *) actual_value);
             break;
-        case tid_TIMESTAMP_INT:
+        case TID_TIMESTAMP:
         ION_EXPECT_TIMESTAMP_EQ((ION_TIMESTAMP *) expected_value, (ION_TIMESTAMP *) actual_value);
             break;
-        case tid_SYMBOL_INT:
-        case tid_STRING_INT:
-        case tid_CLOB_INT:
-        case tid_BLOB_INT: // Clobs and blobs are stored in ION_STRINGs too...
+        case TID_SYMBOL:
+        case TID_STRING:
+        case TID_CLOB:
+        case TID_BLOB: // Clobs and blobs are stored in ION_STRINGs too...
         ION_EXPECT_STRING_EQ((ION_STRING *) expected_value, (ION_STRING *) actual_value);
             break;
         default:
@@ -226,6 +230,7 @@ BOOL assertIonEventsEq(IonEventStream *stream_expected, size_t index_expected, I
     ION_ENTER_ASSERTIONS;
     IonEvent *expected = stream_expected->at(index_expected);
     IonEvent *actual = stream_actual->at(index_actual);
+    int tid = ION_TID_INT(expected->ion_type);
     ION_EXPECT_EQ(expected->event_type, actual->event_type);
     ION_EXPECT_EQ(expected->ion_type, actual->ion_type);
     ION_EXPECT_EQ(expected->depth, actual->depth);
@@ -239,14 +244,14 @@ BOOL assertIonEventsEq(IonEventStream *stream_expected, size_t index_expected, I
         case CONTAINER_END:
             break;
         case CONTAINER_START:
-            switch (ION_TYPE_INT(expected->ion_type)) {
-                case tid_STRUCT_INT:
+            switch (tid) {
+                case TID_STRUCT:
                     ION_ACCUMULATE_ASSERTION(
                             assertIonStructEq(stream_expected, index_expected, stream_actual, index_actual,
                                               assertion_type));
                     break;
-                case tid_SEXP_INT: // intentional fall-through
-                case tid_LIST_INT:
+                case TID_SEXP: // intentional fall-through
+                case TID_LIST:
                     ION_ACCUMULATE_ASSERTION(
                             assertIonSequenceEq(stream_expected, index_expected, stream_actual, index_actual,
                                                 assertion_type));
