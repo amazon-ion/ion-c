@@ -216,6 +216,79 @@ iERR _ion_collection_copy( ION_COLLECTION *dst, ION_COLLECTION *src, ION_COPY_FN
     iRETURN;
 }
 
+iERR _ion_collection_compare(ION_COLLECTION *lhs, ION_COLLECTION *rhs, ION_COMPARE_FN compare_contents_fn, BOOL *is_equal)
+{
+    iENTER;
+    ION_COLLECTION_NODE *lhs_node, *rhs_node;
+
+    ASSERT(is_equal != NULL);
+    ASSERT(compare_contents_fn != NULL);
+
+    if (lhs == NULL ^ rhs == NULL) {
+        *is_equal = FALSE;
+        SUCCEED();
+    }
+    if (lhs == NULL) {
+        ASSERT(rhs == NULL);
+        *is_equal = TRUE;
+        SUCCEED();
+    }
+    if (lhs->_count != rhs->_count) {
+        *is_equal = FALSE;
+        SUCCEED();
+    }
+    if (lhs->_node_size != rhs->_node_size) {
+        *is_equal = FALSE;
+        SUCCEED();
+    }
+
+    lhs_node = lhs->_head;
+    rhs_node = rhs->_head;
+
+    while (lhs_node != NULL) {
+        ASSERT(rhs_node != NULL);
+        IONCHECK(compare_contents_fn(IPCN_pNODE_TO_pDATA(lhs_node), IPCN_pNODE_TO_pDATA(rhs_node), is_equal));
+        if (!(*is_equal)) {
+            SUCCEED();
+        }
+        lhs_node = lhs_node->_next;
+        rhs_node = rhs_node->_next;
+    }
+
+    *is_equal = TRUE;
+
+    iRETURN;
+}
+
+iERR _ion_collection_contains(ION_COLLECTION *collection, void *element, ION_COMPARE_FN compare_contents_fn, BOOL *contains)
+{
+    iENTER;
+    ION_COLLECTION_NODE *node;
+    BOOL is_equal;
+
+    ASSERT(contains);
+    ASSERT(compare_contents_fn != NULL);
+    ASSERT(collection);
+
+    if (!element || collection->_count == 0) {
+        *contains = FALSE;
+        SUCCEED();
+    }
+
+    node = collection->_head;
+    while (node != NULL) {
+        IONCHECK(compare_contents_fn(IPCN_pNODE_TO_pDATA(node), element, &is_equal));
+        if (is_equal) {
+            *contains = TRUE;
+            SUCCEED();
+        }
+        node = node->_next;
+    }
+    *contains = FALSE;
+
+    iRETURN;
+}
+
 
 // internal routines
 

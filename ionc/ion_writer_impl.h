@@ -123,7 +123,6 @@ typedef struct _ion_binary_patch {
 
 typedef struct _ion_binary_writer
 {
-    BOOL                _version_marker_written;
     ION_TYPE            _lob_in_progress;
 
     ION_COLLECTION      _patch_stack;  // stack of patch pointers
@@ -164,6 +163,8 @@ typedef struct _ion_writer
 
     BOOL               writer_owns_stream;   // true when open writer created the stream object
     ION_STREAM        *output;
+
+    BOOL                _needs_version_marker;
 
     union {
         struct _ion_text_writer   text;
@@ -221,6 +222,8 @@ iERR _ion_writer_set_catalog_helper(ION_WRITER *pwriter, ION_CATALOG *pcatalog);
 iERR _ion_writer_get_catalog_helper(ION_WRITER *pwriter, ION_CATALOG **p_pcatalog);
 iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *psymtab);
 iERR _ion_writer_get_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE **p_psymtab);
+iERR _ion_writer_add_imported_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE_IMPORT *import);
+iERR _ion_writer_add_imported_tables_helper(ION_WRITER *pwriter, ION_COLLECTION *imports);
 iERR _ion_writer_write_field_name_helper(ION_WRITER *pwriter, ION_STRING *name);
 iERR _ion_writer_write_field_sid_helper(ION_WRITER *pwriter, SID sid);
 iERR _ion_writer_write_field_name_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *field_name);
@@ -260,12 +263,18 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter);
 iERR _ion_writer_free_local_symbol_table( ION_WRITER *pwriter );
 iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *p_sid);
 iERR _ion_writer_clear_field_name_helper(ION_WRITER *pwriter);
-iERR _ion_writer_get_field_name_as_string_helper(ION_WRITER *pwriter, ION_STRING *p_str);
+iERR _ion_writer_get_field_name_as_string_helper(ION_WRITER *pwriter, ION_STRING *p_str, BOOL *p_is_symbol_identifier);
 iERR _ion_writer_get_field_name_as_sid_helper(ION_WRITER *pwriter, SID *p_sid);
 iERR _ion_writer_clear_annotations_helper(ION_WRITER *pwriter);
 iERR _ion_writer_get_annotation_count_helper(ION_WRITER *pwriter, int32_t *p_count);
-iERR _ion_writer_get_annotation_as_string_helper(ION_WRITER *pwriter, int32_t idx, ION_STRING *p_str);
+iERR _ion_writer_get_annotation_as_string_helper(ION_WRITER *pwriter, int32_t idx, ION_STRING *p_str, BOOL *p_is_symbol_identifier);
 iERR _ion_writer_get_annotation_as_sid_helper(ION_WRITER *pwriter, int32_t idx, SID *p_sid);
+
+/**
+ * Returns TRUE only if the writer has a local symbol table that must be serialized. The conditions under which this
+ * is TRUE are different for text and binary writers.
+ */
+BOOL _ion_writer_has_symbol_table(ION_WRITER *pwriter);
 
 iERR ion_temp_buffer_init(hOWNER owner, ION_TEMP_BUFFER *temp_buffer, SIZE size_of_temp_space);
 iERR ion_temp_buffer_alloc(ION_TEMP_BUFFER *temp_buffer, SIZE needed, void **p_ptr);
@@ -306,6 +315,8 @@ iERR _ion_writer_text_write_timestamp(ION_WRITER *pwriter, iTIMESTAMP value);
 iERR _ion_writer_text_write_symbol_id(ION_WRITER *pwriter, SID value);
 iERR _ion_writer_text_write_symbol(ION_WRITER *pwriter, iSTRING symbol);
 iERR _ion_writer_text_write_string(ION_WRITER *pwriter, iSTRING str);
+
+BOOL _ion_writer_text_has_symbol_table(ION_WRITER *pwriter);
 
 iERR _ion_writer_text_write_clob(ION_WRITER *pwriter, BYTE *p_buf, SIZE length);
 iERR _ion_writer_text_append_clob_contents(ION_WRITER *pwriter, BYTE *p_buf, SIZE length);

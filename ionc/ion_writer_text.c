@@ -42,6 +42,8 @@ iERR _ion_writer_text_initialize(ION_WRITER *pwriter)
 
     pwriter->_typed_writer.text._no_output = TRUE;
     TEXTWRITER(pwriter)->_separator_character = (ION_TEXT_WRITER_IS_PRETTY()) ? '\n' : ' ';
+    // Ion text does not require a version marker except to reset the local symbol table.
+    pwriter->_needs_version_marker = FALSE;
 
     iRETURN;
 }
@@ -186,6 +188,15 @@ iERR _ion_writer_text_close_collection(ION_WRITER *pwriter, BYTE close_char)
     iRETURN;
 }
 
+BOOL _ion_writer_text_has_symbol_table(ION_WRITER *pwriter)
+{
+    // Text writers only need to serialize a symbol table when the current symbol table contains shared imports and
+    // the stream contains at least one value.
+    ASSERT(pwriter);
+    return pwriter->symbol_table != NULL && !TEXTWRITER(pwriter)->_no_output
+           && !ION_COLLECTION_IS_EMPTY(&pwriter->symbol_table->import_list);
+}
+
 iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
 {
     iENTER;
@@ -224,8 +235,14 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
 
     if (TEXTWRITER(pwriter)->_no_output) {
         TEXTWRITER(pwriter)->_no_output = FALSE; // from this point on we aren't fresh
-        // TODO: should we emit a $ion_1_0 at this point?
-        if (pwriter->symbol_table != NULL && !ION_COLLECTION_IS_EMPTY(&pwriter->symbol_table->import_list)) {
+        TEXTWRITER(pwriter)->_pending_separator = FALSE;
+        if (pwriter->_needs_version_marker) {
+            for (ii = 0; ii < ION_SYMBOL_VTM_STRING.length; ii++) {
+                ION_TEXT_WRITER_APPEND_CHAR(ION_SYMBOL_VTM_STRING.value[ii]);
+            }
+            ION_TEXT_WRITER_APPEND_CHAR((BYTE)TEXTWRITER(pwriter)->_separator_character);
+        }
+        if (_ion_writer_text_has_symbol_table(pwriter)) {
             // Serialize a minimal LST that declares the imports, as they may contain null slots. If they do, symbol
             // tokens that reference those slots need to be written as symbol identifiers (e.g. $10), which can only
             // be successfully read if the symbol table context is included.
@@ -235,14 +252,13 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
             // have been written, serializing relevant imports only if necessary. But that would require buffering
             // the whole stream (as is done in binary) whenever the writer has imports with null slots.
             IONCHECK(_ion_symbol_table_unload_helper(pwriter->symbol_table, pwriter));
-            TEXTWRITER(pwriter)->_separator_character = (ION_TEXT_WRITER_IS_PRETTY()) ? '\n' : ' ';
             ION_TEXT_WRITER_APPEND_CHAR((BYTE)TEXTWRITER(pwriter)->_separator_character);
         }
     }
 
     // write field name
     if (pwriter->_in_struct) {
-        IONCHECK(_ion_writer_get_field_name_as_string_helper(pwriter, &str));
+        IONCHECK(_ion_writer_get_field_name_as_string_helper(pwriter, &str, NULL));
         IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii, !ION_STRING_IS_NULL(&pwriter->field_name.value)));
         ION_TEXT_WRITER_APPEND_CHAR(':');
         IONCHECK(_ion_writer_clear_field_name_helper(pwriter));
@@ -252,7 +268,7 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
     count = pwriter->annotation_curr;
     if (count > 0) {
         for (ii=0; ii<count; ii++) {
-            IONCHECK(_ion_writer_get_annotation_as_string_helper(pwriter, ii, &str));
+            IONCHECK(_ion_writer_get_annotation_as_string_helper(pwriter, ii, &str, NULL));
             IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii, !ION_STRING_IS_NULL(&pwriter->annotations[ii].value)));
             ION_TEXT_WRITER_APPEND_CHAR(':');
             ION_TEXT_WRITER_APPEND_CHAR(':');
@@ -661,7 +677,7 @@ iERR _ion_writer_text_write_symbol_id(ION_WRITER *pwriter, SID sid)
 
     // if they passed us a reasonable sid we'll look it up (otherwise str will still be null)
     IONCHECK(_ion_writer_get_symbol_table_helper(pwriter, &symtab));
-    IONCHECK(_ion_symbol_table_find_by_sid_force(symtab, sid, &pstr));
+    IONCHECK(_ion_symbol_table_find_by_sid_force(symtab, sid, &pstr, NULL));
 
     // Even symbols with unknown text will now have a string value (e.g. $10). Out-of-range (illegal) symbols have
     // already raised an error.

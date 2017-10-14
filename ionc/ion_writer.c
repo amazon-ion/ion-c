@@ -188,32 +188,23 @@ iERR ion_writer_open(
 iERR _ion_writer_initialize_local_symbol_table(ION_WRITER *pwriter)
 {
     iENTER;
-    ION_SYMBOL_TABLE *psymtab, *system;
+    ION_SYMBOL_TABLE *system;
     ION_SYMBOL_TABLE_IMPORT *import;
     ION_COLLECTION_CURSOR import_cursor;
 
     IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
     ASSERT( pwriter->symbol_table == NULL || pwriter->symbol_table == system );
 
-    IONCHECK(_ion_symbol_table_open_helper(&psymtab, pwriter->_temp_entity_pool, system));
+    IONCHECK(_ion_symbol_table_open_helper(&pwriter->symbol_table, pwriter->_temp_entity_pool, system));
 
     ION_COLLECTION_OPEN(&pwriter->_imported_symbol_tables, import_cursor);
     for (;;) {
         ION_COLLECTION_NEXT(import_cursor, import);
         if (!import) break;
-        if (ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &import->descriptor.name)) {
-            // Do nothing; every local symbol table implicitly imports the system symbol table.
-        }
-        else {
-            IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, import->shared_symbol_table,
-                                                                  &import->descriptor.name,
-                                                                  import->descriptor.version,
-                                                                  import->descriptor.max_id));
-        }
+        IONCHECK(_ion_writer_add_imported_table_helper(pwriter, import));
     }
     ION_COLLECTION_CLOSE(import_cursor);
 
-    pwriter->symbol_table = psymtab;
     iRETURN;
 }
 
@@ -251,7 +242,6 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
 
     memset(pwriter, 0, sizeof(ION_WRITER));
     pwriter->type = ion_type_unknown_writer;
-    pwriter->_has_local_symbols = TRUE;
 
     // if we have options copy them here so we have our own copy
     ASSERT(sizeof(ION_WRITER_OPTIONS) == sizeof(pwriter->options));
@@ -519,6 +509,29 @@ iERR _ion_writer_get_catalog_helper(ION_WRITER *pwriter, ION_CATALOG **p_pcatalo
     iRETURN;
 }
 
+BOOL _ion_writer_has_symbol_table(ION_WRITER *pwriter)
+{
+    BOOL has_symbol_table = FALSE;
+    ASSERT(pwriter);
+
+    if (pwriter->symbol_table == NULL
+        || ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &pwriter->symbol_table->name)) {
+        return FALSE;
+    }
+    switch (pwriter->type) {
+        case ion_type_binary_writer:
+            // For binary writers, if no symbol tokens have been written, then no symbol table needs to be written.
+            has_symbol_table = pwriter->_has_local_symbols;
+            break;
+        case ion_type_text_writer:
+            has_symbol_table = _ion_writer_text_has_symbol_table(pwriter);
+            break;
+        default:
+            break;
+    }
+    return has_symbol_table;
+}
+
 iERR ion_writer_set_symbol_table(hWRITER hwriter, hSYMTAB hsymtab)
 {
     iENTER;
@@ -529,9 +542,6 @@ iERR ion_writer_set_symbol_table(hWRITER hwriter, hSYMTAB hsymtab)
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (!hsymtab) FAILWITH(IERR_INVALID_ARG);
     psymtab = HANDLE_TO_PTR(hsymtab, ION_SYMBOL_TABLE);
-    if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
-        FAILWITHMSG(IERR_INVALID_STATE, "Cannot set a symbol table while manually writing a local symbol table.");
-    }
 
     IONCHECK(_ion_writer_set_symbol_table_helper(pwriter, psymtab));
 
@@ -546,6 +556,13 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
     
     ASSERT(pwriter);
     ASSERT(psymtab);
+
+    if (pwriter->depth != 0) {
+        FAILWITHMSG(IERR_INVALID_STATE, "Cannot set a symbol table below the top level.");
+    }
+    if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
+        FAILWITHMSG(IERR_INVALID_STATE, "Cannot set a symbol table while manually writing a local symbol table.");
+    }
 
     IONCHECK(_ion_symbol_table_get_type_helper(psymtab, &table_type));
     switch (table_type) {
@@ -566,11 +583,9 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
         break;
     }
 
-    // TODO the writer should be required to be at the top level, and this should force a flush of the previous LST.
-
-    // before assigning a new symtab, free a local one if we allocated it
-    // in reality this should only happen in the case of a local table
-    IONCHECK( _ion_writer_free_local_symbol_table( pwriter ));
+    if (_ion_writer_has_symbol_table(pwriter)) {
+        IONCHECK(ion_writer_finish(pwriter, NULL));
+    }
 
     pwriter->symbol_table = psymtab;
 
@@ -610,6 +625,97 @@ iERR _ion_writer_get_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
         *p_psymtab = pwriter->symbol_table;
     }
     SUCCEED();
+
+    iRETURN;
+}
+
+iERR _ion_writer_add_imported_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE_IMPORT *import)
+{
+    iENTER;
+    ION_SYMBOL_TABLE *shared;
+    BOOL duplicate_import;
+
+    ASSERT(pwriter);
+    ASSERT(import);
+    ASSERT(pwriter->symbol_table);
+
+    if (ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &import->descriptor.name)) {
+        // Do nothing; every local symbol table implicitly imports the system symbol table.
+    }
+    else {
+        IONCHECK(_ion_collection_contains(&pwriter->symbol_table->import_list, import,
+                                          &_ion_symbol_table_import_compare_fn, &duplicate_import));
+        if (duplicate_import) {
+            // There is no need to re-import an import that is already present.
+            SUCCEED();
+        }
+        shared = import->shared_symbol_table;
+        if (shared == NULL && pwriter->pcatalog != NULL) {
+            // Try to find the import in the catalog. If not found, its symbols will have unknown text.
+            IONCHECK(_ion_catalog_find_best_match_helper(pwriter->pcatalog, &import->descriptor.name,
+                                                         import->descriptor.version, import->descriptor.max_id,
+                                                         &shared));
+        }
+        IONCHECK(_ion_symbol_table_import_symbol_table_helper(pwriter->symbol_table, shared,
+                                                              &import->descriptor.name,
+                                                              import->descriptor.version,
+                                                              import->descriptor.max_id));
+    }
+
+    iRETURN;
+}
+
+iERR ion_writer_add_imported_tables(hWRITER hwriter, ION_COLLECTION *imports)
+{
+    iENTER;
+    ION_WRITER *pwriter;
+
+    if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
+    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+    if (!imports) FAILWITH(IERR_INVALID_ARG);
+
+    IONCHECK(_ion_writer_add_imported_tables_helper(pwriter, imports));
+
+    iRETURN;
+}
+
+iERR _ion_writer_add_imported_tables_helper(ION_WRITER *pwriter, ION_COLLECTION *imports)
+{
+    iENTER;
+    ION_SYMBOL_TABLE_IMPORT *import;
+    ION_COLLECTION_CURSOR import_cursor;
+
+    ASSERT(pwriter);
+    ASSERT(imports);
+
+    if (pwriter->depth != 0) {
+        FAILWITHMSG(IERR_INVALID_STATE, "Cannot add imports unless the writer is at the top level.")
+    }
+    if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
+        FAILWITHMSG(IERR_INVALID_STATE, "Cannot add imports while manually writing a local symbol table.");
+    }
+
+    // If the writer's current symbol table context must be serialized, then it must be done before adding imports.
+    if (_ion_writer_has_symbol_table(pwriter)) {
+        IONCHECK(ion_writer_finish(pwriter, NULL));
+    }
+    // This is the start of a new symbol table context, but a version marker is not required.
+    pwriter->_needs_version_marker = FALSE;
+    if (pwriter->type == ion_type_text_writer) {
+        pwriter->_typed_writer.text._no_output = TRUE;
+    }
+    if (pwriter->symbol_table == NULL) {
+        IONCHECK(ion_symbol_table_open(&pwriter->symbol_table, pwriter->_temp_entity_pool));
+    }
+    ASSERT(pwriter->symbol_table != NULL);
+
+    ION_COLLECTION_OPEN(imports, import_cursor);
+    for (;;) {
+        ION_COLLECTION_NEXT(import_cursor, import);
+        if (!import) break;
+        IONCHECK(_ion_writer_add_imported_table_helper(pwriter, import));
+    }
+    ION_COLLECTION_CLOSE(import_cursor);
 
     iRETURN;
 }
@@ -867,9 +973,12 @@ iERR _ion_writer_get_local_symbol_id_from_import_location(ION_WRITER *pwriter,
         }
         sid = import_location->location;
     }
+    else if (pwriter->symbol_table == NULL) {
+        sid = UNKNOWN_SID;
+    }
     else {
         local_offset = system->max_id;
-        ION_COLLECTION_OPEN(&pwriter->_imported_symbol_tables, import_cursor);
+        ION_COLLECTION_OPEN(&pwriter->symbol_table->import_list, import_cursor);
         for (;;) {
             ION_COLLECTION_NEXT(import_cursor, import);
             if (!import) break;
@@ -2246,7 +2355,6 @@ iERR _ion_writer_transition_from_symtab_intercept_state(ION_WRITER *pwriter)
                     ASSERT(pwriter->_temp_entity_pool == NULL && pwriter->_pending_temp_entity_pool != NULL);
                     pwriter->_temp_entity_pool = pwriter->_pending_temp_entity_pool;
                     pwriter->symbol_table = pwriter->_pending_symbol_table;
-                    pwriter->_has_local_symbols = TRUE; // TODO does it matter whether the new LST actually has a non-empty symbols list?
                 }
                 pwriter->_pending_temp_entity_pool = NULL;
                 pwriter->_pending_symbol_table = NULL;
@@ -2383,7 +2491,6 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
     ION_TYPE      type;
     ION_STRING    string_value;
     ION_SYMBOL    symbol_value, *fld_name;
-    SID           sid;
     int32_t       count, ii;
     BOOL          is_null, bool_value, is_in_struct;
     double        double_value;
@@ -2537,28 +2644,36 @@ iERR ion_writer_write_all_values(hWRITER hwriter, hREADER hreader)
     iRETURN;
 }
 
+iERR _ion_writer_add_imported_tables_helper_fn(void *context, ION_COLLECTION *imports)
+{
+    return _ion_writer_add_imported_tables_helper((ION_WRITER *)context, imports);
+}
+
 iERR _ion_writer_write_all_values_helper(ION_WRITER *pwriter, ION_READER *preader)
 {
     iENTER;
     ION_TYPE type;
-    uint32_t count = 0;
 
     ASSERT(pwriter);
     ASSERT(preader);
 
+    // Temporarily configure the reader to notify the writer of symbol table context changes.
+    preader->context_change_notifier.context = pwriter;
+    preader->context_change_notifier.notify = &_ion_writer_add_imported_tables_helper_fn;
+
     // no need for separate versions, these all work the same
-    // although there's an oppertunity for a pseudo-safe optimization
+    // although there's an opportunity for a pseudo-safe optimization
     // if the reader and writer have the same data format - this
     // could simply be a byte copy.  But for now let's force them to
     // parse the data.
     for (;;) {
         IONCHECK(_ion_reader_next_helper(preader, &type));
         if (type == tid_EOF) break;
-        count++;
-        // TODO support hand-off of shared imports from the reader to the writer as the reader changes symbol table
-        // contexts.
         IONCHECK(_ion_writer_write_one_value_helper(pwriter, preader));
     }
+
+    // Restore the user-specified change notifier (if any).
+    memcpy(&preader->context_change_notifier, &preader->options.context_change_notifier, sizeof(ION_READER_CONTEXT_CHANGE_NOTIFIER));
 
     iRETURN;
 }
@@ -2589,7 +2704,6 @@ iERR ion_writer_finish(hWRITER hwriter, SIZE *p_bytes_flushed)
     IONCHECK(_ion_writer_reset_temp_pool(pwriter));
     switch (pwriter->type) {
         case ion_type_binary_writer:
-            pwriter->_typed_writer.binary._version_marker_written = FALSE;
             break;
         case ion_type_text_writer:
             IONCHECK(_ion_writer_text_initialize(pwriter));
@@ -2600,7 +2714,8 @@ iERR ion_writer_finish(hWRITER hwriter, SIZE *p_bytes_flushed)
     // The writer may be reused. Therefore, its local symbol table (which may include imports provided by the user)
     // needs to be reinitialized.
     IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
-    pwriter->_has_local_symbols      = FALSE;
+    pwriter->_has_local_symbols = FALSE;
+    pwriter->_needs_version_marker = TRUE;
     iRETURN;
 }
 
@@ -2802,17 +2917,22 @@ iERR ion_writer_get_field_name_as_string(hWRITER hwriter, ION_STRING *p_str)
 {
     iENTER;
     ION_WRITER *pwriter;
+    BOOL is_symbol_identifier;
 
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (!p_str)   FAILWITH(IERR_INVALID_ARG);
 
-    IONCHECK(_ion_writer_get_field_name_as_string_helper(pwriter, p_str));
+    IONCHECK(_ion_writer_get_field_name_as_string_helper(pwriter, p_str, &is_symbol_identifier));
+    if (is_symbol_identifier) {
+        // Symbol identifiers should not be surfaced to the user; the symbol token has unknown text.
+        ION_STRING_INIT(p_str);
+    }
 
     iRETURN;
 }
 
-iERR _ion_writer_get_field_name_as_string_helper(ION_WRITER *pwriter, ION_STRING *p_str)
+iERR _ion_writer_get_field_name_as_string_helper(ION_WRITER *pwriter, ION_STRING *p_str, BOOL *p_is_symbol_identifier)
 {
     iENTER;
     ION_SYMBOL_TABLE *psymtab;
@@ -2827,7 +2947,7 @@ iERR _ion_writer_get_field_name_as_string_helper(ION_WRITER *pwriter, ION_STRING
     else if (pwriter->field_name.sid > UNKNOWN_SID) {
         IONCHECK(_ion_writer_get_local_symbol_table(pwriter, &psymtab));
         assert(psymtab != NULL);
-        IONCHECK(_ion_symbol_table_find_by_sid_force(psymtab, pwriter->field_name.sid, &text));
+        IONCHECK(_ion_symbol_table_find_by_sid_force(psymtab, pwriter->field_name.sid, &text, p_is_symbol_identifier));
         ION_STRING_ASSIGN(p_str, text);
     }
     else {
@@ -2919,17 +3039,22 @@ iERR ion_writer_get_annotation_as_string(hWRITER hwriter, int32_t idx, ION_STRIN
 {
     iENTER;
     ION_WRITER *pwriter;
+    BOOL is_symbol_identifier;
 
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (!p_str)   FAILWITH(IERR_INVALID_ARG);
 
-    IONCHECK(_ion_writer_get_annotation_as_string_helper(pwriter, idx, p_str));
+    IONCHECK(_ion_writer_get_annotation_as_string_helper(pwriter, idx, p_str, &is_symbol_identifier));
+    if (is_symbol_identifier) {
+        // Symbol identifiers should not be surfaced to the user; the symbol token has unknown text.
+        ION_STRING_INIT(p_str);
+    }
 
     iRETURN;
 }
 
-iERR _ion_writer_get_annotation_as_string_helper(ION_WRITER *pwriter, int32_t idx, ION_STRING *p_str)
+iERR _ion_writer_get_annotation_as_string_helper(ION_WRITER *pwriter, int32_t idx, ION_STRING *p_str, BOOL *p_is_symbol_identifier)
 {
     iENTER;
     ION_SYMBOL_TABLE *psymtab;
@@ -2951,7 +3076,7 @@ iERR _ion_writer_get_annotation_as_string_helper(ION_WRITER *pwriter, int32_t id
     else if (annotation->sid > UNKNOWN_SID) {
         IONCHECK(_ion_writer_get_local_symbol_table(pwriter, &psymtab));
         ASSERT(psymtab != NULL);
-        IONCHECK(_ion_symbol_table_find_by_sid_force(psymtab, annotation->sid, &text));
+        IONCHECK(_ion_symbol_table_find_by_sid_force(psymtab, annotation->sid, &text, p_is_symbol_identifier));
         ION_STRING_ASSIGN(p_str, text);
     }
     else {

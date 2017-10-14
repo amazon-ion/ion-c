@@ -25,6 +25,7 @@ extern "C" {
 #define IPCN_pDATA_TO_pNODE(x) ((ION_COLLECTION_NODE *)(((uint8_t *)(x)) - IPCN_OVERHEAD_SIZE))
 
 typedef iERR (*ION_COPY_FN)(void *context, void *dst, void *src, int32_t data_size);
+typedef iERR (*ION_COMPARE_FN)(void *lhs, void *rhs, BOOL *is_equal);
 
 void  _ion_collection_initialize(void *allocation_parent, ION_COLLECTION *collection, int32_t data_length);
 void *_ion_collection_push      (ION_COLLECTION *collection);
@@ -37,6 +38,8 @@ void *_ion_collection_tail      (ION_COLLECTION *collection);
 void  _ion_collection_reset     (ION_COLLECTION *collection);  // resets the collection contents, preserves the freelist
 void  _ion_collection_release   (ION_COLLECTION *collection);  // frees the pages back to the owner, back to new state - valid only on empty collections
 iERR  _ion_collection_copy      (ION_COLLECTION *dst, ION_COLLECTION *src, ION_COPY_FN copy_contents_fn, void *copy_fn_context);
+iERR  _ion_collection_compare   (ION_COLLECTION *lhs, ION_COLLECTION *rhs, ION_COMPARE_FN compare_contents_fn, BOOL *is_equal);
+iERR  _ion_collection_contains  (ION_COLLECTION *collection, void *element, ION_COMPARE_FN compare_contents_fn, BOOL *contains);
 
 #ifdef __cplusplus
 }

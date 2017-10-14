@@ -86,7 +86,7 @@ iERR _ion_symbol_table_find_by_name_helper(ION_SYMBOL_TABLE *symtab, ION_STRING 
 iERR _ion_symbol_table_find_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name);
 iERR _ion_symbol_table_find_symbol_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID sid, ION_SYMBOL **p_sym);
 iERR _ion_symbol_table_get_unknown_symbol_name(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name);
-iERR _ion_symbol_table_find_by_sid_force(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name);
+iERR _ion_symbol_table_find_by_sid_force(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name, BOOL *p_is_symbol_identifier);
 void _ion_symbol_table_allocate_symbol_unknown_text(hOWNER owner, SID sid, ION_SYMBOL **p_symbol);
 iERR _ion_symbol_table_is_symbol_known_helper(ION_SYMBOL_TABLE *symtab, SID sid, BOOL *p_is_known);
 iERR _ion_symbol_table_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid);
@@ -107,6 +107,8 @@ iERR _ion_symbol_table_local_load_import_list   (ION_READER *preader, hOWNER own
 iERR _ion_symbol_table_local_load_symbol_struct (ION_READER *preader, hOWNER owner, ION_COLLECTION *psymbol_list);
 iERR _ion_symbol_table_local_load_symbol_list   (ION_READER *preader, hOWNER owner, ION_COLLECTION *psymbol_list);
 
+iERR _ion_symbol_table_import_compare(ION_SYMBOL_TABLE_IMPORT *lhs, ION_SYMBOL_TABLE_IMPORT *rhs, BOOL *is_equal);
+iERR _ion_symbol_table_import_compare_fn(void *lhs, void *rhs, BOOL *is_equal);
 iERR _ion_symbol_table_import_symbol_table_helper(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE *import_symtab, ION_STRING *import_name, int32_t import_version, int32_t import_max_id);
 iERR _ion_symbol_table_local_incorporate_symbols(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE *shared, int32_t import_max_id);
 iERR _ion_symbol_table_local_add_symbol_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID sid, ION_SYMBOL **p_psym);
