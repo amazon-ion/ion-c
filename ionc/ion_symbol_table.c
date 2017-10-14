@@ -1104,6 +1104,43 @@ iERR ion_symbol_table_add_import(hSYMTAB hsymtab, ION_SYMBOL_TABLE_IMPORT_DESCRI
     iRETURN;
 }
 
+iERR _ion_symbol_table_import_compare(ION_SYMBOL_TABLE_IMPORT *lhs, ION_SYMBOL_TABLE_IMPORT *rhs, BOOL *is_equal)
+{
+    iENTER;
+    ASSERT(is_equal);
+    if (lhs == NULL ^ rhs == NULL) {
+        *is_equal = FALSE;
+        SUCCEED();
+    }
+    if (lhs == NULL) {
+        ASSERT(rhs == NULL);
+        *is_equal = TRUE;
+        SUCCEED();
+    }
+    if (!ION_STRING_EQUALS(&lhs->descriptor.name, &rhs->descriptor.name)) {
+        *is_equal = FALSE;
+        SUCCEED();
+    }
+    if (lhs->descriptor.version != rhs->descriptor.version || lhs->descriptor.max_id != rhs->descriptor.max_id) {
+        *is_equal = FALSE;
+        SUCCEED();
+    }
+
+    *is_equal = TRUE;
+
+    iRETURN;
+}
+
+iERR _ion_symbol_table_import_compare_fn(void *lhs, void *rhs, BOOL *is_equal)
+{
+    iENTER;
+    ION_SYMBOL_TABLE_IMPORT *lhs_import, *rhs_import;
+    lhs_import = (ION_SYMBOL_TABLE_IMPORT *)lhs;
+    rhs_import = (ION_SYMBOL_TABLE_IMPORT *)rhs;
+    IONCHECK(_ion_symbol_table_import_compare(lhs_import, rhs_import, is_equal));
+    iRETURN;
+}
+
 iERR _ion_symbol_table_local_incorporate_symbols(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE *shared, int32_t import_max_id)
 {
     iENTER;
@@ -1465,16 +1502,18 @@ iERR _ion_symbol_table_get_unknown_symbol_name(ION_SYMBOL_TABLE *symtab, SID sid
 /**
  * Retrieve the text for the given SID. If the text is unknown, return a symbol identifier in the form $<int>.
  */
-iERR _ion_symbol_table_find_by_sid_force(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name)
+iERR _ion_symbol_table_find_by_sid_force(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name, BOOL *p_is_symbol_identifier)
 {
     iENTER;
-
+    BOOL is_symbol_identifier = FALSE;
     ASSERT(p_name != NULL);
 
     IONCHECK(_ion_symbol_table_find_by_sid_helper(symtab, sid, p_name));
     if (ION_STRING_IS_NULL(*p_name)) {
         IONCHECK(_ion_symbol_table_get_unknown_symbol_name(symtab, sid, p_name));
+        is_symbol_identifier = TRUE;
     }
+    if (p_is_symbol_identifier) *p_is_symbol_identifier = is_symbol_identifier;
     iRETURN;
 }
 

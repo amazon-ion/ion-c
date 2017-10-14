@@ -312,6 +312,9 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
     iRETURN;
 }
 
+// TODO create a dummy event type that indicates a symbol table context boundary and holds the new imports at that
+// boundary. When the writer encounters that boundary in the stream, it sets its imports accordingly.
+
 iERR read_all(hREADER hreader, IonEventStream *stream) {
     iENTER;
     IONCHECK(read_all(hreader, stream, /*in_struct=*/FALSE, /*depth=*/0));

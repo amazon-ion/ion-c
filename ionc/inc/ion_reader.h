@@ -22,6 +22,34 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * A function that may be called by the reader upon a change to the stream's symbol table context.
+ *
+ * For example, an ION_READER_CONTEXT_CALLBACK function may be used to wrap `ion_writer_add_imported_tables`, with the
+ * user context pointing to a writer instance, in order to update the writer's symbol table context in lockstep with
+ * the reader.
+ *
+ * @param context - User-provided context, e.g., a hWRITER.
+ * @param imports - A collection of ION_SYMBOL_TABLE_IMPORT, representing the shared symbol tables in the new symbol
+ *  table context.
+ */
+typedef iERR (*ION_READER_CONTEXT_CALLBACK)(void *context, ION_COLLECTION *imports);
+
+typedef struct _ion_reader_context_change_notifier {
+    /**
+     * The function to call upon a change to the reader's symbol table context.
+     */
+    ION_READER_CONTEXT_CALLBACK notify;
+
+    /**
+     * The user context to provide as the first argument to `notify`. May be NULL.
+     */
+    void *context;
+
+} ION_READER_CONTEXT_CHANGE_NOTIFIER;
+
+
 /** Reader configuration data, could be supplied by user during reader creation time.
  * All fields in the structure are defaulted to 0, except for the following:
  *
@@ -113,6 +141,11 @@ typedef struct _ion_reader_options
      * Note that up to 34 digits of precision will always be supported, even if configured to be less than 34.
      */
     decContext *decimal_context;
+
+    /** Notification callback data to be used upon symbol table context change. Ignored if
+     * `context_change_notifier.notify` is NULL.
+     */
+    ION_READER_CONTEXT_CHANGE_NOTIFIER context_change_notifier;
 
 } ION_READER_OPTIONS;
 
