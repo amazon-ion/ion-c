@@ -222,7 +222,7 @@ iERR _ion_writer_set_catalog_helper(ION_WRITER *pwriter, ION_CATALOG *pcatalog);
 iERR _ion_writer_get_catalog_helper(ION_WRITER *pwriter, ION_CATALOG **p_pcatalog);
 iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *psymtab);
 iERR _ion_writer_get_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE **p_psymtab);
-iERR _ion_writer_add_imported_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE_IMPORT *import);
+iERR _ion_writer_add_imported_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE_IMPORT *import, BOOL *finish_on_unique);
 iERR _ion_writer_add_imported_tables_helper(ION_WRITER *pwriter, ION_COLLECTION *imports);
 iERR _ion_writer_write_field_name_helper(ION_WRITER *pwriter, ION_STRING *name);
 iERR _ion_writer_write_field_sid_helper(ION_WRITER *pwriter, SID sid);

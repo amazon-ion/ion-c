@@ -201,7 +201,7 @@ iERR _ion_writer_initialize_local_symbol_table(ION_WRITER *pwriter)
     for (;;) {
         ION_COLLECTION_NEXT(import_cursor, import);
         if (!import) break;
-        IONCHECK(_ion_writer_add_imported_table_helper(pwriter, import));
+        IONCHECK(_ion_writer_add_imported_table_helper(pwriter, import, NULL));
     }
     ION_COLLECTION_CLOSE(import_cursor);
 
@@ -629,7 +629,7 @@ iERR _ion_writer_get_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
     iRETURN;
 }
 
-iERR _ion_writer_add_imported_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE_IMPORT *import)
+iERR _ion_writer_add_imported_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE_IMPORT *import, BOOL *finish_on_unique)
 {
     iENTER;
     ION_SYMBOL_TABLE *shared;
@@ -648,6 +648,15 @@ iERR _ion_writer_add_imported_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE
         if (duplicate_import) {
             // There is no need to re-import an import that is already present.
             SUCCEED();
+        }
+        else if (finish_on_unique != NULL && *finish_on_unique) {
+            IONCHECK(ion_writer_finish(pwriter, NULL));
+            // This is the start of a new symbol table context, but a version marker is not required.
+            pwriter->_needs_version_marker = FALSE;
+            *finish_on_unique = FALSE;
+        }
+        if (pwriter->type == ion_type_text_writer) {
+            pwriter->_typed_writer.text._no_output = TRUE;
         }
         shared = import->shared_symbol_table;
         if (shared == NULL && pwriter->pcatalog != NULL) {
@@ -684,6 +693,7 @@ iERR _ion_writer_add_imported_tables_helper(ION_WRITER *pwriter, ION_COLLECTION 
     iENTER;
     ION_SYMBOL_TABLE_IMPORT *import;
     ION_COLLECTION_CURSOR import_cursor;
+    BOOL require_finish;
 
     ASSERT(pwriter);
     ASSERT(imports);
@@ -696,14 +706,8 @@ iERR _ion_writer_add_imported_tables_helper(ION_WRITER *pwriter, ION_COLLECTION 
     }
 
     // If the writer's current symbol table context must be serialized, then it must be done before adding imports.
-    if (_ion_writer_has_symbol_table(pwriter)) {
-        IONCHECK(ion_writer_finish(pwriter, NULL));
-    }
-    // This is the start of a new symbol table context, but a version marker is not required.
-    pwriter->_needs_version_marker = FALSE;
-    if (pwriter->type == ion_type_text_writer) {
-        pwriter->_typed_writer.text._no_output = TRUE;
-    }
+    require_finish = _ion_writer_has_symbol_table(pwriter);
+
     if (pwriter->symbol_table == NULL) {
         IONCHECK(ion_symbol_table_open(&pwriter->symbol_table, pwriter->_temp_entity_pool));
     }
@@ -713,7 +717,7 @@ iERR _ion_writer_add_imported_tables_helper(ION_WRITER *pwriter, ION_COLLECTION 
     for (;;) {
         ION_COLLECTION_NEXT(import_cursor, import);
         if (!import) break;
-        IONCHECK(_ion_writer_add_imported_table_helper(pwriter, import));
+        IONCHECK(_ion_writer_add_imported_table_helper(pwriter, import, &require_finish));
     }
     ION_COLLECTION_CLOSE(import_cursor);
 
@@ -2854,7 +2858,6 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
 {
     iENTER;
     SID               sid = UNKNOWN_SID;
-    SID               old_max_id;
     ION_SYMBOL_TABLE *psymtab;
 
     ASSERT(pwriter);
@@ -2871,12 +2874,11 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
     }
 
     // we'll remember what the top symbol is to see if add_symbol changes it
-    old_max_id = psymtab->max_id;
     IONCHECK( _ion_symbol_table_add_symbol_helper( psymtab, pstr, &sid));
 
     // see if this symbol ended up changing the symbol list (if it already
     // was present the max_id doesn't change and we don't reuse 
-    if (old_max_id != psymtab->max_id) {
+    if (sid > psymtab->system_symbol_table->max_id) {
         pwriter->_has_local_symbols = TRUE;
     }
 

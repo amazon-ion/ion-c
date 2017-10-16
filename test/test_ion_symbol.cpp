@@ -1036,7 +1036,7 @@ TEST_P(BinaryAndTextTest, WriterWithImportsListIncludesThoseImportsWithEveryNewL
         ION_ASSERT_OK(ion_writer_write_symbol(writer, &sym4));
     }
     ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT(
-            "$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1},{name:\"import2\",version:1,max_id:2}]} sym1 sym2 sym3 $ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1},{name:\"import2\",version:1,max_id:2}]} sym1 sym2 sym3 sym4 sym4");
+            "$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1},{name:\"import2\",version:1,max_id:2}]} sym1 sym2 sym3 sym1 sym2 sym3 sym4 sym4");
     ION_ASSERT_OK(ion_catalog_close(catalog)); // Closes the catalog and releases its tables.
     ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
 }
@@ -1362,6 +1362,26 @@ TEST(IonSymbolTable, ReaderNotifiesWhenSymbolTableContextChanges) {
     ASSERT_EQ(2, changes);
 }
 
+TEST(IonSymbolTable, ReaderDoesNotNotifyWhenSymbolTableContextDoesNotChange) {
+    const char *ion_data = "$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1}]} $10 $ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1}]} $10";
+    hREADER reader;
+    ION_TYPE type;
+    ION_READER_OPTIONS options;
+    ion_test_initialize_reader_options(&options);
+    int changes = 0;
+    options.context_change_notifier.context = &changes;
+    options.context_change_notifier.notify = &_ion_symbol_test_notify_context_change;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, strlen(ion_data), &options));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_close(reader));
+
+    ASSERT_EQ(1, changes);
+}
+
 TEST_P(BinaryAndTextTest, WriterAcceptsImportsAfterConstruction) {
     ION_SYMBOL_TEST_POPULATE_CATALOG;
     ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, writer_imports, 2);
@@ -1454,7 +1474,7 @@ TEST_P(BinaryAndTextTest, AddImportedTablesForcesFinishWhenNecessary) {
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
 
     if (is_binary) {
-        //ASSERT_TRUE(assertBytesEqual("\xE0\x01\x00\xEA\xEX\x81\x83\xDX\x87\xB4\x83zoo\x86\xBC\xDB\x84\x83zoo\x85\x21\x02\x88\x21\x0A\x71", , result, bytes_flushed));
+        assertBytesEqual("\xE0\x01\x00\xEA\xE9\x81\x83\xD6\x87\xB4\x83zoo\x71\x0A\xEE\x92\x81\x83\xDE\x8E\x86\xBC\xDB\x84\x83zoo\x85\x21\x02\x88\x21\x0A\x71\x0A", 38, result, bytes_flushed);
     }
     else {
         assertStringsEqual("zoo $ion_symbol_table::{imports:[{name:\"zoo\",version:2,max_id:10}]} $10", (char *)result, bytes_flushed);
@@ -1462,7 +1482,109 @@ TEST_P(BinaryAndTextTest, AddImportedTablesForcesFinishWhenNecessary) {
     free(result);
 }
 
-// TODO verify writer's add_imported_tables flushes when necessary, skips duplicate imports,
-// can handle being called more than once.
+TEST_P(BinaryAndTextTest, AddImportedTablesSkipsDuplicateImports) {
+    // Tests that when imports are added that already exist in the writer's context, the context is unchanged and
+    // no flushing occurs.
+    ION_COLLECTION duplicate_1, duplicate_2;
+    ION_SYMBOL_TABLE_IMPORT *import1_import, *import2_import;
+    BYTE *result;
+    ION_SYMBOL_TEST_POPULATE_CATALOG;
+    ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, writer_imports, 2);
+
+    _ion_collection_initialize(writer, &duplicate_1, sizeof(ION_SYMBOL_TABLE_IMPORT));
+    import1_import = (ION_SYMBOL_TABLE_IMPORT *)_ion_collection_append(&duplicate_1);
+    _ion_collection_initialize(writer, &duplicate_2, sizeof(ION_SYMBOL_TABLE_IMPORT));
+    import2_import = (ION_SYMBOL_TABLE_IMPORT *)_ion_collection_append(&duplicate_2);
+
+    ION_STRING_ASSIGN(&import1_import->descriptor.name, &import1_name);
+    import1_import->descriptor.version = 1;
+    import1_import->descriptor.max_id = 1;
+
+    ION_STRING_ASSIGN(&import2_import->descriptor.name, &import2_name);
+    import2_import->descriptor.version = 1;
+    import2_import->descriptor.max_id = 2;
+
+    ION_ASSERT_OK(ion_writer_add_imported_tables(writer, &duplicate_1));
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 10));
+    ION_ASSERT_OK(ion_writer_add_imported_tables(writer, &duplicate_2));
+    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 11));
+
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
+
+    if (is_binary) {
+        assertBytesEqual("\xE0\x01\x00\xEA\xEE\xA9\x81\x83\xDE\xA5\x86\xBE\xA2\xDE\x8F\x84\x87import1\x85\x21\x01\x88\x21\x01\xDE\x8F\x84\x87import2\x85\x21\x01\x88\x21\x02\x71\x0A\x71\x0B", 51, result, bytes_flushed);
+    }
+    else {
+        assertStringsEqual("$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1},{name:\"import2\",version:1,max_id:2}]} sym1 sym2", (char *)result, bytes_flushed);
+    }
+
+    ION_ASSERT_OK(ion_catalog_close(catalog)); // Closes the catalog and releases its tables.
+    ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
+    free(result);
+}
+
+TEST_P(BinaryAndTextTest, AddImportedTablesDoesNotFlushWhenNotNecessaryNoSymbolsBinary) {
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    ION_STRING foo;
+    ION_SYMBOL_TABLE_IMPORT *foo_import;
+    ION_COLLECTION new_imports;
+    BYTE *result;
+
+    ion_string_from_cstr("zoo", &foo);
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, is_binary));
+    _ion_collection_initialize(writer, &new_imports, sizeof(ION_SYMBOL_TABLE_IMPORT));
+    foo_import = (ION_SYMBOL_TABLE_IMPORT *)_ion_collection_append(&new_imports);
+    ION_STRING_ASSIGN(&foo_import->descriptor.name, &foo);
+    foo_import->descriptor.max_id = 10;
+    foo_import->descriptor.version = 2;
+
+    ION_ASSERT_OK(ion_writer_write_int(writer, 1));
+    ION_ASSERT_OK(ion_writer_add_imported_tables(writer, &new_imports));
+    ION_ASSERT_OK(ion_writer_write_int(writer, 2));
+
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
+
+    if (is_binary) {
+        // No symbol table is needed.
+        assertBytesEqual("\xE0\x01\x00\xEA\x21\x01\x21\x02", 8, result, bytes_flushed);
+    }
+    else {
+        // A symbol table is needed in text because values aren't buffered; a symbol token that refers to the import
+        // could come later.
+        assertStringsEqual("1 $ion_symbol_table::{imports:[{name:\"zoo\",version:2,max_id:10}]} 2", (char *)result, bytes_flushed);
+    }
+    free(result);
+}
+
+TEST_P(BinaryAndTextTest, AddImportedTablesDoesNotFlushWhenNotNecessaryNoValues) {
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    ION_STRING foo;
+    ION_SYMBOL_TABLE_IMPORT *foo_import;
+    ION_COLLECTION new_imports;
+    BYTE *result;
+
+    ion_string_from_cstr("zoo", &foo);
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, is_binary));
+    _ion_collection_initialize(writer, &new_imports, sizeof(ION_SYMBOL_TABLE_IMPORT));
+    foo_import = (ION_SYMBOL_TABLE_IMPORT *)_ion_collection_append(&new_imports);
+    ION_STRING_ASSIGN(&foo_import->descriptor.name, &foo);
+    foo_import->descriptor.max_id = 10;
+    foo_import->descriptor.version = 2;
+
+    ION_ASSERT_OK(ion_writer_write_int(writer, 1));
+    ION_ASSERT_OK(ion_writer_add_imported_tables(writer, &new_imports));
+
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
+
+    // No symbol table is needed in either text or binary because no values follow the context change.
+    if (is_binary) {
+        assertBytesEqual("\xE0\x01\x00\xEA\x21\x01", 6, result, bytes_flushed);
+    }
+    else {
+        assertStringsEqual("1", (char *)result, bytes_flushed);
+    }
+    free(result);
+}
+
 // TODO test that symbols with unknown text without import locations (i.e. from null slots in the LST) are collapsed
 // to and roundtripped as symbol zero.
