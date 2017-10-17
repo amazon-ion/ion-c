@@ -77,7 +77,10 @@ IonEventStream::~IonEventStream() {
         if (event) {
             free_ion_symbols(event->annotations, event->num_annotations);
             free_ion_symbol(event->field_name);
-            if (event->value) {
+            if (event->event_type == SYMBOL_TABLE) {
+                ion_free_owner(event->value);
+            }
+            else if (event->value) {
                 switch (ION_TYPE_INT(event->ion_type)) {
                     case tid_INT_INT:
                         ion_int_free((ION_INT *)event->value);
@@ -168,12 +171,24 @@ void copy_ion_symbol(ION_SYMBOL **dst, ION_SYMBOL *src) {
     }
     ION_STRING_INIT(&copy->import_location.name);
     if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(src)) {
+        copy->import_location.name.length = src->import_location.name.length;
         copy->import_location.name.value = (BYTE *)malloc(sizeof(BYTE) * copy->import_location.name.length);
         memcpy(copy->import_location.name.value, src->import_location.name.value, (size_t)copy->import_location.name.length);
         copy->import_location.location = src->import_location.location;
     }
     copy->sid = src->sid;
     *dst = copy;
+}
+
+iERR record_symbol_table_context_change(void *stream, ION_COLLECTION *imports) {
+    iENTER;
+    IonEventStream *event_stream = (IonEventStream *)stream;
+    IonEvent *event = event_stream->append_new(SYMBOL_TABLE, tid_none, NULL, NULL, 0, 0);
+    ION_COLLECTION *copied_imports = (ION_COLLECTION *)ion_alloc_owner(sizeof(ION_COLLECTION));
+    _ion_collection_initialize(copied_imports, copied_imports, sizeof(ION_SYMBOL_TABLE_IMPORT));
+    IONCHECK(_ion_collection_copy(copied_imports, imports, &_ion_symbol_table_local_import_copy_new_owner, copied_imports));
+    event->value = copied_imports;
+    iRETURN;
 }
 
 iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth) {
@@ -310,9 +325,6 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
     iRETURN;
 }
 
-// TODO create a dummy event type that indicates a symbol table context boundary and holds the new imports at that
-// boundary. When the writer encounters that boundary in the stream, it sets its imports accordingly.
-
 iERR read_all(hREADER hreader, IonEventStream *stream) {
     iENTER;
     IONCHECK(read_all(hreader, stream, /*in_struct=*/FALSE, /*depth=*/0));
@@ -323,8 +335,12 @@ iERR read_all(hREADER hreader, IonEventStream *stream) {
 iERR read_value_stream_from_string(const char *ion_string, IonEventStream *stream) {
     iENTER;
     hREADER      reader;
+    ION_READER_OPTIONS options;
+    ion_test_initialize_reader_options(&options);
+    options.context_change_notifier.notify = &record_symbol_table_context_change;
+    options.context_change_notifier.context = stream;
 
-    IONCHECK(ion_test_new_text_reader(ion_string, &reader));
+    IONCHECK(ion_reader_open_buffer(&reader, (BYTE *)ion_string, (SIZE)strlen(ion_string), &options));
     IONCHECK(read_all(reader, stream));
     IONCHECK(ion_reader_close(reader));
     iRETURN;
@@ -338,6 +354,8 @@ iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStre
     if (catalog) {
         options.pcatalog = catalog;
     }
+    options.context_change_notifier.notify = &record_symbol_table_context_change;
+    options.context_change_notifier.context = stream;
 
     IONCHECK(ion_reader_open_buffer(&reader, (BYTE *)ion_string, len, &options));
     IONCHECK(read_all(reader, stream));
@@ -359,6 +377,8 @@ iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std
     ION_READER_OPTIONS options;
     ion_test_initialize_reader_options(&options);
     options.pcatalog = catalog;
+    options.context_change_notifier.notify = &record_symbol_table_context_change;
+    options.context_change_notifier.context = stream;
 
     const char *pathname_c_str = pathname.c_str();
 
@@ -465,6 +485,9 @@ iERR write_event(hWRITER writer, IonEvent *event) {
             break;
         case SCALAR:
             IONCHECK(write_scalar(writer, event));
+            break;
+        case SYMBOL_TABLE:
+            IONCHECK(ion_writer_add_imported_tables(writer, (ION_COLLECTION *)event->value));
             break;
         case STREAM_END:
             break;

@@ -310,6 +310,14 @@ BOOL assertIonEventStreamEq(IonEventStream *expected, IonEventStream *actual, AS
     size_t index_expected = 0;
     size_t index_actual = 0;
     while (index_expected < expected->size() && index_actual < actual->size()) {
+        if (expected->at(index_expected)->event_type == SYMBOL_TABLE) {
+            index_expected++;
+            continue;
+        }
+        if (actual->at(index_actual)->event_type == SYMBOL_TABLE) {
+            index_actual++;
+            continue;
+        }
         ION_ACCUMULATE_ASSERTION(assertIonEventsEq(expected, index_expected, actual, index_actual, assertion_type));
         index_expected += valueEventLength(expected, index_expected);
         index_actual += valueEventLength(actual, index_actual);

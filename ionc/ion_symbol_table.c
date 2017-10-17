@@ -715,7 +715,7 @@ iERR _ion_symbol_table_unload_helper(ION_SYMBOL_TABLE *symtab, ION_WRITER *pwrit
                 IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_VERSION));
                 IONCHECK(_ion_writer_write_int64_helper(pwriter, import->descriptor.version));
             }
-            if (import->descriptor.max_id > 0) {
+            if (import->descriptor.max_id > ION_SYS_SYMBOL_MAX_ID_UNDEFINED) {
                 IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_MAX_ID));
                 IONCHECK(_ion_writer_write_int64_helper(pwriter, import->descriptor.max_id));
             }

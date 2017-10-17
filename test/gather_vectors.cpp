@@ -128,8 +128,6 @@ void add_to_skip(std::string prefix, std::string suffix) {
 std::vector<std::string> *skip_list() {
     // Assumption: these tests are single-threaded.
     if (_skip_list.size() == 0) {
-        add_to_skip(good_path, "item1.10n");
-
         add_to_skip(good_path, "utf16.ion");
         add_to_skip(good_path, "utf32.ion");
 
