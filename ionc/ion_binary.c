@@ -558,7 +558,10 @@ iERR ion_binary_write_int32_with_field_sid( ION_STREAM *pstream, SID sid, int32_
     len = ion_binary_len_uint_64( unsignedValue );
     IONCHECK( ion_binary_write_var_uint_64( pstream, sid ));
     ION_PUT( pstream, makeTypeDescriptor( tid, len ));
-    IONCHECK( ion_binary_write_uint_64( pstream, unsignedValue ));
+    if (unsignedValue > 0) {
+        ASSERT(len > 0);
+        IONCHECK(ion_binary_write_uint_64(pstream, unsignedValue));
+    }
 
     iRETURN;
 }

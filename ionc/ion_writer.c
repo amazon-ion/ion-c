@@ -704,6 +704,9 @@ iERR _ion_writer_add_imported_tables_helper(ION_WRITER *pwriter, ION_COLLECTION 
     if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
         FAILWITHMSG(IERR_INVALID_STATE, "Cannot add imports while manually writing a local symbol table.");
     }
+    if (pwriter->annotation_curr != 0) {
+        FAILWITHMSG(IERR_INVALID_STATE, "Cannot add imports while there are pending annotations.");
+    }
 
     // If the writer's current symbol table context must be serialized, then it must be done before adding imports.
     require_finish = _ion_writer_has_symbol_table(pwriter);

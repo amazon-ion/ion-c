@@ -36,6 +36,7 @@ typedef enum _ion_event_type {
     SCALAR = 0,
     CONTAINER_START,
     CONTAINER_END,
+    SYMBOL_TABLE,
     STREAM_END
 } ION_EVENT_TYPE;
 
