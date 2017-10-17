@@ -1265,6 +1265,10 @@ iERR _ion_symbol_table_parse_possible_symbol_identifier(ION_SYMBOL_TABLE *symtab
         else if (p_sym) {
             IONCHECK(_ion_symbol_table_find_symbol_by_sid_helper(symtab, sid, &sym));
             ASSERT(sym != NULL); // This SID is within range. It MUST have a non-NULL symbol.
+            if (ION_STRING_IS_NULL(&sym->value) && ION_SYMBOL_IMPORT_LOCATION_IS_NULL(sym) && sym->sid >= symtab->min_local_id) {
+                // This is a local symbol with unknown text, which is equivalent to symbol zero.
+                sid = 0;
+            }
         }
     }
 done:
@@ -1484,6 +1488,10 @@ iERR _ion_symbol_table_get_unknown_symbol_name(ION_SYMBOL_TABLE *symtab, SID sid
 
     if (sid > symtab->max_id) {
         FAILWITHMSG(IERR_INVALID_SYMBOL, "Symbol ID out of range for the current symbol table context.");
+    }
+    if (sid >= symtab->min_local_id) {
+        // This is a local symbol with unknown text, which is equivalent to symbol zero.
+        sid = 0;
     }
     // A symbol name was not found, but the SID is within range for the current symbol table context -
     // make a symbol identifier of the form $<int> to represent the name
