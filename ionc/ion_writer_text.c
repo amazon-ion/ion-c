@@ -197,6 +197,49 @@ BOOL _ion_writer_text_has_symbol_table(ION_WRITER *pwriter)
            && !ION_COLLECTION_IS_EMPTY(&pwriter->symbol_table->import_list);
 }
 
+iERR _ion_writer_text_write_stream_start(ION_WRITER *pwriter)
+{
+    iENTER;
+    int ii;
+    ION_SYMBOL lst_annotation;
+    ION_SYMBOL *stashed_annotations;
+    SIZE stashed_annotation_curr;
+    SIZE stashed_annotation_count;
+
+    if (pwriter->_needs_version_marker) {
+        for (ii = 0; ii < ION_SYMBOL_VTM_STRING.length; ii++) {
+            ION_TEXT_WRITER_APPEND_CHAR(ION_SYMBOL_VTM_STRING.value[ii]);
+        }
+        ION_TEXT_WRITER_APPEND_CHAR((BYTE)TEXTWRITER(pwriter)->_separator_character);
+    }
+    if (_ion_writer_text_has_symbol_table(pwriter)) {
+        // Serialize a minimal LST that declares the imports, as they may have symbols with unknown text. If they do,
+        // those symbol tokens need to be written as symbol identifiers (e.g. $10), which can only be successfully read
+        // if the symbol table context is included.
+        // NOTE: in cases when the imports do not contain symbols with unknown text, this is wasteful (but not harmful).
+        // Effort could be spent determining which imports, if any, have symbol tokens with unknown text; only those
+        // imports to be written. It is also possible to wait until the end of the stream to determine if any symbol
+        // tokens with unknown text have been written, serializing relevant imports only if necessary. But that would
+        // require buffering the whole stream (as is done in binary) whenever the writer has imports that contain
+        // symbols with unknown text.
+        // NOTE: this function is called once a stream is known to contain at least one value. As such, it may already
+        // have pending annotations (since annotations are never written without an accompanying value). Those
+        // pending annotations must be temporarily stashed so that the local symbol table annotation may be written.
+        stashed_annotations = pwriter->annotations;
+        pwriter->annotations = &lst_annotation;
+        stashed_annotation_curr = pwriter->annotation_curr;
+        pwriter->annotation_curr = 0;
+        stashed_annotation_count = pwriter->annotation_count;
+        pwriter->annotation_count = 1;
+        IONCHECK(_ion_symbol_table_unload_helper(pwriter->symbol_table, pwriter));
+        ION_TEXT_WRITER_APPEND_CHAR((BYTE)TEXTWRITER(pwriter)->_separator_character);
+        pwriter->annotations = stashed_annotations;
+        pwriter->annotation_curr = stashed_annotation_curr;
+        pwriter->annotation_count = stashed_annotation_count;
+    }
+    iRETURN;
+}
+
 iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
 {
     iENTER;
@@ -236,24 +279,7 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
     if (TEXTWRITER(pwriter)->_no_output) {
         TEXTWRITER(pwriter)->_no_output = FALSE; // from this point on we aren't fresh
         TEXTWRITER(pwriter)->_pending_separator = FALSE;
-        if (pwriter->_needs_version_marker) {
-            for (ii = 0; ii < ION_SYMBOL_VTM_STRING.length; ii++) {
-                ION_TEXT_WRITER_APPEND_CHAR(ION_SYMBOL_VTM_STRING.value[ii]);
-            }
-            ION_TEXT_WRITER_APPEND_CHAR((BYTE)TEXTWRITER(pwriter)->_separator_character);
-        }
-        if (_ion_writer_text_has_symbol_table(pwriter)) {
-            // Serialize a minimal LST that declares the imports, as they may contain null slots. If they do, symbol
-            // tokens that reference those slots need to be written as symbol identifiers (e.g. $10), which can only
-            // be successfully read if the symbol table context is included.
-            // NOTE: in cases when the imports do not contain null slots, this is wasteful (but not harmful). Effort
-            // could be spent determining which imports, if any, have null slots; only those need to be written. It is
-            // also possible to wait until the end of the stream to determine if any symbol tokens with unknown text
-            // have been written, serializing relevant imports only if necessary. But that would require buffering
-            // the whole stream (as is done in binary) whenever the writer has imports with null slots.
-            IONCHECK(_ion_symbol_table_unload_helper(pwriter->symbol_table, pwriter));
-            ION_TEXT_WRITER_APPEND_CHAR((BYTE)TEXTWRITER(pwriter)->_separator_character);
-        }
+        IONCHECK(_ion_writer_text_write_stream_start(pwriter));
     }
 
     // write field name

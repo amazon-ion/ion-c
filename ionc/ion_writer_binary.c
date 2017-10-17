@@ -1486,7 +1486,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
                 // now we write the name, version, and max id
                 IONCHECK(ion_binary_write_string_with_field_sid(out, ION_SYS_SID_NAME, &import->descriptor.name));
                 IONCHECK(ion_binary_write_int32_with_field_sid(out, ION_SYS_SID_VERSION, import->descriptor.version));
-                if (import->descriptor.max_id > 0) {
+                if (import->descriptor.max_id > ION_SYS_SYMBOL_MAX_ID_UNDEFINED) {
                     IONCHECK(ion_binary_write_int32_with_field_sid(out, ION_SYS_SID_MAX_ID, import->descriptor.max_id));
                 }
             }
@@ -1535,17 +1535,9 @@ int ion_writer_binary_serialize_import_struct_length(ION_SYMBOL_TABLE_IMPORT_DES
     }
     len += 1 + ION_BINARY_TYPE_DESC_LENGTH; // field id (name)  + type desc
     len += 1 + ION_BINARY_TYPE_DESC_LENGTH + ion_binary_len_uint_64(import->version); // field id(version) + type desc + int
-    if (import->max_id > 0) {
+    if (import->max_id > ION_SYS_SYMBOL_MAX_ID_UNDEFINED) {
         len += 1 + ION_BINARY_TYPE_DESC_LENGTH + ion_binary_len_uint_64(import->max_id); // field id(max_id) + type desc + int
     }
-
-    // cas 1 sept 2012 - this should be done by the caller! 
-    // now len is the length of the content of the import struct
-    // see if it's too big for a low nibble length
-    // if (len >= ION_lnIsVarLen) {
-    //    len += ion_binary_len_var_uint_64(len);  // whole struct has overflow length
-    // }
-    // len += ION_BINARY_TYPE_DESC_LENGTH; // type desc ion_struct
 
     return len;
 }

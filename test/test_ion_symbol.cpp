@@ -1600,5 +1600,27 @@ TEST_P(BinaryAndTextTest, AddImportedTablesDoesNotFlushWhenNotNecessaryNoValues)
     free(result);
 }
 
+TEST_P(BinaryAndTextTest, AddImportedTablesFailsWithPendingAnnotations) {
+    // Tests that ion_writer_add_imported_tables fails when the writer has pending annotations (because it would be
+    // ambiguous which context the annotations belong to).
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    ION_STRING foo;
+    ION_SYMBOL_TABLE_IMPORT *foo_import;
+    ION_COLLECTION new_imports;
+    BYTE *result;
+
+    ion_string_from_cstr("zoo", &foo);
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, is_binary));
+    _ion_collection_initialize(writer, &new_imports, sizeof(ION_SYMBOL_TABLE_IMPORT));
+    foo_import = (ION_SYMBOL_TABLE_IMPORT *)_ion_collection_append(&new_imports);
+    ION_STRING_ASSIGN(&foo_import->descriptor.name, &foo);
+    foo_import->descriptor.max_id = 10;
+    foo_import->descriptor.version = 2;
+
+    ION_ASSERT_OK(ion_writer_add_annotation(writer, &foo));
+    ASSERT_EQ(IERR_INVALID_STATE, ion_writer_add_imported_tables(writer, &new_imports));
+    ION_ASSERT_OK(ion_writer_close(writer));
+}
+
 // TODO test that symbols with unknown text without import locations (i.e. from null slots in the LST) are collapsed
 // to and roundtripped as symbol zero.
