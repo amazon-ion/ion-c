@@ -1387,7 +1387,7 @@ TEST_P(BinaryAndTextTest, WriterAcceptsImportsAfterConstruction) {
     ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, writer_imports, 2);
 
     ION_STRING foo, bar;
-    ION_SYMBOL_TABLE_IMPORT *foo_import, *bar_import;
+    ION_SYMBOL_TABLE_IMPORT *foo_import, *bar_import, import1_import, import2_import;
     ION_COLLECTION new_imports_1, new_imports_2;
     ION_SYMBOL_TABLE *writer_table;
     BOOL contains_import;
@@ -1420,8 +1420,22 @@ TEST_P(BinaryAndTextTest, WriterAcceptsImportsAfterConstruction) {
     ION_ASSERT_OK(_ion_collection_contains(&writer_table->import_list, bar_import, &_ion_symbol_table_import_compare_fn, &contains_import));
     ASSERT_TRUE(contains_import);
 
-    // TODO also assert that it contains import1 and import2
+    ION_STRING_ASSIGN(&import1_import.descriptor.name, &import1_name);
+    ION_STRING_ASSIGN(&import2_import.descriptor.name, &import2_name);
+    import1_import.descriptor.max_id = import1->max_id;
+    import2_import.descriptor.max_id = import2->max_id;
+    import1_import.descriptor.version = import1->version;
+    import2_import.descriptor.version = import2->version;
 
+    ION_ASSERT_OK(_ion_collection_contains(&writer_table->import_list, &import1_import, &_ion_symbol_table_import_compare_fn, &contains_import));
+    ASSERT_TRUE(contains_import);
+
+    ION_ASSERT_OK(_ion_collection_contains(&writer_table->import_list, &import2_import, &_ion_symbol_table_import_compare_fn, &contains_import));
+    ASSERT_TRUE(contains_import);
+
+    ION_ASSERT_OK(ion_writer_close(writer));
+    ION_ASSERT_OK(ion_catalog_close(catalog));
+    ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
 }
 
 TEST_P(BinaryAndTextTest, AddImportedTablesFailsBelowTopLevel) {
