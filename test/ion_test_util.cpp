@@ -53,6 +53,33 @@ iERR ion_test_writer_get_bytes(hWRITER writer, ION_STREAM *ion_stream, BYTE **ou
     iRETURN;
 }
 
+iERR ion_test_writer_write_symbol_sid(ION_WRITER *writer, SID sid) {
+    iENTER;
+    ION_SYMBOL symbol;
+    memset(&symbol, 0, sizeof(ION_SYMBOL));
+    symbol.sid = sid;
+    IONCHECK(ion_writer_write_ion_symbol(writer, &symbol));
+    iRETURN;
+}
+
+iERR ion_test_writer_add_annotation_sid(ION_WRITER *writer, SID sid) {
+    iENTER;
+    ION_SYMBOL symbol;
+    memset(&symbol, 0, sizeof(ION_SYMBOL));
+    symbol.sid = sid;
+    IONCHECK(ion_writer_add_annotation_symbol(writer, &symbol));
+    iRETURN;
+}
+
+iERR ion_test_writer_write_field_name_sid(ION_WRITER *writer, SID sid) {
+    iENTER;
+    ION_SYMBOL symbol;
+    memset(&symbol, 0, sizeof(ION_SYMBOL));
+    symbol.sid = sid;
+    IONCHECK(ion_writer_write_field_name_symbol(writer, &symbol));
+    iRETURN;
+}
+
 iERR ion_string_from_cstr(const char *cstr, ION_STRING *out) {
     iENTER;
     if (!out) FAILWITH(IERR_INVALID_ARG);
@@ -79,6 +106,15 @@ iERR ion_test_new_reader(BYTE *ion_data, SIZE buffer_length, hREADER *reader) {
 iERR ion_test_new_text_reader(const char *ion_text, hREADER *reader) {
     iENTER;
     IONCHECK(ion_test_new_reader((BYTE *)ion_text, (SIZE)strlen(ion_text), reader));
+    iRETURN;
+}
+
+iERR ion_test_reader_read_symbol_sid(ION_READER *reader, SID *sid) {
+    iENTER;
+    ASSERT(sid);
+    ION_SYMBOL symbol;
+    IONCHECK(ion_reader_read_ion_symbol(reader, &symbol));
+    *sid = symbol.sid;
     iRETURN;
 }
 
