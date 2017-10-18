@@ -302,14 +302,12 @@ iERR _ion_reader_text_has_any_annotations       (ION_READER *preader, BOOL *p_ha
 iERR _ion_reader_text_has_annotation            (ION_READER *preader, ION_STRING *annotation, BOOL *p_annotation_found);
 iERR _ion_reader_text_get_annotation_count      (ION_READER *preader, int32_t *p_count);
 iERR _ion_reader_text_get_an_annotation         (ION_READER *preader, int32_t idx, ION_STRING *p_str);
-iERR _ion_reader_text_get_an_annotation_sid     (ION_READER *preader, int32_t idx, SID *p_sid);
 iERR _ion_reader_text_get_an_annotation_symbol  (ION_READER *preader, int32_t idx, ION_SYMBOL *p_symbol);
 iERR _ion_reader_text_get_field_name            (ION_READER *preader, ION_STRING **p_pstr);
 iERR _ion_reader_text_get_field_name_symbol     (ION_READER *preader, ION_SYMBOL **p_psymbol);
 iERR _ion_reader_text_get_symbol_table          (ION_READER *preader, ION_SYMBOL_TABLE **p_return);
 iERR _ion_reader_text_get_field_sid             (ION_READER *preader, SID *p_sid);
 iERR _ion_reader_text_get_annotations           (ION_READER *preader, ION_STRING *p_strs, SIZE max_count, SIZE *p_count);
-iERR _ion_reader_text_get_annotation_sids       (ION_READER *preader, SID *p_sids, SIZE max_count, SIZE *p_count);
 iERR _ion_reader_text_get_annotation_symbols    (ION_READER *preader, ION_SYMBOL *p_symbols, SIZE max_count, SIZE *p_count);
 iERR _ion_reader_text_get_value_offset          (ION_READER *preader, POSITION *p_offset);
 iERR _ion_reader_text_get_value_length          (ION_READER *preader, SIZE *p_length);
@@ -325,7 +323,6 @@ iERR _ion_reader_text_read_double               (ION_READER *preader, double *p_
 //iERR _ion_reader_text_read_float32              (ION_READER *preader, float *p_value);
 iERR _ion_reader_text_read_decimal              (ION_READER *preader, decQuad *p_quad, decNumber **p_num);
 iERR _ion_reader_text_read_timestamp            (ION_READER *preader, ION_TIMESTAMP *p_value);
-iERR _ion_reader_text_read_symbol_sid           (ION_READER *preader, SID *p_value);
 iERR _ion_reader_text_read_symbol               (ION_READER *preader, ION_SYMBOL *p_symbol);
 
 // get string functions, these work over value of type string or type symbol

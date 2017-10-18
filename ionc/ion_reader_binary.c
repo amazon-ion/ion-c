@@ -733,41 +733,6 @@ iERR _ion_reader_binary_get_annotation_symbols(ION_READER *preader, ION_SYMBOL *
     iRETURN;
 }
 
-iERR _ion_reader_binary_get_annotation_sids(ION_READER *preader, SID *p_sids, SIZE max_count, SIZE *p_count)
-{
-    iENTER;
-    ION_BINARY_READER    *binary;
-    int                   ii, count;
-    SID                  *psid;
-    ION_COLLECTION_CURSOR cursor;
-
-    ASSERT(preader && preader->type == ion_type_binary_reader);
-
-    binary = &preader->typed_reader.binary;
-
-    count = ION_COLLECTION_SIZE(&binary->_annotation_sids);
-    if (count > max_count) {
-        FAILWITH(IERR_BUFFER_TOO_SMALL);
-    }
-
-    ION_COLLECTION_OPEN(&binary->_annotation_sids, cursor);
-    for (ii=0; ;ii++) {
-        ION_COLLECTION_NEXT(cursor, psid);
-        if (!psid) break;
-        IONCHECK(_ion_reader_binary_validate_symbol_token(preader, *psid));
-        p_sids[ii++] = *psid;
-    }
-
-    ION_COLLECTION_CLOSE(cursor);
-    goto return_value;
-
-return_value:
-    *p_count = count;
-    SUCCEED();
-
-    iRETURN;
-}
-
 iERR _ion_reader_binary_get_field_name(ION_READER *preader, ION_STRING **p_pstr)
 {
     iENTER;

@@ -872,43 +872,6 @@ iERR _ion_reader_get_an_annotation_helper(ION_READER *preader, int32_t idx, ION_
     iRETURN;
 }
 
-iERR ion_reader_get_an_annotation_sid(hREADER hreader, int idx, SID *p_sid)
-{
-    iENTER;
-    ION_READER *preader;
-
-    if (!hreader) FAILWITH(IERR_INVALID_ARG);
-    preader = HANDLE_TO_PTR(hreader, ION_READER);
-    if (idx < 0) FAILWITH(IERR_INVALID_ARG);
-    if (!p_sid) FAILWITH(IERR_INVALID_ARG);
-
-
-    IONCHECK(_ion_reader_get_an_annotation_sid_helper(preader, idx, p_sid));
-
-    iRETURN;
-}
-
-iERR _ion_reader_get_an_annotation_sid_helper(ION_READER *preader, int32_t idx, SID *p_sid)
-{
-    iENTER;
-
-    ASSERT(preader);
-
-    switch(preader->type) {
-        case ion_type_text_reader:
-            IONCHECK(_ion_reader_text_get_an_annotation_sid(preader, idx, p_sid));
-            break;
-        case ion_type_binary_reader:
-            IONCHECK(_ion_reader_binary_get_an_annotation_sid(preader, idx, p_sid));
-            break;
-        case ion_type_unknown_reader:
-        default:
-            FAILWITH(IERR_INVALID_STATE);
-    }
-
-    iRETURN;
-}
-
 iERR ion_reader_get_an_annotation_symbol(hREADER hreader, int idx, ION_SYMBOL *p_symbol)
 {
     iENTER;
@@ -1047,20 +1010,6 @@ iERR _ion_reader_get_field_name_helper(ION_READER *preader, ION_STRING **p_pstr)
     iRETURN;
 }
 
-iERR ion_reader_get_field_sid(hREADER hreader, SID *p_sid)
-{
-    iENTER;
-    ION_READER *preader;
-
-    if (!hreader) FAILWITH(IERR_INVALID_ARG);
-    preader = HANDLE_TO_PTR(hreader, ION_READER);
-    if (!p_sid) FAILWITH(IERR_INVALID_ARG);
-
-    IONCHECK(_ion_reader_get_field_sid_helper(preader, p_sid));
-
-    iRETURN;
-}
-
 iERR _ion_reader_get_field_sid_helper(ION_READER *preader, SID *p_sid)
 {
     iENTER;
@@ -1148,31 +1097,6 @@ iERR _ion_reader_get_annotations_helper(ION_READER *preader, ION_STRING *p_strs,
         break;
     case ion_type_binary_reader:
         IONCHECK(_ion_reader_binary_get_annotations(preader, p_strs, max_count, p_count));
-        break;
-    case ion_type_unknown_reader:
-    default:
-        FAILWITH(IERR_INVALID_STATE);
-    }
-
-    iRETURN;
-}
-
-iERR ion_reader_get_annotation_sids(hREADER hreader, SID *p_sids, SIZE max_count, SIZE *p_count)
-{
-    iENTER;
-    ION_READER *preader;
-
-    if (!hreader) FAILWITH(IERR_INVALID_ARG);
-    preader = HANDLE_TO_PTR(hreader, ION_READER);
-    if (!p_sids) FAILWITH(IERR_INVALID_ARG);
-    if (!p_count) FAILWITH(IERR_INVALID_ARG);
-
-    switch(preader->type) {
-    case ion_type_text_reader:
-        IONCHECK(_ion_reader_text_get_annotation_sids(preader, p_sids, max_count, p_count));
-        break;
-    case ion_type_binary_reader:
-        IONCHECK(_ion_reader_binary_get_annotation_sids(preader, p_sids, max_count, p_count));
         break;
     case ion_type_unknown_reader:
     default:
@@ -1594,43 +1518,7 @@ iERR _ion_reader_read_timestamp_helper(ION_READER *preader, ION_TIMESTAMP *p_val
     iRETURN;
 }
 
-iERR ion_reader_read_symbol_sid(hREADER hreader, SID *p_value)
-{
-    iENTER;
-    ION_READER *preader;
-
-    if (!hreader) FAILWITH(IERR_INVALID_ARG);
-    preader = HANDLE_TO_PTR(hreader, ION_READER);
-    if (!p_value) FAILWITH(IERR_INVALID_ARG);
-
-    IONCHECK(_ion_reader_read_symbol_sid_helper(preader, p_value));
-
-    iRETURN;
-}
-
-iERR _ion_reader_read_symbol_sid_helper(ION_READER *preader, SID *p_value)
-{
-    iENTER;
-
-    ASSERT(preader);
-    ASSERT(p_value);
-
-    switch(preader->type) {
-    case ion_type_text_reader:
-        IONCHECK(_ion_reader_text_read_symbol_sid(preader, p_value));
-        break;
-    case ion_type_binary_reader:
-        IONCHECK(_ion_reader_binary_read_symbol_sid(preader, p_value));
-        break;
-    case ion_type_unknown_reader:
-    default:
-        FAILWITH(IERR_INVALID_STATE);
-    }
-
-    iRETURN;
-}
-
-iERR ion_reader_read_symbol(hREADER hreader, ION_SYMBOL *p_symbol)
+iERR ion_reader_read_ion_symbol(hREADER hreader, ION_SYMBOL *p_symbol)
 {
     iENTER;
     ION_READER *preader;
