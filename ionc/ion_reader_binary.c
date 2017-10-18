@@ -823,7 +823,6 @@ iERR _ion_reader_binary_get_field_name_symbol(ION_READER *preader, ION_SYMBOL **
 
     IONCHECK(_ion_reader_binary_validate_symbol_token(preader, binary->_value_field_id));
     IONCHECK(_ion_symbol_table_find_symbol_by_sid_helper(preader->_current_symtab, binary->_value_field_id, &field_symbol));
-    // TODO duplicated in _ion_reader_binary_get_annotation_symbols
     if (field_symbol == NULL) {
         field_symbol = ion_alloc_with_owner(preader->_temp_entity_pool, sizeof (ION_SYMBOL));
         ION_STRING_INIT(&field_symbol->value);
