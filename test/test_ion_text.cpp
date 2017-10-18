@@ -86,7 +86,7 @@ TEST(IonTextSymbol, WriterWritesSymbolValueZero) {
     ion_string_from_cstr("$0", &symbol_zero);
 
     ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, FALSE));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 0));
     ION_ASSERT_OK(ion_writer_write_symbol(writer, &symbol_zero));
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
@@ -105,10 +105,10 @@ TEST(IonTextSymbol, WriterWritesSymbolAnnotationZero) {
     ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, FALSE));
 
     ION_ASSERT_OK(ion_writer_add_annotation(writer, &symbol_zero));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 0));
 
-    ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, 0));
-    ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_add_annotation_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_add_annotation_sid(writer, 0));
     ION_ASSERT_OK(ion_writer_write_symbol(writer, &symbol_zero));
 
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
@@ -130,19 +130,19 @@ TEST(IonTextSymbol, WriterWritesSymbolFieldNameZero) {
 
     ION_ASSERT_OK(ion_writer_write_field_name(writer, &symbol_zero));
     ION_ASSERT_OK(ion_writer_add_annotation(writer, &symbol_zero));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 0));
 
-    ION_ASSERT_OK(ion_writer_write_field_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_field_name_sid(writer, 0));
     ION_ASSERT_OK(ion_writer_add_annotation(writer, &symbol_zero));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 0));
 
     ION_ASSERT_OK(ion_writer_write_field_name(writer, &symbol_zero));
-    ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, 0));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_add_annotation_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 0));
 
-    ION_ASSERT_OK(ion_writer_write_field_sid(writer, 0));
-    ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, 0));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_field_name_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_add_annotation_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 0));
 
     ION_ASSERT_OK(ion_writer_finish_container(writer));
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
@@ -160,13 +160,13 @@ TEST(IonTextSymbol, ReaderReadsSymbolValueSymbolZero) {
 
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ION_ASSERT_OK(ion_reader_read_symbol(reader, &symbol_value));
+    ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &symbol_value));
     ASSERT_TRUE(ION_STRING_IS_NULL(&symbol_value.value));
     ASSERT_EQ(0, symbol_value.sid); // Because it was unquoted, this represents symbol zero.
 
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ION_ASSERT_OK(ion_reader_read_symbol(reader, &symbol_value));
+    ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &symbol_value));
     ASSERT_STREQ("$0", ionStringToString(&symbol_value.value)); // This one just looks like symbol zero, but it's actually a user symbol with the text $0
 
     ION_ASSERT_OK(ion_reader_close(reader));
@@ -177,7 +177,7 @@ TEST(IonTextSymbol, ReaderReadsAnnotationSymbolZero) {
     hREADER reader;
     ION_TYPE type;
     SID symbol_value;
-    SID annotations[1];
+    ION_SYMBOL annotations[1];
     ION_STRING annotation_strs[1];
     SIZE num_annotations;
     ION_SYMBOL symbol;
@@ -189,18 +189,18 @@ TEST(IonTextSymbol, ReaderReadsAnnotationSymbolZero) {
     ION_ASSERT_OK(ion_reader_get_annotations(reader, annotation_strs, 1, &num_annotations));
     ASSERT_EQ(1, num_annotations);
     ASSERT_STREQ("$0", ion_string_strdup(&annotation_strs[0]));
-    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &symbol_value));
+    ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &symbol_value));
     ASSERT_EQ(0, symbol_value);
 
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ION_ASSERT_OK(ion_reader_get_annotation_sids(reader, annotations, 1, &num_annotations));
+    ION_ASSERT_OK(ion_reader_get_annotation_symbols(reader, annotations, 1, &num_annotations));
     ASSERT_EQ(1, num_annotations);
-    ASSERT_EQ(0, annotations[0]); // Because it was unquoted, this represents symbol zero.
+    ASSERT_EQ(0, annotations[0].sid); // Because it was unquoted, this represents symbol zero.
     ION_ASSERT_OK(ion_reader_get_annotations(reader, annotation_strs, 1, &num_annotations));
     ASSERT_EQ(1, num_annotations);
     ASSERT_TRUE(ION_STRING_IS_NULL(&annotation_strs[0]));
-    ION_ASSERT_OK(ion_reader_read_symbol(reader, &symbol));
+    ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &symbol));
     ASSERT_STREQ("$0", ionStringToString(&symbol.value)); // This one just looks like symbol zero, but it's actually a user symbol with the text $0
 
     ION_ASSERT_OK(ion_reader_close(reader));
@@ -210,9 +210,10 @@ TEST(IonTextSymbol, ReaderReadsFieldNameSymbolZero) {
     const char *ion_text = "{'$0':'$0'::$0, $0:$0::'$0', $0:'$0'::$0}";
     hREADER reader;
     ION_TYPE type;
-    SID symbol_value, field_name;
+    SID symbol_value;
+    ION_SYMBOL *field_name;
     ION_STRING field_name_str;
-    SID annotation_sids[1];
+    ION_SYMBOL annotation_symbols[1];
     ION_STRING annotations[1];
     SIZE num_annotations;
     ION_STRING symbol_text;
@@ -229,18 +230,18 @@ TEST(IonTextSymbol, ReaderReadsFieldNameSymbolZero) {
     ION_ASSERT_OK(ion_reader_get_annotations(reader, annotations, 1, &num_annotations));
     ASSERT_EQ(1, num_annotations);
     ASSERT_STREQ("$0", ion_string_strdup(&annotations[0]));
-    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &symbol_value));
+    ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &symbol_value));
     ASSERT_EQ(0, symbol_value);
 
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ION_ASSERT_OK(ion_reader_get_field_sid(reader, &field_name));
-    ASSERT_EQ(0, field_name); // Because it was unquoted, this represents symbol zero.
+    ION_ASSERT_OK(ion_reader_get_field_name_symbol(reader, &field_name));
+    ASSERT_EQ(0, field_name->sid); // Because it was unquoted, this represents symbol zero.
     ION_ASSERT_OK(ion_reader_get_field_name(reader, &field_name_str));
     ASSERT_TRUE(ION_STRING_IS_NULL(&field_name_str));
-    ION_ASSERT_OK(ion_reader_get_annotation_sids(reader, annotation_sids, 1, &num_annotations));
+    ION_ASSERT_OK(ion_reader_get_annotation_symbols(reader, annotation_symbols, 1, &num_annotations));
     ASSERT_EQ(1, num_annotations);
-    ASSERT_EQ(0, annotation_sids[0]);
+    ASSERT_EQ(0, annotation_symbols[0].sid);
     ION_ASSERT_OK(ion_reader_read_string(reader, &symbol_text));
     ASSERT_STREQ("$0", ion_string_strdup(&symbol_text));
 
@@ -248,12 +249,12 @@ TEST(IonTextSymbol, ReaderReadsFieldNameSymbolZero) {
     ASSERT_EQ(tid_SYMBOL, type);
     ION_ASSERT_OK(ion_reader_get_field_name(reader, &field_name_str));
     ASSERT_TRUE(ION_STRING_IS_NULL(&field_name_str));
-    ION_ASSERT_OK(ion_reader_get_field_sid(reader, &field_name));
-    ASSERT_EQ(0, field_name); // Because it was unquoted, this represents symbol zero.
+    ION_ASSERT_OK(ion_reader_get_field_name_symbol(reader, &field_name));
+    ASSERT_EQ(0, field_name->sid); // Because it was unquoted, this represents symbol zero.
     ION_ASSERT_OK(ion_reader_get_annotations(reader, annotations, 1, &num_annotations));
     ASSERT_EQ(1, num_annotations);
     ASSERT_STREQ("$0", ion_string_strdup(&annotations[0]));
-    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &symbol_value));
+    ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &symbol_value));
     ASSERT_EQ(0, symbol_value);
 
     ION_ASSERT_OK(ion_reader_step_out(reader));
@@ -321,7 +322,7 @@ TEST(IonTextSymbol, WriterWritesSymbolValueIVMTextAsNoOp) {
     ION_ASSERT_OK(ion_writer_write_int(writer, 123));
     ION_ASSERT_OK(ion_writer_write_symbol(writer, &ivm_text)); // This is a no-op.
     ION_ASSERT_OK(ion_writer_write_int(writer, 456));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 2)); // This is a no-op.
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 2)); // This is a no-op.
     ION_ASSERT_OK(ion_writer_write_int(writer, 789));
 
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
@@ -357,7 +358,7 @@ TEST(IonTextSymbol, ReaderReadsSymbolValueTrueIVM) {
 
     ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
-    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_reader_read_symbol_sid(reader, &sid));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_test_reader_read_symbol_sid(reader, &sid));
 
     ION_ASSERT_OK(ion_reader_close(reader));
 }
@@ -368,15 +369,15 @@ TEST(IonTextSymbol, ReaderReadsSymbolValueAnnotatedIVM) {
     const char *ion_text = "$ion_symbol_table::{symbols:[\"foo\"]} annotated::$ion_1_0 $10";
     hREADER reader;
     ION_TYPE type;
-    SID sid;
     SIZE annot_count;
     ION_STRING annot, result;
+    ION_SYMBOL symbol;
 
     ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
-    ASSERT_EQ(2, sid);
+    ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &symbol));
+    assertStringsEqual("$ion_1_0", (char *)symbol.value.value, symbol.value.length);
     ION_ASSERT_OK(ion_reader_get_annotation_count(reader, &annot_count));
     ASSERT_EQ(1, annot_count);
     ION_ASSERT_OK(ion_reader_get_an_annotation(reader, 0, &annot));
@@ -438,17 +439,18 @@ TEST(IonTextSymbol, ReaderChoosesLowestSIDForDuplicateSymbol) {
     ION_STRING result, *lookup;
     SID sid;
     ION_SYMBOL_TABLE *symbol_table;
+    ION_SYMBOL symbol;
 
     ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
-    ASSERT_EQ(4, sid); // SID 4 maps to "name" in the system symbol table.
+    ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &symbol));
+    assertStringsEqual("name", (char *)symbol.value.value, symbol.value.length);
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
     ION_ASSERT_OK(ion_reader_read_string(reader, &result));
     assertStringsEqual("name", (char *)result.value, result.length);
-    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &sid));
     ASSERT_EQ(10, sid); // SID 10 was explicitly declared.
 
     ION_ASSERT_OK(ion_reader_get_symbol_table(reader, &symbol_table));
@@ -509,7 +511,7 @@ TEST(IonTextSymbol, ReaderReadsUndefinedSymbol) {
 
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &sid));
     ION_ASSERT_OK(ion_reader_get_symbol_table(reader, &symtab));
     ION_ASSERT_OK(ion_symbol_table_find_by_sid(symtab, sid, &symbol));
     ASSERT_TRUE(ION_STRING_IS_NULL(symbol));
@@ -518,7 +520,7 @@ TEST(IonTextSymbol, ReaderReadsUndefinedSymbol) {
     ASSERT_EQ(tid_SYMBOL, type);
     ION_ASSERT_OK(ion_reader_read_string(reader, symbol));
     assertStringsEqual("rock", (char *)symbol->value, symbol->length);
-    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &sid));
     ION_ASSERT_OK(ion_symbol_table_find_by_sid(symtab, sid, &symbol));
     assertStringsEqual("rock", (char *)symbol->value, symbol->length);
 

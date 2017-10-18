@@ -207,11 +207,6 @@ ION_API_EXPORT iERR ion_writer_add_imported_tables  (hWRITER hwriter, ION_COLLEC
 ION_API_EXPORT iERR ion_writer_write_field_name     (hWRITER hwriter, iSTRING name);
 
 /**
- * Sets the writer's current field name from a local symbol ID. Only valid if the writer is currently in a struct.
- */
-ION_API_EXPORT iERR ion_writer_write_field_sid      (hWRITER hwriter, SID sid);
-
-/**
  * Sets the writer's current field name from the given Ion symbol. Only valid if the writer is currently in a struct.
  * It is the caller's responsibility to keep `field_name` in scope until the writer's next value is written.
  */
@@ -219,10 +214,8 @@ ION_API_EXPORT iERR ion_writer_write_field_name_symbol(hWRITER hwriter, ION_SYMB
 
 ION_API_EXPORT iERR ion_writer_clear_field_name     (hWRITER hwriter);
 ION_API_EXPORT iERR ion_writer_add_annotation       (hWRITER hwriter, iSTRING annotation);
-ION_API_EXPORT iERR ion_writer_add_annotation_sid   (hWRITER hwriter, SID sid);
 ION_API_EXPORT iERR ion_writer_add_annotation_symbol(hWRITER hwriter, ION_SYMBOL *annotation);
 ION_API_EXPORT iERR ion_writer_write_annotations    (hWRITER hwriter, iSTRING *p_annotations, SIZE count);
-ION_API_EXPORT iERR ion_writer_write_annotation_sids(hWRITER hwriter, SID *p_sids, SIZE count);
 ION_API_EXPORT iERR ion_writer_write_annotation_symbols(hWRITER hwriter, ION_SYMBOL **annotations, SIZE count);
 ION_API_EXPORT iERR ion_writer_clear_annotations    (hWRITER hwriter);
 
@@ -242,7 +235,6 @@ ION_API_EXPORT iERR ion_writer_write_double         (hWRITER hwriter, double val
 ION_API_EXPORT iERR ion_writer_write_decimal        (hWRITER hwriter, decQuad *value);
 ION_API_EXPORT iERR ion_writer_write_ion_decimal    (hWRITER hwriter, ION_DECIMAL *value);
 ION_API_EXPORT iERR ion_writer_write_timestamp      (hWRITER hwriter, iTIMESTAMP value);
-ION_API_EXPORT iERR ion_writer_write_symbol_sid     (hWRITER hwriter, SID value);
 ION_API_EXPORT iERR ion_writer_write_symbol         (hWRITER hwriter, iSTRING p_value);
 ION_API_EXPORT iERR ion_writer_write_ion_symbol     (hWRITER hwriter, ION_SYMBOL *symbol);
 ION_API_EXPORT iERR ion_writer_write_string         (hWRITER hwriter, iSTRING p_value);

@@ -338,14 +338,11 @@ ION_API_EXPORT iERR ion_reader_has_annotation      (hREADER hreader, iSTRING ann
 ION_API_EXPORT iERR ion_reader_is_null             (hREADER hreader, BOOL *p_is_null);
 ION_API_EXPORT iERR ion_reader_is_in_struct        (hREADER preader, BOOL *p_is_in_struct);
 ION_API_EXPORT iERR ion_reader_get_field_name      (hREADER hreader, iSTRING p_str);
-ION_API_EXPORT iERR ion_reader_get_field_sid       (hREADER hreader, SID *p_sid);
 ION_API_EXPORT iERR ion_reader_get_field_name_symbol(hREADER hreader, ION_SYMBOL **p_psymbol);
 ION_API_EXPORT iERR ion_reader_get_annotations     (hREADER hreader, iSTRING p_strs, SIZE max_count, SIZE *p_count);
-ION_API_EXPORT iERR ion_reader_get_annotation_sids (hREADER hreader, SID *p_sids, SIZE max_count, SIZE *p_count);
 ION_API_EXPORT iERR ion_reader_get_annotation_symbols(hREADER hreader, ION_SYMBOL *p_symbols, SIZE max_count, SIZE *p_count);
 ION_API_EXPORT iERR ion_reader_get_annotation_count(hREADER hreader, SIZE *p_count);
 ION_API_EXPORT iERR ion_reader_get_an_annotation   (hREADER hreader, int idx, iSTRING p_strs);
-ION_API_EXPORT iERR ion_reader_get_an_annotation_sid(hREADER hreader, int idx, SID *p_sid);
 ION_API_EXPORT iERR ion_reader_get_an_annotation_symbol(hREADER hreader, int idx, ION_SYMBOL *p_symbol);
 ION_API_EXPORT iERR ion_reader_read_null           (hREADER hreader, ION_TYPE *p_value);
 ION_API_EXPORT iERR ion_reader_read_bool           (hREADER hreader, BOOL *p_value);
@@ -391,18 +388,9 @@ ION_API_EXPORT iERR ion_reader_read_ion_decimal    (hREADER hreader, ION_DECIMAL
  */
 ION_API_EXPORT iERR ion_reader_read_timestamp      (hREADER hreader, iTIMESTAMP p_value);
 
-/** Read the local symbol ID of the current symbol value.
- * @deprecated use of this function is discouraged, as it can have different results for text and binary data. In Ion text,
- * which is not required to explicitly include a local symbol table, known symbols are not necessarily assigned symbol
- * IDs. For those symbols, this function would return UNKNOWN_SID even though the text is known.
- * Prefer `ion_reader_read_symbol` or `ion_reader_read_string`, which provides an ION_STRING for which
- * ION_STRING_IS_NULL() will evaluate to TRUE if the current symbol value's text is unknown.
- */
-ION_API_EXPORT iERR ion_reader_read_symbol_sid     (hREADER hreader, SID *p_value);
-
 /** Read the current symbol value as an ION_SYMBOL.
  */
-ION_API_EXPORT iERR ion_reader_read_symbol         (hREADER hreader, ION_SYMBOL *p_symbol);
+ION_API_EXPORT iERR ion_reader_read_ion_symbol(hREADER hreader, ION_SYMBOL *p_symbol);
 
 /**
  * Determines the content of the current text value, which must be an

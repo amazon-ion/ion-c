@@ -784,8 +784,10 @@ iERR _ion_writer_get_local_symbol_table(ION_WRITER *pwriter, ION_SYMBOL_TABLE **
         SUCCEED(); \
     } \
 
-#define ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(writer) \
+#define ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(writer, annotation_prev) \
     if (writer->_current_symtab_intercept_state != iWSIS_NONE) { \
+        /* Drop all of the just-added annotations. */\
+        writer->annotation_curr = annotation_prev;\
         SUCCEED(); \
     }
 
@@ -919,27 +921,6 @@ iERR _ion_writer_write_field_name_helper(ION_WRITER *pwriter, ION_STRING *name)
 
     // clear the sid since we've set the string
     pwriter->field_name.sid = UNKNOWN_SID;
-
-    iRETURN;
-}
-
-iERR ion_writer_write_field_sid(hWRITER hwriter, SID sid)
-{
-    iENTER;
-    ION_WRITER *pwriter;
-
-    if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
-    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
-    if (sid < 0)  FAILWITH(IERR_INVALID_ARG);
-
-    if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
-        IONCHECK(_ion_writer_change_symtab_intercept_state_sid(pwriter, sid));
-    }
-    else if (!pwriter->_in_struct) {
-        FAILWITH(IERR_INVALID_STATE);
-    }
-
-    IONCHECK(_ion_writer_write_field_sid_helper(pwriter, sid));
 
     iRETURN;
 }
@@ -1086,15 +1067,18 @@ iERR ion_writer_add_annotation(hWRITER hwriter, iSTRING annotation)
 {
     iENTER;
     ION_WRITER *pwriter;
+    SIZE annotation_prev;
 
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (!annotation || !annotation->value) FAILWITH(IERR_INVALID_ARG);
     if (annotation->length < 0)  FAILWITH(IERR_INVALID_ARG);
 
-    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
+    annotation_prev = pwriter->annotation_curr;
 
     IONCHECK(_ion_writer_add_annotation_helper(pwriter, annotation));
+
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter, annotation_prev);
 
     iRETURN;
 }
@@ -1122,22 +1106,6 @@ iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotati
     annotation_symbol->add_count = 0;
 
     pwriter->annotation_curr++;
-
-    iRETURN;
-}
-
-iERR ion_writer_add_annotation_sid(hWRITER hwriter, SID sid)
-{
-    iENTER;
-    ION_WRITER *pwriter;
-
-    if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
-    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
-
-    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
-
-    IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, sid));
-
 
     iRETURN;
 }
@@ -1173,14 +1141,16 @@ iERR ion_writer_add_annotation_symbol(hWRITER hwriter, ION_SYMBOL *annotation)
 {
     iENTER;
     ION_WRITER *pwriter;
+    SIZE annotation_prev;
 
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
-    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
+    annotation_prev = pwriter->annotation_curr;
 
     IONCHECK(_ion_writer_add_annotation_symbol_helper(pwriter, annotation));
 
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter, annotation_prev);
 
     iRETURN;
 }
@@ -1223,6 +1193,7 @@ iERR ion_writer_write_annotations(hWRITER hwriter, iSTRING *p_annotations, int32
     int32_t ii;
     ION_STRING *pstr;
     ION_WRITER *pwriter;
+    SIZE annotation_prev;
 
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
@@ -1238,9 +1209,11 @@ iERR ion_writer_write_annotations(hWRITER hwriter, iSTRING *p_annotations, int32
         if (pstr->length < 0) FAILWITH(IERR_INVALID_ARG);
     }
 
-    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
+    annotation_prev = pwriter->annotation_curr;
 
     IONCHECK(_ion_writer_write_annotations_helper(pwriter, p_annotations, count));
+
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter, annotation_prev);
 
     iRETURN;
 }
@@ -1267,65 +1240,29 @@ iERR _ion_writer_write_annotations_helper(ION_WRITER *pwriter, ION_STRING **p_an
     iRETURN;
 }
 
-iERR ion_writer_write_annotation_sids(hWRITER hwriter, int32_t *p_sids, int32_t count)
-{
-    iENTER;
-    int32_t      ii;
-    SID         sid;
-    ION_WRITER *pwriter;
-
-    if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
-    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
-    if (count < 0)      FAILWITH(IERR_INVALID_ARG);
-    if (!p_sids)        FAILWITH(IERR_INVALID_ARG);
-
-    // Verify that all of the SIDs are valid before adding any of them; otherwise, reject the whole set to avoid partial
-    // success.
-    for (ii = 0; ii<count; ii++) {
-        sid = p_sids[ii];
-        IONCHECK(_ion_writer_validate_symbol_id(pwriter, sid));
-    }
-
-    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
-
-    IONCHECK(_ion_writer_write_annotation_sids_helper(pwriter, p_sids, count));
-
-    iRETURN;
-}
-
-iERR _ion_writer_write_annotation_sids_helper(ION_WRITER *pwriter, int32_t *p_sids, SIZE count)
-{
-    iENTER;
-    int32_t ii;
-
-    ASSERT(pwriter);
-    ASSERT(count >= 0);
-    ASSERT(p_sids);
-
-    // a cheesy way to handle it, but it doesn't seem worth optimizing at this point
-    // if we wanted to "assume" the users pointers were stable until we need them
-    // later (when we go to write out the annotations) we could save our temp array
-    // and hang onto the users, but i'd rather be safer than faster in this case
-    for (ii = 0; ii<count; ii++) {
-        IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, p_sids[ii]));
-    }
-
-    iRETURN;
-}
-
 iERR ion_writer_write_annotation_symbols(hWRITER hwriter, ION_SYMBOL **annotations, SIZE count)
 {
     iENTER;
     ION_WRITER *pwriter;
+    SIZE annotation_prev;
 
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (count < 0)      FAILWITH(IERR_INVALID_ARG);
     if (count > 0 && !annotations) FAILWITH(IERR_INVALID_ARG);
 
-    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
 
-    IONCHECK(_ion_writer_write_annotation_symbols_helper(pwriter, annotations, count));
+    annotation_prev = pwriter->annotation_curr;
+
+    err = _ion_writer_write_annotation_symbols_helper(pwriter, annotations, count);
+
+    if (err != IERR_OK) {
+        // At least one of the annotations was invalid; drop all of them.
+        pwriter->annotation_curr = annotation_prev;
+        FAILWITH(err);
+    }
+
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter, annotation_prev);
 
     iRETURN;
 }
@@ -1812,21 +1749,6 @@ iERR _ion_writer_intercept_imports_ion_symbol(ION_WRITER *pwriter, ION_SYMBOL *v
     else {
         FAILWITH(IERR_INVALID_SYMBOL);
     }
-    iRETURN;
-}
-
-iERR ion_writer_write_symbol_sid(hWRITER hwriter, SID value)
-{
-    iENTER;
-    ION_WRITER *pwriter;
-
-    if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
-    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
-
-    ION_WRITER_SYMTAB_INTERCEPT_AT(iWSIS_IMPORTS, pwriter, IONCHECK(_ion_writer_intercept_imports_symbol_sid(pwriter, value)));
-
-    IONCHECK(_ion_writer_write_symbol_id_helper(pwriter, value));
-
     iRETURN;
 }
 
