@@ -41,11 +41,8 @@ iERR _ion_writer_text_initialize(ION_WRITER *pwriter)
     iENTER;
 
     pwriter->_typed_writer.text._no_output = TRUE;
-    pwriter->_typed_writer.text._separator_character = ' ';
+    TEXTWRITER(pwriter)->_separator_character = (ION_TEXT_WRITER_IS_PRETTY()) ? '\n' : ' ';
 
-if (_debug_on) pwriter->_typed_writer.text._separator_character = '\n';
-
-    IONCHECK(_ion_writer_text_initialize_stack(pwriter));
     iRETURN;
 }
 
@@ -228,6 +225,19 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
     if (TEXTWRITER(pwriter)->_no_output) {
         TEXTWRITER(pwriter)->_no_output = FALSE; // from this point on we aren't fresh
         // TODO: should we emit a $ion_1_0 at this point?
+        if (pwriter->symbol_table != NULL && !ION_COLLECTION_IS_EMPTY(&pwriter->symbol_table->import_list)) {
+            // Serialize a minimal LST that declares the imports, as they may contain null slots. If they do, symbol
+            // tokens that reference those slots need to be written as symbol identifiers (e.g. $10), which can only
+            // be successfully read if the symbol table context is included.
+            // NOTE: in cases when the imports do not contain null slots, this is wasteful (but not harmful). Effort
+            // could be spent determining which imports, if any, have null slots; only those need to be written. It is
+            // also possible to wait until the end of the stream to determine if any symbol tokens with unknown text
+            // have been written, serializing relevant imports only if necessary. But that would require buffering
+            // the whole stream (as is done in binary) whenever the writer has imports with null slots.
+            IONCHECK(_ion_symbol_table_unload_helper(pwriter->symbol_table, pwriter));
+            TEXTWRITER(pwriter)->_separator_character = (ION_TEXT_WRITER_IS_PRETTY()) ? '\n' : ' ';
+            ION_TEXT_WRITER_APPEND_CHAR((BYTE)TEXTWRITER(pwriter)->_separator_character);
+        }
     }
 
     // write field name

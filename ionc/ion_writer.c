@@ -197,6 +197,7 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
     switch (writer_type) {
     case ion_type_text_writer:
         IONCHECK(_ion_writer_text_initialize(pwriter));
+        IONCHECK(_ion_writer_text_initialize_stack(pwriter));
         break;
     case ion_type_binary_writer:
         IONCHECK(_ion_writer_binary_initialize(pwriter));
@@ -1806,19 +1807,23 @@ iERR ion_writer_finish(hWRITER hwriter, SIZE *p_bytes_flushed)
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
-    if (pwriter->depth != 0) {
-        FAILWITHMSG(IERR_INVALID_STATE, "Cannot finish a writer that is not at the top level.");
-    }
-
     IONCHECK(_ion_writer_flush_helper(pwriter, p_bytes_flushed));
     IONCHECK(_ion_writer_free_local_symbol_table(pwriter));
     IONCHECK(_ion_writer_reset_temp_pool(pwriter));
-    if (pwriter->type == ion_type_binary_writer) {
-        pwriter->_typed_writer.binary._version_marker_written = FALSE;
+    switch (pwriter->type) {
+        case ion_type_binary_writer:
+            pwriter->_typed_writer.binary._version_marker_written = FALSE;
+            break;
+        case ion_type_text_writer:
+            IONCHECK(_ion_writer_text_initialize(pwriter));
+            break;
+        default:
+            FAILWITH(IERR_INVALID_STATE);
     }
     // The writer may be reused. Therefore, its local symbol table (which may include imports provided by the user)
     // needs to be reinitialized.
     IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
+    pwriter->_has_local_symbols      = FALSE;
     iRETURN;
 }
 
@@ -1829,8 +1834,17 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
 
     ASSERT(pwriter);
 
+    if (pwriter->depth != 0) {
+        FAILWITHMSG(IERR_INVALID_STATE, "Cannot flush a writer that is not at the top level.");
+    }
+
+    ASSERT(!pwriter->_in_struct);
+
     switch (pwriter->type) {
     case ion_type_text_writer:
+        if (pwriter->_typed_writer.text._top > 0) {
+            FAILWITHMSG(IERR_INVALID_STATE, "Cannot flush a text writer with a value in progress.");
+        }
         // The text writer does not need to buffer data.
         start = 0;
         finish = ion_stream_get_position(pwriter->output);
@@ -1840,6 +1854,9 @@ iERR _ion_writer_flush_helper(ION_WRITER *pwriter, SIZE *p_bytes_flushed)
         }
         break;
     case ion_type_binary_writer:
+        if (pwriter->_typed_writer.binary._lob_in_progress != tid_none) {
+            FAILWITHMSG(IERR_INVALID_STATE, "Cannot flush a binary writer with a lob in progress.");
+        }
         start =  ion_stream_get_position(pwriter->output);
         if (pwriter->depth == 0) {
             IONCHECK(_ion_writer_binary_flush_to_output(pwriter));
@@ -1889,9 +1906,15 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
     case ion_type_unknown_writer:
         break;
     case ion_type_text_writer:
+        if (pwriter->_typed_writer.text._top > 0) {
+            FAILWITHMSG(IERR_INVALID_STATE, "Cannot flush a text writer with a value in progress.");
+        }
         UPDATEERROR(_ion_writer_text_close(pwriter));
         break;
     case ion_type_binary_writer:
+        if (pwriter->_typed_writer.binary._lob_in_progress != tid_none) {
+            FAILWITHMSG(IERR_INVALID_STATE, "Cannot flush a binary writer with a lob in progress.");
+        }
         UPDATEERROR(_ion_writer_binary_close(pwriter));
         break;
     default:

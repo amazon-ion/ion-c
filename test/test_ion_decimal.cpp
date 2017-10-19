@@ -207,7 +207,7 @@ TEST(IonTextDecimal, ReaderAlwaysPreservesUpTo34Digits) {
     // Because decQuads are statically sized, decimals with <= DECQUAD_Pmax digits of precision never need to overflow;
     // they can always be accommodated in a decQuad. This test asserts that precision is preserved even when the context
     // is configured with fewer digits than DECQUAD_Pmax.
-    const char *text_decimal = "1.234\n5.678";
+    const char *text_decimal = "1.234 5.678";
     ION_DECIMAL ion_decimal;
     decQuad quad;
 
@@ -231,7 +231,7 @@ TEST(IonBinaryDecimal, ReaderAlwaysPreservesUpTo34Digits) {
     // Because decQuads are statically sized, decimals with <= DECQUAD_Pmax digits of precision never need to overflow;
     // they ca always be accommodated in a decQuad. This test asserts that precision is preserved even when the context
     // is configured with fewer digits than DECQUAD_Pmax.
-    const char *text_decimal = "1.234\n5.678";
+    const char *text_decimal = "1.234 5.678";
     ION_DECIMAL ion_decimal_before, ion_decimal_after;
     decQuad quad_before, quad_after;
     BOOL decimal_equals, quad_equals;
@@ -269,7 +269,7 @@ TEST(IonBinaryDecimal, ReaderAlwaysPreservesUpTo34Digits) {
 }
 
 TEST(IonDecimal, WriteAllValues) {
-    const char *text_decimal = "1.1999999999999999555910790149937383830547332763671875\n-1d+123";
+    const char *text_decimal = "1.1999999999999999555910790149937383830547332763671875 -1d+123";
     ION_DECIMAL ion_decimal;
 
     ION_DECIMAL_READER_INIT;

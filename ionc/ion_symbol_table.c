@@ -485,7 +485,7 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
     ION_SYMBOL              *symbol;
     int                      version = 0;
     SID                      fld_sid, sid, max_id = 0;
-    BOOL                     is_shared_table, is_symbol_table, processed_symbols = FALSE, processed_imports = FALSE;
+    BOOL                     is_shared_table, processed_symbols = FALSE, processed_imports = FALSE;
     ION_STRING               str, name;
     ION_COLLECTION_CURSOR    import_cursor, symbol_cursor;
 
@@ -495,14 +495,11 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
     ION_STRING_INIT(&name);
     ION_STRING_INIT(&str);
 
-    IONCHECK(_ion_reader_has_annotation_helper(preader, &ION_SYMBOL_SHARED_SYMBOL_TABLE_STRING, &is_shared_table));
-    if (!is_shared_table) {
-        IONCHECK(_ion_reader_has_annotation_helper(preader, &ION_SYMBOL_SYMBOL_TABLE_STRING, &is_symbol_table));
+    IONCHECK(_ion_reader_get_an_annotation_helper(preader, 0, &str));
+    is_shared_table = ION_STRING_EQUALS(&ION_SYMBOL_SHARED_SYMBOL_TABLE_STRING, &str);
+    if (!is_shared_table && !ION_STRING_EQUALS(&ION_SYMBOL_SYMBOL_TABLE_STRING, &str)) {
+        FAILWITH(IERR_NOT_A_SYMBOL_TABLE);
     }
-    else {
-        is_symbol_table = TRUE;
-    }
-    if (!is_symbol_table) FAILWITH(IERR_NOT_A_SYMBOL_TABLE);
 
     // shared symbol tables don't need the system table symbols, but local tables do
     if (is_shared_table) {
@@ -698,12 +695,6 @@ iERR _ion_symbol_table_unload_helper(ION_SYMBOL_TABLE *symtab, ION_WRITER *pwrit
         IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_VERSION));
         IONCHECK(_ion_writer_write_int64_helper(pwriter, symtab->version));
     }
-    // HACK - we need a table type that's assigned to the table when it's created (or
-    //        when the type is set) and that should control the max id and sid assignment
-    if (symtab->max_id > 0 && table_type != ist_SHARED) {   
-        IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_MAX_ID));
-        IONCHECK(_ion_writer_write_int64_helper(pwriter, symtab->max_id));
-    }
 
     if (!ION_COLLECTION_IS_EMPTY(&symtab->import_list)) {
         IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_IMPORTS));
@@ -735,19 +726,21 @@ iERR _ion_symbol_table_unload_helper(ION_SYMBOL_TABLE *symtab, ION_WRITER *pwrit
 
     ION_COLLECTION_CLOSE(symbol_cursor);
 
-    // start the symbols list
-    IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_SYMBOLS));
-    IONCHECK(_ion_writer_start_container_helper(pwriter, tid_LIST));
+    if (!ION_COLLECTION_IS_EMPTY(&symtab->symbols)) {
+        // start the symbols list
+        IONCHECK(_ion_writer_write_field_sid_helper(pwriter, ION_SYS_SID_SYMBOLS));
+        IONCHECK(_ion_writer_start_container_helper(pwriter, tid_LIST));
 
-    ION_COLLECTION_OPEN(&symtab->symbols, symbol_cursor);
-    for (;;) {
-        ION_COLLECTION_NEXT(symbol_cursor, sym);
-        if (!sym) break;
-        IONCHECK(_ion_writer_write_string_helper(pwriter, &sym->value));
+        ION_COLLECTION_OPEN(&symtab->symbols, symbol_cursor);
+        for (;;) {
+            ION_COLLECTION_NEXT(symbol_cursor, sym);
+            if (!sym) break;
+            IONCHECK(_ion_writer_write_string_helper(pwriter, &sym->value));
+        }
+        ION_COLLECTION_CLOSE(symbol_cursor);
+
+        IONCHECK(_ion_writer_finish_container_helper(pwriter)); // close the symbol list
     }
-    ION_COLLECTION_CLOSE(symbol_cursor);
-
-    IONCHECK(_ion_writer_finish_container_helper(pwriter)); // close the symbol list
 
     IONCHECK(_ion_writer_finish_container_helper(pwriter));
 
@@ -1221,7 +1214,7 @@ iERR _ion_symbol_table_parse_possible_symbol_identifier(ION_SYMBOL_TABLE *symtab
         is_symbol_identifier = TRUE;
         if (sid == 0) {
             // SID 0 is not in any symbol table, but is available in all symbol table contexts.
-            _ion_symbol_table_allocate_symbol_unknown_text(symtab, 0, &sym);
+            _ion_symbol_table_allocate_symbol_unknown_text(symtab->owner, 0, &sym);
         }
         else if (sid > symtab->max_id) {
             FAILWITH(IERR_INVALID_SYMBOL); // The requested SID is out of range for the current symtab context.
@@ -1328,7 +1321,7 @@ iERR _ion_symbol_table_local_find_by_sid(ION_SYMBOL_TABLE *symtab, SID sid, ION_
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
         if (!sym && sid <= symtab->max_id) {
-            _ion_symbol_table_allocate_symbol_unknown_text(symtab, sid, &sym);
+            _ion_symbol_table_allocate_symbol_unknown_text(symtab->owner, sid, &sym);
         }
 
     }
@@ -1383,17 +1376,14 @@ iERR _ion_symbol_table_find_symbol_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID s
                 if (!imp) break;
                 if (sid - offset <= imp->descriptor.max_id) {
                     imported = imp->shared_symbol_table;
-                    if (imported == NULL) {
-                        // The SID is in range, but the shared symbol table is not found. This symbol has unknown text.
-                        // NOTE: 'symtab' isn't the true owner of this symbol -- the not-found import is. But since
-                        // it's not found, it can't be assigned as the owner.
-                        _ion_symbol_table_allocate_symbol_unknown_text(symtab, sid, &sym);
-                    }
-                    else {
+                    if (imported != NULL) {
                         IONCHECK(_ion_symbol_table_local_find_by_sid(imported, sid - offset, &sym));
                     }
-                    // The SID is within the max_id range of this symbol table. The symbol must be non-NULL,
-                    // even if its text is unknown.
+                    if (sym == NULL) {
+                        // The SID is in range, but either the shared symbol table is not found, or the SID refers to a
+                        // NULL slot in the shared symbol table. This symbol has unknown text.
+                        _ion_symbol_table_allocate_symbol_unknown_text(symtab->owner, sid, &sym);
+                    }
                     ASSERT(sym);
                     break;
                 }
@@ -1440,7 +1430,6 @@ iERR _ion_symbol_table_get_unknown_symbol_name(ION_SYMBOL_TABLE *symtab, SID sid
     ASSERT(symtab != NULL);
     ASSERT(p_name != NULL);
     ASSERT(sid > UNKNOWN_SID);
-    ASSERT(*p_name == NULL);
 
     if (sid > symtab->max_id) {
         FAILWITHMSG(IERR_INVALID_SYMBOL, "Symbol ID out of range for the current symbol table context.");
@@ -1469,7 +1458,7 @@ iERR _ion_symbol_table_find_by_sid_force(ION_SYMBOL_TABLE *symtab, SID sid, ION_
     ASSERT(p_name != NULL);
 
     IONCHECK(_ion_symbol_table_find_by_sid_helper(symtab, sid, p_name));
-    if (*p_name == NULL) {
+    if (ION_STRING_IS_NULL(*p_name)) {
         IONCHECK(_ion_symbol_table_get_unknown_symbol_name(symtab, sid, p_name));
     }
     iRETURN;
@@ -1500,7 +1489,7 @@ iERR _ion_symbol_table_is_symbol_known_helper(ION_SYMBOL_TABLE *symtab, SID sid,
     ASSERT(p_is_known != NULL);
     IONCHECK(_ion_symbol_table_find_by_sid_helper(symtab, sid, &pname));
 
-    *p_is_known = (pname != NULL);
+    *p_is_known = ION_STRING_IS_NULL(pname);
 
     iRETURN;
 }
@@ -2019,13 +2008,12 @@ ION_SYMBOL *_ion_symbol_table_index_find_by_name_helper(ION_SYMBOL_TABLE *symtab
     return found_sym;
 }
 
-void _ion_symbol_table_allocate_symbol_unknown_text(ION_SYMBOL_TABLE *symtab, SID sid, ION_SYMBOL **p_symbol)
+void _ion_symbol_table_allocate_symbol_unknown_text(hOWNER owner, SID sid, ION_SYMBOL **p_symbol)
 {
     ASSERT(p_symbol);
-    ASSERT(symtab);
+    ASSERT(owner != NULL);
 
-    // This symbol is owned by the symbol table, and will be deallocated when the symbol table is freed.
-    ION_SYMBOL *symbol = _ion_alloc_with_owner(symtab->owner, sizeof(ION_SYMBOL));
+    ION_SYMBOL *symbol = _ion_alloc_with_owner(owner, sizeof(ION_SYMBOL));
     ION_STRING_INIT(&symbol->value); // NULLS the value.
     symbol->sid = sid;
     symbol->add_count++;
@@ -2044,7 +2032,7 @@ ION_SYMBOL *_ion_symbol_table_index_find_by_sid_helper(ION_SYMBOL_TABLE *symtab,
         found_sym = NULL;
     }
     else if (sid - symtab->min_local_id > symtab->by_id_max) {
-        _ion_symbol_table_allocate_symbol_unknown_text(symtab, sid, &found_sym);
+        _ion_symbol_table_allocate_symbol_unknown_text(symtab->owner, sid, &found_sym);
     }
     else {        
         found_sym = symtab->by_id[sid - symtab->min_local_id];
