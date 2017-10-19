@@ -195,7 +195,8 @@ ION_API_EXPORT iERR ion_writer_get_symbol_table     (hWRITER hwriter, hSYMTAB  *
  * This function may be called multiple times in succession without changing the current symbol table context as long as
  * no values have been written in between calls; in this case, this function appends to the writer's list of imports.
  *
- * Raises an error if a manually-written symbol table is in progress or if the writer is not at the top level.
+ * Raises an error if a manually-written symbol table is in progress, if the writer is not at the top level, or if the
+ * writer has pending annotations.
  */
 ION_API_EXPORT iERR ion_writer_add_imported_tables  (hWRITER hwriter, ION_COLLECTION *imports);
 
