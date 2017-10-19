@@ -37,7 +37,7 @@ char *ionIntToString(ION_INT *value) {
 char *ionStringToString(ION_STRING *value) {
     BYTE *src, *dst;
     SIZE len;
-    if (value) {
+    if (!ION_STRING_IS_NULL(value)) {
         src = value->value;
         len = value->length;
     }
@@ -66,6 +66,36 @@ char *ionStringToString(ION_STRING *value) {
     actual_str = ionStringToString(actual);
     ::testing::AssertionResult result = ::testing::AssertionFailure()
             << std::string("") << expected_str << "  vs. " << actual_str;
+    free(expected_str);
+    free(actual_str);
+    return result;
+}
+
+::testing::AssertionResult assertIonSymbolEq(ION_SYMBOL *expected, ION_SYMBOL *actual) {
+    char *expected_str = NULL;
+    char *actual_str = NULL;
+    char *expected_import_str = NULL;
+    char *actual_import_str = NULL;
+    if (!(expected == NULL ^ actual == NULL)) {
+        if (expected == NULL) {
+            return ::testing::AssertionSuccess();
+        }
+        BOOL is_equal;
+        ION_EXPECT_OK(ion_symbol_is_equal(expected, actual, &is_equal));
+        if (is_equal) {
+            return ::testing::AssertionSuccess();
+        }
+    }
+    expected_str = ionStringToString(&expected->value);
+    actual_str = ionStringToString(&actual->value);
+    expected_import_str = ionStringToString(&expected->import_location.name);
+    actual_import_str = ionStringToString(&actual->import_location.name);
+    ::testing::AssertionResult result = ::testing::AssertionFailure()
+            << std::string("(text=") << expected_str << ", local_sid=" << expected->sid
+                << ", location=(" << expected_import_str << ", " << expected->import_location.location << "))"
+            << " vs. "
+            << "(text=" << actual_str << ", local_sid=" << actual->sid
+                << ", location=(" << actual_import_str << ", " << actual->import_location.location << "))";
     free(expected_str);
     free(actual_str);
     return result;
@@ -117,8 +147,8 @@ char *ionStringToString(ION_STRING *value) {
             << std::string(expected_str, (size_t)expected_str_len) << " vs. " << std::string(actual_str, (size_t)actual_str_len);
 }
 
-BOOL ionStringEq(ION_STRING *expected, ION_STRING *actual) {
-    return assertIonStringEq(expected, actual) == ::testing::AssertionSuccess();
+BOOL ionSymbolEq(ION_SYMBOL *expected, ION_SYMBOL *actual) {
+    return assertIonSymbolEq(expected, actual) == ::testing::AssertionSuccess();
 }
 
 BOOL assertIonScalarEq(IonEvent *expected, IonEvent *actual, ASSERTION_TYPE assertion_type) {
@@ -147,6 +177,8 @@ BOOL assertIonScalarEq(IonEvent *expected, IonEvent *actual, ASSERTION_TYPE asse
             ION_EXPECT_TIMESTAMP_EQ((ION_TIMESTAMP *) expected_value, (ION_TIMESTAMP *) actual_value);
             break;
         case tid_SYMBOL_INT:
+            ION_EXPECT_SYMBOL_EQ((ION_SYMBOL *) expected_value, (ION_SYMBOL *) actual_value);
+            break;
         case tid_STRING_INT:
         case tid_CLOB_INT:
         case tid_BLOB_INT: // Clobs and blobs are stored in ION_STRINGs too...
@@ -175,14 +207,14 @@ BOOL assertIonStructIsSubset(IonEventStream *stream_expected, size_t index_expec
         if (expected->event_type == CONTAINER_END && expected->depth == target_depth) {
             break;
         }
-        ION_STRING *expected_field_name = expected->field_name;
+        ION_SYMBOL *expected_field_name = expected->field_name;
         EXPECT_TRUE(expected_field_name != NULL);
         while (TRUE) {
             if (skips.count(index_actual) == 0) {
                 IonEvent *actual = stream_actual->at(index_actual);
                 ION_ASSERT(!(actual->event_type == CONTAINER_END && actual->depth == target_depth),
                            "Reached end of struct before finding matching field.");
-                if (ionStringEq(expected_field_name, actual->field_name)
+                if (ionSymbolEq(expected_field_name, actual->field_name)
                     && assertIonEventsEq(stream_expected, index_expected, stream_actual, index_actual,
                                          ASSERTION_TYPE_SET_FLAG)) {
                     // Skip indices that have already matched. Ensures that structs with different numbers of the same
@@ -238,10 +270,10 @@ BOOL assertIonEventsEq(IonEventStream *stream_expected, size_t index_expected, I
     ION_EXPECT_EQ(expected->event_type, actual->event_type);
     ION_EXPECT_EQ(expected->ion_type, actual->ion_type);
     ION_EXPECT_EQ(expected->depth, actual->depth);
-    ION_EXPECT_STRING_EQ(expected->field_name, actual->field_name);
+    ION_EXPECT_SYMBOL_EQ(expected->field_name, actual->field_name);
     ION_EXPECT_EQ(expected->num_annotations, actual->num_annotations);
     for (size_t i = 0; i < expected->num_annotations; i++) {
-        ION_EXPECT_STRING_EQ(expected->annotations[i], actual->annotations[i]);
+        ION_EXPECT_SYMBOL_EQ(expected->annotations[i], actual->annotations[i]);
     }
     switch (expected->event_type) {
         case STREAM_END:

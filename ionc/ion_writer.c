@@ -43,6 +43,9 @@ iERR ion_writer_options_add_shared_imports(ION_WRITER_OPTIONS *options, ION_COLL
     for (;;) {
         ION_COLLECTION_NEXT(import_cursor, user_import);
         if (!user_import) break;
+        if (ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &user_import->descriptor.name)) {
+            FAILWITH(IERR_INVALID_ARG);
+        }
         option_import = _ion_collection_append(&options->encoding_psymbol_table);
         if (!option_import) FAILWITH(IERR_NO_MEMORY);
         memset(option_import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
@@ -72,9 +75,11 @@ iERR ion_writer_options_add_shared_imports_symbol_tables(ION_WRITER_OPTIONS *opt
     ION_SYMBOL_TABLE_IMPORT *import;
     int i;
     for (i = 0; i < imports_count; i++) {
+        if (imports[i] == NULL || ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &imports[i]->name)) {
+            FAILWITH(IERR_INVALID_ARG);
+        }
         import = _ion_collection_append(&options->encoding_psymbol_table);
         if (!import) FAILWITH(IERR_NO_MEMORY);
-        if (imports[i] == NULL) FAILWITH(IERR_INVALID_ARG);
         memset(import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
         import->descriptor.max_id = imports[i]->max_id;
         import->descriptor.version = imports[i]->version;
@@ -438,13 +443,11 @@ iERR _ion_writer_set_max_annotation_count_helper(ION_WRITER *pwriter, SIZE annot
     ASSERT(annotation_limit >= 0);
     ASSERT(!pwriter->annotations);
 
-    IONCHECK(ion_temp_buffer_alloc(&pwriter->temp_buffer, annotation_limit * sizeof(ION_STRING), &ptemp));
+    IONCHECK(ion_temp_buffer_alloc(&pwriter->temp_buffer, annotation_limit * sizeof(ION_SYMBOL), &ptemp));
 
     pwriter->annotation_count = annotation_limit;
     pwriter->annotation_curr = 0;
-    pwriter->annotations = (ION_STRING *)ptemp;
-    pwriter->annotation_sids = (SID *)ptemp;    // id's are always smaller than the ion_string struct
-                                                // and only one of these can be in use at a time
+    pwriter->annotations = (ION_SYMBOL *)ptemp;
 
     iRETURN;
 }
@@ -679,7 +682,8 @@ iERR _ion_writer_get_local_symbol_table(ION_WRITER *pwriter, ION_SYMBOL_TABLE **
         SUCCEED(); \
     }
 
-iERR _ion_writer_change_symtab_intercept_state(ION_WRITER *pwriter, ION_STRING *field_name) {
+iERR _ion_writer_change_symtab_intercept_state(ION_WRITER *pwriter, ION_STRING *field_name)
+{
     iENTER;
     switch(pwriter->_current_symtab_intercept_state) {
         case iWSIS_IN_LST_STRUCT:
@@ -722,7 +726,8 @@ iERR _ion_writer_change_symtab_intercept_state(ION_WRITER *pwriter, ION_STRING *
     iRETURN;
 }
 
-iERR _ion_writer_change_symtab_intercept_state_sid(ION_WRITER *pwriter, SID field_sid) {
+iERR _ion_writer_change_symtab_intercept_state_sid(ION_WRITER *pwriter, SID field_sid)
+{
     iENTER;
     ION_SYMBOL_TABLE *system;
     ION_STRING *field_name = NULL;
@@ -741,6 +746,28 @@ iERR _ion_writer_change_symtab_intercept_state_sid(ION_WRITER *pwriter, SID fiel
     iRETURN;
 }
 
+iERR _ion_writer_change_symtab_intercept_state_symbol(ION_WRITER *pwriter, ION_SYMBOL *field_symbol)
+{
+    iENTER;
+    ASSERT(pwriter);
+    ASSERT(field_symbol);
+
+    if (!ION_STRING_IS_NULL(&field_symbol->value)) {
+        IONCHECK(_ion_writer_change_symtab_intercept_state(pwriter, &field_symbol->value));
+    }
+    else if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(field_symbol)
+             && ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &field_symbol->import_location.name)) {
+        IONCHECK(_ion_writer_change_symtab_intercept_state_sid(pwriter, field_symbol->import_location.location));
+    }
+    else if (field_symbol->sid > UNKNOWN_SID) {
+        IONCHECK(_ion_writer_change_symtab_intercept_state_sid(pwriter, field_symbol->sid));
+    }
+    else {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
+    iRETURN;
+}
+
 iERR ion_writer_write_field_name(hWRITER hwriter, iSTRING name)
 {
     iENTER;
@@ -749,9 +776,11 @@ iERR ion_writer_write_field_name(hWRITER hwriter, iSTRING name)
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
-
     if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
         IONCHECK(_ion_writer_change_symtab_intercept_state(pwriter, name));
+    }
+    else if (!pwriter->_in_struct) {
+        FAILWITH(IERR_INVALID_STATE);
     }
 
     IONCHECK(_ion_writer_write_field_name_helper(pwriter, name));
@@ -773,15 +802,10 @@ iERR _ion_writer_write_field_name_helper(ION_WRITER *pwriter, ION_STRING *name)
     // TODO: should make this the callers responsibility?  since internally 
     // we'll often have strings (perhaps always) that we already own
     // IONCHECK(ion_strdup(pwriter, &pwriter->field_name, name));
-    ION_STRING_ASSIGN(&pwriter->field_name, name);
+    ION_STRING_ASSIGN(&pwriter->field_name.value, name);
 
     // clear the sid since we've set the string
-    pwriter->field_name_sid = UNKNOWN_SID;
-
-    // remember what sort of field name we've been told about
-    pwriter->field_name_type = tid_STRING;
-
-    SUCCEED();
+    pwriter->field_name.sid = UNKNOWN_SID;
 
     iRETURN;
 }
@@ -795,9 +819,11 @@ iERR ion_writer_write_field_sid(hWRITER hwriter, SID sid)
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (sid < 0)  FAILWITH(IERR_INVALID_ARG);
 
-
     if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
         IONCHECK(_ion_writer_change_symtab_intercept_state_sid(pwriter, sid));
+    }
+    else if (!pwriter->_in_struct) {
+        FAILWITH(IERR_INVALID_STATE);
     }
 
     IONCHECK(_ion_writer_write_field_sid_helper(pwriter, sid));
@@ -813,15 +839,129 @@ iERR _ion_writer_write_field_sid_helper(ION_WRITER *pwriter, SID sid)
 
     IONCHECK(_ion_writer_validate_symbol_id(pwriter, sid));
 
-    pwriter->field_name_sid = sid;
+    pwriter->field_name.sid = sid;
 
     // clear the string if we set the sid
-    ION_STRING_INIT(&pwriter->field_name);
+    ION_STRING_INIT(&pwriter->field_name.value);
 
-    // remember what sort of field name we've been told about
-    pwriter->field_name_type = tid_INT;
+    iRETURN;
+}
 
-    SUCCEED();
+iERR _ion_writer_get_local_symbol_id_from_import_location(ION_WRITER *pwriter,
+                                                          ION_SYMBOL_IMPORT_LOCATION *import_location, SID *p_sid)
+{
+    iENTER;
+    ION_SYMBOL_TABLE_IMPORT     *import;
+    ION_COLLECTION_CURSOR       import_cursor;
+    SID local_offset, sid = UNKNOWN_SID;
+    ION_SYMBOL_TABLE *system;
+
+    ASSERT(import_location && !ION_STRING_IS_NULL(&import_location->name) && import_location->location > 0);
+    ASSERT(p_sid);
+
+    IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
+    if (ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &import_location->name)) {
+        // The import location refers to the system symbol table.
+        if (import_location->location > system->max_id) {
+            FAILWITH(IERR_INVALID_SYMBOL);
+        }
+        sid = import_location->location;
+    }
+    else {
+        local_offset = system->max_id;
+        ION_COLLECTION_OPEN(&pwriter->_imported_symbol_tables, import_cursor);
+        for (;;) {
+            ION_COLLECTION_NEXT(import_cursor, import);
+            if (!import) break;
+            if (ION_STRING_EQUALS(&import_location->name, &import->descriptor.name)) {
+                if (import_location->location > import->descriptor.max_id) {
+                    FAILWITH(IERR_INVALID_SYMBOL);
+                }
+                sid = local_offset + import_location->location;
+                break;
+            }
+            local_offset += import->descriptor.max_id;
+        }
+        ION_COLLECTION_CLOSE(import_cursor);
+    }
+    *p_sid = sid;
+    iRETURN;
+}
+
+iERR _ion_writer_get_catalog_text_from_import_location(ION_WRITER *pwriter, ION_SYMBOL_IMPORT_LOCATION *import_location,
+                                                       ION_STRING **text)
+{
+    iENTER;
+    ION_SYMBOL_TABLE *import;
+
+    ASSERT(import_location && !ION_STRING_IS_NULL(&import_location->name) && import_location->location > UNKNOWN_SID);
+    ASSERT(text);
+
+    if (!pwriter->pcatalog) {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
+    // Gets the highest available version with the given name from the catalog, if present.
+    IONCHECK(ion_catalog_find_best_match(pwriter->pcatalog, &import_location->name, 0, &import));
+    if (import == NULL) {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
+    IONCHECK(_ion_symbol_table_find_by_sid_helper(import, import_location->location, text));
+    if (ION_STRING_IS_NULL(*text)) {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
+    iRETURN;
+}
+
+iERR ion_writer_write_field_name_symbol(hWRITER hwriter, ION_SYMBOL *field_name)
+{
+    iENTER;
+    ION_WRITER *pwriter;
+
+    if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
+    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
+        IONCHECK(_ion_writer_change_symtab_intercept_state_symbol(pwriter, field_name));
+    }
+    else if (!pwriter->_in_struct) {
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
+    IONCHECK(_ion_writer_write_field_name_symbol_helper(pwriter, field_name));
+
+    iRETURN;
+}
+
+iERR _ion_writer_write_field_name_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *field_name)
+{
+    iENTER;
+
+    ASSERT(pwriter);
+    ASSERT(field_name);
+    SID sid;
+    ION_STRING *text;
+
+    if (!ION_STRING_IS_NULL(&field_name->value)) {
+        IONCHECK(_ion_writer_write_field_name_helper(pwriter, &field_name->value));
+    }
+    else if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(field_name)) {
+        IONCHECK(_ion_writer_get_local_symbol_id_from_import_location(pwriter, &field_name->import_location, &sid));
+        if (sid <= UNKNOWN_SID) {
+            // This symbol with unknown text is not found in the writer's imported tables. This is an error unless its
+            // text can be located in one of the writer's catalog's tables.
+            IONCHECK(_ion_writer_get_catalog_text_from_import_location(pwriter, &field_name->import_location, &text));
+            IONCHECK(_ion_writer_write_field_name_helper(pwriter, text));
+        }
+        else {
+            IONCHECK(_ion_writer_write_field_sid_helper(pwriter, sid));
+        }
+    }
+    else if (field_name->sid > UNKNOWN_SID) {
+        IONCHECK(_ion_writer_write_field_sid_helper(pwriter, field_name->sid));
+    }
+    else {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
 
     iRETURN;
 }
@@ -836,11 +976,6 @@ iERR ion_writer_add_annotation(hWRITER hwriter, iSTRING annotation)
     if (!annotation || !annotation->value) FAILWITH(IERR_INVALID_ARG);
     if (annotation->length < 0)  FAILWITH(IERR_INVALID_ARG);
 
-    // if the caller (or someone) has started with int
-    // annotations (sids) then they have to stick with them
-    // no mix and match here
-    if (pwriter->annotations_type == tid_INT) FAILWITH(IERR_INVALID_STATE);
-
     ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
 
     IONCHECK(_ion_writer_add_annotation_helper(pwriter, annotation));
@@ -851,22 +986,24 @@ iERR ion_writer_add_annotation(hWRITER hwriter, iSTRING annotation)
 iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotation)
 {
     iENTER;
+    ION_SYMBOL *annotation_symbol;
 
     ASSERT(pwriter)
     ASSERT(annotation);
     ASSERT(!ION_STRING_IS_NULL(annotation));
     ASSERT(annotation->length >= 0);
-    ASSERT(pwriter->annotations_type != tid_INT);
 
     if (!pwriter->annotations) {
         IONCHECK(_ion_writer_set_max_annotation_count_helper(pwriter, DEFAULT_ANNOTATION_LIMIT));
     }
     else if (pwriter->annotation_curr >= pwriter->annotation_count) FAILWITH(IERR_TOO_MANY_ANNOTATIONS);
 
-    // so we'll be handling string annoations here, not sids
-    pwriter->annotations_type = tid_STRING;
+    annotation_symbol = &pwriter->annotations[pwriter->annotation_curr];
+    ASSERT(annotation_symbol);
 
-    IONCHECK(ion_strdup(pwriter->_temp_entity_pool, &pwriter->annotations[pwriter->annotation_curr], annotation));
+    IONCHECK(ion_strdup(pwriter->_temp_entity_pool, &annotation_symbol->value, annotation));
+    annotation_symbol->sid = UNKNOWN_SID; // The text is known; the SID is irrelevant.
+    annotation_symbol->add_count = 0;
 
     pwriter->annotation_curr++;
 
@@ -881,11 +1018,6 @@ iERR ion_writer_add_annotation_sid(hWRITER hwriter, SID sid)
     if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
 
-    // if the caller (or someone) has started with int
-    // annotations (sids) then they have to stick with them
-    // no mix and match here
-    if (pwriter->annotations_type == tid_STRING) FAILWITH(IERR_INVALID_STATE);
-
     ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
 
     IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, sid));
@@ -897,9 +1029,9 @@ iERR ion_writer_add_annotation_sid(hWRITER hwriter, SID sid)
 iERR _ion_writer_add_annotation_sid_helper(ION_WRITER *pwriter, SID sid)
 {
     iENTER;
+    ION_SYMBOL *annotation_symbol;
 
     ASSERT(pwriter);
-    ASSERT(pwriter->annotations_type != tid_STRING);
 
     IONCHECK(_ion_writer_validate_symbol_id(pwriter, sid));
 
@@ -908,12 +1040,64 @@ iERR _ion_writer_add_annotation_sid_helper(ION_WRITER *pwriter, SID sid)
     }
     else if (pwriter->annotation_curr >= pwriter->annotation_count) FAILWITH(IERR_TOO_MANY_ANNOTATIONS);
 
-    // so we'll be handling int (SID annotations here, not strings
-    pwriter->annotations_type = tid_INT;
+    annotation_symbol = &pwriter->annotations[pwriter->annotation_curr];
+    ASSERT(annotation_symbol);
 
-    pwriter->annotation_sids[pwriter->annotation_curr] = sid;
+    // This SID will be resolved during write.
+    ION_STRING_INIT(&annotation_symbol->value);
+    annotation_symbol->sid = sid;
+    annotation_symbol->add_count = 0;
+
     pwriter->annotation_curr++;
 
+    iRETURN;
+}
+
+iERR ion_writer_add_annotation_symbol(hWRITER hwriter, ION_SYMBOL *annotation)
+{
+    iENTER;
+    ION_WRITER *pwriter;
+
+    if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
+    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
+
+    IONCHECK(_ion_writer_add_annotation_symbol_helper(pwriter, annotation));
+
+
+    iRETURN;
+}
+
+iERR _ion_writer_add_annotation_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *annotation)
+{
+    iENTER;
+    ION_STRING *text;
+    SID sid;
+
+    if (!ION_STRING_IS_NULL(&annotation->value)) {
+        IONCHECK(_ion_writer_add_annotation_helper(pwriter, &annotation->value));
+    }
+    else if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(annotation)) {
+        IONCHECK(_ion_writer_get_local_symbol_id_from_import_location(pwriter, &annotation->import_location,
+                                                                      &sid));
+        if (sid <= UNKNOWN_SID) {
+            // This symbol with unknown text is not found in the writer's imported tables. This is an error unless its
+            // text can be located in one of the writer's catalog's tables.
+            IONCHECK(_ion_writer_get_catalog_text_from_import_location(pwriter, &annotation->import_location,
+                                                                       &text));
+            IONCHECK(_ion_writer_add_annotation_helper(pwriter, text));
+        }
+        else {
+            IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, sid));
+        }
+    }
+    else if (annotation->sid > UNKNOWN_SID) {
+        IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, annotation->sid));
+    }
+    else {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
     iRETURN;
 }
 
@@ -929,10 +1113,8 @@ iERR ion_writer_write_annotations(hWRITER hwriter, iSTRING *p_annotations, int32
     if (count < 0)      FAILWITH(IERR_INVALID_ARG);
     if (count > 0 && !p_annotations) FAILWITH(IERR_INVALID_ARG);
 
-    if (pwriter->annotations_type == tid_INT) FAILWITH(IERR_INVALID_STATE);
-
     // let's just make sure the caller is passing in strings
-    // that at least have a chance of being valie annotations
+    // that at least have a chance of being valid annotations
     for (ii = 0; ii<count; ii++) {
         pstr = p_annotations[ii];
         if (!pstr) FAILWITH(IERR_INVALID_ARG);
@@ -958,11 +1140,6 @@ iERR _ion_writer_write_annotations_helper(ION_WRITER *pwriter, ION_STRING **p_an
     // but in any event negative counts are not ok.
     ASSERT((p_annotations != NULL) ? (count > 0) : (count == 0));
 
-    if (!pwriter->annotations) {
-        IONCHECK(_ion_writer_set_max_annotation_count_helper(pwriter, DEFAULT_ANNOTATION_LIMIT));
-    }
-    if (pwriter->annotation_curr + count > pwriter->annotation_count) FAILWITH(IERR_TOO_MANY_ANNOTATIONS);
-
     // a cheesy way to handle it, but it doesn't seem worth optimizing at this point
     // if we wanted to "assume" the users pointers were stable until we need them
     // later (when we go to write out the annotations) we could save our temp array
@@ -985,7 +1162,6 @@ iERR ion_writer_write_annotation_sids(hWRITER hwriter, int32_t *p_sids, int32_t 
     pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
     if (count < 0)      FAILWITH(IERR_INVALID_ARG);
     if (!p_sids)        FAILWITH(IERR_INVALID_ARG);
-    if (pwriter->annotations_type == tid_STRING) FAILWITH(IERR_INVALID_STATE);
 
     // Verify that all of the SIDs are valid before adding any of them; otherwise, reject the whole set to avoid partial
     // success.
@@ -1001,7 +1177,7 @@ iERR ion_writer_write_annotation_sids(hWRITER hwriter, int32_t *p_sids, int32_t 
     iRETURN;
 }
 
-iERR _ion_writer_write_annotation_sids_helper(ION_WRITER *pwriter, int32_t *p_sids, int32_t count)
+iERR _ion_writer_write_annotation_sids_helper(ION_WRITER *pwriter, int32_t *p_sids, SIZE count)
 {
     iENTER;
     int32_t ii;
@@ -1010,17 +1186,46 @@ iERR _ion_writer_write_annotation_sids_helper(ION_WRITER *pwriter, int32_t *p_si
     ASSERT(count >= 0);
     ASSERT(p_sids);
 
-    if (!pwriter->annotations) {
-        IONCHECK(_ion_writer_set_max_annotation_count_helper(pwriter, DEFAULT_ANNOTATION_LIMIT));
-    }
-    if (pwriter->annotation_curr + count > pwriter->annotation_count) FAILWITH(IERR_TOO_MANY_ANNOTATIONS);
-
     // a cheesy way to handle it, but it doesn't seem worth optimizing at this point
     // if we wanted to "assume" the users pointers were stable until we need them
     // later (when we go to write out the annotations) we could save our temp array
     // and hang onto the users, but i'd rather be safer than faster in this case
     for (ii = 0; ii<count; ii++) {
         IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, p_sids[ii]));
+    }
+
+    iRETURN;
+}
+
+iERR ion_writer_write_annotation_symbols(hWRITER hwriter, ION_SYMBOL **annotations, SIZE count)
+{
+    iENTER;
+    ION_WRITER *pwriter;
+
+    if (!hwriter) FAILWITH(IERR_BAD_HANDLE);
+    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+    if (count < 0)      FAILWITH(IERR_INVALID_ARG);
+    if (count > 0 && !annotations) FAILWITH(IERR_INVALID_ARG);
+
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE_ANNOTATION(pwriter);
+
+    IONCHECK(_ion_writer_write_annotation_symbols_helper(pwriter, annotations, count));
+
+    iRETURN;
+}
+
+iERR _ion_writer_write_annotation_symbols_helper(ION_WRITER *pwriter, ION_SYMBOL **annotations, SIZE count)
+{
+    iENTER;
+    int32_t ii;
+
+    ASSERT(pwriter);
+    ASSERT(count >= 0);
+    ASSERT(annotations);
+
+    for (ii = 0; ii < count; ii++) {
+        if (annotations[ii] == NULL) FAILWITH(IERR_INVALID_ARG);
+        IONCHECK(_ion_writer_add_annotation_symbol_helper(pwriter, annotations[ii]));
     }
 
     iRETURN;
@@ -1139,7 +1344,6 @@ iERR _ion_writer_intercept_max_sid_or_version(ION_WRITER *pwriter, int64_t value
     iENTER;
     ION_SYMBOL_TABLE_IMPORT *import;
     ASSERT(pwriter->depth == 3);
-    //ASSERT(pwriter->_in_struct); // TODO intercepted step-ins don't set this...
     ASSERT(!ION_COLLECTION_IS_EMPTY(&pwriter->_pending_symbol_table->import_list));
 
     import = _ion_collection_tail(&pwriter->_pending_symbol_table->import_list);
@@ -1444,7 +1648,8 @@ iERR _ion_writer_write_timestamp_helper(ION_WRITER *pwriter, ION_TIMESTAMP *valu
     iRETURN;
 }
 
-iERR _ion_writer_validate_symbol_id(ION_WRITER *pwriter, SID sid) {
+iERR _ion_writer_validate_symbol_id(ION_WRITER *pwriter, SID sid)
+{
     iENTER;
     ION_SYMBOL_TABLE *symtab;
 
@@ -1455,7 +1660,8 @@ iERR _ion_writer_validate_symbol_id(ION_WRITER *pwriter, SID sid) {
     iRETURN;
 }
 
-iERR _ion_writer_intercept_imports_symbol(ION_WRITER *pwriter, ION_STRING *value) {
+iERR _ion_writer_intercept_imports_symbol(ION_WRITER *pwriter, ION_STRING *value)
+{
     iENTER;
     if (ION_STRING_EQUALS(&ION_SYMBOL_SYMBOL_TABLE_STRING, value)) {
         ION_WRITER_SI_MARK_LST_APPEND(pwriter);
@@ -1464,12 +1670,32 @@ iERR _ion_writer_intercept_imports_symbol(ION_WRITER *pwriter, ION_STRING *value
     iRETURN;
 }
 
-iERR _ion_writer_intercept_imports_symbol_sid(ION_WRITER *pwriter, SID value) {
+iERR _ion_writer_intercept_imports_symbol_sid(ION_WRITER *pwriter, SID value)
+{
     iENTER;
     if (value == ION_SYS_SID_SYMBOL_TABLE) {
         ION_WRITER_SI_MARK_LST_APPEND(pwriter);
     }
     ION_WRITER_SI_COMPLETE_IMPORTS(pwriter);
+    iRETURN;
+}
+
+iERR _ion_writer_intercept_imports_ion_symbol(ION_WRITER *pwriter, ION_SYMBOL *value)
+{
+    iENTER;
+    if (!ION_STRING_IS_NULL(&value->value)) {
+        IONCHECK(_ion_writer_intercept_imports_symbol(pwriter, &value->value));
+    }
+    else if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(value)
+             && ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &value->import_location.name)) {
+        IONCHECK(_ion_writer_intercept_imports_symbol_sid(pwriter, value->import_location.location));
+    }
+    else if (value->sid > UNKNOWN_SID) {
+        IONCHECK(_ion_writer_intercept_imports_symbol_sid(pwriter, value->sid));
+    }
+    else {
+        FAILWITH(IERR_INVALID_SYMBOL);
+    }
     iRETURN;
 }
 
@@ -1541,6 +1767,60 @@ iERR _ion_writer_write_symbol_helper(ION_WRITER *pwriter, ION_STRING *symbol)
         break;
     default:
         FAILWITH(IERR_INVALID_ARG);
+    }
+
+    iRETURN;
+}
+
+iERR ion_writer_write_ion_symbol(hWRITER hwriter, ION_SYMBOL *symbol)
+{
+    iENTER;
+    ION_WRITER *pwriter;
+
+    if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
+    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    ION_WRITER_SYMTAB_INTERCEPT_AT(iWSIS_IMPORTS, pwriter, IONCHECK(_ion_writer_intercept_imports_ion_symbol(pwriter, symbol)));
+
+    IONCHECK(_ion_writer_write_ion_symbol_helper(pwriter, symbol));
+
+    iRETURN;
+}
+
+iERR _ion_writer_write_ion_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *symbol)
+{
+    iENTER;
+    ION_STRING *text;
+    SID sid;
+
+    ASSERT(pwriter);
+    ASSERT(symbol);
+
+    if (!ION_STRING_IS_NULL(&symbol->value)) {
+        // This symbol's text is known. Its previous SID and import location are irrelevant.
+        IONCHECK(_ion_writer_write_symbol_helper(pwriter, &symbol->value));
+    }
+    else if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol)) {
+        if (symbol->import_location.location <= 0) {
+            // Within shared symbol tables, SIDs always begin at 1. Symbol zero does not appear in any symbol table.
+            FAILWITH(IERR_INVALID_SYMBOL);
+        }
+        IONCHECK(_ion_writer_get_local_symbol_id_from_import_location(pwriter, &symbol->import_location, &sid));
+        if (sid <= UNKNOWN_SID) {
+            // This symbol with unknown text is not found in the writer's imported tables. This is an error unless its
+            // text can be located in one of the writer's catalog's tables.
+            IONCHECK(_ion_writer_get_catalog_text_from_import_location(pwriter, &symbol->import_location, &text));
+            IONCHECK(_ion_writer_write_symbol_helper(pwriter, text));
+        }
+        else {
+            IONCHECK(_ion_writer_write_symbol_id_helper(pwriter, sid));
+        }
+    }
+    else if (symbol->sid > UNKNOWN_SID) {
+        IONCHECK(_ion_writer_write_symbol_id_helper(pwriter, symbol->sid));
+    }
+    else {
+        FAILWITH(IERR_INVALID_SYMBOL);
     }
 
     iRETURN;
@@ -2101,8 +2381,8 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
     iENTER;
 
     ION_TYPE      type;
-    ION_STRING   *fld_name, string_value;
-    ION_SYMBOL    symbol_value;
+    ION_STRING    string_value;
+    ION_SYMBOL    symbol_value, *fld_name;
     SID           sid;
     int32_t       count, ii;
     BOOL          is_null, bool_value, is_in_struct;
@@ -2136,30 +2416,17 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
     case (intptr_t)tid_SEXP:
         break;
     }
-
     IONCHECK(ion_reader_is_in_struct(preader, &is_in_struct));
     if (is_in_struct) {
-        IONCHECK(_ion_reader_get_field_name_helper(preader, &fld_name));
-        if (ION_STRING_IS_NULL(fld_name)) {
-            IONCHECK(_ion_reader_get_field_sid_helper(preader, &sid));
-            IONCHECK(_ion_writer_write_field_sid_helper(pwriter, sid));
-        } else {
-            IONCHECK(_ion_writer_write_field_name_helper(pwriter, fld_name));
-        }
+        IONCHECK(_ion_reader_get_field_name_symbol_helper(preader, &fld_name));
+        IONCHECK(_ion_writer_write_field_name_symbol_helper(pwriter, fld_name));
     }
 
     IONCHECK(_ion_reader_get_annotation_count_helper(preader, &count));
     if (count > 0) {
-        ION_STRING_INIT(&string_value);
         for (ii=0; ii<count; ii++) {
-            IONCHECK(_ion_reader_get_an_annotation_helper(preader, ii, &string_value));
-            if (ION_STRING_IS_NULL(&string_value)) {
-                IONCHECK(_ion_reader_get_an_annotation_sid_helper(preader, ii, &sid));
-                IONCHECK(_ion_writer_add_annotation_sid_helper(pwriter, sid));
-            }
-            else {
-                IONCHECK(_ion_writer_add_annotation_helper(pwriter, &string_value));
-            }
+            IONCHECK(_ion_reader_get_an_annotation_symbol_helper(preader, ii, &symbol_value));
+            IONCHECK(_ion_writer_add_annotation_symbol_helper(pwriter, &symbol_value));
         }
     }
 
@@ -2219,12 +2486,7 @@ iERR _ion_writer_write_one_value_helper(ION_WRITER *pwriter, ION_READER *preader
         break;
     case (intptr_t)tid_SYMBOL:
         IONCHECK(_ion_reader_read_symbol_helper(preader, &symbol_value));
-        if (ION_STRING_IS_NULL(&symbol_value.value)) {
-            IONCHECK(_ion_writer_write_symbol_id_helper(pwriter, symbol_value.sid));
-        }
-        else {
-            IONCHECK(_ion_writer_write_symbol_helper(pwriter, &symbol_value.value));
-        }
+        IONCHECK(_ion_writer_write_ion_symbol_helper(pwriter, &symbol_value));
         break;
     case (intptr_t)tid_CLOB:
     case (intptr_t)tid_BLOB:
@@ -2527,9 +2789,11 @@ iERR _ion_writer_clear_field_name_helper(ION_WRITER *pwriter)
 
     ASSERT(pwriter);
 
-    ION_STRING_INIT(&pwriter->field_name);
-    pwriter->field_name_sid = UNKNOWN_SID;
-    SUCCEED();
+    ION_STRING_INIT(&pwriter->field_name.value);
+    pwriter->field_name.sid = UNKNOWN_SID;
+    pwriter->field_name.add_count = 0;
+    ION_STRING_INIT(&pwriter->field_name.import_location.name);
+    pwriter->field_name.import_location.location = UNKNOWN_SID;
 
     iRETURN;
 }
@@ -2551,25 +2815,23 @@ iERR ion_writer_get_field_name_as_string(hWRITER hwriter, ION_STRING *p_str)
 iERR _ion_writer_get_field_name_as_string_helper(ION_WRITER *pwriter, ION_STRING *p_str)
 {
     iENTER;
-    ION_STRING *pstr;
     ION_SYMBOL_TABLE *psymtab;
+    ION_STRING       *text;
 
     ASSERT(pwriter);
     ASSERT(p_str);
 
-    switch ((intptr_t)pwriter->field_name_type) {
-    case (intptr_t)tid_STRING:
-        ION_STRING_ASSIGN(p_str, &pwriter->field_name);
-        break;
-    case (intptr_t)tid_INT:
+    if (!ION_STRING_IS_NULL(&pwriter->field_name.value)) {
+        ION_STRING_ASSIGN(p_str, &pwriter->field_name.value);
+    }
+    else if (pwriter->field_name.sid > UNKNOWN_SID) {
         IONCHECK(_ion_writer_get_local_symbol_table(pwriter, &psymtab));
         assert(psymtab != NULL);
-        if (pwriter->field_name_sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
-        IONCHECK(_ion_symbol_table_find_by_sid_force(psymtab, pwriter->field_name_sid, &pstr));
-        ION_STRING_ASSIGN(p_str, pstr);
-        break;
-    default:
-        FAILWITH(IERR_INVALID_STATE);
+        IONCHECK(_ion_symbol_table_find_by_sid_force(psymtab, pwriter->field_name.sid, &text));
+        ION_STRING_ASSIGN(p_str, text);
+    }
+    else {
+        FAILWITH(IERR_INVALID_SYMBOL);
     }
 
     iRETURN;
@@ -2596,15 +2858,14 @@ iERR _ion_writer_get_field_name_as_sid_helper(ION_WRITER *pwriter, SID *p_sid)
     ASSERT(pwriter);
     ASSERT(p_sid);
 
-    switch ((intptr_t)pwriter->field_name_type) {
-    case (intptr_t)tid_STRING:
-        IONCHECK(_ion_writer_make_symbol_helper( pwriter, &pwriter->field_name, p_sid ));
-        break;
-    case (intptr_t)tid_INT:
-        *p_sid = pwriter->field_name_sid;
-        break;
-    default:
-        FAILWITH(IERR_INVALID_STATE);
+    if (!ION_STRING_IS_NULL(&pwriter->field_name.value)) {
+        IONCHECK(_ion_writer_make_symbol_helper( pwriter, &pwriter->field_name.value, p_sid ));
+    }
+    else if (pwriter->field_name.sid > UNKNOWN_SID) {
+        *p_sid = pwriter->field_name.sid;
+    }
+    else {
+        FAILWITH(IERR_INVALID_SYMBOL);
     }
 
     iRETURN;
@@ -2628,7 +2889,6 @@ iERR _ion_writer_clear_annotations_helper(ION_WRITER *pwriter)
     ASSERT(pwriter);
 
     // we'll clear and reset this (even if there are no annotations)
-    pwriter->annotations_type = tid_none;
     pwriter->annotation_curr = 0;
 
     return IERR_OK;
@@ -2672,29 +2932,30 @@ iERR ion_writer_get_annotation_as_string(hWRITER hwriter, int32_t idx, ION_STRIN
 iERR _ion_writer_get_annotation_as_string_helper(ION_WRITER *pwriter, int32_t idx, ION_STRING *p_str)
 {
     iENTER;
-    ION_STRING       *pstr;
     ION_SYMBOL_TABLE *psymtab;
-    SID               sid;
+    ION_SYMBOL       *annotation;
+    ION_STRING       *text;
 
     ASSERT(pwriter);
     ASSERT(p_str);
 
     if (idx >= pwriter->annotation_curr) FAILWITH(IERR_INVALID_ARG);
 
-    switch ((intptr_t)pwriter->annotations_type) {
-    case (intptr_t)tid_STRING:
-        ION_STRING_ASSIGN(p_str, &(pwriter->annotations[idx]));
-        break;
-    case (intptr_t)tid_INT:
+    annotation = &pwriter->annotations[idx];
+
+    if (!annotation) FAILWITH(IERR_INVALID_ARG);
+
+    if (!ION_STRING_IS_NULL(&annotation->value)) {
+        ION_STRING_ASSIGN(p_str, &annotation->value);
+    }
+    else if (annotation->sid > UNKNOWN_SID) {
         IONCHECK(_ion_writer_get_local_symbol_table(pwriter, &psymtab));
-        assert(psymtab != NULL);
-        sid = pwriter->annotation_sids[idx];
-        if (sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
-        IONCHECK(_ion_symbol_table_find_by_sid_force(psymtab, sid, &pstr));
-        ION_STRING_ASSIGN(p_str, pstr);
-        break;
-    default:
-        FAILWITH(IERR_INVALID_STATE);
+        ASSERT(psymtab != NULL);
+        IONCHECK(_ion_symbol_table_find_by_sid_force(psymtab, annotation->sid, &text));
+        ION_STRING_ASSIGN(p_str, text);
+    }
+    else {
+        FAILWITH(IERR_INVALID_SYMBOL);
     }
 
     iRETURN;
@@ -2718,20 +2979,23 @@ iERR _ion_writer_get_annotation_as_sid_helper(ION_WRITER *pwriter, int32_t idx, 
 {
     iENTER;
 
+    ION_SYMBOL *annotation;
+
     ASSERT(pwriter);
     ASSERT(p_sid);
 
     if (idx >= pwriter->annotation_curr) FAILWITH(IERR_INVALID_ARG);
 
-    switch ((intptr_t)pwriter->annotations_type) {
-    case (intptr_t)tid_STRING:
-        IONCHECK(_ion_writer_make_symbol_helper( pwriter, &(pwriter->annotations[idx]), p_sid ));
-        break;
-    case (intptr_t)tid_INT:
-        *p_sid = pwriter->annotation_sids[idx];
-        break;
-    default:
-        FAILWITH(IERR_INVALID_STATE);
+    annotation = &pwriter->annotations[idx];
+
+    if (!ION_STRING_IS_NULL(&annotation->value)) {
+        IONCHECK(_ion_writer_make_symbol_helper(pwriter, &annotation->value, p_sid));
+    }
+    else if (annotation->sid > UNKNOWN_SID) {
+        *p_sid = annotation->sid;
+    }
+    else {
+        FAILWITH(IERR_INVALID_SYMBOL);
     }
 
     iRETURN;
