@@ -79,7 +79,7 @@ iERR _ion_writer_binary_initialize(ION_WRITER *pwriter)
 
     pwriter->_in_struct              = FALSE;
     pwriter->_has_local_symbols      = FALSE;
-    bwriter->_version_marker_written = FALSE;
+    pwriter->_needs_version_marker   = TRUE;
     bwriter->_lob_in_progress        = tid_none;
 
     _ion_collection_initialize(pwriter, &bwriter->_patch_stack, sizeof(ION_BINARY_PATCH *));
@@ -1075,6 +1075,10 @@ iERR _ion_writer_binary_write_symbol_id(ION_WRITER *pwriter, SID sid)
     }
     IONCHECK( _ion_writer_binary_patch_lengths( pwriter, len + ION_BINARY_TYPE_DESC_LENGTH ));
 
+    if (pwriter->symbol_table && sid > pwriter->symbol_table->system_symbol_table->max_id) {
+        pwriter->_has_local_symbols = TRUE;
+    }
+
     iRETURN;
 }
 
@@ -1208,23 +1212,19 @@ iERR _ion_writer_binary_flush_to_output(ION_WRITER *pwriter)
     int                patch_pos;
     int                len;
     SIZE               written;
-    BOOL               has_imports, needs_local_symbol_table;
 
     ION_BINARY_PATCH  *ppatch;
     ION_STREAM        *out = pwriter->output;
     ION_STREAM        *values_in;
     ION_BINARY_WRITER *bwriter = &pwriter->_typed_writer.binary;
 
-    has_imports = (pwriter->symbol_table && !ION_COLLECTION_IS_EMPTY(&pwriter->symbol_table->import_list));
-    needs_local_symbol_table = (pwriter->_has_local_symbols || has_imports);
-
-    if (!bwriter->_version_marker_written) {
+    if (pwriter->_needs_version_marker) {
         IONCHECK( ion_stream_write( out, ION_VERSION_MARKER, ION_VERSION_MARKER_LENGTH, &written ));
         if (written != ION_VERSION_MARKER_LENGTH) FAILWITH(IERR_WRITE_ERROR);
-        bwriter->_version_marker_written = TRUE; // just so we remember
+        pwriter->_needs_version_marker = FALSE;
     }
     
-    if (needs_local_symbol_table) {
+    if (pwriter->_has_local_symbols) {
 
         // we have (we could have but didn't) saved the value stack before recursing 
         // into the symbol table "write" but since we want to write to the stream we're

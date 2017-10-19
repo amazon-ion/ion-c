@@ -468,6 +468,10 @@ iERR _ion_reader_initialize(ION_READER *preader, BYTE *version_buffer, SIZE vers
         memcpy(&preader->_deccontext, preader->options.decimal_context, sizeof(decContext));
     }
 
+    if (preader->options.context_change_notifier.notify != NULL) {
+        memcpy(&preader->context_change_notifier, &preader->options.context_change_notifier, sizeof(ION_READER_CONTEXT_CHANGE_NOTIFIER));
+    }
+
     // we start our symbol table out with the system symbol table
     preader->_current_symtab = system;
 
@@ -1960,6 +1964,25 @@ iERR _ion_reader_reset_local_symbol_table(ION_READER *preader )
     iRETURN;
 }
 
+iERR _ion_reader_symbol_table_context_change_notify(ION_READER *preader, ION_SYMBOL_TABLE *new_context)
+{
+    iENTER;
+    BOOL imports_equal;
+    ASSERT(preader);
+    ASSERT(new_context);
+
+    if (preader->context_change_notifier.notify != NULL && !ION_COLLECTION_IS_EMPTY(&new_context->import_list)) {
+        IONCHECK(_ion_collection_compare(&preader->_current_symtab->import_list, &new_context->import_list,
+                                         &_ion_symbol_table_import_compare_fn, &imports_equal));
+        if (!imports_equal) {
+            // Only notify if the imports actually changed.
+            IONCHECK(preader->context_change_notifier.notify(preader->context_change_notifier.context,
+                                                             &new_context->import_list));
+        }
+    }
+    iRETURN;
+}
+
 iERR _ion_reader_process_possible_symbol_table(ION_READER *preader, BOOL *is_symbol_table)
 {
     /*
@@ -1999,6 +2022,7 @@ iERR _ion_reader_process_possible_symbol_table(ION_READER *preader, BOOL *is_sym
         if (local == NULL) {
             FAILWITH(IERR_NOT_A_SYMBOL_TABLE);
         }
+        IONCHECK(_ion_reader_symbol_table_context_change_notify(preader, local));
         if (has_previous_local_symbol_table) {
             IONCHECK(_ion_reader_free_local_symbol_table(preader));
         }

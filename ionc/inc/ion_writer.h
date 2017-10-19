@@ -170,8 +170,34 @@ ION_API_EXPORT iERR ion_writer_get_depth            (hWRITER hwriter, SIZE *p_de
 
 ION_API_EXPORT iERR ion_writer_set_catalog          (hWRITER hwriter, hCATALOG    hcatalog);
 ION_API_EXPORT iERR ion_writer_get_catalog          (hWRITER hwriter, hCATALOG *p_hcatalog);
+
+/**
+ * Sets the writer's symbol table.
+ *
+ * If the writer's current symbol table context must be serialized, forces the writer to finish and flush its current
+ * symbol table context (with the same side-effects as `ion_writer_finish`) first. If the given symbol table is a shared
+ * symbol table, a new local symbol table that imports that shared symbol table is created. Raises an error if a
+ * manually-written symbol table is in progress or if the writer is not at the top level.
+ */
 ION_API_EXPORT iERR ion_writer_set_symbol_table     (hWRITER hwriter, hSYMTAB     hsymtab);
 ION_API_EXPORT iERR ion_writer_get_symbol_table     (hWRITER hwriter, hSYMTAB  *p_hsymtab);
+
+/**
+ * Adds the given list of imports to the writer's list of imports. These imports will only be used in the writer's
+ * current symbol table context. To configure the writer to use the same list of imports for each new symbol table
+ * context, convey that list of imports through ION_WRITER_OPTIONS.
+ *
+ * If the writer's current symbol table context must be serialized, forces the writer to finish and flush its current
+ * symbol table context (with the same side-effects as `ion_writer_finish`) first. A new symbol table context is then
+ * created, starting with any imports specified in ION_WRITER_OPTIONS, and followed by the list of imports given to this
+ * function.
+ *
+ * This function may be called multiple times in succession without changing the current symbol table context as long as
+ * no values have been written in between calls; in this case, this function appends to the writer's list of imports.
+ *
+ * Raises an error if a manually-written symbol table is in progress or if the writer is not at the top level.
+ */
+ION_API_EXPORT iERR ion_writer_add_imported_tables  (hWRITER hwriter, ION_COLLECTION *imports);
 
 /**
  * Sets the writer's current field name. Only valid if the writer is currently in a struct. It is the caller's
