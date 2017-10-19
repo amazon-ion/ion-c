@@ -104,33 +104,32 @@ iERR ion_writer_open(
 iERR _ion_writer_initialize_local_symbol_table(ION_WRITER *pwriter)
 {
     iENTER;
-    ION_SYMBOL_TABLE *psymtab, *system, *import;
+    ION_SYMBOL_TABLE *psymtab, *system, **import;
     ION_SYMBOL_TABLE_TYPE table_type;
-    int i;
+    ION_COLLECTION_CURSOR import_cursor;
 
     IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
     ASSERT( pwriter->symbol_table == NULL || pwriter->symbol_table == system );
 
     IONCHECK(_ion_symbol_table_open_helper(&psymtab, pwriter->_temp_entity_pool, system));
-    // NOTE: This table and its imports must be in the writer's catalog. If they aren't, their symbols will be
-    // treated as unknown.
-    for (i = 0; i < pwriter->options.encoding_psymbol_table_count; i++) {
-        import = &pwriter->options.encoding_psymbol_table[i];
-        if (import) {
-            IONCHECK(ion_symbol_table_get_type(import, &table_type));
-            if (table_type == ist_SHARED) {
-                IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, import));
-            }
-            else if (i == 0 && table_type == ist_SYSTEM) {
-                // Do nothing; every local symbol table implicitly imports the system symbol table.
-            }
-            else {
-                FAILWITHMSG(IERR_INVALID_ARG, "A writer's imported symbol tables must be shared.");
-            }
+
+    ION_COLLECTION_OPEN(&pwriter->_imported_symbol_tables, import_cursor);
+    for (;;) {
+        ION_COLLECTION_NEXT(import_cursor, import);
+        if (!import) break;
+        ASSERT(*import != NULL);
+
+        IONCHECK(ion_symbol_table_get_type(*import, &table_type));
+        if (table_type == ist_SHARED) {
+            IONCHECK(_ion_symbol_table_import_symbol_table_helper(psymtab, *import));
+        }
+        else if (table_type == ist_SYSTEM) {
+            // Do nothing; every local symbol table implicitly imports the system symbol table.
+        }
+        else {
+            FAILWITHMSG(IERR_INVALID_ARG, "A writer's imported symbol tables must be shared.");
         }
     }
-
-    psymtab->catalog = pwriter->pcatalog;
 
     pwriter->symbol_table = psymtab;
     pwriter->_local_symbol_table = TRUE;
@@ -142,6 +141,8 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
     iENTER;
     ION_WRITER         *pwriter = NULL;
     ION_OBJ_TYPE        writer_type;
+    int i;
+    ION_SYMBOL_TABLE **imported_table;
 
     pwriter = ion_alloc_owner(sizeof(ION_WRITER));
     if (!pwriter) FAILWITH(IERR_NO_MEMORY);
@@ -204,7 +205,14 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
         FAILWITH(IERR_INVALID_ARG);
     }
 
+    _ion_collection_initialize(pwriter, &pwriter->_imported_symbol_tables, sizeof(ION_SYMBOL_TABLE *));
+
     if (pwriter->options.encoding_psymbol_table && pwriter->options.encoding_psymbol_table_count > 0) {
+        for (i = 0; i < pwriter->options.encoding_psymbol_table_count; i++) {
+            // Clone the user's imported tables into the writer.
+            imported_table = (ION_SYMBOL_TABLE **)_ion_collection_append(&pwriter->_imported_symbol_tables);
+            IONCHECK(ion_symbol_table_clone_with_owner(&pwriter->options.encoding_psymbol_table[i], imported_table, pwriter));
+        }
         IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
     }
 
@@ -436,7 +444,6 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
     iENTER;
     ION_SYMBOL_TABLE_TYPE   table_type = ist_EMPTY;
     ION_SYMBOL_TABLE       *plocal, *system;
-    ION_SYMBOL_TABLE_IMPORT import;
     
     ASSERT(pwriter);
     ASSERT(psymtab);
@@ -452,11 +459,7 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
         // create a local symbol table and add the requested (shared) symbol table as an import
         IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
         IONCHECK(_ion_symbol_table_open_helper(&plocal, pwriter->_temp_entity_pool, system));
-        plocal->catalog = psymtab->catalog;
-        IONCHECK(_ion_symbol_table_get_name_helper(psymtab, &import.name));
-        IONCHECK(_ion_symbol_table_get_version_helper(psymtab, &import.version));
-        IONCHECK(_ion_symbol_table_get_max_sid_helper(psymtab, &import.max_id));
-        IONCHECK(_ion_symbol_table_local_incorporate_symbols(plocal, plocal->catalog, &import.name, import.version, import.max_id));
+        IONCHECK(_ion_symbol_table_local_incorporate_symbols(plocal, psymtab, psymtab->max_id));
         psymtab = plocal;
         break;
     case ist_LOCAL:

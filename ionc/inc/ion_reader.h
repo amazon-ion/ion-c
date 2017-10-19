@@ -45,12 +45,6 @@ typedef struct _ion_reader_options
      */
     BOOL return_system_values;
 
-    /** If true the reader will look for shared symbol tables and add them to the catalog and treat them as system values.
-     * A better name might be add_shared_symbol_tables_to_catalog. // TODO: Code refactoring.
-     *
-     */
-    BOOL return_shared_symbol_tables;
-
     /** Character to be treated as new line for line counting, defaults to '\n'
      *
      */
@@ -105,7 +99,7 @@ typedef struct _ion_reader_options
      */
     BOOL skip_character_validation;
 
-    /** Handle to catalog of shared symbol tables for the reader to use
+    /** Handle to catalog of shared symbol tables for the reader to use. If NULL, will be treated as empty.
      *
      */
     ION_CATALOG *pcatalog;
