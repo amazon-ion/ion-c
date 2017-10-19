@@ -650,13 +650,8 @@ iERR _ion_writer_text_write_symbol_id(ION_WRITER *pwriter, SID sid)
     ASSERT(pwriter);
 
     // if they passed us a reasonable sid we'll look it up (otherwise str will still be null)
-    if (sid != UNKNOWN_SID) {
-        IONCHECK(_ion_writer_get_symbol_table_helper(pwriter, &symtab));
-        if (sid > symtab->max_id) {
-            FAILWITHMSG(IERR_INVALID_SYMBOL, "Attempted to write out-of-range symbol ID.");
-        }
-        IONCHECK(_ion_symbol_table_find_by_sid_force(symtab, sid, &pstr));
-    }
+    IONCHECK(_ion_writer_get_symbol_table_helper(pwriter, &symtab));
+    IONCHECK(_ion_symbol_table_find_by_sid_force(symtab, sid, &pstr));
 
     // Even symbols with unknown text will now have a string value (e.g. $10). Out-of-range (illegal) symbols have
     // already raised an error.
