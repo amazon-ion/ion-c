@@ -616,6 +616,7 @@ iERR ionizer_load_symbol_table(void)
         FAILWITH(IERR_CANT_FIND_FILE);
     }
     g_writer_options.encoding_psymbol_table = (ION_SYMBOL_TABLE *)g_writer_hsymtab;  // HACK - TODO - do the same that that we do for catalog
+    g_writer_options.encoding_psymbol_table_count = 1;
 
     iRETURN;
 }
