@@ -155,7 +155,7 @@ TEST(IonBinarySymbol, WriterWritesSymbolValueSymbolZero) {
     SIZE result_len;
 
     ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, TRUE));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 0));
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     // NOTE: symbol zero is NOT added to the local symbol table. Symbol zero is not present in ANY symbol table.
@@ -173,7 +173,7 @@ TEST(IonBinarySymbol, WriterWritesAnnotationThatLooksLikeSymbolZero) {
 
     ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, TRUE));
     ION_ASSERT_OK(ion_writer_add_annotation(writer, &symbol_zero));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 0));
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     // NOTE: the annotation refers to \x8A (i.e. SID 10 -- a local symbol), NOT \x80 (SID 0). This is because the
@@ -188,8 +188,8 @@ TEST(IonBinarySymbol, WriterWritesAnnotationSymbolZero) {
     SIZE result_len;
 
     ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, TRUE));
-    ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, 0));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_add_annotation_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 0));
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     // NOTE: symbol zero is NOT added to the local symbol table. Symbol zero is not present in ANY symbol table.
@@ -209,7 +209,7 @@ TEST(IonBinarySymbol, WriterWritesFieldNameThatLooksLikeSymbolZero) {
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ION_ASSERT_OK(ion_writer_write_field_name(writer, &symbol_zero));
     ION_ASSERT_OK(ion_writer_add_annotation(writer, &symbol_zero));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 0));
     ION_ASSERT_OK(ion_writer_finish_container(writer));
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
@@ -226,9 +226,9 @@ TEST(IonBinarySymbol, WriterWritesFieldNameSymbolZero) {
 
     ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, TRUE));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
-    ION_ASSERT_OK(ion_writer_write_field_sid(writer, 0));
-    ION_ASSERT_OK(ion_writer_add_annotation_sid(writer, 0));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_field_name_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_add_annotation_sid(writer, 0));
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 0));
     ION_ASSERT_OK(ion_writer_finish_container(writer));
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
@@ -261,7 +261,7 @@ TEST(IonBinarySymbol, ReaderReadsSymbolValueZeroAsSID) {
     ION_ASSERT_OK(ion_reader_open_buffer(&reader, symbol_zero, 5, NULL));
     ION_ASSERT_OK(ion_reader_next(reader, &actual_type));
     ASSERT_EQ(tid_SYMBOL, actual_type);
-    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &actual));
+    ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &actual));
     ION_ASSERT_OK(ion_reader_close(reader));
 
     ASSERT_EQ(0, actual);
@@ -284,7 +284,7 @@ TEST(IonBinarySymbol, WriterWritesSymbolValueIVM) {
     ION_ASSERT_OK(ion_writer_write_int(writer, 0));
     ION_ASSERT_OK(ion_writer_write_symbol(writer, &ivm_text)); // This is a no-op.
     ION_ASSERT_OK(ion_writer_write_int(writer, 1));
-    ION_ASSERT_OK(ion_writer_write_symbol_sid(writer, 2)); // This is a no-op.
+    ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 2)); // This is a no-op.
     ION_ASSERT_OK(ion_writer_write_int(writer, 2));
 
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
@@ -312,7 +312,7 @@ TEST(IonBinarySymbol, ReaderReadsSymbolValueIVMNoOp) {
     ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, 8, NULL));
     ION_ASSERT_OK(ion_reader_next(reader, &actual_type));
     ASSERT_EQ(tid_SYMBOL, actual_type);
-    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &sid));
     ASSERT_EQ(4, sid);
     ION_ASSERT_OK(ion_reader_close(reader));
 }
@@ -329,7 +329,7 @@ TEST(IonBinarySymbol, ReaderReadsIVMInsideAnnotationWrapper) {
     ASSERT_EQ(tid_SYMBOL, actual_type);
     ION_ASSERT_OK(ion_reader_get_an_annotation(reader, 0, &annotation));
     assertStringsEqual("name", (char *)annotation.value, annotation.length); // SID 4 is "name"
-    ION_ASSERT_OK(ion_reader_read_symbol_sid(reader, &sid));
+    ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &sid));
     ASSERT_EQ(2, sid);
     ION_ASSERT_OK(ion_reader_close(reader));
 }

@@ -1025,31 +1025,6 @@ iERR _ion_reader_text_get_an_annotation(ION_READER *preader, int32_t idx, ION_ST
     iRETURN;
 }
 
-iERR _ion_reader_text_get_an_annotation_sid(ION_READER *preader, int32_t idx, SID *p_sid)
-{
-    iENTER;
-    ION_TEXT_READER  *text = &preader->typed_reader.text;
-    ION_SYMBOL       *symbol;
-
-    ASSERT(preader && preader->type == ion_type_text_reader);
-    ASSERT(p_sid != NULL);
-
-    if (text->_state == IPS_ERROR || text->_state == IPS_NONE) {
-        FAILWITH(IERR_INVALID_STATE);
-    }
-
-    if (idx < 0 || idx >= text->_annotation_count) {
-        FAILWITH(IERR_INVALID_ARG);
-    }
-
-    // get a pointer to our string header in the annotation string pool
-    symbol = text->_annotation_string_pool + idx;
-    IONCHECK(_ion_reader_text_validate_symbol_token(preader, symbol));
-    *p_sid = symbol->sid;
-
-    iRETURN;
-}
-
 iERR _ion_reader_text_get_an_annotation_symbol(ION_READER *preader, int32_t idx, ION_SYMBOL *p_symbol)
 {
     iENTER;
@@ -1184,32 +1159,6 @@ iERR _ion_reader_text_get_field_sid(ION_READER *preader, SID *p_sid)
 
     IONCHECK(_ion_reader_text_validate_symbol_token(preader, &text->_field_name));
     *p_sid = text->_field_name.sid;
-    iRETURN;
-}
-
-iERR _ion_reader_text_get_annotation_sids(ION_READER *preader, SID *p_sids, SIZE max_count, SIZE *p_count)
-{
-    iENTER;
-    ION_TEXT_READER  *text = &preader->typed_reader.text;
-    ION_SYMBOL       *str;
-    SIZE              ii, count;
-
-    ASSERT(preader);
-    ASSERT(p_sids);
-    ASSERT(p_count);
-
-    count = text->_annotation_count;
-    if (max_count < count) {
-        FAILWITH(IERR_INVALID_ARG);
-    }
-
-    for (ii = 0; ii<count; ii++) {
-        str = &text->_annotation_string_pool[ii];
-        IONCHECK(_ion_reader_text_validate_symbol_token(preader, str));
-        p_sids[ii] = str->sid;
-    }
-    *p_count = count;
-
     iRETURN;
 }
 
@@ -1655,53 +1604,6 @@ iERR _ion_reader_text_read_timestamp(ION_READER *preader, ION_TIMESTAMP *p_value
     ));
     if (text->_scanner._value_image.length != used) {
         // TODO - DO WE CARE?
-    }
-
-    iRETURN;
-}
-
-iERR _ion_reader_text_read_symbol_sid(ION_READER *preader, SID *p_value)
-{
-    iENTER;
-    ION_TEXT_READER *text = &preader->typed_reader.text;
-    BOOL             eos_encountered = FALSE;
-
-    ASSERT(preader);
-    ASSERT(p_value);
-
-    if (text->_state == IPS_ERROR 
-     || text->_state == IPS_NONE 
-     || text->_value_sub_type->base_type != tid_SYMBOL
-    ) {
-        FAILWITH(IERR_INVALID_STATE);
-    }
-    if ((text->_value_sub_type->flags & FCF_IS_NULL) != 0) {
-        FAILWITH(IERR_NULL_VALUE);
-    }
-
-    if (text->_scanner._value_location == SVL_IN_STREAM) {
-        IONCHECK(_ion_scanner_read_as_string(&text->_scanner
-                                            , text->_scanner._value_buffer
-                                            , text->_scanner._value_buffer_length
-                                            , text->_value_sub_type
-                                            , &(text->_scanner._value_image.length)
-                                            , &eos_encountered
-        ));
-        if (eos_encountered == FALSE) {
-            FAILWITH(IERR_BUFFER_TOO_SMALL)
-        }
-        text->_scanner._value_location = SVL_VALUE_IMAGE;
-        text->_scanner._value_image.value = text->_scanner._value_buffer;
-    }
-    
-    ASSERT(text->_scanner._value_location == SVL_VALUE_IMAGE);
-    ASSERT(text->_scanner._value_image.length > 0);
-    ASSERT(text->_scanner._value_image.value[text->_scanner._value_image.length] == 0);
-
-    IONCHECK(_ion_symbol_table_find_by_name_helper(preader->_current_symtab, &text->_scanner._value_image, p_value, NULL,
-                                                  text->_value_sub_type != IST_SYMBOL_QUOTED));
-    if (*p_value > preader->_current_symtab->max_id) {
-        FAILWITH(IERR_INVALID_SYMBOL);
     }
 
     iRETURN;

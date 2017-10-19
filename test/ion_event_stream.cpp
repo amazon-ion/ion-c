@@ -276,7 +276,7 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
         case tid_SYMBOL_INT:
         {
             ION_SYMBOL tmp, *symbol_value;
-            IONCHECKORFREE2(ion_reader_read_symbol(hreader, &tmp));
+            IONCHECKORFREE2(ion_reader_read_ion_symbol(hreader, &tmp));
             copy_ion_symbol(&symbol_value, &tmp);
             event->value = symbol_value;
             break;
