@@ -1096,8 +1096,6 @@ TEST(IonSymbolTable, ReadThenWriteSymbolsWithUnknownText) {
     ION_ASSERT_OK(ion_test_new_text_reader(ion_data, &reader));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_STRUCT, type);
-    // TODO it should be possible to simply use ion_writer_write_all_values and have the reader hand off its imports
-    // to the writer as it changes symbol table contexts.
     ION_ASSERT_OK(ion_reader_get_symbol_table(reader, &reader_symtab));
     ION_ASSERT_OK(ion_symbol_table_get_imports(reader_symtab, &imports));
 
@@ -1607,7 +1605,6 @@ TEST_P(BinaryAndTextTest, AddImportedTablesFailsWithPendingAnnotations) {
     ION_STRING foo;
     ION_SYMBOL_TABLE_IMPORT *foo_import;
     ION_COLLECTION new_imports;
-    BYTE *result;
 
     ion_string_from_cstr("zoo", &foo);
     ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, is_binary));
@@ -1622,5 +1619,32 @@ TEST_P(BinaryAndTextTest, AddImportedTablesFailsWithPendingAnnotations) {
     ION_ASSERT_OK(ion_writer_close(writer));
 }
 
-// TODO test that symbols with unknown text without import locations (i.e. from null slots in the LST) are collapsed
-// to and roundtripped as symbol zero.
+TEST_P(BinaryAndTextTest, LSTNullSlotsRoundtrippedAsSymbolZero) {
+    // Tests that local symbol tokens with unknown text (due to null slots in the LST) are treated equivalently to
+    // symbol zero.
+    const char *ion_data = "$ion_symbol_table::{symbols:[null, 123, '''hello''', null.string]} {$10:$11::$12} $13";
+    ION_SYMBOL_TEST_DECLARE_WRITER;
+    hREADER reader;
+    BYTE *result;
+    ION_WRITER_OPTIONS writer_options;
+    ION_READER_OPTIONS reader_options;
+
+    ion_test_initialize_reader_options(&reader_options);
+    ion_test_initialize_writer_options(&writer_options);
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, strlen(ion_data), &reader_options));
+    ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
+    writer_options.output_as_binary = is_binary;
+    ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
+    ION_ASSERT_OK(ion_writer_write_all_values(writer, reader));
+    ION_ASSERT_OK(ion_reader_close(reader));
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
+
+    if (is_binary) {
+        assertBytesEqual("\xE0\x01\x00\xEA\xEB\x81\x83\xD8\x87\xB6\x85hello\xD6\x80\xE4\x81\x80\x71\x0A\x70", 24, result, bytes_flushed);
+    }
+    else {
+        assertStringsEqual("{$0:$0::hello} $0", (char *)result, bytes_flushed);
+    }
+    free(result);
+}
