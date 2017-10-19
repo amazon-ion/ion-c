@@ -107,7 +107,7 @@ typedef struct _ion_writer
     decContext         deccontext;                  // working context
 
     ION_CATALOG       *pcatalog;
-    ION_COLLECTION     _imported_symbol_tables; // Collection of ION_SYMBOL_TABLE*
+    ION_COLLECTION     _imported_symbol_tables; // Collection of ION_SYMBOL_TABLE_IMPORT
     ION_SYMBOL_TABLE  *symbol_table;        // if there are local symbols defined this will be a seperately allocated table, and should be freed as we close the top level value
     BOOL               _local_symbol_table; // identifies the current symbol table as a symbol table that we'll have to free
     BOOL               _has_local_symbols;

@@ -306,7 +306,7 @@ void assertBytesEqual(const char *expected, SIZE expected_len, const BYTE *actua
 }
 
 void assertStringsEqual(const char *expected, const char *actual, SIZE actual_len) {
-    BOOL strings_not_equal = strncmp(expected, actual, (size_t)actual_len);
+    BOOL strings_not_equal = strlen(expected) != actual_len || strncmp(expected, actual, (size_t)actual_len);
     if (strings_not_equal) {
         ASSERT_FALSE(strings_not_equal) << std::string(expected) << " vs. " << std::endl
                                         << std::string(actual, (unsigned long)actual_len);
