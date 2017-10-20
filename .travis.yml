@@ -1,0 +1,13 @@
+language: c
+
+compiler:
+  - clang
+  - gcc
+
+os:
+  - osx
+  - linux
+
+install: ./build-debug.sh
+
+script: ./test/all_tests
