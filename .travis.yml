@@ -10,4 +10,4 @@ os:
 
 install: ./build-debug.sh
 
-script: ./test/all_tests
+script: ./build/debug/test/all_tests
