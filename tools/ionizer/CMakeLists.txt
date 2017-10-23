@@ -8,5 +8,5 @@ set_property(TARGET ionizer PROPERTY C_STANDARD 99)
 target_include_directories(ionizer PRIVATE
   .
 )
-target_link_libraries(ionizer ionc)
+target_link_libraries(ionizer ionc m)
 
