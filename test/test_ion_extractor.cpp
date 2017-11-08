@@ -495,6 +495,16 @@ TEST(IonExtractorSucceedsWhen, TheSamePathMatchesMultipleTimesFromIon) {
     ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 2);
 }
 
+TEST(IonExtractorSucceedsWhen, DuplicateFieldNameMatchesEachTime) {
+    ION_EXTRACTOR_TEST_INIT;
+    const char *ion_text = "{abc:def, abc:123}";
+
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(abc)", &assertMatchesTextDEForInt123);
+
+    ION_EXTRACTOR_TEST_MATCH;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 2);
+}
+
 TEST(IonExtractorSucceedsWhen, NoPathMatches) {
     ION_EXTRACTOR_TEST_INIT;
     const char *ion_text = "{abc: def, foo: {bar:[1, 2, 3]}}";
