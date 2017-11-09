@@ -32,3 +32,10 @@ target_include_directories(ionc PUBLIC
 
 )
 target_link_libraries(ionc decNumber m)
+
+install(TARGETS ionc
+        DESTINATION lib)
+
+install(DIRECTORY inc/
+        DESTINATION include/ionc
+        FILES_MATCHING PATTERN "*.h")
