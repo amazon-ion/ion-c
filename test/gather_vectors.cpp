@@ -12,16 +12,16 @@
  * language governing permissions and limitations under the License.
  */
 
+#include "gather_vectors.h"
+#include "ion_helpers.h"
+#include <cstdarg>
+#include <sys/stat.h>
+
 #ifdef ION_PLATFORM_WINDOWS
 #include <io.h>
 #else
 #include <dirent.h>
 #endif
-
-#include "gather_vectors.h"
-#include "ion_helpers.h"
-#include <cstdarg>
-#include <sys/stat.h>
 
 //============================================================================
 // File handling utilities
@@ -269,7 +269,7 @@ typedef struct _dir {
 #define DIR_CLOSE(pdir) win_close(pdir)
 void win_close(DIR *pdir);
 
-char *win_fixname(char *pname)
+char *win_fixname(const char *pname)
 {
     char    *cp, *fixedname;
     int32_t  len;
@@ -278,7 +278,7 @@ char *win_fixname(char *pname)
     len = strlen(pname);
     if (len < 0) return NULL;
 
-    fixedname = malloc(len + 5); // + 5 for: '/' "*.*"  '\0'
+    fixedname = (char *)malloc(len + 5); // + 5 for: '/' "*.*"  '\0'
     if (!fixedname) return NULL;
 
     memcpy(fixedname, pname, len + 1);
@@ -289,7 +289,7 @@ char *win_fixname(char *pname)
     return fixedname;
 }
 
-DIR *win_open(char *pname)
+DIR *win_open(const char *pname)
 {
     char    *fixedname = win_fixname(pname);
     DIR     *pdir      = (DIR *)malloc(sizeof(DIR));

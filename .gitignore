@@ -17,3 +17,5 @@ build/
 cmake-build-debug/
 cmake-build-release/
 install_manifest.txt
+.vs/
+CMakeSettings.json

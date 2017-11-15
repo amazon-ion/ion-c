@@ -12,6 +12,7 @@
  * language governing permissions and limitations under the License.
  */
 
+#include "ion_platform_config.h"
 #include "gather_vectors.h"
 #include "ion_event_stream.h"
 #include "ion_assert.h"
@@ -224,6 +225,17 @@ TEST_P(GoodBasicVector, GoodBasic) {
     }
 }
 
+#ifdef ION_PLATFORM_WINDOWS
+INSTANTIATE_TEST_CASE_P(
+    TestVectors,
+    GoodBasicVector,
+    ::testing::Combine(
+        ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_GOOD_BASIC)),
+        ::testing::Values(READ, ROUNDTRIP_TEXT, ROUNDTRIP_BINARY),
+        ::testing::Values(STREAM, BUFFER)
+    )
+);
+#else
 INSTANTIATE_TEST_CASE_P(
         TestVectors,
         GoodBasicVector,
@@ -236,6 +248,7 @@ INSTANTIATE_TEST_CASE_P(
         , GoodVectorToString()
 #endif
 );
+#endif
 
 
 typedef void (*COMPARISON_FN)(IonEventStream *stream, size_t index_expected, size_t index_actual);
@@ -371,6 +384,17 @@ TEST_P(GoodEquivsVector, GoodEquivs) {
     }
 }
 
+#ifdef ION_PLATFORM_WINDOWS
+INSTANTIATE_TEST_CASE_P(
+    TestVectors,
+    GoodEquivsVector,
+    ::testing::Combine(
+        ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_GOOD_EQUIVS)),
+        ::testing::Values(READ, ROUNDTRIP_TEXT, ROUNDTRIP_BINARY),
+        ::testing::Values(STREAM, BUFFER)
+    )
+);
+#else
 INSTANTIATE_TEST_CASE_P(
         TestVectors,
         GoodEquivsVector,
@@ -383,6 +407,7 @@ INSTANTIATE_TEST_CASE_P(
         , GoodVectorToString()
 #endif
 );
+#endif
 
 /**
  * Exercises good vectors with equivTimeline semantics. This means that timestamps are compared for instant equivalence
@@ -403,6 +428,17 @@ TEST_P(GoodTimestampEquivTimelineVector, GoodTimestampEquivTimeline) {
     }
 }
 
+#ifdef ION_PLATFORM_WINDOWS
+INSTANTIATE_TEST_CASE_P(
+    TestVectors,
+    GoodTimestampEquivTimelineVector,
+    ::testing::Combine(
+        ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_GOOD_TIMESTAMP_EQUIVTIMELINE)),
+        ::testing::Values(READ, ROUNDTRIP_TEXT, ROUNDTRIP_BINARY),
+        ::testing::Values(STREAM, BUFFER)
+    )
+);
+#else
 INSTANTIATE_TEST_CASE_P(
         TestVectors,
         GoodTimestampEquivTimelineVector,
@@ -415,6 +451,7 @@ INSTANTIATE_TEST_CASE_P(
         , GoodVectorToString()
 #endif
 );
+#endif
 
 /**
  * Exercises good vectors with nonequivs semantics.
@@ -433,6 +470,17 @@ TEST_P(GoodNonequivsVector, GoodNonequivs) {
     }
 }
 
+#ifdef ION_PLATFORM_WINDOWS
+INSTANTIATE_TEST_CASE_P(
+    TestVectors,
+    GoodNonequivsVector,
+    ::testing::Combine(
+        ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_GOOD_NONEQUIVS)),
+        ::testing::Values(READ, ROUNDTRIP_TEXT, ROUNDTRIP_BINARY),
+        ::testing::Values(STREAM, BUFFER)
+    )
+);
+#else
 INSTANTIATE_TEST_CASE_P(
         TestVectors,
         GoodNonequivsVector,
@@ -445,6 +493,7 @@ INSTANTIATE_TEST_CASE_P(
         , GoodVectorToString()
 #endif
 );
+#endif
 
 /**
  * Exercises bad vectors. Bad vectors must fail to parse in order to succeed the test.
@@ -454,6 +503,16 @@ TEST_P(BadVector, Bad) {
     EXPECT_NE(IERR_OK, status) << test_name << " FAILED" << std::endl;
 }
 
+#ifdef ION_PLATFORM_WINDOWS
+INSTANTIATE_TEST_CASE_P(
+    TestVectors,
+    BadVector,
+    ::testing::Combine(
+        ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_BAD)),
+        ::testing::Values(STREAM, BUFFER)
+    )
+);
+#else
 INSTANTIATE_TEST_CASE_P(
         TestVectors,
         BadVector,
@@ -465,3 +524,4 @@ INSTANTIATE_TEST_CASE_P(
         , BadVectorToString()
 #endif
 );
+#endif
