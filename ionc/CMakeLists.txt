@@ -29,9 +29,14 @@ set_property(TARGET ionc PROPERTY C_STANDARD 99)
 target_include_directories(ionc PUBLIC
   .
   inc/
-
 )
-target_link_libraries(ionc decNumber m)
+
+if (MSVC)
+    target_link_libraries(ionc decNumber)
+else()
+    # Unix requires linking against lib m explicitly.
+    target_link_libraries(ionc decNumber m)
+endif()
 
 install(TARGETS ionc
         DESTINATION lib)

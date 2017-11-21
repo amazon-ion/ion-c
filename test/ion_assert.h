@@ -52,17 +52,17 @@
 #define ION_EXPECT_DOUBLE_EQ(x, y) { \
     switch (assertion_type) { \
         case ASSERTION_TYPE_NORMAL: \
-            EXPECT_TRUE(!(isnan(x) ^ isnan(y))); \
-            if (isnan(x) || isnan(y)) break; \
+            EXPECT_TRUE(!(std::isnan(x) ^ std::isnan(y))); \
+            if (std::isnan(x) || std::isnan(y)) break; \
             EXPECT_TRUE(!(ion_float_is_negative_zero(x) ^ ion_float_is_negative_zero(y))); \
             if (ion_float_is_negative_zero(x) || ion_float_is_negative_zero(y)) break; \
             EXPECT_DOUBLE_EQ(x, y) << "Test: " << g_CurrentTest; \
             break; \
         case ASSERTION_TYPE_SET_FLAG: \
-            if (isnan(x) ^ isnan(y)) { \
+            if (std::isnan(x) ^ std::isnan(y)) { \
                 return FALSE; \
             } \
-            if (isnan(x)) break; \
+            if (std::isnan(x)) break; \
             if (ion_float_is_negative_zero(x) ^ ion_float_is_negative_zero(y)) { \
                 return FALSE; \
             } \

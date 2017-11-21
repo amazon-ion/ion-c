@@ -13,11 +13,8 @@
  */
 
 #include "ion.h"
-
-#define ION_FLOAT_NEG_ZERO_DOUBLE 0x8000000000000000
+#include <math.h>
 
 BOOL ion_float_is_negative_zero(double value) {
-    long neg_zero_bits = ION_FLOAT_NEG_ZERO_DOUBLE;
-    return !memcmp(&neg_zero_bits, &value, sizeof(double));
+    return value == 0.0 && signbit(value);
 }
-
