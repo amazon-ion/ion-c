@@ -1916,8 +1916,7 @@ int_fast32_t _ion_stream_page_hash_page_id(void *key, void *context)
   int_fast32_t hash;
    
   ASSERT(key);
-   
-  hash = *((int_fast32_t *)key);
+  hash = *(PAGE_ID *)key;
   return hash;
 }
 
