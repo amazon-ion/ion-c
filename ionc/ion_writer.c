@@ -2323,6 +2323,7 @@ iERR _ion_writer_transition_from_symtab_intercept_state(ION_WRITER *pwriter)
                                                                      import->descriptor.max_id));
             }
             ION_WRITER_SI_COMPLETE_IMPORT(pwriter);
+            pwriter->_completed_symtab_intercept_states &= iWSIS_SYMBOLS;
             break;
         default:
             SUCCEED(); // This is some open content that will be ignored (and lost).
