@@ -19,3 +19,6 @@ cmake-build-release/
 install_manifest.txt
 .vs/
 CMakeSettings.json
+CPack*
+tools/cli/libion_cli.dylib
+tools/cli/ion
