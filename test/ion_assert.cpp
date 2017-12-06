@@ -15,18 +15,10 @@
 #include "ion_assert.h"
 #include "ion_const.h"
 #include "ion_test_util.h"
+#include "ion_event_util.h"
 
 TIMESTAMP_COMPARISON_FN g_TimestampEquals = ion_timestamp_equals;
 std::string g_CurrentTest = "NONE";
-decContext g_TestDecimalContext = {
-    ION_TEST_DECIMAL_MAX_DIGITS,    // max digits (arbitrarily high -- raise if test data requires more)
-    DEC_MAX_MATH,                   // max exponent
-    -DEC_MAX_MATH,                  // min exponent
-    DEC_ROUND_HALF_EVEN,            // rounding mode
-    DEC_Errors,                     // trap conditions
-    0,                              // status flags
-    0                               // apply exponent clamp?
-};
 
 char *ionIntToString(ION_INT *value) {
     SIZE len, written;
@@ -122,12 +114,12 @@ char *ionStringToString(ION_STRING *value) {
 
 ::testing::AssertionResult assertIonDecimalEq(ION_DECIMAL *expected, ION_DECIMAL *actual) {
     BOOL decimal_equals;
-    ION_EXPECT_OK(ion_decimal_equals(expected, actual, &g_TestDecimalContext, &decimal_equals));
+    ION_EXPECT_OK(ion_decimal_equals(expected, actual, &g_IonEventDecimalContext, &decimal_equals));
     if (decimal_equals) {
         return ::testing::AssertionSuccess();
     }
-    char expected_str[ION_TEST_DECIMAL_MAX_STRLEN];
-    char actual_str[ION_TEST_DECIMAL_MAX_STRLEN];
+    char expected_str[ION_EVENT_DECIMAL_MAX_STRLEN];
+    char actual_str[ION_EVENT_DECIMAL_MAX_STRLEN];
     ION_EXPECT_OK(ion_decimal_to_string(expected, expected_str));
     ION_EXPECT_OK(ion_decimal_to_string(actual, actual_str));
     return ::testing::AssertionFailure()
@@ -136,15 +128,15 @@ char *ionStringToString(ION_STRING *value) {
 
 ::testing::AssertionResult assertIonTimestampEq(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual) {
     BOOL timestamps_equal;
-    EXPECT_EQ(IERR_OK, g_TimestampEquals(expected, actual, &timestamps_equal, &g_TestDecimalContext));
+    EXPECT_EQ(IERR_OK, g_TimestampEquals(expected, actual, &timestamps_equal, &g_IonEventDecimalContext));
     if (timestamps_equal) {
         return ::testing::AssertionSuccess();
     }
     char expected_str[ION_MAX_TIMESTAMP_STRING];
     char actual_str[ION_MAX_TIMESTAMP_STRING];
     SIZE expected_str_len, actual_str_len;
-    EXPECT_EQ(IERR_OK, ion_timestamp_to_string(expected, expected_str, ION_MAX_TIMESTAMP_STRING, &expected_str_len, &g_TestDecimalContext));
-    EXPECT_EQ(IERR_OK, ion_timestamp_to_string(actual, actual_str, ION_MAX_TIMESTAMP_STRING, &actual_str_len, &g_TestDecimalContext));
+    EXPECT_EQ(IERR_OK, ion_timestamp_to_string(expected, expected_str, ION_MAX_TIMESTAMP_STRING, &expected_str_len, &g_IonEventDecimalContext));
+    EXPECT_EQ(IERR_OK, ion_timestamp_to_string(actual, actual_str, ION_MAX_TIMESTAMP_STRING, &actual_str_len, &g_IonEventDecimalContext));
     return ::testing::AssertionFailure()
             << std::string(expected_str, (size_t)expected_str_len) << " vs. " << std::string(actual_str, (size_t)actual_str_len);
 }

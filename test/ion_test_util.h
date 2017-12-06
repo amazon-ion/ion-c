@@ -21,11 +21,6 @@
 #define ION_ASSERT_OK(x) ASSERT_EQ(IERR_OK, x)
 #define ION_ASSERT_FAIL(x) ASSERT_FALSE(IERR_OK == (x))
 
-/**
- * Converts an ION_TYPE to a switchable int representing the given type's ID.
- */
-#define ION_TID_INT(type) (int)(ION_TYPE_INT(type) >> 8)
-
 #define INSTANTIATE_TEST_CASE_BOOLEAN_PARAM(instantiation_name) \
     INSTANTIATE_TEST_CASE_P(instantiation_name, BinaryAndTextTest, ::testing::Bool())
 
@@ -38,13 +33,6 @@ class BinaryAndTextTest : public ::testing::TestWithParam<bool> {
 public:
     BOOL is_binary;
 };
-
-/**
- * Initializes the given writer options to the test defaults, which provide
- * arbitrarily high limits.
- * @param options - the options to initialize.
- */
-void ion_test_initialize_writer_options(ION_WRITER_OPTIONS *options);
 
 /**
  * Initializes and opens a new in-memory writer.
@@ -96,13 +84,6 @@ iERR ion_test_writer_write_field_name_sid(ION_WRITER *writer, SID sid);
  * @return IERR_OK, unless out is NULL.
  */
 iERR ion_string_from_cstr(const char *cstr, ION_STRING *out);
-
-/**
- * Initializes the given reader options to the test defaults, which provide
- * arbitrarily high limits.
- * @param options - the options to initialize.
- */
-void ion_test_initialize_reader_options(ION_READER_OPTIONS *options);
 
 /**
  * Initializes and opens a new in-memory reader over the given buffer of Ion data.

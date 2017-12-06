@@ -22,3 +22,4 @@ CMakeSettings.json
 CPack*
 tools/cli/libion_cli.dylib
 tools/cli/ion
+tools/events/libion_events.dylib

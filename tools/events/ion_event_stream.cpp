@@ -13,10 +13,8 @@
  */
 
 #include "ion_event_stream.h"
-#include "ion_test_util.h"
-#include <iostream>
 #include <ion_helpers.h>
-#include <ion_const.h>
+#include "ion_event_util.h"
 
 #define IONCHECKORFREE(x, y) { \
     err = x; \
@@ -338,7 +336,7 @@ iERR read_value_stream_from_string(const char *ion_string, IonEventStream *strea
     iENTER;
     hREADER      reader;
     ION_READER_OPTIONS options;
-    ion_test_initialize_reader_options(&options);
+    ion_event_initialize_reader_options(&options);
     options.context_change_notifier.notify = &record_symbol_table_context_change;
     options.context_change_notifier.context = stream;
 
@@ -352,7 +350,7 @@ iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStre
     iENTER;
     hREADER      reader;
     ION_READER_OPTIONS options;
-    ion_test_initialize_reader_options(&options);
+    ion_event_initialize_reader_options(&options);
     if (catalog) {
         options.pcatalog = catalog;
     }
@@ -377,7 +375,7 @@ iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std
     long         result;
 
     ION_READER_OPTIONS options;
-    ion_test_initialize_reader_options(&options);
+    ion_event_initialize_reader_options(&options);
     options.pcatalog = catalog;
     options.context_change_notifier.notify = &record_symbol_table_context_change;
     options.context_change_notifier.context = stream;
@@ -510,7 +508,7 @@ iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_
     IONCHECK(ion_stream_open_memory_only(&ion_stream)); // TODO more types of output streams?
     hWRITER writer;
     ION_WRITER_OPTIONS options;
-    ion_test_initialize_writer_options(&options);
+    ion_event_initialize_writer_options(&options);
     options.output_as_binary = (test_type == ROUNDTRIP_BINARY);
     options.pcatalog = catalog;
 

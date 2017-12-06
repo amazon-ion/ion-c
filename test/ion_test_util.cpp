@@ -16,23 +16,17 @@
 #include "ion_helpers.h"
 #include "ion_test_util.h"
 #include "ion_assert.h"
+#include "ion_event_util.h"
 
 void BinaryAndTextTest::SetUp() {
     is_binary = GetParam();
-}
-
-void ion_test_initialize_writer_options(ION_WRITER_OPTIONS *options) {
-    memset(options, 0, sizeof(ION_WRITER_OPTIONS));
-    options->decimal_context = &g_TestDecimalContext;
-    options->max_container_depth = 100; // Arbitrarily high; if any test vector exceeds this depth, raise this threshold.
-    options->max_annotation_count = 100; // "
 }
 
 iERR ion_test_new_writer(hWRITER *writer, ION_STREAM **ion_stream, BOOL is_binary) {
     iENTER;
     IONCHECK(ion_stream_open_memory_only(ion_stream));
     ION_WRITER_OPTIONS options;
-    ion_test_initialize_writer_options(&options);
+    ion_event_initialize_writer_options(&options);
     options.output_as_binary = is_binary;
     IONCHECK(ion_writer_open(writer, *ion_stream, &options));
     iRETURN;
@@ -88,17 +82,10 @@ iERR ion_string_from_cstr(const char *cstr, ION_STRING *out) {
     iRETURN;
 }
 
-void ion_test_initialize_reader_options(ION_READER_OPTIONS *options) {
-    memset(options, 0, sizeof(ION_READER_OPTIONS));
-    options->decimal_context = &g_TestDecimalContext;
-    options->max_container_depth = 100; // Arbitrarily high; if any test vector exceeds this depth, raise this threshold.
-    options->max_annotation_count = 100; // "
-}
-
 iERR ion_test_new_reader(BYTE *ion_data, SIZE buffer_length, hREADER *reader) {
     iENTER;
     ION_READER_OPTIONS options;
-    ion_test_initialize_reader_options(&options);
+    ion_event_initialize_reader_options(&options);
     IONCHECK(ion_reader_open_buffer(reader, ion_data, buffer_length, &options));
     iRETURN;
 }
