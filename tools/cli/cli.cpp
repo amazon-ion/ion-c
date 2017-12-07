@@ -18,6 +18,8 @@
 #include <inc/ion_errors.h>
 #include <inc/ion.h>
 #include <ion_helpers.h>
+#include <ion_event_util.h>
+#include <ion_event_stream.h>
 #include "docopt/docopt.h"
 #include "cli.h"
 
@@ -126,21 +128,6 @@ typedef struct _ion_cli_process_args {
     std::string traverse;
 } ION_CLI_PROCESS_ARGS;
 
-// The following are arbitrarily high -- consider making configurable.
-#define ION_CLI_DECIMAL_MAX_DIGITS 10000
-#define ION_CLI_ANNOTATION_MAX 100
-#define ION_CLI_CONTAINER_DEPTH_MAX 100
-
-decContext ion_cli_decimal_context = {
-        ION_CLI_DECIMAL_MAX_DIGITS,     // max digits
-        DEC_MAX_MATH,                   // max exponent
-        -DEC_MAX_MATH,                  // min exponent
-        DEC_ROUND_HALF_EVEN,            // rounding mode
-        DEC_Errors,                     // trap conditions
-        0,                              // status flags
-        0                               // apply exponent clamp?
-};
-
 static bool ion_cli_has_flag(std::map<std::string, docopt::value> *args, std::string arg) {
     std::map<std::string, docopt::value>::iterator it = args->find(arg);
     return it != args->end() && it->second.asBool();
@@ -216,9 +203,7 @@ iERR ion_cli_open_reader(ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog, std::s
                          ION_CLI_READER_CONTEXT *reader_context) {
     iENTER;
     memset(reader_context, 0, sizeof(ION_CLI_READER_CONTEXT));
-    reader_context->options.decimal_context = &ion_cli_decimal_context;
-    reader_context->options.max_container_depth = ION_CLI_ANNOTATION_MAX;
-    reader_context->options.max_annotation_count = ION_CLI_CONTAINER_DEPTH_MAX;
+    ion_event_initialize_reader_options(&reader_context->options);
     reader_context->options.pcatalog = catalog;
 
     if (!file_path) {
@@ -245,7 +230,7 @@ iERR ion_cli_create_catalog(std::vector<std::string> *catalog_paths, ION_CATALOG
 
     if (catalog_paths && !catalog_paths->empty()) {
         IONCHECK(ion_catalog_open(&_catalog));
-        for (unsigned int i = 0; i < catalog_paths->size(); i++) {
+        for (size_t i = 0; i < catalog_paths->size(); i++) {
             IONCHECK(ion_cli_add_shared_tables_to_catalog(catalog_paths->at(i), _catalog));
         }
     }
@@ -253,26 +238,8 @@ iERR ion_cli_create_catalog(std::vector<std::string> *catalog_paths, ION_CATALOG
     iRETURN;
 }
 
-typedef struct _ion_cli_writer_context {
-    ION_WRITER_OPTIONS options;
-    hWRITER writer;
-    FILE *file_stream;
-    ION_STREAM *ion_stream;
-    bool has_imports;
-} ION_CLI_WRITER_CONTEXT;
-
-iERR ion_cli_open_writer(ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog, ION_COLLECTION *imports, ION_CLI_WRITER_CONTEXT *writer_context) {
+iERR ion_cli_open_writer_basic(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *writer_context) {
     iENTER;
-
-    memset(writer_context, 0, sizeof(ION_CLI_WRITER_CONTEXT));
-    writer_context->options.decimal_context = &ion_cli_decimal_context;
-    writer_context->options.max_container_depth = ION_CLI_CONTAINER_DEPTH_MAX;
-    writer_context->options.max_annotation_count = ION_CLI_ANNOTATION_MAX;
-    writer_context->options.pcatalog = catalog;
-    if (imports && !ION_COLLECTION_IS_EMPTY(imports)) {
-        IONCHECK(ion_writer_options_initialize_shared_imports(&writer_context->options));
-        IONCHECK(ion_writer_options_add_shared_imports(&writer_context->options, imports));
-    }
     writer_context->options.output_as_binary = args->output_format == "binary";
     writer_context->options.pretty_print = args->output_format == "pretty";
 
@@ -280,15 +247,33 @@ iERR ion_cli_open_writer(ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog, ION_CO
         IONCHECK(ion_stream_open_stdout(&writer_context->ion_stream));
     }
     else {
+        writer_context->file_stream = fopen(args->output.c_str(), "wb");
+        if (!writer_context->file_stream) {
+            FAILWITHMSG(IERR_CANT_FIND_FILE, args->output.c_str());
+        }
         IONCHECK(ion_stream_open_file_out(writer_context->file_stream, &writer_context->ion_stream));
     }
 
     IONCHECK(ion_writer_open(&writer_context->writer, writer_context->ion_stream, &writer_context->options));
-
     iRETURN;
 }
 
-iERR ion_cli_close_writer(ION_CLI_WRITER_CONTEXT *context) {
+iERR ion_cli_open_writer(ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog, ION_COLLECTION *imports, ION_EVENT_WRITER_CONTEXT *writer_context) {
+    iENTER;
+
+    memset(writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
+    ion_event_initialize_writer_options(&writer_context->options);
+    writer_context->options.pcatalog = catalog;
+    if (imports && !ION_COLLECTION_IS_EMPTY(imports)) {
+        IONCHECK(ion_writer_options_initialize_shared_imports(&writer_context->options));
+        IONCHECK(ion_writer_options_add_shared_imports(&writer_context->options, imports));
+    }
+
+    IONCHECK(ion_cli_open_writer_basic(args, writer_context));
+    iRETURN;
+}
+
+iERR ion_cli_close_writer(ION_EVENT_WRITER_CONTEXT *context) {
     iENTER;
     ASSERT(context);
     IONCHECK(ion_writer_close(context->writer));
@@ -316,13 +301,28 @@ iERR ion_cli_create_imports(std::vector<std::string> *import_files, hOWNER *impo
     iRETURN;
 }
 
+iERR ion_cli_write_all_events(ION_CLI_READER_CONTEXT *reader_context, ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog) {
+    iENTER;
+    IonEventStream stream;
+    ION_EVENT_WRITER_CONTEXT stream_writer_context;
+    memset(&stream_writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
+    args->output_format = "pretty"; // Always pretty-print events to improve readability.
+    IONCHECK(ion_cli_open_writer_basic(args, &stream_writer_context));
+
+    ion_event_register_symbol_table_callback(&reader_context->options, &stream);
+    IONCHECK(ion_event_stream_read_all(reader_context->reader, &stream));
+    IONCHECK(ion_event_stream_write_all_events(stream_writer_context.writer, &stream, catalog));
+    IONCHECK(ion_cli_close_writer(&stream_writer_context));
+    iRETURN;
+}
+
 iERR ion_cli_write_all_values(ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog, ION_COLLECTION *imports, std::string *file_path) {
     iENTER;
     ION_CLI_READER_CONTEXT reader_context;
-    ION_CLI_WRITER_CONTEXT writer_context;
+    ION_EVENT_WRITER_CONTEXT writer_context;
     IONCHECK(ion_cli_open_reader(args, catalog, file_path, &reader_context));
     if (args->output_format == "events") {
-        // TODO create an event writer
+        IONCHECK(ion_cli_write_all_events(&reader_context, args, catalog));
         SUCCEED();
     }
     if (args->output_format == "none") {
@@ -349,7 +349,7 @@ iERR ion_cli_command_process_standard(ION_CLI_PROCESS_ARGS *args) {
         IONCHECK(ion_cli_write_all_values(&args->common_args, catalog, imports_owner ? &imports : NULL, NULL));
     }
     else {
-        for (unsigned int i = 0; i < args->common_args.input_files.size(); i++) {
+        for (size_t i = 0; i < args->common_args.input_files.size(); i++) {
             IONCHECK(ion_cli_write_all_values(&args->common_args, catalog, imports_owner ? &imports : NULL, &args->common_args.input_files.at(i)));
         }
     }

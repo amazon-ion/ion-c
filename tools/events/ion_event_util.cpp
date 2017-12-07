@@ -13,9 +13,10 @@
  */
 
 #include "ion_event_util.h"
+#include <ion_helpers.h>
 
 decContext g_IonEventDecimalContext = {
-        ION_EVENT_DECIMAL_MAX_DIGITS,   // max digits (arbitrarily high -- raise if test data requires more)
+        ION_EVENT_DECIMAL_MAX_DIGITS,   // max digits
         DEC_MAX_MATH,                   // max exponent
         -DEC_MAX_MATH,                  // min exponent
         DEC_ROUND_HALF_EVEN,            // rounding mode
@@ -27,14 +28,50 @@ decContext g_IonEventDecimalContext = {
 void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options) {
     memset(options, 0, sizeof(ION_WRITER_OPTIONS));
     options->decimal_context = &g_IonEventDecimalContext;
-    options->max_container_depth = 100; // Arbitrarily high; if any test vector exceeds this depth, raise this threshold.
-    options->max_annotation_count = 100; // "
+    options->max_container_depth = ION_EVENT_CONTAINER_DEPTH_MAX;
+    options->max_annotation_count = ION_EVENT_ANNOTATION_MAX;
 }
 
 void ion_event_initialize_reader_options(ION_READER_OPTIONS *options) {
     memset(options, 0, sizeof(ION_READER_OPTIONS));
     options->decimal_context = &g_IonEventDecimalContext;
-    options->max_container_depth = 100; // Arbitrarily high; if any test vector exceeds this depth, raise this threshold.
-    options->max_annotation_count = 100; // "
+    options->max_container_depth = ION_EVENT_CONTAINER_DEPTH_MAX;
+    options->max_annotation_count = ION_EVENT_ANNOTATION_MAX;
 }
 
+iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, BOOL is_binary, ION_CATALOG *catalog, ION_COLLECTION *imports) {
+    iENTER;
+    memset(writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
+    IONCHECK(ion_stream_open_memory_only(&writer_context->ion_stream));
+    ion_event_initialize_writer_options(&writer_context->options);
+    writer_context->options.output_as_binary = is_binary;
+    writer_context->options.pcatalog = catalog;
+    if (imports) {
+        IONCHECK(ion_writer_options_initialize_shared_imports(&writer_context->options));
+        IONCHECK(ion_writer_options_add_shared_imports(&writer_context->options, imports));
+        writer_context->has_imports = TRUE;
+    }
+    IONCHECK(ion_writer_open(&writer_context->writer, writer_context->ion_stream, &writer_context->options));
+    iRETURN;
+}
+
+iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len) {
+    iENTER;
+    POSITION pos;
+    IONCHECK(ion_writer_close(writer_context->writer));
+    pos = ion_stream_get_position(writer_context->ion_stream);
+    IONCHECK(ion_stream_seek(writer_context->ion_stream, 0));
+    *bytes = (BYTE *)(malloc((size_t)pos));
+    SIZE bytes_read;
+    IONCHECK(ion_stream_read(writer_context->ion_stream, *bytes, (SIZE)pos, &bytes_read));
+
+    IONCHECK(ion_stream_close(writer_context->ion_stream));
+    if (bytes_read != (SIZE)pos) {
+        FAILWITH(IERR_EOF);
+    }
+    if (writer_context->has_imports) {
+        IONCHECK(ion_writer_options_close_shared_imports(&writer_context->options));
+    }
+    *bytes_len = bytes_read;
+    iRETURN;
+}

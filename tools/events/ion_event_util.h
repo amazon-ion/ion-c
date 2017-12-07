@@ -22,6 +22,9 @@
  */
 #define ION_TID_INT(type) (int)(ION_TYPE_INT(type) >> 8)
 
+// The following limits are arbitrarily high.
+#define ION_EVENT_CONTAINER_DEPTH_MAX 100
+#define ION_EVENT_ANNOTATION_MAX 100
 #define ION_EVENT_DECIMAL_MAX_DIGITS 10000
 #define ION_EVENT_DECIMAL_MAX_STRLEN (ION_EVENT_DECIMAL_MAX_DIGITS + 14) // 14 extra bytes as specified by decNumber.
 
@@ -31,6 +34,14 @@
  * necessary, to avoid loss of precision.
  */
 extern decContext g_IonEventDecimalContext;
+
+typedef struct _ion_cli_writer_context {
+    ION_WRITER_OPTIONS options;
+    hWRITER writer;
+    FILE *file_stream;
+    ION_STREAM *ion_stream;
+    bool has_imports;
+} ION_EVENT_WRITER_CONTEXT;
 
 /**
  * Initializes the given reader options using arbitrarily high limits.
@@ -43,5 +54,8 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options);
  * @param options - the options to initialize.
  */
 void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options);
+
+iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, BOOL is_binary, ION_CATALOG *catalog, ION_COLLECTION *imports);
+iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len);
 
 #endif //IONC_ION_EVENT_UTIL_H

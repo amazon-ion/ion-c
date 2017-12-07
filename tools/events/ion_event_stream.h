@@ -21,17 +21,6 @@
 
 typedef ION_STRING ION_LOB;
 
-typedef enum _reader_input_type {
-    /**
-     * Creates an ION_STREAM for the input file using ion_stream_open_file_in, then a reader using ion_reader_open.
-     */
-    STREAM = 0,
-    /**
-     * Buffers the contents of the input file, then creates a reader over that buffer using ion_reader_open_buffer.
-     */
-    BUFFER
-} READER_INPUT_TYPE;
-
 typedef enum _ion_event_type {
     SCALAR = 0,
     CONTAINER_START,
@@ -39,23 +28,6 @@ typedef enum _ion_event_type {
     SYMBOL_TABLE,
     STREAM_END
 } ION_EVENT_TYPE;
-
-typedef enum _vector_test_type {
-    /**
-     * Simply read the file.
-     */
-    READ = 0,
-    /**
-     * Read the file, then write the file in the text format (regardless of the input format), then read the file.
-     * Compare the event streams from the first and second reads for equivalence.
-     */
-    ROUNDTRIP_TEXT,
-    /**
-     * Read the file, then write the file in the binary format (regardless of the input format), then read the file.
-     * Compare the event streams from the first and second reads for equivalence.
-     */
-    ROUNDTRIP_BINARY
-} VECTOR_TEST_TYPE;
 
 class IonEvent {
 public:
@@ -101,6 +73,12 @@ public:
 };
 
 /**
+ * Configure the given reader options to add a SYMBOL_TABLE event to the given IonEventStream whenever the symbol
+ * table context changes.
+ */
+void ion_event_register_symbol_table_callback(ION_READER_OPTIONS *options, IonEventStream *stream);
+
+/**
  * Returns the length of the value starting at start_index, in number of events. Scalars will always return 1.
  */
 size_t valueEventLength(IonEventStream *stream, size_t start_index);
@@ -112,14 +90,18 @@ iERR read_value_stream_from_string(const char *ion_string, IonEventStream *strea
 iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStream *stream, ION_CATALOG *catalog);
 
 /**
- * Constructs a reader using the given input type and catalog, then reads IonEvents from the Ion data contained
- * within the file at the given pathname, into the given IonEventStream.
+ * Reads an IonEventStream from the given reader's data.
  */
-iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std::string pathname, ION_CATALOG *catalog);
+iERR ion_event_stream_read_all(hREADER hreader, IonEventStream *stream);
 
 /**
- * Constructs a writer using the given test type and catalog and uses it to write the given IonEventStream to BYTEs.
+ * Writes an IonEventStream as an Ion stream using the given writer.
  */
-iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_CATALOG *catalog, BYTE **out, SIZE *len);
+iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream);
+
+/**
+ * Writes an IonEventStream as a serialized event stream using the given writer.
+ */
+iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog);
 
 #endif //IONC_VALUE_STREAM_H

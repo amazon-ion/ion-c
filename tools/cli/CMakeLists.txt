@@ -7,12 +7,12 @@ if(NOT CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD LESS 11)
     set(CMAKE_CXX_STANDARD 11)
 endif()
 
-include_directories(./ docopt)
+include_directories(./ ../events docopt)
 
 # The public executable.
 add_executable(ion main.cpp cli.cpp)
-target_link_libraries(ion ionc docopt)
+target_link_libraries(ion ionc ion_events docopt)
 
 # A library for testing.
 add_library(ion_cli cli.cpp)
-target_link_libraries(ion_cli ionc docopt)
+target_link_libraries(ion_cli ionc ion_events docopt)

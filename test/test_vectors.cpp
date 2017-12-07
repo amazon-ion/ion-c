@@ -12,6 +12,8 @@
  * language governing permissions and limitations under the License.
  */
 
+#include <ion_helpers.h>
+#include <ion_event_util.h>
 #include "ion_platform_config.h"
 #include "gather_vectors.h"
 #include "ion_event_stream.h"
@@ -48,6 +50,34 @@
     catalog = NULL; \
     EXPECT_EQ(IERR_OK, ion_catalog_open(&catalog)); \
 }
+
+typedef enum _reader_input_type {
+    /**
+     * Creates an ION_STREAM for the input file using ion_stream_open_file_in, then a reader using ion_reader_open.
+     */
+            STREAM = 0,
+    /**
+     * Buffers the contents of the input file, then creates a reader over that buffer using ion_reader_open_buffer.
+     */
+            BUFFER
+} READER_INPUT_TYPE;
+
+typedef enum _vector_test_type {
+    /**
+     * Simply read the file.
+     */
+            READ = 0,
+    /**
+     * Read the file, then write the file in the text format (regardless of the input format), then read the file.
+     * Compare the event streams from the first and second reads for equivalence.
+     */
+            ROUNDTRIP_TEXT,
+    /**
+     * Read the file, then write the file in the binary format (regardless of the input format), then read the file.
+     * Compare the event streams from the first and second reads for equivalence.
+     */
+            ROUNDTRIP_BINARY
+} VECTOR_TEST_TYPE;
 
 TEST(TestVectors, HasRequiredDependencies) {
     // If this flag is false, these tests can't run.
@@ -184,6 +214,84 @@ std::vector<std::string> gather(TEST_FILE_TYPE filetype, TEST_FILE_CLASSIFICATIO
     std::vector<std::string> files;
     gather_files(filetype, classification, &files);
     return files;
+}
+
+/**
+ * Constructs a reader using the given input type and catalog, then reads IonEvents from the Ion data contained
+ * within the file at the given pathname, into the given IonEventStream.
+ */
+iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std::string pathname, ION_CATALOG *catalog)
+{
+    iENTER;
+    FILE        *fstream = NULL;
+    ION_STREAM  *f_ion_stream = NULL;
+    hREADER      reader;
+    long         size;
+    char        *buffer = NULL;
+    long         result;
+
+    ION_READER_OPTIONS options;
+    ion_event_initialize_reader_options(&options);
+    options.pcatalog = catalog;
+    ion_event_register_symbol_table_callback(&options, stream);
+
+    const char *pathname_c_str = pathname.c_str();
+
+    switch (input_type) {
+        case STREAM:
+            // ------------ testing ion_reader_open_stream ----------------
+            fstream = fopen(pathname_c_str, "rb");
+            if (!fstream) {
+                FAILWITHMSG(IERR_CANT_FIND_FILE, pathname_c_str);
+            }
+
+            IONCHECK(ion_stream_open_file_in(fstream, &f_ion_stream));
+            IONCHECK(ion_reader_open(&reader, f_ion_stream, &options));
+            IONCHECK(ion_event_stream_read_all(reader, stream));
+            IONCHECK(ion_reader_close(reader));
+            IONCHECK(ion_stream_close(f_ion_stream));
+            fclose(fstream);
+            break;
+        case BUFFER:
+            // ------------ testing ion_reader_open_buffer ----------------
+            fstream = fopen(pathname_c_str, "rb");
+            if (!fstream) {
+                FAILWITHMSG(IERR_CANT_FIND_FILE, pathname_c_str);
+            }
+
+            fseek(fstream, 0, SEEK_END);
+            size = ftell(fstream);
+            rewind(fstream);                // Set position indicator to the beginning
+            buffer = (char *) malloc(size);
+            result = fread(buffer, 1, size, fstream);  // copy the file into the buffer:
+            fclose(fstream);
+
+            IONCHECK(ion_reader_open_buffer(&reader, (BYTE *) buffer, result, &options));
+            IONCHECK(ion_event_stream_read_all(reader, stream));
+            IONCHECK(ion_reader_close(reader));
+            free(buffer);
+            buffer = NULL;
+            break;
+        default:
+            FAILWITH(IERR_INVALID_ARG);
+    }
+    fail:
+    if (buffer) {
+        free(buffer);
+    }
+    RETURN(__location_name__, __line__, __count__++, err);
+}
+
+/**
+ * Constructs a writer using the given test type and catalog and uses it to write the given IonEventStream to BYTEs.
+ */
+iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_CATALOG *catalog, BYTE **out, SIZE *len) {
+    iENTER;
+    ION_EVENT_WRITER_CONTEXT writer_context;
+    IONCHECK(ion_event_in_memory_writer_open(&writer_context, (test_type == ROUNDTRIP_BINARY), catalog, /*imports=*/NULL));
+    IONCHECK(ion_event_stream_write_all(writer_context.writer, stream));
+    IONCHECK(ion_event_in_memory_writer_close(&writer_context, out, len));
+    iRETURN;
 }
 
 /**

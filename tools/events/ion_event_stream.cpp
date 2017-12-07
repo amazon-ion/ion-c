@@ -191,6 +191,11 @@ iERR record_symbol_table_context_change(void *stream, ION_COLLECTION *imports) {
     iRETURN;
 }
 
+void ion_event_register_symbol_table_callback(ION_READER_OPTIONS *options, IonEventStream *stream) {
+    options->context_change_notifier.notify = &record_symbol_table_context_change;
+    options->context_change_notifier.context = stream;
+}
+
 iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth) {
     iENTER;
 
@@ -325,7 +330,7 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
     iRETURN;
 }
 
-iERR read_all(hREADER hreader, IonEventStream *stream) {
+iERR ion_event_stream_read_all(hREADER hreader, IonEventStream *stream) {
     iENTER;
     IONCHECK(read_all(hreader, stream, /*in_struct=*/FALSE, /*depth=*/0));
     stream->append_new(STREAM_END, tid_none, NULL, NULL, 0, 0);
@@ -337,11 +342,10 @@ iERR read_value_stream_from_string(const char *ion_string, IonEventStream *strea
     hREADER      reader;
     ION_READER_OPTIONS options;
     ion_event_initialize_reader_options(&options);
-    options.context_change_notifier.notify = &record_symbol_table_context_change;
-    options.context_change_notifier.context = stream;
+    ion_event_register_symbol_table_callback(&options, stream);
 
     IONCHECK(ion_reader_open_buffer(&reader, (BYTE *)ion_string, (SIZE)strlen(ion_string), &options));
-    IONCHECK(read_all(reader, stream));
+    IONCHECK(ion_event_stream_read_all(reader, stream));
     IONCHECK(ion_reader_close(reader));
     iRETURN;
 }
@@ -354,77 +358,12 @@ iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStre
     if (catalog) {
         options.pcatalog = catalog;
     }
-    options.context_change_notifier.notify = &record_symbol_table_context_change;
-    options.context_change_notifier.context = stream;
+    ion_event_register_symbol_table_callback(&options, stream);
 
     IONCHECK(ion_reader_open_buffer(&reader, (BYTE *)ion_string, len, &options));
-    IONCHECK(read_all(reader, stream));
+    IONCHECK(ion_event_stream_read_all(reader, stream));
     IONCHECK(ion_reader_close(reader));
     iRETURN;
-}
-
-
-iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std::string pathname, ION_CATALOG *catalog)
-{
-    iENTER;
-    FILE        *fstream = NULL;
-    ION_STREAM  *f_ion_stream = NULL;
-    hREADER      reader;
-    long         size;
-    char        *buffer = NULL;
-    long         result;
-
-    ION_READER_OPTIONS options;
-    ion_event_initialize_reader_options(&options);
-    options.pcatalog = catalog;
-    options.context_change_notifier.notify = &record_symbol_table_context_change;
-    options.context_change_notifier.context = stream;
-
-    const char *pathname_c_str = pathname.c_str();
-
-    switch (input_type) {
-        case STREAM:
-            // ------------ testing ion_reader_open_stream ----------------
-            fstream = fopen(pathname_c_str, "rb");
-            if (!fstream) {
-                FAILWITHMSG(IERR_CANT_FIND_FILE, pathname_c_str);
-            }
-
-            IONCHECK(ion_stream_open_file_in(fstream, &f_ion_stream));
-            IONCHECK(ion_reader_open(&reader, f_ion_stream, &options));
-            IONCHECK(read_all(reader, stream));
-            IONCHECK(ion_reader_close(reader));
-            IONCHECK(ion_stream_close(f_ion_stream));
-            fclose(fstream);
-            break;
-        case BUFFER:
-            // ------------ testing ion_reader_open_buffer ----------------
-            fstream = fopen(pathname_c_str, "rb");
-            if (!fstream) {
-                FAILWITHMSG(IERR_CANT_FIND_FILE, pathname_c_str);
-            }
-
-            fseek(fstream, 0, SEEK_END);
-            size = ftell(fstream);
-            rewind(fstream);                // Set position indicator to the beginning
-            buffer = (char *) malloc(size);
-            result = fread(buffer, 1, size, fstream);  // copy the file into the buffer:
-            fclose(fstream);
-
-            IONCHECK(ion_reader_open_buffer(&reader, (BYTE *) buffer, result, &options));
-            IONCHECK(read_all(reader, stream));
-            IONCHECK(ion_reader_close(reader));
-            free(buffer);
-            buffer = NULL;
-            break;
-        default:
-            FAILWITH(IERR_INVALID_ARG);
-    }
-fail:
-    if (buffer) {
-        free(buffer);
-    }
-    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 iERR write_scalar(hWRITER writer, IonEvent *event) {
@@ -500,35 +439,183 @@ iERR write_event(hWRITER writer, IonEvent *event) {
     iRETURN;
 }
 
-iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_CATALOG *catalog, BYTE **out, SIZE *len) {
-    // TODO should also have versions of this that don't even need the event stream, and just use ion_writer_write_all_values().
+iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream) {
     iENTER;
-    ION_STREAM *ion_stream = NULL;
-    POSITION pos;
-    IONCHECK(ion_stream_open_memory_only(&ion_stream)); // TODO more types of output streams?
-    hWRITER writer;
-    ION_WRITER_OPTIONS options;
-    ion_event_initialize_writer_options(&options);
-    options.output_as_binary = (test_type == ROUNDTRIP_BINARY);
-    options.pcatalog = catalog;
-
-    IONCHECK(ion_writer_open(&writer, ion_stream, &options));
-
     for (size_t i = 0; i < stream->size(); i++) {
         IONCHECK(write_event(writer, stream->at(i)));
     }
+    iRETURN;
+}
 
-    IONCHECK(ion_writer_close(writer));
-    pos = ion_stream_get_position(ion_stream);
-    IONCHECK(ion_stream_seek(ion_stream, 0));
-    *out = (BYTE *)(malloc((size_t)pos));
-    SIZE bytes_read;
-    IONCHECK(ion_stream_read(ion_stream, *out, (SIZE)pos, &bytes_read));
-
-    IONCHECK(ion_stream_close(ion_stream));
-    if (bytes_read != (SIZE)pos) {
-        FAILWITH(IERR_EOF);
+std::string ion_event_type_to_string(ION_EVENT_TYPE type) {
+    switch (type) {
+        case SCALAR: return "SCALAR";
+        case CONTAINER_START: return "CONTAINER_START";
+        case CONTAINER_END: return "CONTAINER_END";
+        case SYMBOL_TABLE: return "SYMBOL_TABLE";
+        case STREAM_END: return "STREAM_END";
     }
-    *len = bytes_read;
+}
+
+std::string ion_event_ion_type_to_string(ION_TYPE type) {
+    switch (ION_TID_INT(type)) {
+        case TID_NULL: return "NULL";
+        case TID_BOOL: return "BOOL";
+        case TID_POS_INT:
+        case TID_NEG_INT: return "INT";
+        case TID_FLOAT: return "FLOAT";
+        case TID_DECIMAL: return "DECIMAL";
+        case TID_TIMESTAMP: return "TIMESTAMP";
+        case TID_SYMBOL: return "SYMBOL";
+        case TID_STRING: return "STRING";
+        case TID_BLOB: return "BLOB";
+        case TID_CLOB: return "CLOB";
+        case TID_LIST: return "LIST";
+        case TID_SEXP: return "SEXP";
+        case TID_STRUCT: return "STRUCT";
+        default: return NULL;
+    }
+}
+
+// Event fields
+static ION_STRING ion_event_event_type_field = {10, (BYTE *)"event_type"};
+static ION_STRING ion_event_ion_type_field = {8, (BYTE *)"ion_type"};
+static ION_STRING ion_event_field_name_field = {10, (BYTE *)"field_name"};
+static ION_STRING ion_event_annotations_field = {11, (BYTE *)"annotations"};
+static ION_STRING ion_event_value_text_field = {10, (BYTE *)"value_text"};
+static ION_STRING ion_event_value_binary_field = {12, (BYTE *)"value_binary"};
+static ION_STRING ion_event_imports_field = {7, (BYTE *)"imports"};
+static ION_STRING ion_event_depth_field = {5, (BYTE *)"depth"};
+
+// Symbol token fields
+static ION_STRING ion_event_text_field = {4, (BYTE *)"text"};
+static ION_STRING ion_event_import_location_field = {15, (BYTE *)"import_location"};
+
+// Import location fields
+static ION_STRING ion_event_name_field = {4, (BYTE *)"name"};
+static ION_STRING ion_event_import_sid_field = {8, (BYTE *)"location"};
+
+// Symbol table import fields
+static ION_STRING ion_event_import_name_field = {11, (BYTE *)"import_name"};
+static ION_STRING ion_event_max_id_field = {6, (BYTE *)"max_id"};
+static ION_STRING ion_event_version_field = {7, (BYTE *)"version"};
+
+iERR ion_event_stream_write_symbol_token(hWRITER writer, ION_SYMBOL *symbol) {
+    iENTER;
+    ASSERT(symbol);
+
+    IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_text_field));
+    if (!ION_STRING_IS_NULL(&symbol->value)) {
+        IONCHECK(ion_writer_write_string(writer, &symbol->value));
+    }
+    else {
+        IONCHECK(ion_writer_write_null(writer));
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_import_location_field));
+        IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_name_field));
+        IONCHECK(ion_writer_write_string(writer, &symbol->import_location.name));
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_import_sid_field));
+        IONCHECK(ion_writer_write_int(writer, symbol->import_location.location));
+        IONCHECK(ion_writer_finish_container(writer));
+    }
+    IONCHECK(ion_writer_finish_container(writer));
+    iRETURN;
+}
+
+iERR ion_event_stream_write_symbol_table_imports(hWRITER writer, ION_COLLECTION *imports) {
+    iENTER;
+    ION_COLLECTION_CURSOR import_cursor;
+    ION_SYMBOL_TABLE_IMPORT *import;
+    IONCHECK(ion_writer_start_container(writer, tid_LIST));
+    ION_COLLECTION_OPEN(imports, import_cursor);
+    for (;;) {
+        ION_COLLECTION_NEXT(import_cursor, import);
+        if (!import) break;
+        IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_import_name_field));
+        IONCHECK(ion_writer_write_string(writer, &import->descriptor.name));
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_max_id_field));
+        IONCHECK(ion_writer_write_int(writer, import->descriptor.max_id));
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_version_field));
+        IONCHECK(ion_writer_write_int(writer, import->descriptor.version));
+        IONCHECK(ion_writer_finish_container(writer));
+    }
+    ION_COLLECTION_CLOSE(import_cursor);
+    IONCHECK(ion_writer_finish_container(writer));
+    iRETURN;
+}
+
+iERR ion_event_stream_write_scalar_event(hWRITER writer, IonEvent *event, ION_COLLECTION *imports, ION_CATALOG *catalog) {
+    iENTER;
+    ION_EVENT_WRITER_CONTEXT text_context, binary_context;
+    BYTE *text_value, *binary_value;
+    SIZE text_len, binary_len;
+    ION_STRING text_stream;
+
+    IONCHECK(ion_event_in_memory_writer_open(&text_context, FALSE, catalog, (event->ion_type == tid_SYMBOL) ? imports : NULL));
+    IONCHECK(ion_event_in_memory_writer_open(&binary_context, TRUE, catalog, (event->ion_type == tid_SYMBOL) ? imports : NULL));
+    IONCHECK(write_scalar(text_context.writer, event));
+    IONCHECK(write_scalar(binary_context.writer, event));
+    IONCHECK(ion_event_in_memory_writer_close(&text_context, &text_value, &text_len));
+    IONCHECK(ion_event_in_memory_writer_close(&binary_context, &binary_value, &binary_len));
+
+    ion_string_assign_cstr(&text_stream, (char *)text_value, text_len);
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_value_text_field));
+    IONCHECK(ion_writer_write_string(writer, &text_stream));
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_value_binary_field));
+    IONCHECK(ion_writer_start_container(writer, tid_LIST));
+    for (int i = 0; i < binary_len; i++) {
+        IONCHECK(ion_writer_write_int(writer, binary_value[i]));
+    }
+    IONCHECK(ion_writer_finish_container(writer));
+
+    free(text_value);
+    free(binary_value);
+    iRETURN;
+}
+
+iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog) {
+    iENTER;
+    ION_COLLECTION *imports = NULL;
+    for (size_t i = 0; i < stream->size(); i++) {
+        IonEvent *event = stream->at(i);
+        std::string event_type = ion_event_type_to_string(event->event_type);
+        std::string ion_type;
+        ION_STRING event_type_str, ion_type_str;
+        IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
+        ion_string_assign_cstr(&event_type_str, (char *)event_type.c_str(), (SIZE)event_type.size());
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_event_type_field));
+        IONCHECK(ion_writer_write_symbol(writer, &event_type_str));
+        if (event->ion_type != tid_none) {
+            ion_type = ion_event_ion_type_to_string(event->ion_type);
+            ion_string_assign_cstr(&ion_type_str, (char *)ion_type.c_str(), (SIZE)ion_type.size());
+            IONCHECK(ion_writer_write_field_name(writer, &ion_event_ion_type_field));
+            IONCHECK(ion_writer_write_symbol(writer, &ion_type_str));
+        }
+        if (event->field_name) {
+            IONCHECK(ion_writer_write_field_name(writer, &ion_event_field_name_field));
+            IONCHECK(ion_event_stream_write_symbol_token(writer, event->field_name));
+        }
+        if (event->num_annotations > 0) {
+            IONCHECK(ion_writer_write_field_name(writer, &ion_event_annotations_field));
+            IONCHECK(ion_writer_start_container(writer, tid_LIST));
+            for (int j = 0; j < event->num_annotations; j++) {
+                IONCHECK(ion_event_stream_write_symbol_token(writer, event->annotations[j]));
+            }
+            IONCHECK(ion_writer_finish_container(writer));
+        }
+        if (event->event_type == SYMBOL_TABLE) {
+            imports = (ION_COLLECTION *)event->value;
+            IONCHECK(ion_writer_write_field_name(writer, &ion_event_imports_field));
+            IONCHECK(ion_event_stream_write_symbol_table_imports(writer, imports));
+        }
+        else if (event->event_type == SCALAR){
+            IONCHECK(ion_event_stream_write_scalar_event(writer, event, imports, catalog));
+        }
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_depth_field));
+        IONCHECK(ion_writer_write_int(writer, event->depth));
+        IONCHECK(ion_writer_finish_container(writer));
+    }
     iRETURN;
 }

@@ -18,6 +18,8 @@
 TEST(IonCli, ManualInputs) {
     std::vector<std::string> args;
     args.push_back("process");
+    args.push_back("--output-format");
+    args.push_back("events");
     args.push_back("../ion-tests/iontestdata/good/symbols.ion");
     ion_cli_parse(args);
 }
