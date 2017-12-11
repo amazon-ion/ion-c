@@ -79,14 +79,14 @@ IonEventStream::~IonEventStream() {
                 ion_free_owner(event->value);
             }
             else if (event->value) {
-                int tid = (int)(ION_TYPE_INT(event->ion_type) >> 8);
-                switch (tid) {
+                switch (ION_TID_INT(event->ion_type)) {
                     case TID_POS_INT:
                     case TID_NEG_INT:
                         ion_int_free((ION_INT *)event->value);
                         break;
                     case TID_DECIMAL:
                         ion_decimal_free((ION_DECIMAL *) event->value);
+                        free(event->value);
                         break;
                     case TID_SYMBOL:
                         free_ion_symbol((ION_SYMBOL *)event->value);
@@ -131,18 +131,15 @@ size_t valueEventLength(IonEventStream *stream, size_t start_index) {
     return 1;
 }
 
-iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth);
-
-iERR read_all(hREADER hreader, IonEventStream *stream, BOOL in_struct, int depth) {
+iERR _ion_event_stream_read_all_recursive(hREADER hreader, IonEventStream *stream, BOOL in_struct, int depth) {
     iENTER;
     ION_TYPE t;
     for (;;) {
         IONCHECK(ion_reader_next(hreader, &t));
         if (t == tid_EOF) {
-            assert(t == tid_EOF && "next() at end");
             break;
         }
-        IONCHECK(read_next_value(hreader, stream, t, in_struct, depth));
+        IONCHECK(ion_event_stream_read(hreader, stream, t, in_struct, depth));
     }
     iRETURN;
 }
@@ -196,7 +193,7 @@ void ion_event_register_symbol_table_callback(ION_READER_OPTIONS *options, IonEv
     options->context_change_notifier.context = stream;
 }
 
-iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth) {
+iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth) {
     iENTER;
 
     BOOL        is_null;
@@ -319,7 +316,7 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
         case TID_SEXP: // intentional fall-through
         case TID_LIST:
             IONCHECKORFREE2(ion_reader_step_in(hreader));
-            IONCHECKORFREE2(read_all(hreader, stream, t == tid_STRUCT, depth + 1));
+            IONCHECKORFREE2(_ion_event_stream_read_all_recursive(hreader, stream, t == tid_STRUCT, depth + 1));
             IONCHECKORFREE2(ion_reader_step_out(hreader));
             stream->append_new(CONTAINER_END, t, /*field_name=*/NULL, /*annotations=*/NULL, /*annotation_count=*/0,
                                depth);
@@ -332,16 +329,469 @@ iERR read_next_value(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL i
 
 iERR ion_event_stream_read_all(hREADER hreader, IonEventStream *stream) {
     iENTER;
-    IONCHECK(read_all(hreader, stream, /*in_struct=*/FALSE, /*depth=*/0));
+    IONCHECK(_ion_event_stream_read_all_recursive(hreader, stream, /*in_struct=*/FALSE, /*depth=*/0));
     stream->append_new(STREAM_END, tid_none, NULL, NULL, 0, 0);
     iRETURN;
 }
 
-iERR read_value_stream_from_string(const char *ion_string, IonEventStream *stream) {
+iERR ion_event_stream_read_import_location(hREADER reader, ION_SYMBOL_IMPORT_LOCATION *import_location) {
+    iENTER;
+    ION_TYPE ion_type;
+    ION_STRING field_name;
+    BOOL is_null;
+    ASSERT(import_location);
+
+    for (;;) {
+        IONCHECK(ion_reader_next(reader, &ion_type));
+        if (ion_type == tid_EOF) break;
+        IONCHECK(ion_reader_get_field_name(reader, &field_name));
+        IONCHECK(ion_reader_is_null(reader, &is_null));
+        if (ION_STRING_EQUALS(&ion_event_import_name_field, &field_name)) {
+            if (is_null || ion_type != tid_STRING) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_read_string(reader, &import_location->name));
+        }
+        else if (ION_STRING_EQUALS(&ion_event_import_sid_field, &field_name)) {
+            if (is_null || ion_type != tid_INT) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_read_int(reader, &import_location->location));
+        }
+        else {
+            FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+        }
+    }
+
+    if (ION_STRING_IS_NULL(&import_location->name) || import_location->location <= UNKNOWN_SID) {
+        FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+    }
+
+    iRETURN;
+}
+
+iERR ion_event_stream_read_symbol_token(hREADER reader, ION_SYMBOL *symbol) {
+    iENTER;
+    ION_TYPE ion_type;
+    ION_STRING field_name;
+    BOOL is_null;
+    ASSERT(symbol);
+
+    symbol->add_count = 0;
+    symbol->sid = UNKNOWN_SID;
+    ION_STRING_INIT(&symbol->value);
+    ION_STRING_INIT(&symbol->import_location.name);
+    symbol->import_location.location = UNKNOWN_SID;
+
+    for (;;) {
+        IONCHECK(ion_reader_next(reader, &ion_type));
+        if (ion_type == tid_EOF) break;
+        IONCHECK(ion_reader_get_field_name(reader, &field_name));
+        IONCHECK(ion_reader_is_null(reader, &is_null));
+        if (ION_STRING_EQUALS(&ion_event_text_field, &field_name)) {
+            IONCHECK(ion_reader_read_string(reader, &symbol->value));
+        }
+        else if (ION_STRING_EQUALS(&ion_event_import_location_field, &field_name)) {
+            if (is_null) {
+                continue;
+            }
+            if (ion_type != tid_STRUCT) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_step_in(reader));
+            IONCHECK(ion_event_stream_read_import_location(reader, &symbol->import_location));
+            IONCHECK(ion_reader_step_out(reader));
+        }
+        else {
+            FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+        }
+    }
+
+    if (ION_STRING_IS_NULL(&symbol->value) && ION_STRING_IS_NULL(&symbol->import_location.name)) {
+        symbol->sid = 0;
+    }
+
+    iRETURN;
+}
+
+iERR ion_event_stream_read_import(hREADER reader, ION_COLLECTION *imports) {
+    iENTER;
+    ION_TYPE ion_type;
+    ION_STRING field_name;
+    BOOL is_null;
+    ION_SYMBOL_TABLE_IMPORT *import = NULL;
+    ION_SYMBOL_TABLE_IMPORT_DESCRIPTOR descriptor;
+    memset(&descriptor, 0, sizeof(ION_SYMBOL_TABLE_IMPORT_DESCRIPTOR));
+    descriptor.version = 1;
+    descriptor.max_id = -1;
+
+    for (;;) {
+        IONCHECK(ion_reader_next(reader, &ion_type));
+        if (ion_type == tid_EOF) break;
+        IONCHECK(ion_reader_get_field_name(reader, &field_name));
+        IONCHECK(ion_reader_is_null(reader, &is_null));
+        if (ION_STRING_EQUALS(&ion_event_name_field, &field_name)) {
+            if (is_null || ion_type != tid_STRING) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_read_string(reader, &descriptor.name));
+        }
+        else if (ION_STRING_EQUALS(&ion_event_version_field, &field_name)) {
+            if (is_null) {
+                continue;
+            }
+            if (ion_type != tid_INT) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_read_int(reader, &descriptor.version));
+        }
+        else if (ION_STRING_EQUALS(&ion_event_max_id_field, &field_name)) {
+            if (is_null) {
+                continue;
+            }
+            if (ion_type != tid_INT) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_read_int(reader, &descriptor.max_id));
+        }
+        else {
+            FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+        }
+    }
+
+    if (ION_STRING_IS_NULL(&descriptor.name)) {
+        FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+    }
+
+    import = (ION_SYMBOL_TABLE_IMPORT *)_ion_collection_append(imports);
+    import->shared_symbol_table = NULL;
+    memcpy(&import->descriptor, &descriptor, sizeof(ION_SYMBOL_TABLE_IMPORT_DESCRIPTOR));
+    iRETURN;
+}
+
+iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION **imports) {
+    iENTER;
+    ION_TYPE ion_type;
+    ION_COLLECTION *_imports = (ION_COLLECTION *)ion_alloc_owner(sizeof(ION_COLLECTION));
+    _ion_collection_initialize(_imports, _imports, sizeof (ION_SYMBOL_TABLE_IMPORT));
+
+    for (;;) {
+        IONCHECK(ion_reader_next(reader, &ion_type));
+        if (ion_type == tid_EOF) break;
+        if (ion_type != tid_STRUCT) {
+            FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+        }
+        IONCHECK(ion_reader_step_in(reader));
+        IONCHECK(ion_event_stream_read_import(reader, _imports));
+        IONCHECK(ion_reader_step_out(reader));
+    }
+
+    *imports = _imports;
+    iRETURN;
+}
+
+/**
+ * Copies the given SCALAR event's value so that it may be used outside the scope of the event's owning stream. The
+ * copied value is allocated such that it may be freed safely by the IonEventStream destructor.
+ */
+iERR ion_event_copy_value(IonEvent *event, void **value) {
+    iENTER;
+    void *copied = NULL;
+    BOOL *bool_val = NULL;
+    ION_INT *int_val = NULL;
+    double *float_val = NULL;
+    ION_DECIMAL *decimal = NULL;
+    ION_TIMESTAMP *timestamp = NULL;
+    ION_SYMBOL *symbol = NULL;
+
+    ASSERT(value);
+    ASSERT(event);
+
+    if (event->event_type != SCALAR) {
+        FAILWITH(IERR_INVALID_ARG);
+    }
+    switch (ION_TID_INT(event->ion_type)) {
+        case TID_NULL:
+            break;
+        case TID_BOOL:
+            bool_val = (BOOL *)malloc(sizeof(BOOL));
+            *bool_val = *(BOOL *)event->value;
+            copied = bool_val;
+            break;
+        case TID_POS_INT:
+        case TID_NEG_INT:
+            IONCHECK(ion_int_alloc(NULL, &int_val)); // NOTE: owner must be NULL; otherwise, this may be unexpectedly freed.
+            IONCHECK(ion_int_copy(int_val, (ION_INT *)event->value, int_val->_owner));
+            copied = int_val;
+            break;
+        case TID_FLOAT:
+            float_val = (double *)malloc(sizeof(double));
+            *float_val = *(double *)event->value;
+            copied = float_val;
+            break;
+        case TID_DECIMAL:
+            decimal = (ION_DECIMAL *)calloc(1, sizeof(ION_DECIMAL));
+            IONCHECK(ion_decimal_copy(decimal, (ION_DECIMAL *)event->value));
+            copied = decimal;
+            break;
+        case TID_TIMESTAMP:
+            timestamp = (ION_TIMESTAMP *)malloc(sizeof(ION_TIMESTAMP));
+            // TODO it will not be this simple if ION_TIMESTAMP's fraction field is upgraded to use ION_DECIMAL.
+            memcpy(timestamp, (ION_TIMESTAMP *)event->value, sizeof(ION_TIMESTAMP));
+            copied = timestamp;
+            break;
+        case TID_SYMBOL:
+            copy_ion_symbol(&symbol, (ION_SYMBOL *)event->value);
+            copied = symbol;
+            break;
+        case TID_STRING:
+        case TID_CLOB:
+        case TID_BLOB:
+            copied = copy_ion_string((ION_STRING *)event->value);
+            break;
+        default:
+            FAILWITH(IERR_INVALID_STATE);
+    }
+    *value = copied;
+    iRETURN;
+}
+
+iERR ion_event_stream_get_consensus_value(ION_CATALOG *catalog, const char *value_text, BYTE *value_binary,
+                                          size_t value_binary_len, void **consensus_value) {
+    iENTER;
+    IonEventStream binary_stream, text_stream;
+    ASSERT(value_text);
+    ASSERT(value_binary);
+    ASSERT(consensus_value);
+
+    IONCHECK(read_value_stream_from_bytes(value_binary, (SIZE)value_binary_len, &binary_stream, catalog));
+    IONCHECK(read_value_stream_from_string(value_text, &text_stream, catalog));
+    // TODO compare the two streams.
+    // TODO this will require refactoring of ion_assert to decouple from gtest (so that the events lib doesn't
+    // depend on gtest).
+
+    // Because the last event is always STREAM_END, the second-to-last event contains the scalar value.
+    // NOTE: an IonEvent's value is freed during destruction of the event's IonEventStream. Since these event streams
+    // are temporary, the value needs to be copied out.
+    IONCHECK(ion_event_copy_value(binary_stream.at(binary_stream.size() - 2), consensus_value));
+    iRETURN;
+}
+
+iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CATALOG *catalog) {
+    iENTER;
+    BOOL        is_null;
+    ION_STRING field_name;
+    ION_SYMBOL *annotation = NULL;
+    ION_SYMBOL **annotations = NULL;
+    size_t annotation_count = 0;
+    IonEvent *event = NULL;
+    ION_TYPE ion_type;
+
+    ION_STRING value_ion_type_str, value_event_type_str;
+    ION_TYPE value_ion_type = tid_none;
+    ION_SYMBOL value_field_name_tmp, *value_field_name = NULL;
+    ION_EVENT_TYPE value_event_type = UNKNOWN;
+    int value_depth = -1;
+    ION_COLLECTION *imports = NULL;
+    std::vector<ION_SYMBOL *> value_annotations;
+    int value_binary_byte;
+    std::vector<BYTE> value_binary_tmp;
+    BYTE *value_binary = NULL;
+    size_t value_binary_len = 0;
+    ION_STRING value_text_tmp;
+    char *value_text = NULL;
+    void *consensus_value = NULL;
+
+    ION_STRING_INIT(&value_field_name_tmp.value);
+    ION_STRING_INIT(&value_field_name_tmp.import_location.name);
+    ION_STRING_INIT(&value_text_tmp);
+
+    for (;;) {
+        IONCHECK(ion_reader_next(reader, &ion_type));
+        if (ion_type == tid_EOF) break;
+        IONCHECK(ion_reader_get_field_name(reader, &field_name));
+        IONCHECK(ion_reader_is_null(reader, &is_null));
+        if (ION_STRING_EQUALS(&ion_event_event_type_field, &field_name)) {
+            if (is_null || ion_type != tid_SYMBOL) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_read_string(reader, &value_event_type_str));
+            if (!ION_STRING_IS_NULL(&value_event_type_str)) {
+                value_event_type = ion_event_type_from_string(&value_event_type_str);
+            }
+        }
+        else if (ION_STRING_EQUALS(&ion_event_ion_type_field, &field_name)) {
+            if (is_null) {
+                continue;
+            }
+            if (ion_type != tid_SYMBOL) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_read_string(reader, &value_ion_type_str));
+            if (!ION_STRING_IS_NULL(&value_ion_type_str)) {
+                value_ion_type = ion_event_ion_type_from_string(&value_ion_type_str);
+            }
+        }
+        else if (ION_STRING_EQUALS(&ion_event_imports_field, &field_name)) {
+            if (is_null) {
+                continue;
+            }
+            if (ion_type != tid_LIST) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_step_in(reader));
+            IONCHECK(ion_event_stream_read_imports(reader, &imports));
+            IONCHECK(ion_reader_step_out(reader));
+        }
+        else if (ION_STRING_EQUALS(&ion_event_depth_field, &field_name)) {
+            if (is_null || ion_type != tid_INT) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_read_int(reader, &value_depth));
+        }
+        else if (ION_STRING_EQUALS(&ion_event_value_text_field, &field_name)) {
+            if (is_null) {
+                continue;
+            }
+            if (ion_type != tid_STRING) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_read_string(reader, &value_text_tmp));
+            value_text = ion_string_strdup(&value_text_tmp);
+        }
+        else if (ION_STRING_EQUALS(&ion_event_value_binary_field, &field_name)) {
+            if (is_null) {
+                continue;
+            }
+            if (ion_type != tid_LIST) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_step_in(reader));
+            for (;;) {
+                IONCHECK(ion_reader_next(reader, &ion_type));
+                if (ion_type == tid_EOF) break;
+                if (ion_type != tid_INT) FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+                IONCHECK(ion_reader_read_int(reader, &value_binary_byte));
+                value_binary_tmp.push_back((BYTE)value_binary_byte);
+            }
+            IONCHECK(ion_reader_step_out(reader));
+            value_binary_len = value_binary_tmp.size();
+            value_binary = (BYTE *)calloc(value_binary_len, sizeof(BYTE));
+            for (size_t i = 0; i < value_binary_len; i++) {
+                value_binary[i] = value_binary_tmp.at(i);
+            }
+        }
+        else if (ION_STRING_EQUALS(&ion_event_field_name_field, &field_name)) {
+            if (is_null) {
+                continue;
+            }
+            if (ion_type != tid_STRUCT) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_step_in(reader));
+            IONCHECK(ion_event_stream_read_symbol_token(reader, &value_field_name_tmp));
+            copy_ion_symbol(&value_field_name, &value_field_name_tmp);
+            IONCHECK(ion_reader_step_out(reader));
+        }
+        else if (ION_STRING_EQUALS(&ion_event_annotations_field, &field_name)) {
+            if (is_null) {
+                continue;
+            }
+            if (ion_type != tid_LIST) {
+                FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+            }
+            IONCHECK(ion_reader_step_in(reader));
+            for (;;) {
+                IONCHECK(ion_reader_next(reader, &ion_type));
+                if (ion_type == tid_EOF) break;
+                IONCHECK(ion_reader_is_null(reader, &is_null));
+                if (is_null || ion_type != tid_STRUCT) {
+                    FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+                }
+                IONCHECK(ion_reader_step_in(reader));
+                annotation = (ION_SYMBOL *)calloc(1, sizeof(ION_SYMBOL));
+                IONCHECK(ion_event_stream_read_symbol_token(reader, annotation));
+                value_annotations.push_back(annotation);
+                IONCHECK(ion_reader_step_out(reader));
+            }
+            IONCHECK(ion_reader_step_out(reader));
+            annotation_count = value_annotations.size();
+            annotations = (ION_SYMBOL **)calloc(annotation_count, sizeof(ION_SYMBOL *));
+            for (size_t i = 0; i < annotation_count; i++) {
+                copy_ion_symbol(&annotations[i], value_annotations.at(i));
+                free(value_annotations.at(i)); // Won't be accessed again.
+            }
+        }
+        else {
+            FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+        }
+    }
+
+    if (value_event_type == UNKNOWN || value_depth < 0) {
+        FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+    }
+    if (value_ion_type == tid_none && value_event_type != STREAM_END && value_event_type != SYMBOL_TABLE) {
+        FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+    }
+    if (value_binary == NULL ^ value_text == NULL) {
+        FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+    }
+    if (value_binary) {
+        ASSERT(value_text);
+        if (value_event_type != SCALAR) {
+            FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.")
+        }
+        IONCHECK(ion_event_stream_get_consensus_value(catalog, value_text, value_binary, value_binary_len,
+                                                      &consensus_value));
+        free(value_binary);
+        free(value_text);
+    }
+    else if (value_event_type == SCALAR) {
+        FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+    }
+    if (imports != NULL && value_event_type != SYMBOL_TABLE) {
+        FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+    }
+    if (annotation_count > 0 && (value_event_type == CONTAINER_END || value_event_type == STREAM_END
+                                 || value_event_type == SYMBOL_TABLE)) {
+        FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+    }
+    if (value_field_name != NULL && (value_event_type == CONTAINER_END || value_event_type == STREAM_END
+                                     || value_event_type == SYMBOL_TABLE)) {
+        FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+    }
+    event = stream->append_new(value_event_type, value_ion_type, value_field_name, annotations, (SIZE)annotation_count, value_depth);
+    if (value_event_type == SCALAR) {
+        event->value = consensus_value;
+    }
+    else if (value_event_type == SYMBOL_TABLE) {
+        event->value = imports;
+    }
+    iRETURN;
+}
+
+iERR ion_event_stream_read_all_events(hREADER reader, IonEventStream *stream, ION_CATALOG *catalog) {
+    iENTER;
+    ION_TYPE ion_type;
+    for (;;) {
+        IONCHECK(ion_reader_next(reader, &ion_type));
+        if (ion_type == tid_EOF) break;
+        if (ion_type != tid_STRUCT) FAILWITHMSG(IERR_INVALID_ARG, "The given Ion does not contain an event stream.");
+        IONCHECK(ion_reader_step_in(reader));
+        IONCHECK(ion_event_stream_read_event(reader, stream, catalog));
+        IONCHECK(ion_reader_step_out(reader));
+    }
+    iRETURN;
+}
+
+iERR read_value_stream_from_string(const char *ion_string, IonEventStream *stream, ION_CATALOG *catalog) {
     iENTER;
     hREADER      reader;
     ION_READER_OPTIONS options;
     ion_event_initialize_reader_options(&options);
+    if (catalog) {
+        options.pcatalog = catalog;
+    }
     ion_event_register_symbol_table_callback(&options, stream);
 
     IONCHECK(ion_reader_open_buffer(&reader, (BYTE *)ion_string, (SIZE)strlen(ion_string), &options));
@@ -447,59 +897,6 @@ iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream) {
     iRETURN;
 }
 
-std::string ion_event_type_to_string(ION_EVENT_TYPE type) {
-    switch (type) {
-        case SCALAR: return "SCALAR";
-        case CONTAINER_START: return "CONTAINER_START";
-        case CONTAINER_END: return "CONTAINER_END";
-        case SYMBOL_TABLE: return "SYMBOL_TABLE";
-        case STREAM_END: return "STREAM_END";
-    }
-}
-
-std::string ion_event_ion_type_to_string(ION_TYPE type) {
-    switch (ION_TID_INT(type)) {
-        case TID_NULL: return "NULL";
-        case TID_BOOL: return "BOOL";
-        case TID_POS_INT:
-        case TID_NEG_INT: return "INT";
-        case TID_FLOAT: return "FLOAT";
-        case TID_DECIMAL: return "DECIMAL";
-        case TID_TIMESTAMP: return "TIMESTAMP";
-        case TID_SYMBOL: return "SYMBOL";
-        case TID_STRING: return "STRING";
-        case TID_BLOB: return "BLOB";
-        case TID_CLOB: return "CLOB";
-        case TID_LIST: return "LIST";
-        case TID_SEXP: return "SEXP";
-        case TID_STRUCT: return "STRUCT";
-        default: return NULL;
-    }
-}
-
-// Event fields
-static ION_STRING ion_event_event_type_field = {10, (BYTE *)"event_type"};
-static ION_STRING ion_event_ion_type_field = {8, (BYTE *)"ion_type"};
-static ION_STRING ion_event_field_name_field = {10, (BYTE *)"field_name"};
-static ION_STRING ion_event_annotations_field = {11, (BYTE *)"annotations"};
-static ION_STRING ion_event_value_text_field = {10, (BYTE *)"value_text"};
-static ION_STRING ion_event_value_binary_field = {12, (BYTE *)"value_binary"};
-static ION_STRING ion_event_imports_field = {7, (BYTE *)"imports"};
-static ION_STRING ion_event_depth_field = {5, (BYTE *)"depth"};
-
-// Symbol token fields
-static ION_STRING ion_event_text_field = {4, (BYTE *)"text"};
-static ION_STRING ion_event_import_location_field = {15, (BYTE *)"import_location"};
-
-// Import location fields
-static ION_STRING ion_event_name_field = {4, (BYTE *)"name"};
-static ION_STRING ion_event_import_sid_field = {8, (BYTE *)"location"};
-
-// Symbol table import fields
-static ION_STRING ion_event_import_name_field = {11, (BYTE *)"import_name"};
-static ION_STRING ion_event_max_id_field = {6, (BYTE *)"max_id"};
-static ION_STRING ion_event_version_field = {7, (BYTE *)"version"};
-
 iERR ion_event_stream_write_symbol_token(hWRITER writer, ION_SYMBOL *symbol) {
     iENTER;
     ASSERT(symbol);
@@ -580,18 +977,15 @@ iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, I
     ION_COLLECTION *imports = NULL;
     for (size_t i = 0; i < stream->size(); i++) {
         IonEvent *event = stream->at(i);
-        std::string event_type = ion_event_type_to_string(event->event_type);
-        std::string ion_type;
-        ION_STRING event_type_str, ion_type_str;
+        ION_STRING *ion_type_str = NULL;
+        ION_STRING *event_type_str = ion_event_type_to_string(event->event_type);
         IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
-        ion_string_assign_cstr(&event_type_str, (char *)event_type.c_str(), (SIZE)event_type.size());
         IONCHECK(ion_writer_write_field_name(writer, &ion_event_event_type_field));
-        IONCHECK(ion_writer_write_symbol(writer, &event_type_str));
+        IONCHECK(ion_writer_write_symbol(writer, event_type_str));
         if (event->ion_type != tid_none) {
-            ion_type = ion_event_ion_type_to_string(event->ion_type);
-            ion_string_assign_cstr(&ion_type_str, (char *)ion_type.c_str(), (SIZE)ion_type.size());
+            ion_type_str = ion_event_ion_type_to_string(event->ion_type);
             IONCHECK(ion_writer_write_field_name(writer, &ion_event_ion_type_field));
-            IONCHECK(ion_writer_write_symbol(writer, &ion_type_str));
+            IONCHECK(ion_writer_write_symbol(writer, ion_type_str));
         }
         if (event->field_name) {
             IONCHECK(ion_writer_write_field_name(writer, &ion_event_field_name_field));

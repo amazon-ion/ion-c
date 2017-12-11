@@ -81,6 +81,28 @@ iERR ion_int_init(ION_INT *iint, void *owner)
     iRETURN;
 }
 
+iERR ion_int_copy(ION_INT *dst, ION_INT *src, void *owner)
+{
+    iENTER;
+    size_t digits_len;
+    ASSERT(dst);
+    ASSERT(src);
+
+    memcpy(dst, src, sizeof(ION_INT));
+    dst->_owner = owner;
+    if (src->_digits) {
+        digits_len = dst->_len * sizeof(II_DIGIT);
+        if (dst->_owner) {
+            dst->_digits = ion_alloc_with_owner(dst->_owner, (SIZE)digits_len);
+        }
+        else {
+            dst->_digits = ion_xalloc(digits_len);
+        }
+        memcpy(dst->_digits, src->_digits, digits_len);
+    }
+    iRETURN;
+}
+
 
 iERR ion_int_is_null(ION_INT *iint, BOOL *p_is_null)
 {

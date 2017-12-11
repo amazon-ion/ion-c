@@ -23,3 +23,10 @@ TEST(IonCli, ManualInputs) {
     args.push_back("../ion-tests/iontestdata/good/symbols.ion");
     ion_cli_parse(args);
 }
+
+TEST(IonCli, One) {
+    std::vector<std::string> args;
+    args.push_back("process");
+    args.push_back("../build/tmp/one_events.ion");
+    ion_cli_parse(args);
+}

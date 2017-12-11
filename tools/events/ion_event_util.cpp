@@ -14,6 +14,7 @@
 
 #include "ion_event_util.h"
 #include <ion_helpers.h>
+#include <ion_event_stream.h>
 
 decContext g_IonEventDecimalContext = {
         ION_EVENT_DECIMAL_MAX_DIGITS,   // max digits
@@ -24,6 +25,99 @@ decContext g_IonEventDecimalContext = {
         0,                              // status flags
         0                               // apply exponent clamp?
 };
+
+ION_STRING *ion_event_type_to_string(ION_EVENT_TYPE type) {
+    switch (type) {
+        case SCALAR: return &ion_event_event_type_scalar;
+        case CONTAINER_START: return &ion_event_event_type_container_start;
+        case CONTAINER_END: return &ion_event_event_type_container_end;
+        case SYMBOL_TABLE: return &ion_event_event_type_symbol_table;
+        case STREAM_END: return &ion_event_event_type_stream_end;
+        default: return NULL;
+    }
+}
+
+ION_EVENT_TYPE ion_event_type_from_string(ION_STRING *type_str) {
+    if (ION_STRING_EQUALS(&ion_event_event_type_scalar, type_str)) {
+        return SCALAR;
+    }
+    if (ION_STRING_EQUALS(&ion_event_event_type_container_start, type_str)) {
+        return CONTAINER_START;
+    }
+    if (ION_STRING_EQUALS(&ion_event_event_type_container_end, type_str)) {
+        return CONTAINER_END;
+    }
+    if (ION_STRING_EQUALS(&ion_event_event_type_symbol_table, type_str)) {
+        return SYMBOL_TABLE;
+    }
+    if (ION_STRING_EQUALS(&ion_event_event_type_stream_end, type_str)) {
+        return STREAM_END;
+    }
+    return UNKNOWN;
+}
+
+ION_STRING *ion_event_ion_type_to_string(ION_TYPE type) {
+    switch (ION_TID_INT(type)) {
+        case TID_NULL: return &ion_event_ion_type_null;
+        case TID_BOOL: return &ion_event_ion_type_bool;
+        case TID_POS_INT:
+        case TID_NEG_INT: return &ion_event_ion_type_int;
+        case TID_FLOAT: return &ion_event_ion_type_float;
+        case TID_DECIMAL: return &ion_event_ion_type_decimal;
+        case TID_TIMESTAMP: return &ion_event_ion_type_timestamp;
+        case TID_SYMBOL: return &ion_event_ion_type_symbol;
+        case TID_STRING: return &ion_event_ion_type_string;
+        case TID_BLOB: return &ion_event_ion_type_blob;
+        case TID_CLOB: return &ion_event_ion_type_clob;
+        case TID_LIST: return &ion_event_ion_type_list;
+        case TID_SEXP: return &ion_event_ion_type_sexp;
+        case TID_STRUCT: return &ion_event_ion_type_struct;
+        default: return NULL;
+    }
+}
+
+ION_TYPE ion_event_ion_type_from_string(ION_STRING *type_str) {
+    if (ION_STRING_EQUALS(&ion_event_ion_type_null, type_str)) {
+        return tid_NULL;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_bool, type_str)) {
+        return tid_BOOL;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_int, type_str)) {
+        return tid_INT;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_float, type_str)) {
+        return tid_FLOAT;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_decimal, type_str)) {
+        return tid_DECIMAL;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_timestamp, type_str)) {
+        return tid_TIMESTAMP;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_symbol, type_str)) {
+        return tid_SYMBOL;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_string, type_str)) {
+        return tid_STRING;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_blob, type_str)) {
+        return tid_BLOB;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_clob, type_str)) {
+        return tid_CLOB;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_list, type_str)) {
+        return tid_LIST;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_sexp, type_str)) {
+        return tid_SEXP;
+    }
+    if (ION_STRING_EQUALS(&ion_event_ion_type_struct, type_str)) {
+        return tid_STRUCT;
+    }
+    return tid_none;
+}
 
 void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options) {
     memset(options, 0, sizeof(ION_WRITER_OPTIONS));

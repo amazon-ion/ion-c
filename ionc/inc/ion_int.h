@@ -138,6 +138,7 @@ ION_INT_GLOBAL decNumber       g_digit_base_number;
 ION_API_EXPORT iERR ion_int_alloc           (void *owner, ION_INT **piint);
 ION_API_EXPORT void ion_int_free            (ION_INT *iint);
 ION_API_EXPORT iERR ion_int_init            (ION_INT *iint, void *owner);
+ION_API_EXPORT iERR ion_int_copy            (ION_INT *dst, ION_INT *src, void *owner);
 
 ION_API_EXPORT iERR ion_int_is_null         (ION_INT *iint, BOOL *p_is_null);
 ION_API_EXPORT iERR ion_int_is_zero         (ION_INT *iint, BOOL *p_bool);

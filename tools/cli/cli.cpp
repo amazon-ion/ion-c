@@ -162,6 +162,7 @@ typedef struct _ion_cli_reader_context {
     hREADER reader;
     FILE *file_stream;
     ION_STREAM *ion_stream;
+    IonEventStream *event_stream;
 } ION_CLI_READER_CONTEXT;
 
 iERR ion_cli_close_reader(ION_CLI_READER_CONTEXT *context) {
@@ -200,11 +201,13 @@ iERR ion_cli_add_shared_tables_to_catalog(std::string file_path, ION_CATALOG *ca
 }
 
 iERR ion_cli_open_reader(ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog, std::string *file_path,
-                         ION_CLI_READER_CONTEXT *reader_context) {
+                         ION_CLI_READER_CONTEXT *reader_context, IonEventStream *event_stream) {
     iENTER;
     memset(reader_context, 0, sizeof(ION_CLI_READER_CONTEXT));
     ion_event_initialize_reader_options(&reader_context->options);
     reader_context->options.pcatalog = catalog;
+    reader_context->event_stream = event_stream;
+    ion_event_register_symbol_table_callback(&reader_context->options, event_stream);
 
     if (!file_path) {
         ASSERT(args->input_is_stdin);
@@ -241,7 +244,7 @@ iERR ion_cli_create_catalog(std::vector<std::string> *catalog_paths, ION_CATALOG
 iERR ion_cli_open_writer_basic(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *writer_context) {
     iENTER;
     writer_context->options.output_as_binary = args->output_format == "binary";
-    writer_context->options.pretty_print = args->output_format == "pretty";
+    writer_context->options.pretty_print = args->output_format == "pretty" || args->output_format == "events";
 
     if (args->output == "stdout") {
         IONCHECK(ion_stream_open_stdout(&writer_context->ion_stream));
@@ -301,37 +304,102 @@ iERR ion_cli_create_imports(std::vector<std::string> *import_files, hOWNER *impo
     iRETURN;
 }
 
-iERR ion_cli_write_all_events(ION_CLI_READER_CONTEXT *reader_context, ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog) {
-    iENTER;
-    IonEventStream stream;
-    ION_EVENT_WRITER_CONTEXT stream_writer_context;
-    memset(&stream_writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
-    args->output_format = "pretty"; // Always pretty-print events to improve readability.
-    IONCHECK(ion_cli_open_writer_basic(args, &stream_writer_context));
+static ION_STRING ion_cli_event_stream_symbol = {17, (BYTE *)"$ion_event_stream"}; // TODO where should this go?
 
-    ion_event_register_symbol_table_callback(&reader_context->options, &stream);
-    IONCHECK(ion_event_stream_read_all(reader_context->reader, &stream));
-    IONCHECK(ion_event_stream_write_all_events(stream_writer_context.writer, &stream, catalog));
-    IONCHECK(ion_cli_close_writer(&stream_writer_context));
+iERR ion_cli_open_event_writer(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *writer_context) {
+    iENTER;
+    memset(writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
+    IONCHECK(ion_cli_open_writer_basic(args, writer_context));
+    IONCHECK(ion_writer_write_symbol(writer_context->writer, &ion_cli_event_stream_symbol));
     iRETURN;
 }
 
-iERR ion_cli_write_all_values(ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog, ION_COLLECTION *imports, std::string *file_path) {
+iERR ion_cli_is_event_stream(ION_CLI_READER_CONTEXT *reader_context, bool *is_event_stream, bool *has_more_events) {
+    iENTER;
+    ION_TYPE ion_type;
+    ION_SYMBOL *symbol_value = NULL;
+    IonEvent *event;
+    size_t i = 0;
+    IonEventStream *stream = reader_context->event_stream;
+    ASSERT(is_event_stream);
+
+    *is_event_stream = FALSE;
+    *has_more_events = TRUE;
+    for (;; i++) {
+        IONCHECK(ion_reader_next(reader_context->reader, &ion_type));
+        if (ion_type == tid_EOF) {
+            SUCCEED();
+        }
+        IONCHECK(ion_event_stream_read(reader_context->reader, stream, ion_type, FALSE, 0));
+        ASSERT(stream->size() > 0);
+        event = stream->at(i);
+        if (event->event_type == SYMBOL_TABLE) {
+            // It's unlikely, but event streams could be serialized with imports. If this is true, skip to the next
+            // event.
+            continue;
+        }
+        if (event->event_type == SCALAR && event->ion_type == tid_SYMBOL
+            && event->num_annotations == 0 && event->depth == 0) {
+            symbol_value = (ION_SYMBOL *) event->value;
+            if (ION_STRING_EQUALS(&ion_cli_event_stream_symbol, &symbol_value->value)) {
+                *is_event_stream = TRUE;
+                stream->remove(i); // Toss this event -- it's not part of the user data.
+            }
+        }
+        else if (event->event_type == STREAM_END) {
+            *has_more_events = FALSE;
+        }
+        break;
+    }
+    iRETURN;
+}
+
+iERR ion_cli_write_value(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *writer_context, ION_CATALOG *catalog, std::string *file_path) {
     iENTER;
     ION_CLI_READER_CONTEXT reader_context;
-    ION_EVENT_WRITER_CONTEXT writer_context;
-    IONCHECK(ion_cli_open_reader(args, catalog, file_path, &reader_context));
+    IonEventStream stream;
+    bool is_event_stream, has_more_events;
+    IONCHECK(ion_cli_open_reader(args, catalog, file_path, &reader_context, &stream));
+
+    IONCHECK(ion_cli_is_event_stream(&reader_context, &is_event_stream, &has_more_events));
+    if (has_more_events) {
+        if (is_event_stream) {
+            IONCHECK(ion_event_stream_read_all_events(reader_context.reader, &stream, catalog));
+        }
+        else {
+            IONCHECK(ion_event_stream_read_all(reader_context.reader, &stream));
+        }
+    }
     if (args->output_format == "events") {
-        IONCHECK(ion_cli_write_all_events(&reader_context, args, catalog));
-        SUCCEED();
+        IONCHECK(ion_event_stream_write_all_events(writer_context->writer, &stream, catalog));
     }
-    if (args->output_format == "none") {
-        // TODO create a dummy writer
-        SUCCEED();
+    else if (args->output_format != "none"){
+        IONCHECK(ion_event_stream_write_all(writer_context->writer, &stream));
+        // Would be nice to use this (especially for performance testing), but having to peek at the first value in the
+        // stream (to identify $ion_event_stream) rules it out.
+        //IONCHECK(ion_writer_write_all_values(writer_context->writer, reader_context.reader));
     }
-    IONCHECK(ion_cli_open_writer(args, catalog, imports, &writer_context));
-    IONCHECK(ion_writer_write_all_values(writer_context.writer, reader_context.reader));
     IONCHECK(ion_cli_close_reader(&reader_context));
+    iRETURN;
+}
+
+iERR ion_cli_write_all_values(ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog, ION_COLLECTION *imports, std::vector<std::string> *file_paths) {
+    iENTER;
+    ION_EVENT_WRITER_CONTEXT writer_context;
+    if (args->output_format == "events") {
+        IONCHECK(ion_cli_open_event_writer(args, &writer_context));
+    }
+    else if (args->output_format != "none") {
+        IONCHECK(ion_cli_open_writer(args, catalog, imports, &writer_context));
+    }
+    if (args->input_is_stdin) {
+        IONCHECK(ion_cli_write_value(args, &writer_context, catalog, NULL));
+    }
+    else {
+        for (size_t i = 0; i < file_paths->size(); i++) {
+            IONCHECK(ion_cli_write_value(args, &writer_context, catalog, &file_paths->at(i)));
+        }
+    }
     IONCHECK(ion_cli_close_writer(&writer_context));
     iRETURN;
 }
@@ -344,15 +412,7 @@ iERR ion_cli_command_process_standard(ION_CLI_PROCESS_ARGS *args) {
 
     IONCHECK(ion_cli_create_catalog(&args->process_compare_args.catalog, &catalog));
     IONCHECK(ion_cli_create_imports(&args->process_compare_args.imports, &imports_owner, &imports));
-
-    if (args->common_args.input_is_stdin) {
-        IONCHECK(ion_cli_write_all_values(&args->common_args, catalog, imports_owner ? &imports : NULL, NULL));
-    }
-    else {
-        for (size_t i = 0; i < args->common_args.input_files.size(); i++) {
-            IONCHECK(ion_cli_write_all_values(&args->common_args, catalog, imports_owner ? &imports : NULL, &args->common_args.input_files.at(i)));
-        }
-    }
+    IONCHECK(ion_cli_write_all_values(&args->common_args, catalog, imports_owner ? &imports : NULL, &args->common_args.input_files));
 
     if (catalog) {
         IONCHECK(ion_catalog_close(catalog));

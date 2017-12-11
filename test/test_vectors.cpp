@@ -427,9 +427,9 @@ BOOL testEmbeddedDocumentSet(IonEventStream *stream, size_t index, int target_de
             char *expected_ion_string = ionStringToString((ION_STRING *)expected_event->value);
             char *actual_ion_string = ionStringToString((ION_STRING *)actual_event->value);
             IonEventStream expected_stream, actual_stream;
-            ION_ASSERT(IERR_OK == read_value_stream_from_string(expected_ion_string, &expected_stream),
+            ION_ASSERT(IERR_OK == read_value_stream_from_string(expected_ion_string, &expected_stream, NULL),
                        "Embedded document failed to parse");
-            ION_ASSERT(IERR_OK == read_value_stream_from_string(actual_ion_string, &actual_stream),
+            ION_ASSERT(IERR_OK == read_value_stream_from_string(actual_ion_string, &actual_stream, NULL),
                        "Embedded document failed to parse");
             ION_EXPECT_TRUE_MSG(assertIonEventStreamEq(&expected_stream, &actual_stream, assertion_type),
                                 std::string("Error comparing streams \"") << expected_ion_string << "\" and \""

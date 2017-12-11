@@ -26,7 +26,8 @@ typedef enum _ion_event_type {
     CONTAINER_START,
     CONTAINER_END,
     SYMBOL_TABLE,
-    STREAM_END
+    STREAM_END,
+    UNKNOWN
 } ION_EVENT_TYPE;
 
 class IonEvent {
@@ -70,6 +71,10 @@ public:
     IonEvent *at(size_t index) {
         return event_stream->at(index);
     }
+
+    void remove(size_t index) {
+        event_stream->erase(event_stream->begin() + index);
+    }
 };
 
 /**
@@ -86,13 +91,17 @@ size_t valueEventLength(IonEventStream *stream, size_t start_index);
 /**
  * Reads IonEvents from the given string of Ion data into the given IonEventStream.
  */
-iERR read_value_stream_from_string(const char *ion_string, IonEventStream *stream);
+iERR read_value_stream_from_string(const char *ion_string, IonEventStream *stream, ION_CATALOG *catalog);
 iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStream *stream, ION_CATALOG *catalog);
+
+iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth);
 
 /**
  * Reads an IonEventStream from the given reader's data.
  */
 iERR ion_event_stream_read_all(hREADER hreader, IonEventStream *stream);
+
+iERR ion_event_stream_read_all_events(hREADER reader, IonEventStream *stream, ION_CATALOG *catalog);
 
 /**
  * Writes an IonEventStream as an Ion stream using the given writer.
