@@ -15,6 +15,7 @@
 #include "ion_event_stream.h"
 #include <ion_helpers.h>
 #include "ion_event_util.h"
+#include "ion_event_equivalence.h"
 
 #define IONCHECKORFREE(x, y) { \
     err = x; \
@@ -566,14 +567,17 @@ iERR ion_event_stream_get_consensus_value(ION_CATALOG *catalog, const char *valu
 
     IONCHECK(read_value_stream_from_bytes(value_binary, (SIZE)value_binary_len, &binary_stream, catalog));
     IONCHECK(read_value_stream_from_string(value_text, &text_stream, catalog));
-    // TODO compare the two streams.
-    // TODO this will require refactoring of ion_assert to decouple from gtest (so that the events lib doesn't
-    // depend on gtest).
 
-    // Because the last event is always STREAM_END, the second-to-last event contains the scalar value.
-    // NOTE: an IonEvent's value is freed during destruction of the event's IonEventStream. Since these event streams
-    // are temporary, the value needs to be copied out.
-    IONCHECK(ion_event_copy_value(binary_stream.at(binary_stream.size() - 2), consensus_value));
+    if (assertIonEventStreamEq(&binary_stream, &text_stream, ASSERTION_TYPE_SET_FLAG)) {
+        // Because the last event is always STREAM_END, the second-to-last event contains the scalar value.
+        // NOTE: an IonEvent's value is freed during destruction of the event's IonEventStream. Since these event streams
+        // are temporary, the value needs to be copied out.
+        IONCHECK(ion_event_copy_value(binary_stream.at(binary_stream.size() - 2), consensus_value));
+    }
+    else {
+        FAILWITHMSG(IERR_INVALID_ARG, "Invalid event; text and binary scalar representations are not equal.");
+    }
+
     iRETURN;
 }
 

@@ -38,4 +38,4 @@ include_directories(
 )
 
 # Linking against gtest_main provides a basic main() method, which detects all tests, for free.
-target_link_libraries(all_tests ionc ion_events ion_cli gtest_main)
+target_link_libraries(all_tests ionc ion_events_gtest ion_cli gtest_main)

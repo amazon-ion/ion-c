@@ -15,7 +15,6 @@
 #include <cstdlib>
 #include "ion_helpers.h"
 #include "ion_test_util.h"
-#include "ion_assert.h"
 #include "ion_event_util.h"
 
 void BinaryAndTextTest::SetUp() {

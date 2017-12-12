@@ -17,6 +17,7 @@
 #include "ion_test_util.h"
 #include "ion_decimal_impl.h"
 #include "ion_event_util.h"
+#include "ion_event_equivalence.h"
 
 /* General test utilities */
 

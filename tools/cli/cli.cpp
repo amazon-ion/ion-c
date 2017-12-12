@@ -304,8 +304,6 @@ iERR ion_cli_create_imports(std::vector<std::string> *import_files, hOWNER *impo
     iRETURN;
 }
 
-static ION_STRING ion_cli_event_stream_symbol = {17, (BYTE *)"$ion_event_stream"}; // TODO where should this go?
-
 iERR ion_cli_open_event_writer(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *writer_context) {
     iENTER;
     memset(writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));

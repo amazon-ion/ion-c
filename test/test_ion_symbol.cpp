@@ -16,6 +16,7 @@
 #include "ion_helpers.h"
 #include "ion_test_util.h"
 #include "ion_event_util.h"
+#include "ion_event_equivalence.h"
 
 // Creates a BinaryAndTextTest fixture instantiation for IonSymbolTable tests. This allows tests to be declared with
 // the BinaryAndTextTest fixture and receive the is_binary flag with both the TRUE and FALSE values.
