@@ -128,6 +128,12 @@ typedef struct _ion_cli_process_args {
     std::string traverse;
 } ION_CLI_PROCESS_ARGS;
 
+typedef struct _ion_cli_compare_args {
+    ION_CLI_COMMON_ARGS common_args;
+    ION_CLI_PROCESS_COMPARE_ARGS process_compare_args;
+    std::string comparison_type;
+} ION_CLI_COMPARE_ARGS;
+
 static bool ion_cli_has_flag(std::map<std::string, docopt::value> *args, std::string arg) {
     std::map<std::string, docopt::value>::iterator it = args->find(arg);
     return it != args->end() && it->second.asBool();
@@ -451,14 +457,16 @@ iERR ion_cli_args_process_compare(std::map<std::string, docopt::value> *args, IO
 
 iERR ion_cli_command_process(std::map<std::string, docopt::value> *args) {
     iENTER;
-    bool has_filter = ion_cli_has_value(args, "--filter");
-    bool has_traverse = ion_cli_has_value(args, "--traverse");
+    //bool has_filter = ion_cli_has_value(args, "--filter");
+    //bool has_traverse = ion_cli_has_value(args, "--traverse");
     ION_CLI_PROCESS_ARGS process_args;
 
+    /* TODO verify that these verifications are performed by docopt.
     if (ion_cli_has_value(args, "--symtab-version") || ion_cli_has_value(args, "--symtab-name")) {
         FAILWITHMSG(IERR_INVALID_ARG, "--symtab-version and --symtab-name are incompatible with the process command.")
     }
     if (has_filter && has_traverse) FAILWITHMSG(IERR_INVALID_ARG, "--filter and --traverse are mutually exclusive.");
+    */
 
     IONCHECK(ion_cli_args_common(args, &process_args.common_args));
     IONCHECK(ion_cli_args_process_compare(args, &process_args.process_compare_args));
@@ -470,12 +478,12 @@ iERR ion_cli_command_process(std::map<std::string, docopt::value> *args) {
 
     // TODO add error report support
 
-    if (has_filter) {
+    if (ion_cli_has_value(args, "--filter")) {
         process_args.filter = args->find("--filter")->second.asString();
         IONCHECK(ion_cli_command_process_filter(&process_args));
         SUCCEED();
     }
-    if (has_traverse) {
+    if (ion_cli_has_value(args, "--traverse")) {
         process_args.traverse = args->find("--traverse")->second.asString();
         IONCHECK(ion_cli_command_process_traverse(&process_args));
         SUCCEED();
@@ -483,6 +491,46 @@ iERR ion_cli_command_process(std::map<std::string, docopt::value> *args) {
 
     // Full traversal, no filtering.
     IONCHECK(ion_cli_command_process_standard(&process_args));
+
+    iRETURN;
+}
+
+/**
+ * Compares each input stream against itself.
+ */
+iERR ion_cli_compare_self(std::vector<std::string> inputs) {
+    iENTER;
+
+    iRETURN;
+}
+
+iERR ion_cli_command_compare(std::map<std::string, docopt::value> *args) {
+    iENTER;
+    ION_CLI_COMPARE_ARGS compare_args;
+
+    ION_CATALOG *catalog = NULL;
+    hOWNER imports_owner = NULL;
+    ION_COLLECTION imports;
+
+    IONCHECK(ion_cli_args_common(args, &compare_args.common_args));
+    IONCHECK(ion_cli_args_process_compare(args, &compare_args.process_compare_args));
+
+    if (ion_cli_has_value(args, "--comparison-type")) {
+        compare_args.comparison_type = args->find("--comparison-type")->second.asString();
+    }
+
+    // TODO duplicates ion_cli_command_process_standard
+    IONCHECK(ion_cli_create_catalog(&compare_args.process_compare_args.catalog, &catalog));
+    IONCHECK(ion_cli_create_imports(&compare_args.process_compare_args.imports, &imports_owner, &imports));
+
+    //IONCHECK()
+
+    if (catalog) {
+        IONCHECK(ion_catalog_close(catalog));
+    }
+    if (imports_owner) {
+        ion_free_owner(imports_owner);
+    }
 
     iRETURN;
 }

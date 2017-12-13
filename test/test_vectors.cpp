@@ -56,28 +56,28 @@ typedef enum _reader_input_type {
     /**
      * Creates an ION_STREAM for the input file using ion_stream_open_file_in, then a reader using ion_reader_open.
      */
-            STREAM = 0,
+    STREAM = 0,
     /**
      * Buffers the contents of the input file, then creates a reader over that buffer using ion_reader_open_buffer.
      */
-            BUFFER
+    BUFFER
 } READER_INPUT_TYPE;
 
 typedef enum _vector_test_type {
     /**
      * Simply read the file.
      */
-            READ = 0,
+    READ = 0,
     /**
      * Read the file, then write the file in the text format (regardless of the input format), then read the file.
      * Compare the event streams from the first and second reads for equivalence.
      */
-            ROUNDTRIP_TEXT,
+    ROUNDTRIP_TEXT,
     /**
      * Read the file, then write the file in the binary format (regardless of the input format), then read the file.
      * Compare the event streams from the first and second reads for equivalence.
      */
-            ROUNDTRIP_BINARY
+    ROUNDTRIP_BINARY
 } VECTOR_TEST_TYPE;
 
 TEST(TestVectors, HasRequiredDependencies) {
@@ -359,136 +359,19 @@ INSTANTIATE_TEST_CASE_P(
 );
 #endif
 
-
-typedef void (*COMPARISON_FN)(IonEventStream *stream, size_t index_expected, size_t index_actual);
-
-void comparisonEquivs(IonEventStream *stream, size_t index_expected, size_t index_actual) {
-    EXPECT_TRUE(assertIonEventsEq(stream, index_expected, stream, index_actual, ASSERTION_TYPE_NORMAL))
-                        << std::string("Test: ") << g_CurrentTest
-                        << " comparing events at index " << index_expected << " and " << index_actual;
-}
-
-void comparisonNonequivs(IonEventStream *stream, size_t index_expected, size_t index_actual) {
-    EXPECT_FALSE(assertIonEventsEq(stream, index_expected, stream, index_actual, ASSERTION_TYPE_SET_FLAG))
-                        << std::string("Test: ") << g_CurrentTest
-                        << " comparing events at index " << index_expected << " and " << index_actual;
-}
-
-/**
- * Compares each element in the current container to every other element in the container. The given index refers
- * to the starting index of the first element in the container.
- */
-void testEquivsSet(IonEventStream *stream, size_t index, int target_depth, COMPARISON_TYPE comparison_type) {
-    // TODO might as well compare each element to itself too (for equivs only). This isn't done currently.
-    COMPARISON_FN comparison_fn = (comparison_type == COMPARISON_TYPE_EQUIVS) ? comparisonEquivs
-                                                                              : comparisonNonequivs;
-    size_t i = index;
-    size_t j = index;
-    size_t step = 1;
-    BOOL are_containers = stream->at(i)->event_type == CONTAINER_START;
-    while (TRUE) {
-        if (are_containers) {
-            // Find the start of the next container to compare its events for equivalence with this one.
-            step = valueEventLength(stream, j);
-        }
-        j += step;
-        if (stream->at(j)->event_type == CONTAINER_END && stream->at(j)->depth == target_depth) {
-            i += valueEventLength(stream, i);
-            j = i;
-        } else {
-            (*comparison_fn)(stream, i, j);
-        }
-        if (stream->at(i)->event_type == CONTAINER_END && stream->at(i)->depth == target_depth) {
-            break;
-        }
-    }
-}
-
-/**
- * The 'embedded_documents' annotation denotes that the current container contains streams of Ion data embedded
- * in string values. These embedded streams are parsed and their resulting IonEventStreams compared.
- */
-BOOL testEmbeddedDocumentSet(IonEventStream *stream, size_t index, int target_depth, COMPARISON_TYPE comparison_type) {
-    // TODO could roundtrip the embedded event streams instead of the strings representing them
-    ION_ENTER_ASSERTIONS;
-    ASSERTION_TYPE assertion_type = (comparison_type == COMPARISON_TYPE_EQUIVS) ? ASSERTION_TYPE_NORMAL
-                                                                                : ASSERTION_TYPE_SET_FLAG;
-    size_t i = index;
-    size_t j = index;
-    while (TRUE) {
-        j += 1;
-        if (stream->at(j)->event_type == CONTAINER_END && stream->at(j)->depth == target_depth) {
-            i += 1;
-            j = i;
-        } else {
-            IonEvent *expected_event = stream->at(i);
-            IonEvent *actual_event = stream->at(j);
-            ION_ASSERT(tid_STRING == expected_event->ion_type, "Embedded documents must be strings.");
-            ION_ASSERT(tid_STRING == actual_event->ion_type, "Embedded documents must be strings.");
-            char *expected_ion_string = ionStringToString((ION_STRING *)expected_event->value);
-            char *actual_ion_string = ionStringToString((ION_STRING *)actual_event->value);
-            IonEventStream expected_stream, actual_stream;
-            ION_ASSERT(IERR_OK == read_value_stream_from_string(expected_ion_string, &expected_stream, NULL),
-                       "Embedded document failed to parse");
-            ION_ASSERT(IERR_OK == read_value_stream_from_string(actual_ion_string, &actual_stream, NULL),
-                       "Embedded document failed to parse");
-            ION_EXPECT_TRUE_MSG(assertIonEventStreamEq(&expected_stream, &actual_stream, assertion_type),
-                                std::string("Error comparing streams \"") << expected_ion_string << "\" and \""
-                                                                          << actual_ion_string << "\".");
-            free(expected_ion_string);
-            free(actual_ion_string);
-        }
-        if (stream->at(i)->event_type == CONTAINER_END && stream->at(i)->depth == target_depth) {
-            break;
-        }
-    }
-    ION_EXIT_ASSERTIONS;
-}
-
-const char *embeddedDocumentsAnnotation = "embedded_documents";
-
-/**
- * Comparison sets are conveyed as sequences. Each element in the sequence must be equivalent to all other elements
- * in the same sequence.
- */
-void testComparisonSets(IonEventStream *stream, COMPARISON_TYPE comparison_type) {
-    size_t i = 0;
-    while (i < stream->size()) {
-        IonEvent *event = stream->at(i);
-        if (i == stream->size() - 1) {
-            ASSERT_EQ(STREAM_END, event->event_type);
-            i++;
-        } else {
-            ASSERT_EQ(CONTAINER_START, event->event_type);
-            ASSERT_TRUE((tid_SEXP == event->ion_type) || (tid_LIST == event->ion_type));
-            size_t step = valueEventLength(stream, i);
-            char *first_annotation = (event->num_annotations == 1) ? ionStringToString(&event->annotations[0]->value) : NULL;
-            if (first_annotation && !strcmp(first_annotation, embeddedDocumentsAnnotation)) {
-                testEmbeddedDocumentSet(stream, i + 1, 0, comparison_type);
-            } else {
-                testEquivsSet(stream, i + 1, 0, comparison_type);
-            }
-            if (first_annotation) {
-                free(first_annotation);
-            }
-            i += step;
-        }
-    }
-}
-
 /**
  * Exercises good vectors with equivs semantics.
  */
 TEST_P(GoodEquivsVector, GoodEquivs) {
     iERR status = read_value_stream(initial_stream, input_type, filename, catalog);
-    EXPECT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
+    ASSERT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
     if (IERR_OK == status) {
-        testComparisonSets(initial_stream, COMPARISON_TYPE_EQUIVS);
+        ASSERT_TRUE(testComparisonSets(initial_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
         if (test_type > READ) {
             status = ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
                                       test_type);
-            EXPECT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
-            testComparisonSets(roundtrip_stream, COMPARISON_TYPE_EQUIVS);
+            ASSERT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
+            ASSERT_TRUE(testComparisonSets(roundtrip_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
         }
     }
 }
@@ -525,14 +408,14 @@ INSTANTIATE_TEST_CASE_P(
 TEST_P(GoodTimestampEquivTimelineVector, GoodTimestampEquivTimeline) {
     g_TimestampEquals = ion_timestamp_instant_equals;
     iERR status = read_value_stream(initial_stream, input_type, filename, catalog);
-    EXPECT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
+    ASSERT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
     if (IERR_OK == status) {
-        testComparisonSets(initial_stream, COMPARISON_TYPE_EQUIVS);
+        ASSERT_TRUE(testComparisonSets(initial_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
         if (test_type > READ) {
             status = ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
                                       test_type);
-            EXPECT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
-            testComparisonSets(roundtrip_stream, COMPARISON_TYPE_EQUIVS);
+            ASSERT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
+            ASSERT_TRUE(testComparisonSets(roundtrip_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
         }
     }
 }
@@ -567,14 +450,14 @@ INSTANTIATE_TEST_CASE_P(
  */
 TEST_P(GoodNonequivsVector, GoodNonequivs) {
     iERR status = read_value_stream(initial_stream, input_type, filename, catalog);
-    EXPECT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
+    ASSERT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
     if (IERR_OK == status) {
-        testComparisonSets(initial_stream, COMPARISON_TYPE_NONEQUIVS);
+        ASSERT_TRUE(testComparisonSets(initial_stream, COMPARISON_TYPE_NONEQUIVS, ASSERTION_TYPE_NORMAL));
         if (test_type > READ) {
             status = ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
                                       test_type);
-            EXPECT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
-            testComparisonSets(roundtrip_stream, COMPARISON_TYPE_NONEQUIVS);
+            ASSERT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
+            ASSERT_TRUE(testComparisonSets(roundtrip_stream, COMPARISON_TYPE_NONEQUIVS, ASSERTION_TYPE_NORMAL));
         }
     }
 }

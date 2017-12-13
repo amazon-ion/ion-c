@@ -254,7 +254,7 @@ typedef enum _assertion_type {
      */
     ASSERTION_TYPE_SET_FLAG = 0,
 
-#ifdef ION_ASSERT_ENABLE_GTEST
+#if ION_ASSERT_ENABLE_GTEST
     /**
      * Any assertion failure causes a test failure.
      */
@@ -290,5 +290,7 @@ BOOL assertIonEventsEq(IonEventStream *stream_expected, size_t index_expected, I
 BOOL assertIonEventStreamEq(IonEventStream *expected, IonEventStream *actual, ASSERTION_TYPE assertion_type);
 
 BOOL doublesEq(double expected, double actual);
+
+BOOL testComparisonSets(IonEventStream *stream, COMPARISON_TYPE comparison_type, ASSERTION_TYPE assertion_type);
 
 #endif //IONC_ION_EVENT_EQUIVALENCE_H
