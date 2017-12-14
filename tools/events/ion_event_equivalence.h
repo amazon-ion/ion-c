@@ -214,12 +214,6 @@ extern std::string g_CurrentTest;
  */
 char *ionIntToString(ION_INT *value);
 
-/**
- * Allocates and returns a new char * representing the given ION_STRING.
- * Note: the caller is responsible for freeing the returned char *.
- */
-char *ionStringToString(ION_STRING *value);
-
 ::testing::AssertionResult assertIonStringEq(ION_STRING *expected, ION_STRING *actual);
 ::testing::AssertionResult assertIonSymbolEq(ION_SYMBOL *expected, ION_SYMBOL *actual);
 ::testing::AssertionResult assertIonIntEq(ION_INT *expected, ION_INT *actual);
@@ -291,6 +285,6 @@ BOOL assertIonEventStreamEq(IonEventStream *expected, IonEventStream *actual, AS
 
 BOOL doublesEq(double expected, double actual);
 
-BOOL testComparisonSets(IonEventStream *stream, COMPARISON_TYPE comparison_type, ASSERTION_TYPE assertion_type);
+BOOL testComparisonSets(IonEventStream *lhs, IonEventStream *rhs, COMPARISON_TYPE comparison_type, ASSERTION_TYPE assertion_type);
 
 #endif //IONC_ION_EVENT_EQUIVALENCE_H

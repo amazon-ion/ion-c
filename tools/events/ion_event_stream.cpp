@@ -302,9 +302,7 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
             if (length) {
                 IONCHECKORFREE(ion_reader_read_lob_bytes(hreader, buf, length, &bytes_read), buf);
                 if (length != bytes_read) {
-                    free(buf);
-                    buf = NULL;
-                    FAILWITH(IERR_EOF);
+                    IONCHECKORFREE(IERR_EOF, buf);
                 }
             }
             ION_LOB *lob_value = (ION_LOB *)malloc(sizeof(ION_LOB));

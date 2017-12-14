@@ -168,7 +168,7 @@ TEST(IonTextSymbol, ReaderReadsSymbolValueSymbolZero) {
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
     ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &symbol_value));
-    ASSERT_STREQ("$0", ionStringToString(&symbol_value.value)); // This one just looks like symbol zero, but it's actually a user symbol with the text $0
+    ASSERT_STREQ("$0", std::string((char *)symbol_value.value.value, (size_t)symbol_value.value.length).c_str()); // This one just looks like symbol zero, but it's actually a user symbol with the text $0
 
     ION_ASSERT_OK(ion_reader_close(reader));
 }
@@ -202,7 +202,7 @@ TEST(IonTextSymbol, ReaderReadsAnnotationSymbolZero) {
     ASSERT_EQ(1, num_annotations);
     ASSERT_TRUE(ION_STRING_IS_NULL(&annotation_strs[0]));
     ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &symbol));
-    ASSERT_STREQ("$0", ionStringToString(&symbol.value)); // This one just looks like symbol zero, but it's actually a user symbol with the text $0
+    ASSERT_STREQ("$0", std::string((char *)symbol.value.value, (size_t)symbol.value.length).c_str()); // This one just looks like symbol zero, but it's actually a user symbol with the text $0
 
     ION_ASSERT_OK(ion_reader_close(reader));
 }

@@ -366,12 +366,12 @@ TEST_P(GoodEquivsVector, GoodEquivs) {
     iERR status = read_value_stream(initial_stream, input_type, filename, catalog);
     ASSERT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
     if (IERR_OK == status) {
-        ASSERT_TRUE(testComparisonSets(initial_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
+        ASSERT_TRUE(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
         if (test_type > READ) {
             status = ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
                                       test_type);
             ASSERT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
-            ASSERT_TRUE(testComparisonSets(roundtrip_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
+            ASSERT_TRUE(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
         }
     }
 }
@@ -410,12 +410,12 @@ TEST_P(GoodTimestampEquivTimelineVector, GoodTimestampEquivTimeline) {
     iERR status = read_value_stream(initial_stream, input_type, filename, catalog);
     ASSERT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
     if (IERR_OK == status) {
-        ASSERT_TRUE(testComparisonSets(initial_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
+        ASSERT_TRUE(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
         if (test_type > READ) {
             status = ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
                                       test_type);
             ASSERT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
-            ASSERT_TRUE(testComparisonSets(roundtrip_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
+            ASSERT_TRUE(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
         }
     }
 }
@@ -452,12 +452,12 @@ TEST_P(GoodNonequivsVector, GoodNonequivs) {
     iERR status = read_value_stream(initial_stream, input_type, filename, catalog);
     ASSERT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
     if (IERR_OK == status) {
-        ASSERT_TRUE(testComparisonSets(initial_stream, COMPARISON_TYPE_NONEQUIVS, ASSERTION_TYPE_NORMAL));
+        ASSERT_TRUE(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_NONEQUIVS, ASSERTION_TYPE_NORMAL));
         if (test_type > READ) {
             status = ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
                                       test_type);
             ASSERT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
-            ASSERT_TRUE(testComparisonSets(roundtrip_stream, COMPARISON_TYPE_NONEQUIVS, ASSERTION_TYPE_NORMAL));
+            ASSERT_TRUE(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_NONEQUIVS, ASSERTION_TYPE_NORMAL));
         }
     }
 }

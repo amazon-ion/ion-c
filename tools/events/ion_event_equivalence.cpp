@@ -208,37 +208,9 @@ BOOL doublesEq(double expected, double actual) {
     return lhs.AlmostEquals(rhs) || rhs.AlmostEquals(lhs);
 }
 
-char *ionIntToString(ION_INT *value) {
-    SIZE len, written;
-    ion_int_char_length(value, &len);
-    char *int_str = (char *)malloc(len * sizeof(char));
-    ion_int_to_char(value, (BYTE *)int_str, len, &written);
-    return int_str;
-}
+typedef BOOL (*COMPARISON_FN)(IonEventStream *lhs, size_t lhs_index, IonEventStream *rhs, size_t rhs_index, ASSERTION_TYPE assertion_type);
 
-char *ionStringToString(ION_STRING *value) {
-    BYTE *src, *dst;
-    SIZE len;
-    if (!ION_STRING_IS_NULL(value)) {
-        src = value->value;
-        len = value->length;
-    }
-    else {
-        src = (BYTE *)"NULL";
-        len = 4;
-    }
-    dst = (BYTE *)malloc(((size_t)len + 1) * sizeof(char));
-    if (!dst) return NULL;
-
-    memcpy(dst, src, (size_t)len);
-    dst[len] = 0;
-
-    return (char *)dst;
-}
-
-typedef BOOL (*COMPARISON_FN)(IonEventStream *stream, size_t index_expected, size_t index_actual, ASSERTION_TYPE assertion_type);
-
-BOOL comparisonEquivs(IonEventStream *stream, size_t index_expected, size_t index_actual, ASSERTION_TYPE assertion_type) {
+BOOL comparisonEquivs(IonEventStream *lhs, size_t lhs_index, IonEventStream *rhs, size_t rhs_index, ASSERTION_TYPE assertion_type) {
     ION_ENTER_ASSERTIONS;
 #ifdef ION_ASSERT_ENABLE_GTEST
     ASSERTION_TYPE individual_assertion = ASSERTION_TYPE_NORMAL;
@@ -246,17 +218,21 @@ BOOL comparisonEquivs(IonEventStream *stream, size_t index_expected, size_t inde
     // TODO check
     ASSERTION_TYPE individual_assertion = ASSERTION_TYPE_SET_FLAG;
 #endif
-    ION_EXPECT_TRUE_MSG(assertIonEventsEq(stream, index_expected, stream, index_actual, individual_assertion),
+    ION_EXPECT_TRUE_MSG(assertIonEventsEq(lhs, lhs_index, rhs, rhs_index, individual_assertion),
                         std::string("Test: ") << g_CurrentTest
-                                              << " comparing events at index " << index_expected << " and " << index_actual);
+                                              << " comparing events at index " << lhs_index << " and " << rhs_index);
     ION_EXIT_ASSERTIONS;
 }
 
-BOOL comparisonNonequivs(IonEventStream *stream, size_t index_expected, size_t index_actual, ASSERTION_TYPE assertion_type) {
+BOOL comparisonNonequivs(IonEventStream *lhs, size_t lhs_index, IonEventStream *rhs, size_t rhs_index, ASSERTION_TYPE assertion_type) {
     ION_ENTER_ASSERTIONS;
-    ION_EXPECT_FALSE_MSG(assertIonEventsEq(stream, index_expected, stream, index_actual, ASSERTION_TYPE_SET_FLAG),
-                         std::string("Test: ") << g_CurrentTest
-                                               << " comparing events at index " << index_expected << " and " << index_actual);
+    // The corresponding indices are assumed to be equivalent.
+    if (lhs_index != rhs_index) {
+        ION_EXPECT_FALSE_MSG(assertIonEventsEq(lhs, lhs_index, rhs, rhs_index, ASSERTION_TYPE_SET_FLAG),
+                             std::string("Test: ") << g_CurrentTest
+                                                   << " comparing events at index " << lhs_index << " and "
+                                                   << rhs_index);
+    }
     ION_EXIT_ASSERTIONS;
 }
 
@@ -264,39 +240,34 @@ BOOL comparisonNonequivs(IonEventStream *stream, size_t index_expected, size_t i
  * Compares each element in the current container to every other element in the container. The given index refers
  * to the starting index of the first element in the container.
  */
-BOOL testEquivsSet(IonEventStream *stream, size_t index, int target_depth, COMPARISON_TYPE comparison_type, ASSERTION_TYPE assertion_type) {
+BOOL testEquivsSet(IonEventStream *lhs, size_t lhs_index, IonEventStream *rhs, size_t rhs_index, int target_depth, COMPARISON_TYPE comparison_type, ASSERTION_TYPE assertion_type) {
     ION_ENTER_ASSERTIONS;
-    // TODO might as well compare each element to itself too (for equivs only). This isn't done currently.
     COMPARISON_FN comparison_fn = (comparison_type == COMPARISON_TYPE_EQUIVS) ? comparisonEquivs
                                                                               : comparisonNonequivs;
-    size_t i = index;
-    size_t j = index;
-    size_t step = 1;
-    BOOL are_containers = stream->at(i)->event_type == CONTAINER_START;
+    size_t i = lhs_index;
+    size_t j = rhs_index;
     while (TRUE) {
-        if (are_containers) {
-            // Find the start of the next container to compare its events for equivalence with this one.
-            step = valueEventLength(stream, j);
-        }
-        j += step;
-        if (stream->at(j)->event_type == CONTAINER_END && stream->at(j)->depth == target_depth) {
-            i += valueEventLength(stream, i);
-            j = i;
+        if (rhs->at(j)->event_type == CONTAINER_END && rhs->at(j)->depth == target_depth) {
+            i += valueEventLength(lhs, i);
+            if (lhs->at(i)->event_type == CONTAINER_END && lhs->at(i)->depth == target_depth) {
+                break;
+            }
+            j = rhs_index;
         } else {
-            ION_ACCUMULATE_ASSERTION((*comparison_fn)(stream, i, j, assertion_type));
-        }
-        if (stream->at(i)->event_type == CONTAINER_END && stream->at(i)->depth == target_depth) {
-            break;
+            ION_ACCUMULATE_ASSERTION((*comparison_fn)(lhs, i, rhs, j, assertion_type));
+            j += valueEventLength(rhs, j);
         }
     }
     ION_EXIT_ASSERTIONS;
 }
 
+#define ION_EVENT_STRING_OR_NULL(ion_string) (ION_STRING_IS_NULL(ion_string) ? std::string("NULL") : std::string((char *)(ion_string)->value, (size_t)(ion_string)->length))
+
 /**
  * The 'embedded_documents' annotation denotes that the current container contains streams of Ion data embedded
  * in string values. These embedded streams are parsed and their resulting IonEventStreams compared.
  */
-BOOL testEmbeddedDocumentSet(IonEventStream *stream, size_t index, int target_depth, COMPARISON_TYPE comparison_type) {
+BOOL testEmbeddedDocumentSet(IonEventStream *lhs, size_t lhs_index, IonEventStream *rhs, size_t rhs_index, int target_depth, COMPARISON_TYPE comparison_type) {
     // TODO could roundtrip the embedded event streams instead of the strings representing them
     ION_ENTER_ASSERTIONS;
 #ifdef ION_ASSERT_ENABLE_GTEST
@@ -306,39 +277,41 @@ BOOL testEmbeddedDocumentSet(IonEventStream *stream, size_t index, int target_de
     // TODO check this
     ASSERTION_TYPE assertion_type = ASSERTION_TYPE_SET_FLAG;
 #endif
-    size_t i = index;
-    size_t j = index;
+    size_t i = lhs_index;
+    size_t j = rhs_index;
     while (TRUE) {
-        j += 1;
-        if (stream->at(j)->event_type == CONTAINER_END && stream->at(j)->depth == target_depth) {
+        IonEvent *expected_event = lhs->at(i);
+        IonEvent *actual_event = rhs->at(j);
+        if (actual_event->event_type == CONTAINER_END && actual_event->depth == target_depth) {
             i += 1;
-            j = i;
+            if (lhs->at(i)->event_type == CONTAINER_END && lhs->at(i)->depth == target_depth) {
+                break;
+            }
+            j = rhs_index;
         } else {
-            IonEvent *expected_event = stream->at(i);
-            IonEvent *actual_event = stream->at(j);
             ION_ASSERT(tid_STRING == expected_event->ion_type, "Embedded documents must be strings.");
             ION_ASSERT(tid_STRING == actual_event->ion_type, "Embedded documents must be strings.");
-            char *expected_ion_string = ionStringToString((ION_STRING *)expected_event->value);
-            char *actual_ion_string = ionStringToString((ION_STRING *)actual_event->value);
-            IonEventStream expected_stream, actual_stream;
-            ION_ASSERT(IERR_OK == read_value_stream_from_string(expected_ion_string, &expected_stream, NULL),
-                       "Embedded document failed to parse");
-            ION_ASSERT(IERR_OK == read_value_stream_from_string(actual_ion_string, &actual_stream, NULL),
-                       "Embedded document failed to parse");
-            ION_EXPECT_EQ_MSG(comparison_type == COMPARISON_TYPE_EQUIVS, assertIonEventStreamEq(&expected_stream, &actual_stream, assertion_type),
-                              std::string("Error comparing streams \"") << expected_ion_string << "\" and \""
-                                                                        << actual_ion_string << "\".");
-            free(expected_ion_string);
-            free(actual_ion_string);
-        }
-        if (stream->at(i)->event_type == CONTAINER_END && stream->at(i)->depth == target_depth) {
-            break;
+            if (comparison_type != COMPARISON_TYPE_NONEQUIVS || i != j) {
+                ION_STRING *actual_str = (ION_STRING *) actual_event->value;
+                ION_STRING *expected_str = (ION_STRING *) expected_event->value;
+                IonEventStream expected_stream, actual_stream;
+                ION_ASSERT(IERR_OK == read_value_stream_from_bytes(expected_str->value, expected_str->length,
+                                                                   &expected_stream, NULL),
+                           "Embedded document failed to parse");
+                ION_ASSERT(IERR_OK == read_value_stream_from_bytes(actual_str->value, actual_str->length,
+                                                                   &actual_stream, NULL),
+                           "Embedded document failed to parse");
+                ION_EXPECT_EQ_MSG(comparison_type == COMPARISON_TYPE_EQUIVS,
+                                  assertIonEventStreamEq(&expected_stream, &actual_stream, assertion_type),
+                                  std::string("Error comparing streams \"")
+                                          << ION_EVENT_STRING_OR_NULL(expected_str) << "\" and \""
+                                          << ION_EVENT_STRING_OR_NULL(actual_str) << "\".");
+            }
+            j += 1;
         }
     }
     ION_EXIT_ASSERTIONS;
 }
-
-const char *embeddedDocumentsAnnotation = "embedded_documents";
 
 // TODO figure out how to pass failure context upward. Also, generalize to compare across different streams.
 
@@ -346,28 +319,50 @@ const char *embeddedDocumentsAnnotation = "embedded_documents";
  * Comparison sets are conveyed as sequences. Each element in the sequence must be equivalent to all other elements
  * in the same sequence.
  */
-BOOL testComparisonSets(IonEventStream *stream, COMPARISON_TYPE comparison_type, ASSERTION_TYPE assertion_type) {
+BOOL testComparisonSets(IonEventStream *lhs, IonEventStream *rhs, COMPARISON_TYPE comparison_type, ASSERTION_TYPE assertion_type) {
     ION_ENTER_ASSERTIONS;
-    size_t i = 0;
-    while (i < stream->size()) {
-        IonEvent *event = stream->at(i);
-        if (i == stream->size() - 1) {
-            ION_EXPECT_EQ(STREAM_END, event->event_type);
-            i++;
-        } else {
-            ION_EXPECT_EQ(CONTAINER_START, event->event_type);
-            ION_EXPECT_TRUE((tid_SEXP == event->ion_type) || (tid_LIST == event->ion_type));
-            size_t step = valueEventLength(stream, i);
-            char *first_annotation = (event->num_annotations == 1) ? ionStringToString(&event->annotations[0]->value) : NULL;
-            if (first_annotation && !strcmp(first_annotation, embeddedDocumentsAnnotation)) {
-                ION_ACCUMULATE_ASSERTION(testEmbeddedDocumentSet(stream, i + 1, 0, comparison_type));
+    ION_EXPECT_TRUE(!(lhs->size() == 0 ^ rhs->size()== 0));
+    if (lhs->size() == 0) return TRUE;
+    size_t i = 0, j = 0;
+    while (TRUE) {
+        IonEvent *lhs_event = lhs->at(i);
+        IonEvent *rhs_event = rhs->at(i);
+        if (i == lhs->size() - 1) {
+            // Even if the streams' corresponding sets have different number of elements, the loop will reach the
+            // end of each stream at the same time as long as the streams have the same number of sets. And if they
+            // don't have the same number of sets, an error is raised.
+            ION_EXPECT_EQ(rhs->size() - 1, j);
+            ION_EXPECT_EQ(STREAM_END, lhs_event->event_type);
+            ION_EXPECT_EQ(STREAM_END, rhs_event->event_type);
+            break;
+        }
+        else if (j == rhs->size() - 1) {
+            ION_EXPECT_EQ(lhs->size() - 1, i);
+            ION_EXPECT_EQ(STREAM_END, rhs_event->event_type);
+            ION_EXPECT_EQ(STREAM_END, lhs_event->event_type);
+            break;
+        }
+        else {
+            ION_EXPECT_EQ(CONTAINER_START, lhs_event->event_type);
+            ION_EXPECT_TRUE((tid_SEXP == lhs_event->ion_type) || (tid_LIST == lhs_event->ion_type));
+            ION_EXPECT_EQ(CONTAINER_START, rhs_event->event_type);
+            ION_EXPECT_TRUE((tid_SEXP == rhs_event->ion_type) || (tid_LIST == rhs_event->ion_type));
+            size_t step_lhs = valueEventLength(lhs, i);
+            size_t step_rhs = valueEventLength(rhs, j);
+            // Because reflexive comparisons are incompatible with the nonequivs semantic, nonequivs comparison sets
+            // must have an equivalent number of elements so that corresponding indices are assumed to be equivalent.
+            ION_EXPECT_TRUE(comparison_type == COMPARISON_TYPE_NONEQUIVS ? step_lhs == step_rhs : TRUE);
+            ION_STRING *lhs_annotation = (lhs_event->num_annotations > 0) ? &lhs_event->annotations[0]->value : NULL;
+            ION_STRING *rhs_annotation = (rhs_event->num_annotations > 0) ? &rhs_event->annotations[0]->value : NULL;
+            if (lhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, lhs_annotation)) {
+                ION_EXPECT_TRUE(rhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation));
+                ION_ACCUMULATE_ASSERTION(testEmbeddedDocumentSet(lhs, i + 1, rhs, j + 1, 0, comparison_type));
             } else {
-                ION_ACCUMULATE_ASSERTION(testEquivsSet(stream, i + 1, 0, comparison_type, assertion_type));
+                ION_EXPECT_FALSE(rhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation));
+                ION_ACCUMULATE_ASSERTION(testEquivsSet(lhs, i + 1, rhs, j + 1, 0, comparison_type, assertion_type));
             }
-            if (first_annotation) {
-                free(first_annotation);
-            }
-            i += step;
+            i += step_lhs;
+            j += step_rhs;
         }
     }
     ION_EXIT_ASSERTIONS;
@@ -377,27 +372,17 @@ BOOL testComparisonSets(IonEventStream *stream, COMPARISON_TYPE comparison_type,
 std::string g_CurrentTest = "NONE";
 
 ::testing::AssertionResult assertIonStringEq(ION_STRING *expected, ION_STRING *actual) {
-    char *expected_str = NULL;
-    char *actual_str = NULL;
     if (!(expected == NULL ^ actual == NULL)) {
         if (expected == NULL || ion_string_is_equal(expected, actual)) {
             return ::testing::AssertionSuccess();
         }
     }
-    expected_str = ionStringToString(expected);
-    actual_str = ionStringToString(actual);
     ::testing::AssertionResult result = ::testing::AssertionFailure()
-            << std::string("") << expected_str << "  vs. " << actual_str;
-    free(expected_str);
-    free(actual_str);
+        << ION_EVENT_STRING_OR_NULL(expected) << "  vs. " << ION_EVENT_STRING_OR_NULL(actual);
     return result;
 }
 
 ::testing::AssertionResult assertIonSymbolEq(ION_SYMBOL *expected, ION_SYMBOL *actual) {
-    char *expected_str = NULL;
-    char *actual_str = NULL;
-    char *expected_import_str = NULL;
-    char *actual_import_str = NULL;
     if (!(expected == NULL ^ actual == NULL)) {
         if (expected == NULL) {
             return ::testing::AssertionSuccess();
@@ -408,19 +393,23 @@ std::string g_CurrentTest = "NONE";
             return ::testing::AssertionSuccess();
         }
     }
-    expected_str = ionStringToString(&expected->value);
-    actual_str = ionStringToString(&actual->value);
-    expected_import_str = ionStringToString(&expected->import_location.name);
-    actual_import_str = ionStringToString(&actual->import_location.name);
     ::testing::AssertionResult result = ::testing::AssertionFailure()
-            << std::string("(text=") << expected_str << ", local_sid=" << expected->sid
-                << ", location=(" << expected_import_str << ", " << expected->import_location.location << "))"
+            << std::string("(text=") << ION_EVENT_STRING_OR_NULL(&expected->value) << ", local_sid=" << expected->sid
+                << ", location=(" << ION_EVENT_STRING_OR_NULL(&expected->import_location.name)
+                << ", " << expected->import_location.location << "))"
             << " vs. "
-            << "(text=" << actual_str << ", local_sid=" << actual->sid
-                << ", location=(" << actual_import_str << ", " << actual->import_location.location << "))";
-    free(expected_str);
-    free(actual_str);
+            << "(text=" << ION_EVENT_STRING_OR_NULL(&actual->value) << ", local_sid=" << actual->sid
+                << ", location=(" << ION_EVENT_STRING_OR_NULL(&expected->import_location.name) << ", "
+                << actual->import_location.location << "))";
     return result;
+}
+
+char *ionIntToString(ION_INT *value) {
+    SIZE len, written;
+    ion_int_char_length(value, &len);
+    char *int_str = (char *)malloc(len * sizeof(char));
+    ion_int_to_char(value, (BYTE *)int_str, len, &written);
+    return int_str;
 }
 
 ::testing::AssertionResult assertIonIntEq(ION_INT *expected, ION_INT *actual) {
