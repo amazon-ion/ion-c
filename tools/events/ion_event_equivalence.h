@@ -258,7 +258,9 @@ typedef enum _assertion_type {
 
 typedef enum _comparison_type {
     COMPARISON_TYPE_EQUIVS = 0,
-    COMPARISON_TYPE_NONEQUIVS
+    COMPARISON_TYPE_NONEQUIVS,
+    COMPARISON_TYPE_BASIC,
+    COMPARISON_TYPE_UNKNOWN
 } COMPARISON_TYPE;
 
 typedef iERR (*TIMESTAMP_COMPARISON_FN)(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2, BOOL *is_equal, decContext *pcontext);

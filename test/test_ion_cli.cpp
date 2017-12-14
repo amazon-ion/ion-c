@@ -30,3 +30,37 @@ TEST(IonCli, One) {
     args.push_back("../build/tmp/one_events.ion");
     ion_cli_parse(args);
 }
+
+TEST(IonCli, CompareNullsBasic) {
+    std::vector<std::string> args;
+    args.push_back("compare");
+    args.push_back("../ion-tests/iontestdata/good/allNulls.ion");
+    ion_cli_parse(args);
+}
+
+TEST(IonCli, CompareListsEquivs) {
+    std::vector<std::string> args;
+    args.push_back("compare");
+    args.push_back("--comparison-type");
+    args.push_back("equivs");
+    args.push_back("../ion-tests/iontestdata/good/equivs/lists.ion");
+    ion_cli_parse(args);
+}
+
+TEST(IonCli, CompareSexpsNonequivs) {
+    std::vector<std::string> args;
+    args.push_back("compare");
+    args.push_back("--comparison-type");
+    args.push_back("nonequivs");
+    args.push_back("../ion-tests/iontestdata/good/non-equivs/sexps.ion");
+    ion_cli_parse(args);
+}
+
+TEST(IonCli, CompareAnnotatedIvmsEmbeddedNonequivs) {
+    std::vector<std::string> args;
+    args.push_back("compare");
+    args.push_back("--comparison-type");
+    args.push_back("nonequivs");
+    args.push_back("../ion-tests/iontestdata/good/non-equivs/annotatedIvms.ion");
+    ion_cli_parse(args);
+}

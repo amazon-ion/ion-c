@@ -20,6 +20,7 @@
 #include <ion_helpers.h>
 #include <ion_event_util.h>
 #include <ion_event_stream.h>
+#include <ion_event_equivalence.h>
 #include "docopt/docopt.h"
 #include "cli.h"
 
@@ -131,7 +132,7 @@ typedef struct _ion_cli_process_args {
 typedef struct _ion_cli_compare_args {
     ION_CLI_COMMON_ARGS common_args;
     ION_CLI_PROCESS_COMPARE_ARGS process_compare_args;
-    std::string comparison_type;
+    COMPARISON_TYPE comparison_type;
 } ION_CLI_COMPARE_ARGS;
 
 static bool ion_cli_has_flag(std::map<std::string, docopt::value> *args, std::string arg) {
@@ -174,6 +175,7 @@ typedef struct _ion_cli_reader_context {
 iERR ion_cli_close_reader(ION_CLI_READER_CONTEXT *context) {
     iENTER;
     ASSERT(context);
+    // TODO each cleanup should happen even if previous ones fail.
     IONCHECK(ion_reader_close(context->reader));
     IONCHECK(ion_stream_close(context->ion_stream));
     if (context->file_stream) {
@@ -201,6 +203,7 @@ iERR ion_cli_add_shared_tables_to_catalog(std::string file_path, ION_CATALOG *ca
         IONCHECK(ion_catalog_add_symbol_table(catalog, symbol_table));
         IONCHECK(ion_reader_next(symbol_table_reader, &type));
     }
+    // TODO reader should be closed regardless of whether previous lines fail.
     IONCHECK(ion_reader_close(symbol_table_reader));
 
     iRETURN;
@@ -285,6 +288,7 @@ iERR ion_cli_open_writer(ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog, ION_CO
 iERR ion_cli_close_writer(ION_EVENT_WRITER_CONTEXT *context) {
     iENTER;
     ASSERT(context);
+    // TODO each cleanup should happen even if previous ones fail.
     IONCHECK(ion_writer_close(context->writer));
     if (context->has_imports) {
         IONCHECK(ion_writer_options_close_shared_imports(&context->options));
@@ -358,22 +362,28 @@ iERR ion_cli_is_event_stream(ION_CLI_READER_CONTEXT *reader_context, bool *is_ev
     iRETURN;
 }
 
+iERR ion_cli_read_stream(ION_CLI_COMMON_ARGS *args, ION_CLI_READER_CONTEXT *reader_context, std::string *file_path, ION_CATALOG *catalog, IonEventStream *stream) {
+    iENTER;
+    bool is_event_stream, has_more_events;
+    IONCHECK(ion_cli_open_reader(args, catalog, file_path, reader_context, stream));
+
+    IONCHECK(ion_cli_is_event_stream(reader_context, &is_event_stream, &has_more_events));
+    if (has_more_events) {
+        if (is_event_stream) {
+            IONCHECK(ion_event_stream_read_all_events(reader_context->reader, stream, catalog));
+        }
+        else {
+            IONCHECK(ion_event_stream_read_all(reader_context->reader, stream));
+        }
+    }
+    iRETURN;
+}
+
 iERR ion_cli_write_value(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *writer_context, ION_CATALOG *catalog, std::string *file_path) {
     iENTER;
     ION_CLI_READER_CONTEXT reader_context;
     IonEventStream stream;
-    bool is_event_stream, has_more_events;
-    IONCHECK(ion_cli_open_reader(args, catalog, file_path, &reader_context, &stream));
-
-    IONCHECK(ion_cli_is_event_stream(&reader_context, &is_event_stream, &has_more_events));
-    if (has_more_events) {
-        if (is_event_stream) {
-            IONCHECK(ion_event_stream_read_all_events(reader_context.reader, &stream, catalog));
-        }
-        else {
-            IONCHECK(ion_event_stream_read_all(reader_context.reader, &stream));
-        }
-    }
+    IONCHECK(ion_cli_read_stream(args, &reader_context, file_path, catalog, &stream));
     if (args->output_format == "events") {
         IONCHECK(ion_event_stream_write_all_events(writer_context->writer, &stream, catalog));
     }
@@ -383,6 +393,7 @@ iERR ion_cli_write_value(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *wr
         // stream (to identify $ion_event_stream) rules it out.
         //IONCHECK(ion_writer_write_all_values(writer_context->writer, reader_context.reader));
     }
+    // TODO won't be freed if the previous lines fail
     IONCHECK(ion_cli_close_reader(&reader_context));
     iRETURN;
 }
@@ -404,6 +415,7 @@ iERR ion_cli_write_all_values(ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog, I
             IONCHECK(ion_cli_write_value(args, &writer_context, catalog, &file_paths->at(i)));
         }
     }
+    // TODO won't be freed if the previous lines fail
     IONCHECK(ion_cli_close_writer(&writer_context));
     iRETURN;
 }
@@ -418,6 +430,7 @@ iERR ion_cli_command_process_standard(ION_CLI_PROCESS_ARGS *args) {
     IONCHECK(ion_cli_create_imports(&args->process_compare_args.imports, &imports_owner, &imports));
     IONCHECK(ion_cli_write_all_values(&args->common_args, catalog, imports_owner ? &imports : NULL, &args->common_args.input_files));
 
+    // TODO these aren't freed if an error happens earlier.
     if (catalog) {
         IONCHECK(ion_catalog_close(catalog));
     }
@@ -495,13 +508,17 @@ iERR ion_cli_command_process(std::map<std::string, docopt::value> *args) {
     iRETURN;
 }
 
-/**
- * Compares each input stream against itself.
- */
-iERR ion_cli_compare_self(std::vector<std::string> inputs) {
-    iENTER;
-
-    iRETURN;
+COMPARISON_TYPE ion_cli_comparison_type_from_string(std::string type_str) {
+    if ("basic" == type_str) {
+        return COMPARISON_TYPE_BASIC;
+    }
+    if ("equivs" == type_str) {
+        return COMPARISON_TYPE_EQUIVS;
+    }
+    if ("nonequivs" == type_str) {
+        return COMPARISON_TYPE_NONEQUIVS;
+    }
+    return COMPARISON_TYPE_UNKNOWN;
 }
 
 iERR ion_cli_command_compare(std::map<std::string, docopt::value> *args) {
@@ -512,24 +529,65 @@ iERR ion_cli_command_compare(std::map<std::string, docopt::value> *args) {
     hOWNER imports_owner = NULL;
     ION_COLLECTION imports;
 
+    IonEventStream **streams = NULL;
+    ION_CLI_READER_CONTEXT *reader_contexts = NULL;
+    size_t num_inputs = 0;
+
     IONCHECK(ion_cli_args_common(args, &compare_args.common_args));
     IONCHECK(ion_cli_args_process_compare(args, &compare_args.process_compare_args));
 
     if (ion_cli_has_value(args, "--comparison-type")) {
-        compare_args.comparison_type = args->find("--comparison-type")->second.asString();
+        compare_args.comparison_type = ion_cli_comparison_type_from_string(args->find("--comparison-type")->second.asString());
+        if (compare_args.comparison_type == COMPARISON_TYPE_UNKNOWN) {
+            FAILWITHMSG(IERR_INVALID_ARG, "Invalid event.");
+        }
+    }
+    else {
+        compare_args.comparison_type = COMPARISON_TYPE_BASIC;
     }
 
     // TODO duplicates ion_cli_command_process_standard
     IONCHECK(ion_cli_create_catalog(&compare_args.process_compare_args.catalog, &catalog));
     IONCHECK(ion_cli_create_imports(&compare_args.process_compare_args.imports, &imports_owner, &imports));
 
-    //IONCHECK()
+    num_inputs = compare_args.common_args.input_files.size();
+    streams = (IonEventStream**)calloc(num_inputs, sizeof(IonEventStream*));
+    reader_contexts = (ION_CLI_READER_CONTEXT *)calloc(num_inputs, sizeof(ION_CLI_READER_CONTEXT));
 
+    for (size_t i = 0; i < num_inputs; i++) {
+        streams[i] = new IonEventStream();
+        IONCHECK(ion_cli_read_stream(&compare_args.common_args, &reader_contexts[i], &compare_args.common_args.input_files.at(i), catalog, streams[i]));
+    }
+
+    for (size_t i = 0; i < num_inputs; i++) {
+        for (size_t j = 0; j < num_inputs; j++) {
+            // TODO need to get an error and/or comparison report from this
+            if (compare_args.comparison_type == COMPARISON_TYPE_BASIC) {
+                if (!assertIonEventStreamEq(streams[i], streams[j], ASSERTION_TYPE_SET_FLAG)) {
+                    std::cerr << "Comparison failed." << std::endl;
+                }
+            }
+            else if (!testComparisonSets(streams[i], streams[j], compare_args.comparison_type, ASSERTION_TYPE_SET_FLAG)) {
+                std::cerr << "Comparison failed." << std::endl;
+            }
+        }
+    }
+
+    // TODO these aren't freed if a failure happens earlier.
     if (catalog) {
         IONCHECK(ion_catalog_close(catalog));
     }
     if (imports_owner) {
         ion_free_owner(imports_owner);
+    }
+    if (streams) {
+        for (size_t i = 0; i < num_inputs; i++) {
+            delete streams[i];
+        }
+        free(streams);
+    }
+    if (reader_contexts) {
+        free(reader_contexts);
     }
 
     iRETURN;
@@ -554,8 +612,7 @@ iERR ion_cli_parse(std::vector<std::string> const &argv) {
         SUCCEED();
     }
     if (ion_cli_has_flag(&args, "compare")) {
-        // TODO implement compare
-        std::cerr << "compare command not yet implemented" << std::endl;
+        IONCHECK(ion_cli_command_compare(&args));
         SUCCEED();
     }
     if (ion_cli_has_flag(&args, "extract")) {
