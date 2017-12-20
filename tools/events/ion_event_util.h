@@ -29,6 +29,9 @@
 #define ION_EVENT_DECIMAL_MAX_DIGITS 10000
 #define ION_EVENT_DECIMAL_MAX_STRLEN (ION_EVENT_DECIMAL_MAX_DIGITS + 14) // 14 extra bytes as specified by decNumber.
 
+#define ION_EVENT_STRING_OR_NULL(ion_string) (ION_STRING_IS_NULL(ion_string) ? std::string("NULL") : std::string((char *)(ion_string)->value, (size_t)(ion_string)->length))
+#define ION_EVENT_ION_STRING_FROM_STRING(ion_string, std_string) (ion_string_assign_cstr(ion_string, (char *)std_string.c_str(), (SIZE)std_string.length()))
+
 /**
  * Global variable that holds the decimal context to be used throughout the tools and
  * tests. Initialized to contain arbitrarily high limits, which may be raised if
@@ -87,6 +90,33 @@ static ION_STRING ion_event_ion_type_list = {4, (BYTE *)"LIST"};
 static ION_STRING ion_event_ion_type_sexp = {4, (BYTE *)"SEXP"};
 static ION_STRING ion_event_ion_type_struct = {6, (BYTE *)"STRUCT"};
 
+// Error description fields
+static ION_STRING ion_event_error_type_field = {10, (BYTE *)"error_type"};
+static ION_STRING ion_event_error_message_field = {7, (BYTE *)"message"};
+static ION_STRING ion_event_error_location_field = {8, (BYTE *)"location"};
+static ION_STRING ion_event_error_event_index_field = {11, (BYTE *)"event_index"};
+
+// Error type string representations
+static ION_STRING ion_event_error_type_read = {4, (BYTE *)"READ"};
+static ION_STRING ion_event_error_type_write = {5, (BYTE *)"WRITE"};
+static ION_STRING ion_event_error_type_state = {5, (BYTE *)"STATE"};
+
+// Comparison context fields
+static ION_STRING ion_event_comparison_context_location_field = {8, (BYTE *)"location"};
+static ION_STRING ion_event_comparison_context_event_field = {5, (BYTE *)"event"};
+static ION_STRING ion_event_comparison_context_event_index_field = {11, (BYTE *)"event_index"};
+
+// Comparison result fields
+static ION_STRING ion_event_comparison_result_message_field = {7, (BYTE *)"message"};
+static ION_STRING ion_event_comparison_result_type_field = {11, (BYTE *)"result_type"};
+static ION_STRING ion_event_comparison_result_lhs_field = {3, (BYTE *)"lhs"};
+static ION_STRING ion_event_comparison_result_rhs_field = {3, (BYTE *)"rhs"};
+
+// Comparison result type string representations
+static ION_STRING ion_event_comparison_result_type_equal = {5, (BYTE *)"EQUAL"};
+static ION_STRING ion_event_comparison_result_type_not_equal = {9, (BYTE *)"NOT_EQUAL"};
+static ION_STRING ion_event_comparison_result_type_error = {5, (BYTE *)"ERROR"};
+
 typedef struct _ion_cli_writer_context {
     ION_WRITER_OPTIONS options;
     hWRITER writer;
@@ -99,6 +129,8 @@ ION_STRING *ion_event_type_to_string(ION_EVENT_TYPE type);
 ION_EVENT_TYPE ion_event_type_from_string(ION_STRING *type_str);
 ION_STRING *ion_event_ion_type_to_string(ION_TYPE type);
 ION_TYPE ion_event_ion_type_from_string(ION_STRING *type_str);
+ION_STRING *ion_event_error_type_to_string(ION_EVENT_ERROR_TYPE type);
+ION_STRING *ion_event_comparison_result_type_to_string(ION_EVENT_COMPARISON_RESULT_TYPE type);
 
 /**
  * Initializes the given reader options using arbitrarily high limits.
@@ -112,7 +144,9 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options);
  */
 void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options);
 
-iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, BOOL is_binary, ION_CATALOG *catalog, ION_COLLECTION *imports);
+iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports);
 iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len);
+
+void _ion_cli_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg, ION_EVENT_REPORT_CONTEXT *context);
 
 #endif //IONC_ION_EVENT_UTIL_H

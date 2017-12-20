@@ -59,7 +59,7 @@ TEST(IonWriterAddAnnotation, SameInTextAndBinary) {
     ION_ASSERT_OK(ion_test_add_annotations(FALSE, &text_data, &text_len));
     ION_ASSERT_OK(read_value_stream_from_bytes(binary_data, binary_len, &binary_stream, NULL));
     ION_ASSERT_OK(read_value_stream_from_bytes(text_data, text_len, &text_stream, NULL));
-    assertIonEventStreamEq(&binary_stream, &text_stream, ASSERTION_TYPE_NORMAL);
+    ASSERT_TRUE(assertIonEventStreamEq(&binary_stream, &text_stream));
 }
 
 TEST(IonBinaryTimestamp, WriterConvertsToUTC) {

@@ -14,6 +14,7 @@
 
 #include "ion_event_stream.h"
 #include <ion_helpers.h>
+#include <sstream>
 #include "ion_event_util.h"
 #include "ion_event_equivalence.h"
 
@@ -66,8 +67,9 @@ void free_ion_symbols(ION_SYMBOL **symbols, SIZE len) {
     }
 }
 
-IonEventStream::IonEventStream() {
+IonEventStream::IonEventStream(std::string location) {
     event_stream = new std::vector<IonEvent *>();
+    this->location = location;
 }
 
 IonEventStream::~IonEventStream() {
@@ -113,6 +115,45 @@ IonEvent * IonEventStream::append_new(ION_EVENT_TYPE event_type, ION_TYPE ion_ty
     IonEvent *event = new IonEvent(event_type, ion_type, field_name, annotations, num_annotations, depth);
     event_stream->push_back(event);
     return event;
+}
+
+void IonEventReport::addResult(IonEventResult *result) {
+    if (result->has_error_description) {
+        error_report.push_back(result->error_description);
+    }
+    if (result->has_comparison_result) {
+        comparison_report.push_back(result->comparison_result);
+    }
+}
+
+iERR IonEventReport::writeErrorsTo(hWRITER writer) {
+    iENTER;
+    for (size_t i = 0; i < error_report.size(); i++) {
+        IONCHECK(ion_event_stream_write_error(writer, &error_report.at(i)));
+    }
+    iRETURN;
+}
+
+iERR IonEventReport::writeComparisonResultsTo(hWRITER writer) {
+    iENTER;
+    for (size_t i = 0; i < comparison_report.size(); i++) {
+        IONCHECK(ion_event_stream_write_comparison_result(writer, &comparison_report.at(i)));
+    }
+    iRETURN;
+}
+
+iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report) {
+    iENTER;
+    ASSERT(report);
+    IONCHECK(report->writeErrorsTo(writer));
+    iRETURN;
+}
+
+iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report) {
+    iENTER;
+    ASSERT(report);
+    IONCHECK(report->writeComparisonResultsTo(writer));
+    iRETURN;
 }
 
 size_t valueEventLength(IonEventStream *stream, size_t start_index) {
@@ -566,7 +607,7 @@ iERR ion_event_stream_get_consensus_value(ION_CATALOG *catalog, const char *valu
     IONCHECK(read_value_stream_from_bytes(value_binary, (SIZE)value_binary_len, &binary_stream, catalog));
     IONCHECK(read_value_stream_from_string(value_text, &text_stream, catalog));
 
-    if (assertIonEventStreamEq(&binary_stream, &text_stream, ASSERTION_TYPE_SET_FLAG)) {
+    if (assertIonEventStreamEq(&binary_stream, &text_stream)) {
         // Because the last event is always STREAM_END, the second-to-last event contains the scalar value.
         // NOTE: an IonEvent's value is freed during destruction of the event's IonEventStream. Since these event streams
         // are temporary, the value needs to be copied out.
@@ -721,6 +762,7 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
             annotations = (ION_SYMBOL **)calloc(annotation_count, sizeof(ION_SYMBOL *));
             for (size_t i = 0; i < annotation_count; i++) {
                 copy_ion_symbol(&annotations[i], value_annotations.at(i));
+                // TODO needs to be guaranteed to be freed
                 free(value_annotations.at(i)); // Won't be accessed again.
             }
         }
@@ -745,6 +787,7 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
         }
         IONCHECK(ion_event_stream_get_consensus_value(catalog, value_text, value_binary, value_binary_len,
                                                       &consensus_value));
+        // TODO this needs to happen regardless of whether the previous lines succeed
         free(value_binary);
         free(value_text);
     }
@@ -798,6 +841,7 @@ iERR read_value_stream_from_string(const char *ion_string, IonEventStream *strea
 
     IONCHECK(ion_reader_open_buffer(&reader, (BYTE *)ion_string, (SIZE)strlen(ion_string), &options));
     IONCHECK(ion_event_stream_read_all(reader, stream));
+    // TODO should close reader unconditionally
     IONCHECK(ion_reader_close(reader));
     iRETURN;
 }
@@ -814,6 +858,7 @@ iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStre
 
     IONCHECK(ion_reader_open_buffer(&reader, (BYTE *)ion_string, len, &options));
     IONCHECK(ion_event_stream_read_all(reader, stream));
+    // TODO should close reader unconditionally
     IONCHECK(ion_reader_close(reader));
     iRETURN;
 }
@@ -952,8 +997,8 @@ iERR ion_event_stream_write_scalar_event(hWRITER writer, IonEvent *event, ION_CO
     SIZE text_len, binary_len;
     ION_STRING text_stream;
 
-    IONCHECK(ion_event_in_memory_writer_open(&text_context, FALSE, catalog, (event->ion_type == tid_SYMBOL) ? imports : NULL));
-    IONCHECK(ion_event_in_memory_writer_open(&binary_context, TRUE, catalog, (event->ion_type == tid_SYMBOL) ? imports : NULL));
+    IONCHECK(ion_event_in_memory_writer_open(&text_context, ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, catalog, (event->ion_type == tid_SYMBOL) ? imports : NULL));
+    IONCHECK(ion_event_in_memory_writer_open(&binary_context, ION_WRITER_OUTPUT_TYPE_BINARY, catalog, (event->ion_type == tid_SYMBOL) ? imports : NULL));
     IONCHECK(write_scalar(text_context.writer, event));
     IONCHECK(write_scalar(binary_context.writer, event));
     IONCHECK(ion_event_in_memory_writer_close(&text_context, &text_value, &text_len));
@@ -969,49 +1014,112 @@ iERR ion_event_stream_write_scalar_event(hWRITER writer, IonEvent *event, ION_CO
     }
     IONCHECK(ion_writer_finish_container(writer));
 
+    // TODO need to free unconditionally
     free(text_value);
     free(binary_value);
     iRETURN;
 }
 
-iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog) {
+iERR ion_event_stream_write_event(hWRITER writer, IonEvent *event, ION_CATALOG *catalog) {
     iENTER;
     ION_COLLECTION *imports = NULL;
-    for (size_t i = 0; i < stream->size(); i++) {
-        IonEvent *event = stream->at(i);
-        ION_STRING *ion_type_str = NULL;
-        ION_STRING *event_type_str = ion_event_type_to_string(event->event_type);
-        IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_event_type_field));
-        IONCHECK(ion_writer_write_symbol(writer, event_type_str));
-        if (event->ion_type != tid_none) {
-            ion_type_str = ion_event_ion_type_to_string(event->ion_type);
-            IONCHECK(ion_writer_write_field_name(writer, &ion_event_ion_type_field));
-            IONCHECK(ion_writer_write_symbol(writer, ion_type_str));
+    ION_STRING *ion_type_str = NULL;
+    ION_STRING *event_type_str = ion_event_type_to_string(event->event_type);
+    IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_event_type_field));
+    IONCHECK(ion_writer_write_symbol(writer, event_type_str));
+    if (event->ion_type != tid_none) {
+        ion_type_str = ion_event_ion_type_to_string(event->ion_type);
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_ion_type_field));
+        IONCHECK(ion_writer_write_symbol(writer, ion_type_str));
+    }
+    if (event->field_name) {
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_field_name_field));
+        IONCHECK(ion_event_stream_write_symbol_token(writer, event->field_name));
+    }
+    if (event->num_annotations > 0) {
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_annotations_field));
+        IONCHECK(ion_writer_start_container(writer, tid_LIST));
+        for (int j = 0; j < event->num_annotations; j++) {
+            IONCHECK(ion_event_stream_write_symbol_token(writer, event->annotations[j]));
         }
-        if (event->field_name) {
-            IONCHECK(ion_writer_write_field_name(writer, &ion_event_field_name_field));
-            IONCHECK(ion_event_stream_write_symbol_token(writer, event->field_name));
-        }
-        if (event->num_annotations > 0) {
-            IONCHECK(ion_writer_write_field_name(writer, &ion_event_annotations_field));
-            IONCHECK(ion_writer_start_container(writer, tid_LIST));
-            for (int j = 0; j < event->num_annotations; j++) {
-                IONCHECK(ion_event_stream_write_symbol_token(writer, event->annotations[j]));
-            }
-            IONCHECK(ion_writer_finish_container(writer));
-        }
-        if (event->event_type == SYMBOL_TABLE) {
-            imports = (ION_COLLECTION *)event->value;
-            IONCHECK(ion_writer_write_field_name(writer, &ion_event_imports_field));
-            IONCHECK(ion_event_stream_write_symbol_table_imports(writer, imports));
-        }
-        else if (event->event_type == SCALAR){
-            IONCHECK(ion_event_stream_write_scalar_event(writer, event, imports, catalog));
-        }
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_depth_field));
-        IONCHECK(ion_writer_write_int(writer, event->depth));
         IONCHECK(ion_writer_finish_container(writer));
     }
+    if (event->event_type == SYMBOL_TABLE) {
+        imports = (ION_COLLECTION *)event->value;
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_imports_field));
+        IONCHECK(ion_event_stream_write_symbol_table_imports(writer, imports));
+    }
+    else if (event->event_type == SCALAR){
+        IONCHECK(ion_event_stream_write_scalar_event(writer, event, imports, catalog));
+    }
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_depth_field));
+    IONCHECK(ion_writer_write_int(writer, event->depth));
+    IONCHECK(ion_writer_finish_container(writer));
+    iRETURN;
+}
+
+iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog) {
+    iENTER;
+    for (size_t i = 0; i < stream->size(); i++) {
+        IONCHECK(ion_event_stream_write_event(writer, stream->at(i), catalog));
+    }
+    iRETURN;
+}
+
+iERR ion_event_stream_write_error(hWRITER writer, ION_EVENT_ERROR_DESCRIPTION *error_description) {
+    iENTER;
+    ION_STRING message, location;
+    ASSERT(error_description);
+    IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_error_type_field));
+    IONCHECK(ion_writer_write_symbol(writer, ion_event_error_type_to_string(error_description->error_type)));
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_error_message_field));
+    ION_EVENT_ION_STRING_FROM_STRING(&message, error_description->message);
+    IONCHECK(ion_writer_write_string(writer, &message));
+    if (error_description->has_context) {
+        IONCHECK(ion_writer_write_field_name(writer, &ion_event_error_location_field));
+        ION_EVENT_ION_STRING_FROM_STRING(&location, error_description->context.location);
+        IONCHECK(ion_writer_write_string(writer, &location));
+        if (error_description->error_type != ERROR_TYPE_STATE) {
+            IONCHECK(ion_writer_write_field_name(writer, &ion_event_error_event_index_field));
+            IONCHECK(ion_writer_write_int(writer, (int) error_description->context.event_index));
+        }
+    }
+    IONCHECK(ion_writer_finish_container(writer));
+    iRETURN;
+}
+
+iERR ion_event_stream_write_comparison_context(hWRITER writer, ION_EVENT_REPORT_CONTEXT *comparison_context) {
+    iENTER;
+    ION_STRING location;
+    ASSERT(comparison_context);
+    IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_context_location_field));
+    ION_EVENT_ION_STRING_FROM_STRING(&location, comparison_context->location);
+    IONCHECK(ion_writer_write_string(writer, &location));
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_field));
+    IONCHECK(ion_event_stream_write_event(writer, comparison_context->event, NULL)); // TODO what about catalog?
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_index_field));
+    IONCHECK(ion_writer_write_int(writer, (int)comparison_context->event_index));
+    IONCHECK(ion_writer_finish_container(writer));
+    iRETURN;
+}
+
+iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result) {
+    iENTER;
+    ION_STRING message;
+    ASSERT(comparison_result);
+    IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_result_type_field));
+    IONCHECK(ion_writer_write_string(writer, ion_event_comparison_result_type_to_string(comparison_result->result)));
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_result_message_field));
+    ION_EVENT_ION_STRING_FROM_STRING(&message, comparison_result->message);
+    IONCHECK(ion_writer_write_string(writer, &message));
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_result_lhs_field));
+    IONCHECK(ion_event_stream_write_comparison_context(writer, &comparison_result->lhs));
+    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_result_rhs_field));
+    IONCHECK(ion_event_stream_write_comparison_context(writer, &comparison_result->rhs));
+    IONCHECK(ion_writer_finish_container(writer));
     iRETURN;
 }

@@ -54,7 +54,8 @@ public:
 class IonEventStream {
     std::vector<IonEvent*> *event_stream;
 public:
-    IonEventStream();
+    std::string location;
+    IonEventStream(std::string location="UNKNOWN");
     ~IonEventStream();
 
     /**
@@ -76,6 +77,116 @@ public:
         event_stream->erase(event_stream->begin() + index);
     }
 };
+
+typedef enum _ion_writer_output_type {
+    ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY = 0,
+    ION_WRITER_OUTPUT_TYPE_TEXT_UGLY,
+    ION_WRITER_OUTPUT_TYPE_BINARY,
+} ION_WRITER_OUTPUT_TYPE;
+
+typedef enum _ion_event_error_type {
+    ERROR_TYPE_READ = 0,
+    ERROR_TYPE_WRITE,
+    ERROR_TYPE_STATE,
+} ION_EVENT_ERROR_TYPE;
+
+typedef struct _ion_event_report_context {
+    std::string location;
+    IonEvent *event;
+    size_t event_index;
+} ION_EVENT_REPORT_CONTEXT;
+
+typedef struct _ion_event_error_description {
+    ION_EVENT_ERROR_TYPE error_type;
+    std::string message;
+    ION_EVENT_REPORT_CONTEXT context;
+    bool has_context;
+} ION_EVENT_ERROR_DESCRIPTION;
+
+typedef enum _ion_event_comparison_result_type {
+    COMPARISON_RESULT_EQUAL = 0,
+    COMPARISON_RESULT_NOT_EQUAL,
+    COMPARISON_RESULT_ERROR
+} ION_EVENT_COMPARISON_RESULT_TYPE;
+
+typedef struct _ion_event_comparison_result {
+    ION_EVENT_COMPARISON_RESULT_TYPE result;
+    ION_EVENT_REPORT_CONTEXT lhs;
+    ION_EVENT_REPORT_CONTEXT rhs;
+    std::string message;
+} ION_EVENT_COMPARISON_RESULT;
+
+class IonEventResult {
+public:
+    ION_EVENT_ERROR_DESCRIPTION error_description;
+    ION_EVENT_COMPARISON_RESULT comparison_result;
+    bool has_error_description;
+    bool has_comparison_result;
+
+    IonEventResult() {
+        memset(&error_description, 0, sizeof(ION_EVENT_ERROR_DESCRIPTION));
+        memset(&comparison_result, 0, sizeof(ION_EVENT_COMPARISON_RESULT));
+        has_error_description = false;
+        has_comparison_result = false;
+    }
+};
+
+class IonEventReport {
+    std::vector<ION_EVENT_ERROR_DESCRIPTION> error_report;
+    std::vector<ION_EVENT_COMPARISON_RESULT> comparison_report;
+public:
+    IonEventReport() {}
+    void addResult(IonEventResult *result);
+    iERR writeErrorsTo(hWRITER writer);
+    iERR writeComparisonResultsTo(hWRITER writer);
+    bool hasErrors() {
+        return !error_report.empty();
+    }
+    bool hasComparisonFailures() {
+        return !comparison_report.empty();
+    }
+};
+
+iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report);
+iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report);
+
+
+#define IONCLEANEXIT goto cleanup
+
+/**
+ * Conveys any errors that occurred down-stack.
+ */
+#define IONREPORT(x) \
+    err = (x); \
+    if (err) { \
+        IONCLEANEXIT; \
+    }
+
+/**
+ * Conveys an error upward at the point it occurs.
+ */
+#define IONERROR(type, code, msg, ctx, res) \
+    _ion_cli_set_error(res, type, code, msg, ctx); \
+    IONREPORT(code)
+
+/**
+ * Conveys an illegal state error upward at the point it occurs.
+ */
+#define IONFAILSTATE(code, msg, res) IONERROR(ERROR_TYPE_STATE, code, msg, NULL, res)
+
+#define IONCCALL(type, x, ctx) \
+    err = (x); \
+    if (err) { \
+        IONERROR(type, err, "", ctx, result); \
+    }
+
+/**
+ * Conveys an error upward from a call to an ion-c read API.
+ */
+#define IONCREAD(x) IONCCALL(ERROR_TYPE_READ, x, context)
+#define IONCWRITE(x) IONCCALL(ERROR_TYPE_WRITE, x, context)
+#define IONCSTATE(x) IONCCALL(ERROR_TYPE_STATE, x, context)
+
 
 /**
  * Configure the given reader options to add a SYMBOL_TABLE event to the given IonEventStream whenever the symbol
@@ -112,5 +223,9 @@ iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream);
  * Writes an IonEventStream as a serialized event stream using the given writer.
  */
 iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog);
+
+iERR ion_event_stream_write_error(hWRITER writer, ION_EVENT_ERROR_DESCRIPTION *error_description);
+
+iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result);
 
 #endif //IONC_VALUE_STREAM_H

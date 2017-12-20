@@ -15,6 +15,7 @@
 #include "ion_event_util.h"
 #include <ion_helpers.h>
 #include <ion_event_stream.h>
+#include <sstream>
 
 decContext g_IonEventDecimalContext = {
         ION_EVENT_DECIMAL_MAX_DIGITS,   // max digits
@@ -119,6 +120,24 @@ ION_TYPE ion_event_ion_type_from_string(ION_STRING *type_str) {
     return tid_none;
 }
 
+ION_STRING *ion_event_error_type_to_string(ION_EVENT_ERROR_TYPE type) {
+    switch (type) {
+        case ERROR_TYPE_READ: return &ion_event_error_type_read;
+        case ERROR_TYPE_WRITE: return &ion_event_error_type_write;
+        case ERROR_TYPE_STATE: return &ion_event_error_type_state;
+        default: return NULL;
+    }
+}
+
+ION_STRING *ion_event_comparison_result_type_to_string(ION_EVENT_COMPARISON_RESULT_TYPE type) {
+    switch (type) {
+        case COMPARISON_RESULT_EQUAL: return &ion_event_comparison_result_type_equal;
+        case COMPARISON_RESULT_NOT_EQUAL: return &ion_event_comparison_result_type_not_equal;
+        case COMPARISON_RESULT_ERROR: return &ion_event_comparison_result_type_error;
+        default: return NULL;
+    }
+}
+
 void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options) {
     memset(options, 0, sizeof(ION_WRITER_OPTIONS));
     options->decimal_context = &g_IonEventDecimalContext;
@@ -133,12 +152,13 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options) {
     options->max_annotation_count = ION_EVENT_ANNOTATION_MAX;
 }
 
-iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, BOOL is_binary, ION_CATALOG *catalog, ION_COLLECTION *imports) {
+iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports) {
     iENTER;
     memset(writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
     IONCHECK(ion_stream_open_memory_only(&writer_context->ion_stream));
     ion_event_initialize_writer_options(&writer_context->options);
-    writer_context->options.output_as_binary = is_binary;
+    writer_context->options.output_as_binary = (output_type == ION_WRITER_OUTPUT_TYPE_BINARY);
+    writer_context->options.pretty_print = (output_type == ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY);
     writer_context->options.pcatalog = catalog;
     if (imports) {
         IONCHECK(ion_writer_options_initialize_shared_imports(&writer_context->options));
@@ -168,4 +188,26 @@ iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, 
     }
     *bytes_len = bytes_read;
     iRETURN;
+}
+
+std::string _ion_error_message(ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg) {
+    std::ostringstream ss;
+    ss << __FILE__ << ":" << __LINE__ << " : "
+       << ION_EVENT_STRING_OR_NULL(ion_event_error_type_to_string(error_type)) << ": "
+       << ion_error_to_str(error_code) << ": " << msg;
+    return ss.str();
+}
+
+void _ion_cli_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg, ION_EVENT_REPORT_CONTEXT *context) {
+    if (result != NULL) {
+        result->error_description.error_type = error_type;
+        result->error_description.message = _ion_error_message(error_type, error_code, msg);
+        result->has_error_description = true;
+        if (context != NULL) {
+            result->error_description.context.location = context->location; // TODO can there be multiple locations? Like when there's an error during comparison. Or multiple contexts?
+            result->error_description.context.event = context->event;
+            result->error_description.context.event_index = context->event_index;
+            result->error_description.has_context = true;
+        }
+    }
 }

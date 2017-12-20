@@ -57,13 +57,6 @@ iERR ion_temp_buffer_alloc(ION_TEMP_BUFFER *temp_buffer, SIZE needed, void **p_p
 iERR ion_temp_buffer_make_utf8_string(ION_TEMP_BUFFER *temp_buffer, char *cstr, SIZE length, void **p_ptr, SIZE *p_utf8_length);
 iERR ion_temp_buffer_reset(ION_TEMP_BUFFER *temp_buffer);
 
-typedef enum _ION_WRITER_OUTPUT_TYPE {
-    iWOT_UNKNOWN     = 0,
-    iWOT_UTF8        = 1,
-    iWOT_BINARY      = 2,
-    iWOT_PRETTY_UTF8 = 3
-} ION_WRITER_OUTPUT_TYPE;
-
 typedef enum _ION_WRITER_SYMTAB_INTERCEPT_STATE {
     iWSIS_NONE               = 0x000,
     iWSIS_IN_LST_STRUCT      = 0x001,

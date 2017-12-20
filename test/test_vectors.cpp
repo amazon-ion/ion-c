@@ -45,8 +45,7 @@
 
 #define ION_TEST_VECTOR_INIT() { \
     g_TimestampEquals = ion_timestamp_equals; \
-    g_CurrentTest = test_name; \
-    initial_stream = new IonEventStream(); \
+    initial_stream = new IonEventStream(filename); \
     roundtrip_stream = NULL; \
     catalog = NULL; \
     EXPECT_EQ(IERR_OK, ion_catalog_open(&catalog)); \
@@ -95,20 +94,19 @@ std::string simplifyFilename(std::string filename) {
     return copy;
 }
 
+std::string testTypeToString(VECTOR_TEST_TYPE test_type) {
+    switch (test_type) {
+        case READ: return "READ";
+        case ROUNDTRIP_TEXT: return "ROUNDTRIP_TEXT";
+        case ROUNDTRIP_BINARY: return "ROUNDTRIP_BINARY";
+        default: return "UNKNOWN";
+    }
+}
+
 std::string getTestName(std::string filename, VECTOR_TEST_TYPE *test_type, READER_INPUT_TYPE input_type) {
     std::string test_name = simplifyFilename(filename) + "_";
     if (test_type) {
-        switch (*test_type) {
-            case READ:
-                test_name += "READ";
-                break;
-            case ROUNDTRIP_TEXT:
-                test_name += "ROUNDTRIP_TEXT";
-                break;
-            default:
-                test_name += "ROUNDTRIP_BINARY";
-                break;
-        }
+        test_name += testTypeToString(*test_type);
         test_name += "_";
     }
     switch (input_type) {
@@ -276,7 +274,7 @@ iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std
         default:
             FAILWITH(IERR_INVALID_ARG);
     }
-    fail:
+fail:
     if (buffer) {
         free(buffer);
     }
@@ -289,10 +287,25 @@ iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std
 iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_CATALOG *catalog, BYTE **out, SIZE *len) {
     iENTER;
     ION_EVENT_WRITER_CONTEXT writer_context;
-    IONCHECK(ion_event_in_memory_writer_open(&writer_context, (test_type == ROUNDTRIP_BINARY), catalog, /*imports=*/NULL));
+    IONCHECK(ion_event_in_memory_writer_open(&writer_context, (test_type == ROUNDTRIP_BINARY ? ION_WRITER_OUTPUT_TYPE_BINARY : ION_WRITER_OUTPUT_TYPE_TEXT_UGLY), catalog, /*imports=*/NULL));
     IONCHECK(ion_event_stream_write_all(writer_context.writer, stream));
     IONCHECK(ion_event_in_memory_writer_close(&writer_context, out, len));
     iRETURN;
+}
+
+void write_ion_event_result(IonEventResult *result, std::string test_name) {
+    ION_EVENT_WRITER_CONTEXT writer_context;
+    BYTE *out = NULL;
+    SIZE len;
+    ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_open(&writer_context, ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY, NULL, /*imports=*/NULL));
+    if (result->has_error_description) {
+        ASSERT_EQ(IERR_OK, ion_event_stream_write_error(writer_context.writer, &result->error_description));
+    }
+    if (result->has_comparison_result) {
+        ASSERT_EQ(IERR_OK, ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result));
+    }
+    ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_close(&writer_context, &out, &len));
+    GTEST_FAIL() << test_name << " failed." << std::endl << std::string((char *)out, (size_t)len);
 }
 
 /**
@@ -301,37 +314,54 @@ iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_
  */
 iERR ionTestRoundtrip(IonEventStream *initial_stream, IonEventStream **roundtrip_stream, ION_CATALOG *catalog,
                       std::string test_name, std::string filename, READER_INPUT_TYPE input_type,
-                      VECTOR_TEST_TYPE test_type) {
-    iERR status = IERR_OK;
+                      VECTOR_TEST_TYPE test_type, IonEventResult *result) {
+    iENTER;
     if (test_type > READ) {
         BYTE *written = NULL;
         SIZE len;
-        status = write_value_stream(initial_stream, test_type, catalog, &written, &len);
-        EXPECT_EQ(IERR_OK, status) << test_name << " FAILED ON WRITE" << std::endl;
-        if (IERR_OK != status) goto finish;
-        *roundtrip_stream = new IonEventStream();
-        status = read_value_stream_from_bytes(written, len, *roundtrip_stream, catalog);
-        EXPECT_EQ(IERR_OK, status) << test_name << " FAILED ON ROUNDTRIP READ" << std::endl;
-        if (IERR_OK != status) goto finish;
-        status = assertIonEventStreamEq(initial_stream, *roundtrip_stream, ASSERTION_TYPE_NORMAL) ? IERR_OK
-                                                                                                  : IERR_INVALID_STATE;
-        finish:
+        // TODO pass report down, then print the results at the end
+        IONREPORT(write_value_stream(initial_stream, test_type, catalog, &written, &len));
+        *roundtrip_stream = new IonEventStream(testTypeToString(test_type));
+        IONREPORT(read_value_stream_from_bytes(written, len, *roundtrip_stream, catalog));
+        // TODO need to get a comparison report from this and print it out at the end (and fail the test if not equal)
+        IONREPORT(assertIonEventStreamEq(initial_stream, *roundtrip_stream, result) ? IERR_OK : IERR_INVALID_STATE);
+cleanup:
         if (written) {
             free(written);
         }
     }
-    return status;
+    iRETURN;
 }
+
+#define ION_TEST_VECTOR_START \
+    iERR err; \
+    IonEventResult *result = new IonEventResult(); \
+    ION_EVENT_REPORT_CONTEXT *context = (ION_EVENT_REPORT_CONTEXT *)calloc(1, sizeof(ION_EVENT_REPORT_CONTEXT)); \
+    context->location = filename; \
+    context->event = NULL;
+
+#define ION_TEST_VECTOR_COMPLETE \
+cleanup: \
+    if (err != IERR_OK) { \
+        if (result->has_comparison_result || result->has_error_description) { \
+            write_ion_event_result(result, test_name); \
+        } \
+        else { \
+            GTEST_FAIL() << "Unknown failure in " << test_name << std::endl; \
+        } \
+    } \
+    delete result; \
+    free(context);
 
 /**
  * Exercises good vectors without additional comparison semantics (like equivs, non-equivs, and timestamp/equivTimeline).
  */
 TEST_P(GoodBasicVector, GoodBasic) {
-    iERR status = read_value_stream(initial_stream, input_type, filename, catalog);
-    EXPECT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
-    if (IERR_OK == status) {
-        ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type, test_type);
-    }
+    ION_TEST_VECTOR_START;
+    // TODO pass report down, print results at end
+    IONCREAD(read_value_stream(initial_stream, input_type, filename, catalog));
+    IONREPORT(ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type, test_type, result));
+    ION_TEST_VECTOR_COMPLETE;
 }
 
 #ifdef ION_PLATFORM_WINDOWS
@@ -363,17 +393,15 @@ INSTANTIATE_TEST_CASE_P(
  * Exercises good vectors with equivs semantics.
  */
 TEST_P(GoodEquivsVector, GoodEquivs) {
-    iERR status = read_value_stream(initial_stream, input_type, filename, catalog);
-    ASSERT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
-    if (IERR_OK == status) {
-        ASSERT_TRUE(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
-        if (test_type > READ) {
-            status = ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
-                                      test_type);
-            ASSERT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
-            ASSERT_TRUE(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
-        }
+    ION_TEST_VECTOR_START;
+    IONCREAD(read_value_stream(initial_stream, input_type, filename, catalog));
+    IONREPORT(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVS, result) ? IERR_OK : IERR_INVALID_STATE);
+    if (test_type > READ) {
+        IONREPORT(ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
+                                  test_type, result));
+        IONREPORT(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVS, result) ? IERR_OK : IERR_INVALID_STATE);
     }
+    ION_TEST_VECTOR_COMPLETE;
 }
 
 #ifdef ION_PLATFORM_WINDOWS
@@ -406,18 +434,16 @@ INSTANTIATE_TEST_CASE_P(
  * rather than data model equivalence.
  */
 TEST_P(GoodTimestampEquivTimelineVector, GoodTimestampEquivTimeline) {
+    ION_TEST_VECTOR_START;
     g_TimestampEquals = ion_timestamp_instant_equals;
-    iERR status = read_value_stream(initial_stream, input_type, filename, catalog);
-    ASSERT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
-    if (IERR_OK == status) {
-        ASSERT_TRUE(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
-        if (test_type > READ) {
-            status = ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
-                                      test_type);
-            ASSERT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
-            ASSERT_TRUE(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVS, ASSERTION_TYPE_NORMAL));
-        }
+    IONCREAD(read_value_stream(initial_stream, input_type, filename, catalog));
+    IONREPORT(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVS) ? IERR_OK : IERR_INVALID_STATE);
+    if (test_type > READ) {
+        IONREPORT(ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
+                                  test_type, result));
+        IONREPORT(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVS) ? IERR_OK : IERR_INVALID_STATE);
     }
+    ION_TEST_VECTOR_COMPLETE;
 }
 
 #ifdef ION_PLATFORM_WINDOWS
@@ -449,17 +475,15 @@ INSTANTIATE_TEST_CASE_P(
  * Exercises good vectors with nonequivs semantics.
  */
 TEST_P(GoodNonequivsVector, GoodNonequivs) {
-    iERR status = read_value_stream(initial_stream, input_type, filename, catalog);
-    ASSERT_EQ(IERR_OK, status) << test_name << " Error: " << ion_error_to_str(status) << std::endl;
-    if (IERR_OK == status) {
-        ASSERT_TRUE(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_NONEQUIVS, ASSERTION_TYPE_NORMAL));
-        if (test_type > READ) {
-            status = ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
-                                      test_type);
-            ASSERT_EQ(IERR_OK, status) << test_name << " Error: roundtrip failed." << std::endl;
-            ASSERT_TRUE(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_NONEQUIVS, ASSERTION_TYPE_NORMAL));
-        }
+    ION_TEST_VECTOR_START;
+    IONCREAD(read_value_stream(initial_stream, input_type, filename, catalog));
+    IONREPORT(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_NONEQUIVS) ? IERR_OK : IERR_INVALID_STATE);
+    if (test_type > READ) {
+        IONREPORT(ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
+                                  test_type, result));
+        IONREPORT(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_NONEQUIVS) ? IERR_OK : IERR_INVALID_STATE);
     }
+    ION_TEST_VECTOR_COMPLETE;
 }
 
 #ifdef ION_PLATFORM_WINDOWS
@@ -491,6 +515,7 @@ INSTANTIATE_TEST_CASE_P(
  * Exercises bad vectors. Bad vectors must fail to parse in order to succeed the test.
  */
 TEST_P(BadVector, Bad) {
+    // TODO report this better
     iERR status = read_value_stream(initial_stream, input_type, filename, catalog);
     EXPECT_NE(IERR_OK, status) << test_name << " FAILED" << std::endl;
 }
