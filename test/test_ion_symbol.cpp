@@ -769,7 +769,6 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromImport) {
 
     ION_STRING foo;
     ION_SYMBOL sym1, sym2, sym3;
-    ION_SYMBOL *p_sym2 = &sym2;
     ION_ASSERT_OK(ion_string_from_cstr("foo", &foo));
     memset(&sym1, 0, sizeof(ION_SYMBOL));
     memset(&sym2, 0, sizeof(ION_SYMBOL));
@@ -790,7 +789,7 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromImport) {
 
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &sym1));
-    ION_ASSERT_OK(ion_writer_write_annotation_symbols(writer, &p_sym2, 1));
+    ION_ASSERT_OK(ion_writer_write_annotation_symbols(writer, &sym2, 1));
     ION_ASSERT_OK(ion_writer_write_ion_symbol(writer, &sym3));
 
     ION_ASSERT_OK(ion_writer_finish_container(writer));
@@ -820,7 +819,6 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromCatalog) {
     ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
 
     ION_SYMBOL sym1_loc, sym2_loc, sym3_loc;
-    ION_SYMBOL *p_sym2_loc = &sym2_loc;
     memset(&sym1_loc, 0, sizeof(ION_SYMBOL));
     memset(&sym2_loc, 0, sizeof(ION_SYMBOL));
     memset(&sym3_loc, 0, sizeof(ION_SYMBOL));
@@ -833,7 +831,7 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromCatalog) {
 
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &sym1_loc));
-    ION_ASSERT_OK(ion_writer_write_annotation_symbols(writer, &p_sym2_loc, 1));
+    ION_ASSERT_OK(ion_writer_write_annotation_symbols(writer, &sym2_loc, 1));
     ION_ASSERT_OK(ion_writer_write_ion_symbol(writer, &sym3_loc));
 
     ION_ASSERT_OK(ion_writer_finish_container(writer));
@@ -851,7 +849,7 @@ TEST_P(BinaryAndTextTest, WritingInvalidIonSymbolFails) {
     // Tests that an invalid ION_SYMBOL (undefined text, import location, and local SID) raises an error.
     ION_SYMBOL_TEST_DECLARE_WRITER;
     ION_WRITER_OPTIONS writer_options;
-    ION_SYMBOL symbol, *p_symbol = &symbol;
+    ION_SYMBOL symbol;
     memset(&symbol, 0, sizeof(ION_SYMBOL));
     symbol.sid = UNKNOWN_SID;
 
@@ -859,7 +857,7 @@ TEST_P(BinaryAndTextTest, WritingInvalidIonSymbolFails) {
     writer_options.output_as_binary = is_binary;
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
     ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
-    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_annotation_symbols(writer, &p_symbol, 1));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_annotation_symbols(writer, &symbol, 1));
     ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_ion_symbol(writer, &symbol));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_field_name_symbol(writer, &symbol));
@@ -878,7 +876,6 @@ TEST_P(BinaryAndTextTest, WritingIonSymbolWithUnknownTextNotFoundInImportsOrCata
 
     ION_STRING foo;
     ION_SYMBOL symbol;
-    ION_SYMBOL *p_symbol = &symbol;
     ION_ASSERT_OK(ion_string_from_cstr("foo", &foo));
     memset(&symbol, 0, sizeof(ION_SYMBOL));
     ION_STRING_ASSIGN(&symbol.import_location.name, &foo);
@@ -892,7 +889,7 @@ TEST_P(BinaryAndTextTest, WritingIonSymbolWithUnknownTextNotFoundInImportsOrCata
     ION_ASSERT_OK(ion_catalog_add_symbol_table(catalog, import)); // In the catalog, not in the writer's imports.
 
     ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, writer_imports, 2);
-    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_annotation_symbols(writer, &p_symbol, 1));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_annotation_symbols(writer, &symbol, 1));
     ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_ion_symbol(writer, &symbol));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_field_name_symbol(writer, &symbol));
@@ -939,17 +936,14 @@ TEST_P(BinaryAndTextTest, WritingOutOfRangeSIDFails) {
     // on read.
     ION_SYMBOL_TEST_DECLARE_WRITER;
     ION_STRING sym1;
-    ION_SYMBOL *annotation_symbols[2];
-    ION_SYMBOL annotation_1, annotation_2;
+    ION_SYMBOL annotation_symbols[2];
 
     ION_ASSERT_OK(ion_string_from_cstr("sym1", &sym1));
-    memset(&annotation_1, 0, sizeof(ION_SYMBOL));
-    memset(&annotation_2, 0, sizeof(ION_SYMBOL));
-    annotation_1.sid = 4; // i.e. name
-    annotation_2.sid = 10; // out of range.
+    memset(&annotation_symbols[0], 0, sizeof(ION_SYMBOL));
+    memset(&annotation_symbols[1], 0, sizeof(ION_SYMBOL));
+    annotation_symbols[0].sid = 4; // i.e. name
+    annotation_symbols[1].sid = 10; // out of range.
 
-    annotation_symbols[0] = &annotation_1;
-    annotation_symbols[1] = &annotation_2;
 
     ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, is_binary));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));

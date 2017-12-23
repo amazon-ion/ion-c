@@ -251,6 +251,25 @@ iERR ion_stream_open_stdout( ION_STREAM **pp_stream )
   iRETURN;
 }
 
+iERR ion_stream_open_stderr( ION_STREAM **pp_stream )
+{
+  iENTER;
+  ION_STREAM       *stream;
+  ION_STREAM_FLAG   flags = ION_STREAM_STDERR;
+
+  if (!pp_stream) FAILWITH(IERR_INVALID_ARG);
+
+  IONCHECK(_ion_stream_open_helper(flags, g_Ion_Stream_Default_Page_Size, &stream));
+  SET_MODE_BINARY(stderr);
+  stream->_fp = stderr;
+  IONCHECK(_ion_stream_fetch_position(stream, 0));
+
+  *pp_stream = stream;
+  SUCCEED();
+
+  iRETURN;
+}
+
 iERR ion_stream_open_file_in( FILE *in, ION_STREAM **pp_stream )
 {
   iENTER;

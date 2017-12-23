@@ -188,6 +188,7 @@ ION_API_EXPORT iERR ion_stream_open_memory_only(ION_STREAM **pp_stream);
 
 ION_API_EXPORT iERR ion_stream_open_stdin(ION_STREAM **pp_stream);
 ION_API_EXPORT iERR ion_stream_open_stdout(ION_STREAM **pp_stream);
+ION_API_EXPORT iERR ion_stream_open_stderr(ION_STREAM **pp_stream);
 
 ION_API_EXPORT iERR ion_stream_open_file_in(FILE *in, ION_STREAM **pp_stream);
 ION_API_EXPORT iERR ion_stream_open_file_out(FILE *out, ION_STREAM **pp_stream);

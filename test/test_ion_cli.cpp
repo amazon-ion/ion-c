@@ -14,6 +14,7 @@
 
 #include <gtest/gtest.h>
 #include "cli.h"
+#include "ion_test_util.h"
 
 TEST(IonCli, ManualInputs) {
     std::vector<std::string> args;
@@ -21,21 +22,21 @@ TEST(IonCli, ManualInputs) {
     args.push_back("--output-format");
     args.push_back("events");
     args.push_back("../ion-tests/iontestdata/good/symbols.ion");
-    ion_cli_parse(args);
+    ION_ASSERT_OK(ion_cli_parse(args));
 }
 
 TEST(IonCli, One) {
     std::vector<std::string> args;
     args.push_back("process");
     args.push_back("../build/tmp/one_events.ion");
-    ion_cli_parse(args);
+    ION_ASSERT_OK(ion_cli_parse(args));
 }
 
 TEST(IonCli, CompareNullsBasic) {
     std::vector<std::string> args;
     args.push_back("compare");
     args.push_back("../ion-tests/iontestdata/good/allNulls.ion");
-    ion_cli_parse(args);
+    ION_ASSERT_OK(ion_cli_parse(args));
 }
 
 TEST(IonCli, CompareListsEquivs) {
@@ -44,7 +45,7 @@ TEST(IonCli, CompareListsEquivs) {
     args.push_back("--comparison-type");
     args.push_back("equivs");
     args.push_back("../ion-tests/iontestdata/good/equivs/lists.ion");
-    ion_cli_parse(args);
+    ION_ASSERT_OK(ion_cli_parse(args));
 }
 
 TEST(IonCli, CompareSexpsNonequivs) {
@@ -53,14 +54,24 @@ TEST(IonCli, CompareSexpsNonequivs) {
     args.push_back("--comparison-type");
     args.push_back("nonequivs");
     args.push_back("../ion-tests/iontestdata/good/non-equivs/sexps.ion");
-    ion_cli_parse(args);
+    ION_ASSERT_OK(ion_cli_parse(args));
 }
 
 TEST(IonCli, CompareAnnotatedIvmsEmbeddedNonequivs) {
+    // TODO note: since value_text and value_binary are written unannotated, when they contain an annotated IVM
+    // (which is interpreted as a user value), the value_text and value_binary will be empty (because the unannotated
+    // IVM written manually is a no-op). This happens here. Verify whether that's a problem.
     std::vector<std::string> args;
     args.push_back("compare");
     args.push_back("--comparison-type");
-    args.push_back("nonequivs");
+    args.push_back("equivs");
     args.push_back("../ion-tests/iontestdata/good/non-equivs/annotatedIvms.ion");
-    ion_cli_parse(args);
+    ION_ASSERT_OK(ion_cli_parse(args));
+}
+
+TEST(IonCli, ErrorIsConveyed) {
+    std::vector<std::string> args;
+    args.push_back("process");
+    args.push_back("../ion-tests/iontestdata/bad/annotationFalse.ion");
+    ION_ASSERT_FAIL(ion_cli_parse(args));
 }

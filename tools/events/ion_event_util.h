@@ -30,7 +30,7 @@
 #define ION_EVENT_DECIMAL_MAX_STRLEN (ION_EVENT_DECIMAL_MAX_DIGITS + 14) // 14 extra bytes as specified by decNumber.
 
 #define ION_EVENT_STRING_OR_NULL(ion_string) (ION_STRING_IS_NULL(ion_string) ? std::string("NULL") : std::string((char *)(ion_string)->value, (size_t)(ion_string)->length))
-#define ION_EVENT_ION_STRING_FROM_STRING(ion_string, std_string) (ion_string_assign_cstr(ion_string, (char *)std_string.c_str(), (SIZE)std_string.length()))
+#define ION_EVENT_ION_STRING_FROM_STRING(ion_string, std_string) (ion_string_assign_cstr(ion_string, (char *)(std_string).c_str(), (SIZE)(std_string).length()))
 
 /**
  * Global variable that holds the decimal context to be used throughout the tools and
@@ -145,8 +145,10 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options);
 void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options);
 
 iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports);
-iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len);
+iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, IonEventResult *result=NULL);
 
-void _ion_cli_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg, ION_EVENT_REPORT_CONTEXT *context);
+void _ion_cli_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg, std::string *location, size_t *event_index, const char *file, int line);
+
+std::string ion_event_symbol_to_string(ION_SYMBOL *symbol);
 
 #endif //IONC_ION_EVENT_UTIL_H

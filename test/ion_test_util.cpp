@@ -34,14 +34,14 @@ iERR ion_test_new_writer(hWRITER *writer, ION_STREAM **ion_stream, BOOL is_binar
 iERR ion_test_writer_get_bytes(hWRITER writer, ION_STREAM *ion_stream, BYTE **out, SIZE *len) {
     iENTER;
     POSITION pos;
-    IONCHECK(ion_writer_close(writer));
+    UPDATEERROR(ion_writer_close(writer));
     pos = ion_stream_get_position(ion_stream);
-    IONCHECK(ion_stream_seek(ion_stream, 0));
+    UPDATEERROR(ion_stream_seek(ion_stream, 0));
     *out = (BYTE *)(malloc((size_t)pos));
-    IONCHECK(ion_stream_read(ion_stream, *out, (SIZE)pos, len));
-    IONCHECK(ion_stream_close(ion_stream));
+    UPDATEERROR(ion_stream_read(ion_stream, *out, (SIZE)pos, len));
+    UPDATEERROR(ion_stream_close(ion_stream));
     if (*len != (SIZE)pos) {
-        FAILWITH(IERR_EOF);
+        UPDATEERROR(IERR_EOF);
     }
     iRETURN;
 }

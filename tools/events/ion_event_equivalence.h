@@ -31,24 +31,8 @@
     return FALSE;
 
 #define ION_FAIL_ASSERTION(message) \
-    _ion_cli_set_error(result, ERROR_TYPE_STATE, IERR_INVALID_STATE, message, NULL); \
+    _ion_cli_set_error(result, ERROR_TYPE_STATE, IERR_INVALID_STATE, message, NULL, NULL, __FILE__, __LINE__); \
     return FALSE;
-
-#define ION_IS_TRUE_MSG(x, m) if (!(x)) { ION_FAIL_COMPARISON(m); }
-#define ION_IS_FALSE_MSG(x, m) if (x) { ION_FAIL_COMPARISON(m); }
-#define ION_IS_EQ_MSG(x, y, m) if((x) != (y)) { ION_FAIL_COMPARISON(m); }
-#define _ION_IS_VALUE_EQ(x, y, assertion) { \
-    std::string m; \
-    if (!assertion(x, y, &m, result)) { \
-        ION_FAIL_COMPARISON(m); \
-    } \
-}
-#define ION_IS_DOUBLE_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonFloatEq)
-#define ION_IS_STRING_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonStringEq)
-#define ION_IS_SYMBOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonSymbolEq)
-#define ION_IS_INT_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonIntEq)
-#define ION_IS_DECIMAL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonDecimalEq)
-#define ION_IS_TIMESTAMP_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonTimestampEq)
 
 #define ION_EXPECT_OK(x) \
     if ((x) != IERR_OK) { \
@@ -58,19 +42,24 @@
 
 #define ION_ASSERT(x, m) if (!(x)) { ION_FAIL_ASSERTION(m); }
 
-#define ION_EXPECT_TRUE_MSG(x, m) ION_IS_TRUE_MSG(x, m)
-#define ION_EXPECT_FALSE_MSG(x, m) ION_IS_FALSE_MSG(x, m)
-#define ION_EXPECT_EQ_MSG(x, y, m) ION_IS_EQ_MSG(x, y, m)
-#define ION_EXPECT_DOUBLE_EQ(x, y) ION_IS_DOUBLE_EQ(x, y)
-#define ION_EXPECT_STRING_EQ(x, y) ION_IS_STRING_EQ(x, y)
-#define ION_EXPECT_SYMBOL_EQ(x, y) ION_IS_SYMBOL_EQ(x, y)
-#define ION_EXPECT_INT_EQ(x, y) ION_IS_INT_EQ(x, y)
-#define ION_EXPECT_DECIMAL_EQ(x, y) ION_IS_DECIMAL_EQ(x, y)
-#define ION_EXPECT_TIMESTAMP_EQ(x, y) ION_IS_TIMESTAMP_EQ(x, y)
+#define _ION_IS_VALUE_EQ(x, y, assertion) { \
+    std::string m; \
+    if (!assertion(x, y, &m, result)) { \
+        ION_FAIL_COMPARISON(m); \
+    } \
+}
 
-#define ION_EXPECT_EQ(x, y) ION_EXPECT_EQ_MSG(x, y, "")
+#define ION_EXPECT_TRUE_MSG(x, m) if (!(x)) { ION_FAIL_COMPARISON(m); }
 #define ION_EXPECT_TRUE(x) ION_EXPECT_TRUE_MSG(x, "")
-#define ION_EXPECT_FALSE(x) ION_EXPECT_FALSE_MSG(x, "")
+#define ION_EXPECT_FALSE(x) if (x) { ION_FAIL_COMPARISON(""); }
+#define ION_EXPECT_EQ(x, y) if((x) != (y)) { ION_FAIL_COMPARISON(""); }
+#define ION_EXPECT_DOUBLE_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonFloatEq)
+#define ION_EXPECT_STRING_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonStringEq)
+#define ION_EXPECT_SYMBOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonSymbolEq)
+#define ION_EXPECT_INT_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonIntEq)
+#define ION_EXPECT_DECIMAL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonDecimalEq)
+#define ION_EXPECT_TIMESTAMP_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonTimestampEq)
+
 
 typedef enum _comparison_type {
     COMPARISON_TYPE_EQUIVS = 0,
@@ -91,7 +80,7 @@ extern TIMESTAMP_COMPARISON_FN g_TimestampEquals;
  * Tests the given IonEventStreams for equivalence, meaning that the corresponding values in each stream
  * must all be equivalent.
  */
-BOOL assertIonEventStreamEq(IonEventStream *expected, IonEventStream *actual, IonEventResult *result=NULL);
+BOOL assertIonEventStreamEq(IonEventStream *stream_expected, IonEventStream *stream_actual, IonEventResult *result=NULL);
 
 BOOL testComparisonSets(IonEventStream *lhs, IonEventStream *rhs, COMPARISON_TYPE comparison_type, IonEventResult *result=NULL);
 

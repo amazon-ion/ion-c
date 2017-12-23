@@ -169,45 +169,57 @@ iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, I
     iRETURN;
 }
 
-iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len) {
+iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, IonEventResult *result) {
     iENTER;
     POSITION pos;
-    IONCHECK(ion_writer_close(writer_context->writer));
+    ION_NON_FATAL(ion_writer_close(writer_context->writer), "Failed to close writer.");
     pos = ion_stream_get_position(writer_context->ion_stream);
-    IONCHECK(ion_stream_seek(writer_context->ion_stream, 0));
+    ION_NON_FATAL(ion_stream_seek(writer_context->ion_stream, 0), "Failed to seek the output stream to the beginning.");
     *bytes = (BYTE *)(malloc((size_t)pos));
     SIZE bytes_read;
-    IONCHECK(ion_stream_read(writer_context->ion_stream, *bytes, (SIZE)pos, &bytes_read));
+    ION_NON_FATAL(ion_stream_read(writer_context->ion_stream, *bytes, (SIZE)pos, &bytes_read), "Failed to retrieve bytes from the output stream.");
 
-    IONCHECK(ion_stream_close(writer_context->ion_stream));
+    ION_NON_FATAL(ion_stream_close(writer_context->ion_stream), "Failed to close ION_STREAM.");
     if (bytes_read != (SIZE)pos) {
-        FAILWITH(IERR_EOF);
+        ION_NON_FATAL(IERR_EOF, "Read an invalid number of bytes from the output stream.");
     }
     if (writer_context->has_imports) {
-        IONCHECK(ion_writer_options_close_shared_imports(&writer_context->options));
+        ION_NON_FATAL(ion_writer_options_close_shared_imports(&writer_context->options), "Failed to close the writer's imports.");
     }
     *bytes_len = bytes_read;
     iRETURN;
 }
 
-std::string _ion_error_message(ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg) {
+std::string _ion_error_message(iERR error_code, std::string msg, const char *file, int line) {
     std::ostringstream ss;
-    ss << __FILE__ << ":" << __LINE__ << " : "
-       << ION_EVENT_STRING_OR_NULL(ion_event_error_type_to_string(error_type)) << ": "
-       << ion_error_to_str(error_code) << ": " << msg;
+    ss << file << ":" << line << " : "
+       << ion_error_to_str(error_code);
+       if (!msg.empty()) {
+           ss << ": " << msg;
+       }
     return ss.str();
 }
 
-void _ion_cli_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg, ION_EVENT_REPORT_CONTEXT *context) {
+void _ion_cli_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg, std::string *location, size_t *event_index, const char *file, int line) {
     if (result != NULL) {
         result->error_description.error_type = error_type;
-        result->error_description.message = _ion_error_message(error_type, error_code, msg);
-        result->has_error_description = true;
-        if (context != NULL) {
-            result->error_description.context.location = context->location; // TODO can there be multiple locations? Like when there's an error during comparison. Or multiple contexts?
-            result->error_description.context.event = context->event;
-            result->error_description.context.event_index = context->event_index;
-            result->error_description.has_context = true;
+        result->error_description.message = _ion_error_message(error_code, msg, file, line);
+        if (location != NULL) {
+            result->error_description.location = *location; // TODO can there be multiple locations? Like when there's an error during comparison. Or multiple contexts?
+            result->error_description.has_location = true;
         }
+        if (event_index != NULL) {
+            result->error_description.event_index = *event_index;
+            result->error_description.has_event_index = true;
+        }
+        result->has_error_description = true;
     }
+}
+
+std::string ion_event_symbol_to_string(ION_SYMBOL *symbol) {
+    std::ostringstream ss;
+    ss << "(text=" << ION_EVENT_STRING_OR_NULL(&symbol->value) << ", local_sid=" << symbol->sid
+       << ", location=(" << ION_EVENT_STRING_OR_NULL(&symbol->import_location.name) << ", "
+       << symbol->import_location.location << "))";
+    return ss.str();
 }

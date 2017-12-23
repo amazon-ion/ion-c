@@ -79,7 +79,7 @@ extern "C" {
  * If error has already happened before, the error code of the current function will be ignored.
  * If there're no previous errors, the return code of the current function will be kept.
  */
-#define UPDATEERROR(x)       { iERR errBackup = err; err = x; if (err == IERR_OK) { err = errBackup; }}
+#define UPDATEERROR(x)       { iERR errBackup = (x); if (err == IERR_OK) { err = errBackup; }}
 //#define IONCLOSEhWRITER(x)   { if (x != NULL)  { UPDATEERROR(ion_writer_close(x)); x = NULL;}}
 //#define IONCLOSEhREADER(x)   { if (x != NULL)  { UPDATEERROR(ion_reader_close(x)); x = NULL;}}
 //#define IONCLOSEpWRITER(x)   { if (x != NULL)  { UPDATEERROR(_ion_writer_close_helper(x)); x = NULL;}}
