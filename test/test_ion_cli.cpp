@@ -75,3 +75,12 @@ TEST(IonCli, ErrorIsConveyed) {
     args.push_back("../ion-tests/iontestdata/bad/annotationFalse.ion");
     ION_ASSERT_FAIL(ion_cli_parse(args));
 }
+
+TEST(IonCli, ErrorIsConveyedEvents) {
+    std::vector<std::string> args;
+    args.push_back("process");
+    args.push_back("--output-format");
+    args.push_back("events");
+    args.push_back("../ion-tests/iontestdata/bad/fieldNameFalse.ion");
+    ION_ASSERT_FAIL(ion_cli_parse(args));
+}

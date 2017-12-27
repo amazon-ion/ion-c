@@ -19,6 +19,56 @@
 #include <string>
 #include "ion.h"
 
+#define IONCLEANEXIT goto cleanup
+
+/**
+ * Conveys any errors that occurred down-stack.
+ */
+#define IONREPORT(x) \
+    err = (x); \
+    if (err) { \
+        IONCLEANEXIT; \
+    }
+
+/**
+ * Conveys an error upward at the point it occurs.
+ */
+#define IONERROR(type, code, msg, loc, idx, res) \
+    _ion_cli_set_error(res, type, code, msg, loc, idx, __FILE__, __LINE__); \
+    IONREPORT(code)
+
+/**
+ * Conveys an illegal state error upward at the point it occurs.
+ */
+#define IONFAILSTATE(code, msg, res) IONERROR(ERROR_TYPE_STATE, code, msg, NULL, NULL, res)
+
+#define IONCCALL(type, x, loc, idx, m) \
+    err = (x); \
+    if (err) { \
+        IONERROR(type, err, m, loc, idx, result); \
+    }
+
+#define ION_SET_ERROR_CONTEXT(location, event_index) \
+    std::string *_error_location = location; \
+    size_t *_error_event_index = event_index;
+
+/**
+ * Conveys an error upward from a call to an ion-c read API.
+ */
+#define IONCREAD(x) IONCCALL(ERROR_TYPE_READ, x, _error_location, NULL, "")
+#define IONCWRITE(x) IONCCALL(ERROR_TYPE_WRITE, x, _error_location, _error_event_index, "")
+#define IONCSTATE(x, m) IONCCALL(ERROR_TYPE_STATE, x, NULL, NULL, m)
+
+#define ION_NON_FATAL(x, m) { \
+    iERR err_backup = (x); \
+    if (err == IERR_OK && err_backup != IERR_OK) { \
+        err = err_backup; \
+        _ion_cli_set_error(result, ERROR_TYPE_STATE, err, "", _error_location, _error_event_index, __FILE__, __LINE__); \
+    } \
+}
+
+#define cRETURN cleanup: RETURN(__location_name__, __line__, __count__++, err)
+
 typedef ION_STRING ION_LOB;
 
 typedef enum _ion_event_type {
@@ -144,7 +194,7 @@ public:
     }
     void addResult(IonEventResult *result);
     iERR writeErrorsTo(hWRITER writer);
-    iERR writeComparisonResultsTo(hWRITER writer);
+    iERR writeComparisonResultsTo(hWRITER writer, std::string *location, IonEventResult *result);
     bool hasErrors() {
         return !error_report.empty();
     }
@@ -153,59 +203,8 @@ public:
     }
 };
 
-iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report);
-iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report);
-
-
-#define IONCLEANEXIT goto cleanup
-
-/**
- * Conveys any errors that occurred down-stack.
- */
-#define IONREPORT(x) \
-    err = (x); \
-    if (err) { \
-        IONCLEANEXIT; \
-    }
-
-/**
- * Conveys an error upward at the point it occurs.
- */
-#define IONERROR(type, code, msg, loc, idx, res) \
-    _ion_cli_set_error(res, type, code, msg, loc, idx, __FILE__, __LINE__); \
-    IONREPORT(code)
-
-/**
- * Conveys an illegal state error upward at the point it occurs.
- */
-#define IONFAILSTATE(code, msg, res) IONERROR(ERROR_TYPE_STATE, code, msg, NULL, NULL, res)
-
-#define IONCCALL(type, x, loc, idx, m) \
-    err = (x); \
-    if (err) { \
-        IONERROR(type, err, m, loc, idx, result); \
-    }
-
-#define ION_SET_ERROR_CONTEXT(location, event_index) \
-    std::string *_error_location = location; \
-    size_t *_error_event_index = event_index;
-
-/**
- * Conveys an error upward from a call to an ion-c read API.
- */
-#define IONCREAD(x) IONCCALL(ERROR_TYPE_READ, x, _error_location, NULL, "")
-#define IONCWRITE(x) IONCCALL(ERROR_TYPE_WRITE, x, _error_location, _error_event_index, "")
-#define IONCSTATE(x, m) IONCCALL(ERROR_TYPE_STATE, x, NULL, NULL, m)
-
-#define ION_NON_FATAL(x, m) { \
-    iERR err_backup = (x); \
-    if (err == IERR_OK && err_backup != IERR_OK) { \
-        err = err_backup; \
-        _ion_cli_set_error(result, ERROR_TYPE_STATE, err, "", NULL, NULL, __FILE__, __LINE__); \
-    } \
-}
-
-#define cRETURN cleanup: RETURN(__location_name__, __line__, __count__++, err)
+iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, std::string *location, IonEventResult *result);
+iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report, std::string *location, IonEventResult *result);
 
 /**
  * Configure the given reader options to add a SYMBOL_TABLE event to the given IonEventStream whenever the symbol
@@ -235,16 +234,16 @@ iERR ion_event_stream_read_all_events(hREADER reader, IonEventStream *stream, IO
 /**
  * Writes an IonEventStream as an Ion stream using the given writer.
  */
-iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream);
+iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream, IonEventResult *result);
 
 /**
  * Writes an IonEventStream as a serialized event stream using the given writer.
  */
-iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog);
+iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog, IonEventResult *result);
 
 iERR ion_event_stream_write_error(hWRITER writer, ION_EVENT_ERROR_DESCRIPTION *error_description);
 
-iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result);
+iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result, std::string *location, IonEventResult *result);
 
 iERR ion_event_copy(IonEvent **dst, IonEvent *src, IonEventResult *result);
 

@@ -277,12 +277,13 @@ cleanup:
 /**
  * Constructs a writer using the given test type and catalog and uses it to write the given IonEventStream to BYTEs.
  */
-iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_CATALOG *catalog, BYTE **out, SIZE *len) {
+iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_CATALOG *catalog, BYTE **out, SIZE *len, IonEventResult *result) {
     iENTER;
     ION_EVENT_WRITER_CONTEXT writer_context;
-    IONCHECK(ion_event_in_memory_writer_open(&writer_context, (test_type == ROUNDTRIP_BINARY ? ION_WRITER_OUTPUT_TYPE_BINARY : ION_WRITER_OUTPUT_TYPE_TEXT_UGLY), catalog, /*imports=*/NULL));
-    IONCHECK(ion_event_stream_write_all(writer_context.writer, stream));
-    IONCHECK(ion_event_in_memory_writer_close(&writer_context, out, len));
+    IONREPORT(ion_event_in_memory_writer_open(&writer_context, stream->location, (test_type == ROUNDTRIP_BINARY ? ION_WRITER_OUTPUT_TYPE_BINARY : ION_WRITER_OUTPUT_TYPE_TEXT_UGLY), catalog, /*imports=*/NULL, result));
+    IONREPORT(ion_event_stream_write_all(writer_context.writer, stream, result));
+cleanup:
+    UPDATEERROR(ion_event_in_memory_writer_close(&writer_context, out, len));
     iRETURN;
 }
 
@@ -291,12 +292,12 @@ void write_ion_event_result(IonEventResult *result, std::string test_name) {
     std::string message;
     BYTE *out = NULL;
     SIZE len;
-    ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_open(&writer_context, ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY, NULL, /*imports=*/NULL));
+    ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_open(&writer_context, test_name + "error result", ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY, NULL, /*imports=*/NULL, /*result=*/NULL));
     if (result->has_error_description) {
         ASSERT_EQ(IERR_OK, ion_event_stream_write_error(writer_context.writer, &result->error_description));
     }
     if (result->has_comparison_result) {
-        ASSERT_EQ(IERR_OK, ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result));
+        ASSERT_EQ(IERR_OK, ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result, &test_name, NULL));
     }
     ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_close(&writer_context, &out, &len));
     if (out) {
@@ -317,9 +318,8 @@ iERR ionTestRoundtrip(IonEventStream *initial_stream, IonEventStream **roundtrip
     if (test_type > READ) {
         BYTE *written = NULL;
         SIZE len;
-        // TODO pass report down, then print the results at the end
-        IONREPORT(write_value_stream(initial_stream, test_type, catalog, &written, &len));
-        *roundtrip_stream = new IonEventStream(testTypeToString(test_type));
+        IONREPORT(write_value_stream(initial_stream, test_type, catalog, &written, &len, result));
+        *roundtrip_stream = new IonEventStream(test_name + "re-read");
         IONREPORT(read_value_stream_from_bytes(written, len, *roundtrip_stream, catalog, result));
         IONREPORT(assertIonEventStreamEq(initial_stream, *roundtrip_stream, result) ? IERR_OK : IERR_INVALID_STATE);
 cleanup:
@@ -534,3 +534,7 @@ INSTANTIATE_TEST_CASE_P(
 #endif
 );
 #endif
+
+// TODO the current bad/ vectors only test the reader. Additional bad/ tests could be created which test the writer.
+// This could be done by serializing a stream of IonEvents that are expected to produce an error when written as an
+// Ion stream.

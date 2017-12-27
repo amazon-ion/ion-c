@@ -121,6 +121,7 @@ typedef struct _ion_cli_writer_context {
     ION_WRITER_OPTIONS options;
     hWRITER writer;
     FILE *file_stream;
+    std::string output_location;
     ION_STREAM *ion_stream;
     bool has_imports;
 } ION_EVENT_WRITER_CONTEXT;
@@ -144,7 +145,7 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options);
  */
 void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options);
 
-iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports);
+iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, std::string location, ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result);
 iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, IonEventResult *result=NULL);
 
 void _ion_cli_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg, std::string *location, size_t *event_index, const char *file, int line);

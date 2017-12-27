@@ -136,7 +136,6 @@ void copy_ion_symbols(ION_SYMBOL **dst, ION_SYMBOL *src, size_t count) {
 }
 
 IonEvent::IonEvent(ION_EVENT_TYPE event_type, ION_TYPE ion_type, ION_SYMBOL *field_name, ION_SYMBOL *annotations, SIZE num_annotations, int depth) {
-    // TODO perform the symbols copies here and remove them everywhere else. Also add a destructor.
     this->event_type = event_type;
     this->ion_type = ion_type;
     copy_ion_symbol(&this->field_name, field_name);
@@ -145,12 +144,7 @@ IonEvent::IonEvent(ION_EVENT_TYPE event_type, ION_TYPE ion_type, ION_SYMBOL *fie
     this->depth = depth;
     value = NULL;
 }
-/*
-IonEvent::IonEvent(IonEvent *that) {
-    this = IonEvent(that->event_type, that->ion_type, that->field_name, that->annotations, that->num_annotations, that->depth);
-    ion_event_copy_value(that, &this->value, NULL);
-}
-*/
+
 IonEvent::~IonEvent() {
     free_ion_symbols(annotations, num_annotations);
     free_ion_symbol(field_name);
@@ -193,25 +187,25 @@ iERR IonEventReport::writeErrorsTo(hWRITER writer) {
     cRETURN;
 }
 
-iERR IonEventReport::writeComparisonResultsTo(hWRITER writer) {
+iERR IonEventReport::writeComparisonResultsTo(hWRITER writer, std::string *location, IonEventResult *result) {
     iENTER;
     for (size_t i = 0; i < comparison_report.size(); i++) {
-        IONREPORT(ion_event_stream_write_comparison_result(writer, &comparison_report.at(i)));
+        IONREPORT(ion_event_stream_write_comparison_result(writer, &comparison_report.at(i), location, result));
     }
     cRETURN;
 }
 
-iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report) {
+iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, std::string *location, IonEventResult *result) {
     iENTER;
     ASSERT(report);
     IONREPORT(report->writeErrorsTo(writer));
     cRETURN;
 }
 
-iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report) {
+iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report, std::string *location, IonEventResult *result) {
     iENTER;
     ASSERT(report);
-    IONREPORT(report->writeComparisonResultsTo(writer));
+    IONREPORT(report->writeComparisonResultsTo(writer, location, result));
     cRETURN;
 }
 
@@ -628,6 +622,25 @@ iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION **imports, std
     cRETURN;
 }
 
+iERR ion_event_stream_write_scalar_value_comparison_result(std::string location, std::string *comparison_report, IonEventResult *result) {
+    iENTER;
+    ION_SET_ERROR_CONTEXT(&location, NULL);
+    ION_EVENT_WRITER_CONTEXT writer_context;
+    BYTE *value = NULL;
+    SIZE len;
+    ASSERT(comparison_report);
+
+    IONREPORT(ion_event_in_memory_writer_open(&writer_context, location, ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY, NULL, NULL, result));
+    IONREPORT(ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result, &location, result));
+cleanup:
+    UPDATEERROR(ion_event_in_memory_writer_close(&writer_context, &value, &len, result));
+    if (value) {
+        *comparison_report = std::string((char *)value, (size_t)len);
+        free(value);
+    }
+    iRETURN;
+}
+
 iERR ion_event_stream_get_consensus_value(ION_CATALOG *catalog, std::string value_text, BYTE *value_binary,
                                           size_t value_binary_len, void **consensus_value, IonEventResult *result) {
     iENTER;
@@ -648,18 +661,9 @@ iERR ion_event_stream_get_consensus_value(ION_CATALOG *catalog, std::string valu
     else {
         std::string message;
         if (result->has_comparison_result) {
-            ION_EVENT_WRITER_CONTEXT writer_context;
-            BYTE *comparison_result_str;
-            SIZE comparison_result_str_len;
-            IONREPORT(ion_event_in_memory_writer_open(&writer_context, ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY, NULL, NULL));
-            IONREPORT(ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result));
-            IONREPORT(ion_event_in_memory_writer_close(&writer_context, &comparison_result_str, &comparison_result_str_len));
-            if (comparison_result_str) {
-                message = std::string((char *) comparison_result_str, (size_t) comparison_result_str_len);
-                free(comparison_result_str);
-            }
+            IONREPORT(ion_event_stream_write_scalar_value_comparison_result(value_text + " scalar comparison result", &message, result));
         }
-        IONFAILSTATE(IERR_INVALID_ARG, "Invalid event; text and binary scalar representations are not equal: " + message, result);
+        IONFAILSTATE(IERR_INVALID_ARG, "Invalid event; text and binary scalar representations are not equal. " + message, result);
     }
 
     cRETURN;
@@ -894,159 +898,173 @@ cleanup:
     iRETURN;
 }
 
-iERR write_scalar(hWRITER writer, IonEvent *event) {
+iERR write_scalar(hWRITER writer, IonEvent *event, std::string *location, size_t *index, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(location, index);
     int tid = ION_TID_INT(event->ion_type);
     if (!event->value) {
-        IONCHECK(ion_writer_write_typed_null(writer, event->ion_type));
-        SUCCEED();
+        IONCWRITE(ion_writer_write_typed_null(writer, event->ion_type));
+        IONCLEANEXIT;
     }
     switch (tid) {
         case TID_BOOL:
-            IONCHECK(ion_writer_write_bool(writer, *(BOOL *)event->value));
+            IONCWRITE(ion_writer_write_bool(writer, *(BOOL *)event->value));
             break;
         case TID_POS_INT:
         case TID_NEG_INT:
-            IONCHECK(ion_writer_write_ion_int(writer, (ION_INT *)event->value));
+            IONCWRITE(ion_writer_write_ion_int(writer, (ION_INT *)event->value));
             break;
         case TID_FLOAT:
-            IONCHECK(ion_writer_write_double(writer, *(double *)event->value));
+            IONCWRITE(ion_writer_write_double(writer, *(double *)event->value));
             break;
         case TID_DECIMAL:
-            IONCHECK(ion_writer_write_ion_decimal(writer, (ION_DECIMAL *)event->value));
+            IONCWRITE(ion_writer_write_ion_decimal(writer, (ION_DECIMAL *)event->value));
             break;
         case TID_TIMESTAMP:
-            IONCHECK(ion_writer_write_timestamp(writer, (ION_TIMESTAMP *)event->value));
+            IONCWRITE(ion_writer_write_timestamp(writer, (ION_TIMESTAMP *)event->value));
             break;
         case TID_SYMBOL:
-            IONCHECK(ion_writer_write_ion_symbol(writer, (ION_SYMBOL *)event->value));
+            IONCWRITE(ion_writer_write_ion_symbol(writer, (ION_SYMBOL *)event->value));
             break;
         case TID_STRING:
-            IONCHECK(ion_writer_write_string(writer, (ION_STRING *)event->value));
+            IONCWRITE(ion_writer_write_string(writer, (ION_STRING *)event->value));
             break;
         case TID_CLOB:
-            IONCHECK(ion_writer_write_clob(writer, ((ION_STRING *)event->value)->value, ((ION_STRING *)event->value)->length));
+            IONCWRITE(ion_writer_write_clob(writer, ((ION_STRING *)event->value)->value, ((ION_STRING *)event->value)->length));
             break;
         case TID_BLOB:
-            IONCHECK(ion_writer_write_blob(writer, ((ION_STRING *)event->value)->value, ((ION_STRING *)event->value)->length));
+            IONCWRITE(ion_writer_write_blob(writer, ((ION_STRING *)event->value)->value, ((ION_STRING *)event->value)->length));
             break;
         case TID_NULL: // NOTE: null events can only have NULL values; this is handled before the switch.
         default:
-            FAILWITH(IERR_INVALID_ARG);
+            IONFAILSTATE(IERR_INVALID_ARG, "Invalid ion_type", result);
     }
-    iRETURN;
+    cRETURN;
 }
-
-iERR write_event(hWRITER writer, IonEvent *event) {
+// TODO pass down object with location, index, and result?
+iERR write_event(hWRITER writer, IonEvent *event, std::string *location, size_t index, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(location, &index);
     if (event->field_name) {
-        IONCHECK(ion_writer_write_field_name_symbol(writer, event->field_name));
+        IONCWRITE(ion_writer_write_field_name_symbol(writer, event->field_name));
     }
     if (event->num_annotations) {
-        IONCHECK(ion_writer_write_annotation_symbols(writer, event->annotations, event->num_annotations));
+        IONCWRITE(ion_writer_write_annotation_symbols(writer, event->annotations, event->num_annotations));
     }
     switch (event->event_type) {
         case CONTAINER_START:
-            IONCHECK(ion_writer_start_container(writer, event->ion_type));
+            IONCWRITE(ion_writer_start_container(writer, event->ion_type));
             break;
         case CONTAINER_END:
-            IONCHECK(ion_writer_finish_container(writer));
+            IONCWRITE(ion_writer_finish_container(writer));
             break;
         case SCALAR:
-            IONCHECK(write_scalar(writer, event));
+            IONCWRITE(write_scalar(writer, event, location, &index, result));
             break;
         case SYMBOL_TABLE:
-            IONCHECK(ion_writer_add_imported_tables(writer, (ION_COLLECTION *)event->value));
+            IONCWRITE(ion_writer_add_imported_tables(writer, (ION_COLLECTION *)event->value));
             break;
         case STREAM_END:
             break;
         default:
-            FAILWITH(IERR_INVALID_ARG);
+            IONFAILSTATE(IERR_INVALID_ARG, "Invalid event_type.", result);
     }
-
-    iRETURN;
+    cRETURN;
 }
 
-iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream) {
+iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream, IonEventResult *result) {
     iENTER;
     for (size_t i = 0; i < stream->size(); i++) {
-        IONCHECK(write_event(writer, stream->at(i)));
+        IONREPORT(write_event(writer, stream->at(i), &stream->location, i, result));
     }
-    iRETURN;
+    cRETURN;
 }
 
-iERR ion_event_stream_write_symbol_token(hWRITER writer, ION_SYMBOL *symbol) {
+iERR ion_event_stream_write_symbol_token(hWRITER writer, ION_SYMBOL *symbol, std::string *location, size_t *index, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(location, index);
     ASSERT(symbol);
 
-    IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_text_field));
+    IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_text_field));
     if (!ION_STRING_IS_NULL(&symbol->value)) {
-        IONCHECK(ion_writer_write_string(writer, &symbol->value));
+        IONCWRITE(ion_writer_write_string(writer, &symbol->value));
     }
     else {
-        IONCHECK(ion_writer_write_null(writer));
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_import_location_field));
-        IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_name_field));
-        IONCHECK(ion_writer_write_string(writer, &symbol->import_location.name));
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_import_sid_field));
-        IONCHECK(ion_writer_write_int(writer, symbol->import_location.location));
-        IONCHECK(ion_writer_finish_container(writer));
+        IONCWRITE(ion_writer_write_null(writer));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_import_location_field));
+        IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_name_field));
+        IONCWRITE(ion_writer_write_string(writer, &symbol->import_location.name));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_import_sid_field));
+        IONCWRITE(ion_writer_write_int(writer, symbol->import_location.location));
+        IONCWRITE(ion_writer_finish_container(writer));
     }
-    IONCHECK(ion_writer_finish_container(writer));
-    iRETURN;
+    IONCWRITE(ion_writer_finish_container(writer));
+    cRETURN;
 }
 
-iERR ion_event_stream_write_symbol_table_imports(hWRITER writer, ION_COLLECTION *imports) {
+iERR ion_event_stream_write_symbol_table_imports(hWRITER writer, ION_COLLECTION *imports, std::string *location, size_t *index, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(location, index);
     ION_COLLECTION_CURSOR import_cursor;
     ION_SYMBOL_TABLE_IMPORT *import;
-    IONCHECK(ion_writer_start_container(writer, tid_LIST));
+    IONCWRITE(ion_writer_start_container(writer, tid_LIST));
     ION_COLLECTION_OPEN(imports, import_cursor);
     for (;;) {
         ION_COLLECTION_NEXT(import_cursor, import);
         if (!import) break;
-        IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_import_name_field));
-        IONCHECK(ion_writer_write_string(writer, &import->descriptor.name));
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_max_id_field));
-        IONCHECK(ion_writer_write_int(writer, import->descriptor.max_id));
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_version_field));
-        IONCHECK(ion_writer_write_int(writer, import->descriptor.version));
-        IONCHECK(ion_writer_finish_container(writer));
+        IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_import_name_field));
+        IONCWRITE(ion_writer_write_string(writer, &import->descriptor.name));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_max_id_field));
+        IONCWRITE(ion_writer_write_int(writer, import->descriptor.max_id));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_version_field));
+        IONCWRITE(ion_writer_write_int(writer, import->descriptor.version));
+        IONCWRITE(ion_writer_finish_container(writer));
     }
     ION_COLLECTION_CLOSE(import_cursor);
-    IONCHECK(ion_writer_finish_container(writer));
+    IONCWRITE(ion_writer_finish_container(writer));
+    cRETURN;
+}
+
+iERR ion_event_stream_write_scalar_value(ION_WRITER_OUTPUT_TYPE output_type, IonEvent *event, ION_COLLECTION *imports, ION_CATALOG *catalog, std::string location, size_t *index, BYTE **value, SIZE *len, IonEventResult *result) {
+    iENTER;
+    std::string scalar_location = location + ((output_type == ION_WRITER_OUTPUT_TYPE_BINARY) ? " binary scalar" : " text scalar");
+    ION_SET_ERROR_CONTEXT(&scalar_location, index);
+    ION_EVENT_WRITER_CONTEXT writer_context;
+    ASSERT(value);
+    ASSERT(len);
+
+    IONREPORT(ion_event_in_memory_writer_open(&writer_context, scalar_location, output_type, catalog, (event->ion_type == tid_SYMBOL) ? imports : NULL, result));
+    IONREPORT(write_scalar(writer_context.writer, event, &scalar_location, index, result));
+cleanup:
+    UPDATEERROR(ion_event_in_memory_writer_close(&writer_context, value, len, result));
     iRETURN;
 }
 
-iERR ion_event_stream_write_scalar_event(hWRITER writer, IonEvent *event, ION_COLLECTION *imports, ION_CATALOG *catalog) {
+iERR ion_event_stream_write_scalar_event(hWRITER writer, IonEvent *event, ION_COLLECTION *imports, ION_CATALOG *catalog, std::string *location, size_t *index, IonEventResult *result) {
     iENTER;
-    ION_EVENT_WRITER_CONTEXT text_context, binary_context;
-    BYTE *text_value, *binary_value;
+    ION_SET_ERROR_CONTEXT(location, index);
+    BYTE *text_value = NULL, *binary_value = NULL;
     SIZE text_len, binary_len;
     ION_STRING text_stream;
+    ASSERT(location);
 
-    IONCHECK(ion_event_in_memory_writer_open(&text_context, ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, catalog, (event->ion_type == tid_SYMBOL) ? imports : NULL));
-    IONCHECK(ion_event_in_memory_writer_open(&binary_context, ION_WRITER_OUTPUT_TYPE_BINARY, catalog, (event->ion_type == tid_SYMBOL) ? imports : NULL));
-    IONCHECK(write_scalar(text_context.writer, event));
-    IONCHECK(write_scalar(binary_context.writer, event));
-    IONCHECK(ion_event_in_memory_writer_close(&text_context, &text_value, &text_len));
-    IONCHECK(ion_event_in_memory_writer_close(&binary_context, &binary_value, &binary_len));
+    IONREPORT(ion_event_stream_write_scalar_value(ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, event, imports, catalog, *location, index, &text_value, &text_len, result));
+    IONREPORT(ion_event_stream_write_scalar_value(ION_WRITER_OUTPUT_TYPE_BINARY, event, imports, catalog, *location, index, &binary_value, &binary_len, result));
 
     ion_string_assign_cstr(&text_stream, (char *)text_value, text_len);
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_value_text_field));
-    IONCHECK(ion_writer_write_string(writer, &text_stream));
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_value_binary_field));
-    IONCHECK(ion_writer_start_container(writer, tid_LIST));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_value_text_field));
+    IONCWRITE(ion_writer_write_string(writer, &text_stream));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_value_binary_field));
+    IONCWRITE(ion_writer_start_container(writer, tid_LIST));
     for (int i = 0; i < binary_len; i++) {
-        IONCHECK(ion_writer_write_int(writer, binary_value[i]));
+        IONCWRITE(ion_writer_write_int(writer, binary_value[i]));
     }
-    IONCHECK(ion_writer_finish_container(writer));
+    IONCWRITE(ion_writer_finish_container(writer));
 
 cleanup:
-    // TODO need to free unconditionally
     if (text_value) {
         free(text_value);
     }
@@ -1056,108 +1074,113 @@ cleanup:
     iRETURN;
 }
 
-iERR ion_event_stream_write_event(hWRITER writer, IonEvent *event, ION_CATALOG *catalog) {
+iERR ion_event_stream_write_event(hWRITER writer, IonEvent *event, ION_CATALOG *catalog, std::string *location, size_t *index, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(location, index);
     ION_COLLECTION *imports = NULL;
     ION_STRING *ion_type_str = NULL;
     ION_STRING *event_type_str = ion_event_type_to_string(event->event_type);
-    IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_event_type_field));
-    IONCHECK(ion_writer_write_symbol(writer, event_type_str));
+    IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_event_type_field));
+    IONCWRITE(ion_writer_write_symbol(writer, event_type_str));
     if (event->ion_type != tid_none) {
         ion_type_str = ion_event_ion_type_to_string(event->ion_type);
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_ion_type_field));
-        IONCHECK(ion_writer_write_symbol(writer, ion_type_str));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_ion_type_field));
+        IONCWRITE(ion_writer_write_symbol(writer, ion_type_str));
     }
     if (event->field_name) {
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_field_name_field));
-        IONCHECK(ion_event_stream_write_symbol_token(writer, event->field_name));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_field_name_field));
+        IONREPORT(ion_event_stream_write_symbol_token(writer, event->field_name, location, index, result));
     }
     if (event->num_annotations > 0) {
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_annotations_field));
-        IONCHECK(ion_writer_start_container(writer, tid_LIST));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_annotations_field));
+        IONCWRITE(ion_writer_start_container(writer, tid_LIST));
         for (int j = 0; j < event->num_annotations; j++) {
-            IONCHECK(ion_event_stream_write_symbol_token(writer, &event->annotations[j]));
+            IONREPORT(ion_event_stream_write_symbol_token(writer, &event->annotations[j], location, index, result));
         }
-        IONCHECK(ion_writer_finish_container(writer));
+        IONCWRITE(ion_writer_finish_container(writer));
     }
     if (event->event_type == SYMBOL_TABLE) {
         imports = (ION_COLLECTION *)event->value;
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_imports_field));
-        IONCHECK(ion_event_stream_write_symbol_table_imports(writer, imports));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_imports_field));
+        IONREPORT(ion_event_stream_write_symbol_table_imports(writer, imports, location, index, result));
     }
     else if (event->event_type == SCALAR){
-        IONCHECK(ion_event_stream_write_scalar_event(writer, event, imports, catalog));
+        IONREPORT(ion_event_stream_write_scalar_event(writer, event, imports, catalog, location, index, result));
     }
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_depth_field));
-    IONCHECK(ion_writer_write_int(writer, event->depth));
-    IONCHECK(ion_writer_finish_container(writer));
-    iRETURN;
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_depth_field));
+    IONCWRITE(ion_writer_write_int(writer, event->depth));
+    IONCWRITE(ion_writer_finish_container(writer));
+    cRETURN;
 }
 
-iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog) {
+iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     for (size_t i = 0; i < stream->size(); i++) {
-        IONCHECK(ion_event_stream_write_event(writer, stream->at(i), catalog));
+        IONCHECK(ion_event_stream_write_event(writer, stream->at(i), catalog, &stream->location, &i, result));
     }
     iRETURN;
 }
 
 iERR ion_event_stream_write_error(hWRITER writer, ION_EVENT_ERROR_DESCRIPTION *error_description) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(NULL, NULL); // In the event that writing the error report fails, this information can't be used anyway
+    IonEventResult *result = NULL;
     ION_STRING message, location;
     ASSERT(error_description);
-    IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_error_type_field));
-    IONCHECK(ion_writer_write_symbol(writer, ion_event_error_type_to_string(error_description->error_type)));
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_error_message_field));
+    IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_type_field));
+    IONCWRITE(ion_writer_write_symbol(writer, ion_event_error_type_to_string(error_description->error_type)));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_message_field));
     ION_EVENT_ION_STRING_FROM_STRING(&message, error_description->message);
-    IONCHECK(ion_writer_write_string(writer, &message));
+    IONCWRITE(ion_writer_write_string(writer, &message));
     if (error_description->has_location) {
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_error_location_field));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_location_field));
         ION_EVENT_ION_STRING_FROM_STRING(&location, error_description->location);
-        IONCHECK(ion_writer_write_string(writer, &location));
+        IONCWRITE(ion_writer_write_string(writer, &location));
     }
     if (error_description->has_event_index) {
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_error_event_index_field));
-        IONCHECK(ion_writer_write_int(writer, (int)error_description->event_index));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_event_index_field));
+        IONCWRITE(ion_writer_write_int(writer, (int)error_description->event_index));
     }
-    IONCHECK(ion_writer_finish_container(writer));
-    iRETURN;
+    IONCWRITE(ion_writer_finish_container(writer));
+    cRETURN;
 }
 
-iERR ion_event_stream_write_comparison_context(hWRITER writer, ION_EVENT_COMPARISON_CONTEXT *comparison_context) {
+iERR ion_event_stream_write_comparison_context(hWRITER writer, ION_EVENT_COMPARISON_CONTEXT *comparison_context, std::string *location, IonEventResult *result) {
     iENTER;
-    ION_STRING location;
+    ION_SET_ERROR_CONTEXT(location, NULL);
+    ION_STRING event_location;
     ASSERT(comparison_context);
-    IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_context_location_field));
-    ION_EVENT_ION_STRING_FROM_STRING(&location, comparison_context->location);
-    IONCHECK(ion_writer_write_string(writer, &location));
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_field));
-    IONCHECK(ion_event_stream_write_event(writer, comparison_context->event, NULL)); // TODO what about catalog?
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_index_field));
-    IONCHECK(ion_writer_write_int(writer, (int)comparison_context->event_index));
-    IONCHECK(ion_writer_finish_container(writer));
-    iRETURN;
+    IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_context_location_field));
+    ION_EVENT_ION_STRING_FROM_STRING(&event_location, comparison_context->location);
+    IONCWRITE(ion_writer_write_string(writer, &event_location));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_field));
+    IONREPORT(ion_event_stream_write_event(writer, comparison_context->event, NULL, location, NULL, result)); // TODO what about catalog?
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_index_field));
+    IONCWRITE(ion_writer_write_int(writer, (int)comparison_context->event_index));
+    IONCWRITE(ion_writer_finish_container(writer));
+    cRETURN;
 }
 
-iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result) {
+iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result, std::string *location, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(location, NULL);
     ION_STRING message;
     ASSERT(comparison_result);
-    IONCHECK(ion_writer_start_container(writer, tid_STRUCT));
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_result_type_field));
-    IONCHECK(ion_writer_write_string(writer, ion_event_comparison_result_type_to_string(comparison_result->result)));
+    IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_type_field));
+    IONCWRITE(ion_writer_write_string(writer, ion_event_comparison_result_type_to_string(comparison_result->result)));
     if (!comparison_result->message.empty()) {
-        IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_result_message_field));
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_message_field));
         ION_EVENT_ION_STRING_FROM_STRING(&message, comparison_result->message);
-        IONCHECK(ion_writer_write_string(writer, &message));
+        IONCWRITE(ion_writer_write_string(writer, &message));
     }
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_result_lhs_field));
-    IONCHECK(ion_event_stream_write_comparison_context(writer, &comparison_result->lhs));
-    IONCHECK(ion_writer_write_field_name(writer, &ion_event_comparison_result_rhs_field));
-    IONCHECK(ion_event_stream_write_comparison_context(writer, &comparison_result->rhs));
-    IONCHECK(ion_writer_finish_container(writer));
-    iRETURN;
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_lhs_field));
+    IONREPORT(ion_event_stream_write_comparison_context(writer, &comparison_result->lhs, location, result));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_rhs_field));
+    IONREPORT(ion_event_stream_write_comparison_context(writer, &comparison_result->rhs, location, result));
+    IONCWRITE(ion_writer_finish_container(writer));
+    cRETURN;
 }

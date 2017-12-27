@@ -152,25 +152,27 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options) {
     options->max_annotation_count = ION_EVENT_ANNOTATION_MAX;
 }
 
-iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports) {
+iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, std::string location, ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(&location, NULL);
     memset(writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
-    IONCHECK(ion_stream_open_memory_only(&writer_context->ion_stream));
+    IONCWRITE(ion_stream_open_memory_only(&writer_context->ion_stream));
     ion_event_initialize_writer_options(&writer_context->options);
     writer_context->options.output_as_binary = (output_type == ION_WRITER_OUTPUT_TYPE_BINARY);
     writer_context->options.pretty_print = (output_type == ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY);
     writer_context->options.pcatalog = catalog;
     if (imports) {
-        IONCHECK(ion_writer_options_initialize_shared_imports(&writer_context->options));
-        IONCHECK(ion_writer_options_add_shared_imports(&writer_context->options, imports));
+        IONCWRITE(ion_writer_options_initialize_shared_imports(&writer_context->options));
+        IONCWRITE(ion_writer_options_add_shared_imports(&writer_context->options, imports));
         writer_context->has_imports = TRUE;
     }
-    IONCHECK(ion_writer_open(&writer_context->writer, writer_context->ion_stream, &writer_context->options));
-    iRETURN;
+    IONCWRITE(ion_writer_open(&writer_context->writer, writer_context->ion_stream, &writer_context->options));
+    cRETURN;
 }
 
 iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(&writer_context->output_location, NULL);
     POSITION pos;
     ION_NON_FATAL(ion_writer_close(writer_context->writer), "Failed to close writer.");
     pos = ion_stream_get_position(writer_context->ion_stream);
