@@ -49,10 +49,11 @@
     } \
 }
 
-#define ION_EXPECT_TRUE_MSG(x, m) if (!(x)) { ION_FAIL_COMPARISON(m); }
-#define ION_EXPECT_TRUE(x) ION_EXPECT_TRUE_MSG(x, "")
-#define ION_EXPECT_FALSE(x) if (x) { ION_FAIL_COMPARISON(""); }
-#define ION_EXPECT_EQ(x, y) if((x) != (y)) { ION_FAIL_COMPARISON(""); }
+#define ION_EXPECT_TRUE(x, m) if (!(x)) { ION_FAIL_COMPARISON(m); }
+#define ION_EXPECT_FALSE(x, m) if (x) { ION_FAIL_COMPARISON(m); }
+#define ION_EXPECT_EQ(x, y, m) if((x) != (y)) { ION_FAIL_COMPARISON(m); }
+#define ION_EXPECT_EVENT_TYPE_EQ(x, y) ION_EXPECT_EQ(x, y, "Event types did not match.")
+#define ION_EXPECT_BOOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonBoolEq)
 #define ION_EXPECT_DOUBLE_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonFloatEq)
 #define ION_EXPECT_STRING_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonStringEq)
 #define ION_EXPECT_SYMBOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonSymbolEq)
@@ -84,6 +85,7 @@ BOOL assertIonEventStreamEq(IonEventStream *stream_expected, IonEventStream *str
 
 BOOL testComparisonSets(IonEventStream *lhs, IonEventStream *rhs, COMPARISON_TYPE comparison_type, IonEventResult *result=NULL);
 
+BOOL assertIonBoolEq(BOOL *expected, BOOL *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);
 BOOL assertIonStringEq(ION_STRING *expected, ION_STRING *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);
 BOOL assertIonSymbolEq(ION_SYMBOL *expected, ION_SYMBOL *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);
 BOOL assertIonIntEq(ION_INT *expected, ION_INT *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);

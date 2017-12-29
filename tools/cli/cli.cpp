@@ -102,37 +102,6 @@ Examples:
         $ ion compare -o comparison_report.ion read_events.ion input1.ion input2.10n
 )";
 
-/**
- * Arguments shared by the process, compare, and extract commands.
- */
-typedef struct _ion_cli_common_args {
-    std::string output;
-    std::string error_report;
-    std::string output_format;
-    bool input_is_stdin;
-    std::vector<std::string> input_files;
-} ION_CLI_COMMON_ARGS;
-
-/**
- * Arguments shared by the process and compare commands only.
- */
-typedef struct _ion_cli_process_compare_args {
-    std::vector<std::string> catalog;
-    std::vector<std::string> imports;
-} ION_CLI_PROCESS_COMPARE_ARGS;
-
-typedef struct _ion_cli_process_args {
-    ION_CLI_PROCESS_COMPARE_ARGS process_compare_args;
-    std::string perf_report;
-    std::string filter;
-    std::string traverse;
-} ION_CLI_PROCESS_ARGS;
-
-typedef struct _ion_cli_compare_args {
-    ION_CLI_PROCESS_COMPARE_ARGS process_compare_args;
-    COMPARISON_TYPE comparison_type;
-} ION_CLI_COMPARE_ARGS;
-
 static bool ion_cli_has_flag(std::map<std::string, docopt::value> *args, std::string arg) {
     std::map<std::string, docopt::value>::iterator it = args->find(arg);
     return it != args->end() && it->second.asBool();
@@ -150,28 +119,21 @@ inline void ion_cli_print_help() {
     std::cout << USAGE << COMMANDS << OPTIONS << EXAMPLES << std::endl;
 }
 
-iERR ion_cli_command_process_filter(ION_CLI_COMMON_ARGS *common_args, ION_CLI_PROCESS_ARGS *process_args, IonEventResult *result) {
+iERR ion_cli_command_process_filter(ION_EVENT_WRITER_CONTEXT *writer_context, ION_CLI_COMMON_ARGS *common_args, ION_CLI_PROCESS_ARGS *process_args, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(&common_args->output, NULL);
     // TODO implement jq-style filtering.
     IONFAILSTATE(IERR_NOT_IMPL, "Filtering not yet implemented.", result);
     cRETURN;
 }
 
-iERR ion_cli_command_process_traverse(ION_CLI_COMMON_ARGS *common_args, ION_CLI_PROCESS_ARGS *process_args, IonEventResult *result) {
+iERR ion_cli_command_process_traverse(ION_EVENT_WRITER_CONTEXT *writer_context, ION_CLI_COMMON_ARGS *common_args, ION_CLI_PROCESS_ARGS *process_args, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(&common_args->output, NULL);
     // TODO implement custom read traversal.
     IONFAILSTATE(IERR_NOT_IMPL, "Custom traversals not yet implemented.", result);
     cRETURN;
 }
-
-typedef struct _ion_cli_reader_context {
-    ION_READER_OPTIONS options;
-    hREADER reader;
-    FILE *file_stream;
-    std::string input_location;
-    ION_STREAM *ion_stream;
-    IonEventStream *event_stream;
-} ION_CLI_READER_CONTEXT;
 
 iERR ion_cli_close_reader(ION_CLI_READER_CONTEXT *context, IonEventResult *result) {
     iENTER;
@@ -247,6 +209,7 @@ iERR ion_cli_create_catalog(std::vector<std::string> *catalog_paths, ION_CATALOG
     ASSERT(catalog);
 
     if (catalog_paths && !catalog_paths->empty()) {
+        ION_SET_ERROR_CONTEXT(&catalog_paths->at(0), NULL);
         IONCSTATE(ion_catalog_open(&_catalog), "Failed to open catalog.");
         for (size_t i = 0; i < catalog_paths->size(); i++) {
             IONREPORT(ion_cli_add_shared_tables_to_catalog(catalog_paths->at(i), _catalog, result));
@@ -263,43 +226,44 @@ ION_WRITER_OUTPUT_TYPE ion_cli_output_type_from_arg(std::string output_format_ar
     return ION_WRITER_OUTPUT_TYPE_TEXT_UGLY;
 }
 
-iERR ion_cli_open_writer_basic(ION_WRITER_OUTPUT_TYPE output_type, std::string output_destination, ION_EVENT_WRITER_CONTEXT *writer_context) {
+iERR ion_cli_open_writer_basic(ION_WRITER_OUTPUT_TYPE output_type, std::string output_destination, ION_EVENT_WRITER_CONTEXT *writer_context, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(&output_destination, NULL);
     writer_context->options.output_as_binary = output_type == ION_WRITER_OUTPUT_TYPE_BINARY;
     writer_context->options.pretty_print = output_type == ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY;
     writer_context->output_location = output_destination;
 
     if (output_destination == "stdout") {
-        IONCHECK(ion_stream_open_stdout(&writer_context->ion_stream));
+        IONCWRITE(ion_stream_open_stdout(&writer_context->ion_stream));
     }
     else if (output_destination == "stderr") {
-        IONCHECK(ion_stream_open_stderr(&writer_context->ion_stream));
+        IONCWRITE(ion_stream_open_stderr(&writer_context->ion_stream));
     }
     else {
         writer_context->file_stream = fopen(output_destination.c_str(), "wb");
         if (!writer_context->file_stream) {
-            FAILWITHMSG(IERR_CANT_FIND_FILE, output_destination.c_str());
+            IONFAILSTATE(IERR_CANT_FIND_FILE, output_destination, result);
         }
-        IONCHECK(ion_stream_open_file_out(writer_context->file_stream, &writer_context->ion_stream));
+        IONCWRITE(ion_stream_open_file_out(writer_context->file_stream, &writer_context->ion_stream));
     }
 
-    IONCHECK(ion_writer_open(&writer_context->writer, writer_context->ion_stream, &writer_context->options));
-    iRETURN;
+    IONCWRITE(ion_writer_open(&writer_context->writer, writer_context->ion_stream, &writer_context->options));
+    cRETURN;
 }
 
-iERR ion_cli_open_writer(ION_WRITER_OUTPUT_TYPE output_type, std::string output_destination, ION_CATALOG *catalog, ION_COLLECTION *imports, ION_EVENT_WRITER_CONTEXT *writer_context) {
+iERR ion_cli_open_writer(ION_WRITER_OUTPUT_TYPE output_type, std::string output_destination, ION_CATALOG *catalog, ION_COLLECTION *imports, ION_EVENT_WRITER_CONTEXT *writer_context, IonEventResult *result) {
     iENTER;
-
+    ION_SET_ERROR_CONTEXT(&output_destination, NULL);
     memset(writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
     ion_event_initialize_writer_options(&writer_context->options);
     writer_context->options.pcatalog = catalog;
     if (imports && !ION_COLLECTION_IS_EMPTY(imports)) {
-        IONCHECK(ion_writer_options_initialize_shared_imports(&writer_context->options));
-        IONCHECK(ion_writer_options_add_shared_imports(&writer_context->options, imports));
+        IONCWRITE(ion_writer_options_initialize_shared_imports(&writer_context->options));
+        IONCWRITE(ion_writer_options_add_shared_imports(&writer_context->options, imports));
     }
 
-    IONCHECK(ion_cli_open_writer_basic(output_type, output_destination, writer_context));
-    iRETURN;
+    IONCWRITE(ion_cli_open_writer_basic(output_type, output_destination, writer_context, result));
+    cRETURN;
 }
 
 iERR ion_cli_close_writer(ION_EVENT_WRITER_CONTEXT *context, IonEventResult *result) {
@@ -331,17 +295,17 @@ iERR ion_cli_create_imports(std::vector<std::string> *import_files, hOWNER *impo
     iRETURN;
 }
 
-iERR ion_cli_open_event_writer(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *writer_context) {
+iERR ion_cli_open_event_writer(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *writer_context, IonEventResult *result) {
     iENTER;
     memset(writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
-    IONCHECK(ion_cli_open_writer_basic(ion_cli_output_type_from_arg(args->output_format), args->output, writer_context));
-    IONCHECK(ion_writer_write_symbol(writer_context->writer, &ion_cli_event_stream_symbol));
-    iRETURN;
+    IONREPORT(ion_cli_open_writer_basic(ion_cli_output_type_from_arg(args->output_format), args->output, writer_context, result));
+    IONREPORT(ion_writer_write_symbol(writer_context->writer, &ion_cli_event_stream_symbol));
+    cRETURN;
 }
 
-iERR ion_cli_is_event_stream(ION_CLI_READER_CONTEXT *reader_context, std::string *file_path, bool *is_event_stream, bool *has_more_events, IonEventResult *result) {
+iERR ion_cli_is_event_stream(ION_CLI_READER_CONTEXT *reader_context, bool *is_event_stream, bool *has_more_events, IonEventResult *result) {
     iENTER;
-    ION_SET_ERROR_CONTEXT(file_path, NULL);
+    ION_SET_ERROR_CONTEXT(&reader_context->input_location, NULL);
     ION_TYPE ion_type;
     ION_SYMBOL *symbol_value = NULL;
     IonEvent *event;
@@ -380,12 +344,11 @@ iERR ion_cli_is_event_stream(ION_CLI_READER_CONTEXT *reader_context, std::string
     cRETURN;
 }
 
-iERR ion_cli_read_stream(ION_CLI_COMMON_ARGS *args, ION_CLI_READER_CONTEXT *reader_context, std::string *file_path, ION_CATALOG *catalog, IonEventStream *stream, IonEventResult *result) {
+iERR ion_cli_read_stream(ION_CLI_READER_CONTEXT *reader_context, ION_CATALOG *catalog, IonEventStream *stream, IonEventResult *result) {
     iENTER;
     bool is_event_stream, has_more_events;
-    IONREPORT(ion_cli_open_reader(args, catalog, file_path, reader_context, stream, result));
 
-    IONREPORT(ion_cli_is_event_stream(reader_context,file_path, &is_event_stream, &has_more_events, result));
+    IONREPORT(ion_cli_is_event_stream(reader_context, &is_event_stream, &has_more_events, result));
     if (has_more_events) {
         if (is_event_stream) {
             IONREPORT(ion_event_stream_read_all_events(reader_context->reader, stream, catalog, result));
@@ -402,14 +365,15 @@ iERR ion_cli_write_value(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *wr
     ION_SET_ERROR_CONTEXT(file_path, NULL);
     ION_CLI_READER_CONTEXT reader_context;
     IonEventStream stream(*file_path);
+    IONREPORT(ion_cli_open_reader(args, catalog, file_path, &reader_context, &stream, result));
     if (args->output_format == "events") {
         // NOTE: don't short-circuit on read failure. Write as many events as possible.
-        err = ion_cli_read_stream(args, &reader_context, file_path, catalog, &stream, result);
+        err = ion_cli_read_stream(&reader_context, catalog, &stream, result);
         UPDATEERROR(ion_event_stream_write_all_events(writer_context->writer, &stream, catalog, result));
         IONREPORT(err);
     }
     else if (args->output_format != "none"){
-        IONREPORT(ion_cli_read_stream(args, &reader_context, file_path, catalog, &stream, result));
+        IONREPORT(ion_cli_read_stream(&reader_context, catalog, &stream, result));
         IONREPORT(ion_event_stream_write_all(writer_context->writer, &stream, result));
         // Would be nice to use this (especially for performance testing), but having to peek at the first value in the
         // stream (to identify $ion_event_stream) rules it out.
@@ -420,56 +384,26 @@ cleanup:
     iRETURN;
 }
 
-iERR ion_cli_write_all_values(ION_CLI_COMMON_ARGS *args, ION_CATALOG *catalog, ION_COLLECTION *imports, std::vector<std::string> *file_paths, IonEventResult *result) {
-    iENTER;
-    ION_SET_ERROR_CONTEXT(&args->output, NULL);
-    ION_EVENT_WRITER_CONTEXT writer_context;
-    if (args->output_format == "events") {
-        IONREPORT(ion_cli_open_event_writer(args, &writer_context));
-    }
-    else if (args->output_format != "none") {
-        IONREPORT(ion_cli_open_writer(ion_cli_output_type_from_arg(args->output_format), args->output, catalog, imports, &writer_context));
-    }
-    if (args->input_is_stdin) {
-        IONREPORT(ion_cli_write_value(args, &writer_context, catalog, NULL, result));
-    }
-    else {
-        for (size_t i = 0; i < file_paths->size(); i++) {
-            IONREPORT(ion_cli_write_value(args, &writer_context, catalog, &file_paths->at(i), result));
-        }
-    }
-cleanup:
-    UPDATEERROR(ion_cli_close_writer(&writer_context, result));
-    iRETURN;
-}
-
-iERR ion_cli_command_process_standard(ION_CLI_COMMON_ARGS *common_args, ION_CLI_PROCESS_ARGS *process_args, IonEventResult *result) {
+iERR ion_cli_command_process_standard(ION_EVENT_WRITER_CONTEXT *writer_context, ION_CLI_COMMON_ARGS *common_args, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&common_args->output, NULL);
-    ION_CATALOG *catalog = NULL;
-    hOWNER imports_owner = NULL;
-    ION_COLLECTION imports;
-
-    IONREPORT(ion_cli_create_catalog(&process_args->process_compare_args.catalog, &catalog, result));
-    IONREPORT(ion_cli_create_imports(&process_args->process_compare_args.imports, &imports_owner, &imports));
-    IONREPORT(ion_cli_write_all_values(common_args, catalog, imports_owner ? &imports : NULL, &common_args->input_files, result));
-
-cleanup:
-    if (catalog) {
-        ION_NON_FATAL(ion_catalog_close(catalog), "Failed to close catalog.");
+    if (common_args->input_is_stdin) {
+        IONREPORT(ion_cli_write_value(common_args, writer_context, catalog, NULL, result));
     }
-    if (imports_owner) {
-        ion_free_owner(imports_owner);
+    else {
+        for (size_t i = 0; i < common_args->input_files.size(); i++) {
+            IONREPORT(ion_cli_write_value(common_args, writer_context, catalog, &common_args->input_files.at(i), result));
+        }
     }
-
-    iRETURN;
+    cRETURN;
 }
 
 iERR ion_cli_args_common(std::map<std::string, docopt::value> *args, ION_CLI_COMMON_ARGS *common_args, IonEventReport *report) {
     iENTER;
+    common_args->output = args->find("--output")->second.asString();
+    ION_SET_ERROR_CONTEXT(&common_args->output, NULL);
     IonEventResult result;
     common_args->output_format = args->find("--output-format")->second.asString();
-    common_args->output = args->find("--output")->second.asString();
     common_args->error_report = args->find("--error-report")->second.asString();
     common_args->input_is_stdin = false;
     if (ion_cli_has_flag(args, "-")) {
@@ -501,11 +435,17 @@ iERR ion_cli_args_process_compare(std::map<std::string, docopt::value> *args, IO
 
 iERR ion_cli_command_process(std::map<std::string, docopt::value> *args, ION_CLI_COMMON_ARGS *common_args, IonEventReport *report) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(&common_args->output, NULL);
     //bool has_filter = ion_cli_has_value(args, "--filter");
     //bool has_traverse = ion_cli_has_value(args, "--traverse");
     ION_CLI_PROCESS_ARGS process_args;
     memset(&process_args, 0, sizeof(ION_CLI_PROCESS_ARGS));
-    IonEventResult result;
+    IonEventResult _result, *result = &_result;
+    ION_EVENT_WRITER_CONTEXT writer_context;
+    memset(&writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
+    ION_CATALOG *catalog = NULL;
+    hOWNER imports_owner = NULL;
+    ION_COLLECTION imports;
 
     /* TODO verify that these verifications are performed by docopt.
     if (ion_cli_has_value(args, "--symtab-version") || ion_cli_has_value(args, "--symtab-name")) {
@@ -515,29 +455,47 @@ iERR ion_cli_command_process(std::map<std::string, docopt::value> *args, ION_CLI
     */
 
     IONREPORT(ion_cli_args_process_compare(args, &process_args.process_compare_args));
-
+    IONREPORT(ion_cli_create_catalog(&process_args.process_compare_args.catalog, &catalog, result));
+    IONREPORT(ion_cli_create_imports(&process_args.process_compare_args.imports, &imports_owner, &imports));
+    if (common_args->output_format == "events") {
+        IONREPORT(ion_cli_open_event_writer(common_args, &writer_context, result));
+    }
+    else if (common_args->output_format != "none") {
+        IONREPORT(ion_cli_open_writer(ion_cli_output_type_from_arg(common_args->output_format), common_args->output, catalog, imports_owner ? &imports : NULL, &writer_context, result));
+    }
+    else {
+        // TODO how should "no output" be conveyed?
+        IONFAILSTATE(IERR_NOT_IMPL, "output-format = none not yet implemented.", result);
+    }
     if (ion_cli_has_value(args, "--perf-report")) {
         process_args.perf_report = args->find("--perf-report")->second.asString();
         // TODO add perf report support
-        IONFAILSTATE(IERR_NOT_IMPL, "Performance reporting not yet implemented.", &result);
+        IONFAILSTATE(IERR_NOT_IMPL, "Performance reporting not yet implemented.", result);
     }
 
     if (ion_cli_has_value(args, "--filter")) {
         process_args.filter = args->find("--filter")->second.asString();
-        IONREPORT(ion_cli_command_process_filter(common_args, &process_args, &result));
+        IONREPORT(ion_cli_command_process_filter(&writer_context, common_args, &process_args, catalog, result));
         IONCLEANEXIT;
     }
     if (ion_cli_has_value(args, "--traverse")) {
         process_args.traverse = args->find("--traverse")->second.asString();
-        IONCHECK(ion_cli_command_process_traverse(common_args, &process_args, &result));
+        IONCHECK(ion_cli_command_process_traverse(&writer_context, common_args, &process_args, catalog, result));
         IONCLEANEXIT;
     }
 
     // Full traversal, no filtering.
-    IONREPORT(ion_cli_command_process_standard(common_args, &process_args, &result));
+    IONREPORT(ion_cli_command_process_standard(&writer_context, common_args, catalog, result));
 
 cleanup:
-    report->addResult(&result);
+    UPDATEERROR(ion_cli_close_writer(&writer_context, result));
+    if (catalog) {
+        ION_NON_FATAL(ion_catalog_close(catalog), "Failed to close catalog.");
+    }
+    if (imports_owner) {
+        ion_free_owner(imports_owner);
+    }
+    report->addResult(result);
     iRETURN;
 }
 
@@ -561,78 +519,52 @@ iERR ion_cli_write_report(IonEventReport *report, std::string report_destination
     ION_SET_ERROR_CONTEXT(&report_destination, NULL);
     ION_EVENT_WRITER_CONTEXT writer_context;
     memset(&writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
-    IONREPORT(ion_cli_open_writer_basic(ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY, report_destination, &writer_context));
+    IONREPORT(ion_cli_open_writer_basic(ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY, report_destination, &writer_context, result));
     IONREPORT(write_func(writer_context.writer, report, &report_destination, result));
 cleanup:
     UPDATEERROR(ion_cli_close_writer(&writer_context, result));
     iRETURN;
 }
 
-iERR ion_cli_command_compare(std::map<std::string, docopt::value> *args, ION_CLI_COMMON_ARGS *common_args, IonEventReport *report) {
-    iENTER;
-    ION_SET_ERROR_CONTEXT(NULL, NULL);
-    ION_CLI_COMPARE_ARGS compare_args;
-    memset(&compare_args, 0, sizeof(ION_CLI_COMPARE_ARGS));
+void ion_cli_command_compare_streams(COMPARISON_TYPE comparison_type, IonEventStream *lhs, IonEventStream *rhs, IonEventResult *result) {
+    if (comparison_type == COMPARISON_TYPE_BASIC) {
+        assertIonEventStreamEq(lhs, rhs, result);
+    }
+    else {
+        testComparisonSets(lhs, rhs, comparison_type, result);
+    }
+}
 
+iERR ion_cli_command_compare_standard(ION_CLI_COMMON_ARGS *common_args, ION_CLI_COMPARE_ARGS *compare_args, IonEventReport *report, IonEventResult *result) {
+    iENTER;
+    ION_SET_ERROR_CONTEXT(&common_args->output, NULL);
     ION_CATALOG *catalog = NULL;
     hOWNER imports_owner = NULL;
     ION_COLLECTION imports;
-
     IonEventStream **streams = NULL;
     ION_CLI_READER_CONTEXT *reader_contexts = NULL;
-    size_t num_inputs = 0;
+    size_t num_inputs = common_args->input_files.size();
 
-    IonEventResult command_result, *result = &command_result;
+    IONREPORT(ion_cli_create_catalog(&compare_args->process_compare_args.catalog, &catalog, result));
+    IONREPORT(ion_cli_create_imports(&compare_args->process_compare_args.imports, &imports_owner, &imports));
 
-    std::vector<std::string> *input_files = &common_args->input_files;
-
-    IONREPORT(ion_cli_args_process_compare(args, &compare_args.process_compare_args));
-    if (ion_cli_has_value(args, "--comparison-type")) {
-        compare_args.comparison_type = ion_cli_comparison_type_from_string(args->find("--comparison-type")->second.asString());
-        if (compare_args.comparison_type == COMPARISON_TYPE_UNKNOWN) {
-            IONFAILSTATE(IERR_INVALID_ARG, "Invalid argument: comparison-type must be in (basic, equivs, nonequivs).", result);
-        }
-    }
-    else {
-        compare_args.comparison_type = COMPARISON_TYPE_BASIC;
-    }
-
-    // TODO duplicates ion_cli_command_process_standard
-    IONREPORT(ion_cli_create_catalog(&compare_args.process_compare_args.catalog, &catalog, result));
-    IONREPORT(ion_cli_create_imports(&compare_args.process_compare_args.imports, &imports_owner, &imports));
-
-    num_inputs = input_files->size();
     streams = (IonEventStream**)calloc(num_inputs, sizeof(IonEventStream*));
     reader_contexts = (ION_CLI_READER_CONTEXT *)calloc(num_inputs, sizeof(ION_CLI_READER_CONTEXT));
 
     for (size_t i = 0; i < num_inputs; i++) {
-        streams[i] = new IonEventStream(input_files->at(i));
-        IONREPORT(ion_cli_read_stream(common_args, &reader_contexts[i], &input_files->at(i), catalog, streams[i], result));
+        streams[i] = new IonEventStream(common_args->input_files.at(i));
+        IONREPORT(ion_cli_open_reader(common_args, catalog, &common_args->input_files.at(i), &reader_contexts[i], streams[i], result));
+        IONREPORT(ion_cli_read_stream(&reader_contexts[i], catalog, streams[i], result));
     }
 
     for (size_t i = 0; i < num_inputs; i++) {
         for (size_t j = 0; j < num_inputs; j++) {
             IonEventResult compare_result;
-            if (compare_args.comparison_type == COMPARISON_TYPE_BASIC) {
-                if (!assertIonEventStreamEq(streams[i], streams[j], &compare_result)) {
-                    report->addResult(&compare_result);
-                    IONCLEANEXIT;
-                }
-            }
-            else if (!testComparisonSets(streams[i], streams[j], compare_args.comparison_type, &compare_result)) {
-                report->addResult(&compare_result);
-                IONCLEANEXIT;
-            }
+            ion_cli_command_compare_streams(compare_args->comparison_type, streams[i], streams[j], &compare_result);
+            report->addResult(&compare_result);
         }
     }
-
 cleanup:
-    if (report->hasComparisonFailures()
-        && !report->hasErrors()
-        && !command_result.has_error_description) { // If there are errors, comparison failures are just noise.
-        err = ion_cli_write_report(report, common_args->output, ion_event_stream_write_comparison_report, &command_result);
-    }
-    report->addResult(&command_result);
     if (catalog) {
         ION_NON_FATAL(ion_catalog_close(catalog), "Failed to close catalog.");
     }
@@ -648,7 +580,36 @@ cleanup:
     if (reader_contexts) {
         free(reader_contexts);
     }
+    iRETURN;
+}
 
+iERR ion_cli_command_compare(std::map<std::string, docopt::value> *args, ION_CLI_COMMON_ARGS *common_args, IonEventReport *report) {
+    iENTER;
+    ION_SET_ERROR_CONTEXT(&common_args->output, NULL);
+    ION_CLI_COMPARE_ARGS compare_args;
+    memset(&compare_args, 0, sizeof(ION_CLI_COMPARE_ARGS));
+    IonEventResult result;
+
+    IONREPORT(ion_cli_args_process_compare(args, &compare_args.process_compare_args));
+    if (ion_cli_has_value(args, "--comparison-type")) {
+        compare_args.comparison_type = ion_cli_comparison_type_from_string(args->find("--comparison-type")->second.asString());
+        if (compare_args.comparison_type == COMPARISON_TYPE_UNKNOWN) {
+            IONFAILSTATE(IERR_INVALID_ARG, "Invalid argument: comparison-type must be in (basic, equivs, nonequivs).", &result);
+        }
+    }
+    else {
+        compare_args.comparison_type = COMPARISON_TYPE_BASIC;
+    }
+
+    IONREPORT(ion_cli_command_compare_standard(common_args, &compare_args, report, &result));
+
+cleanup:
+    if (report->hasComparisonFailures()
+        && !report->hasErrors()
+        && !result.has_error_description) { // If there are errors, comparison failures are just noise.
+        err = ion_cli_write_report(report, common_args->output, ion_event_stream_write_comparison_report, &result);
+    }
+    report->addResult(&result);
     iRETURN;
 }
 

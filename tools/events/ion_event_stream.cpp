@@ -210,20 +210,19 @@ iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *re
 }
 
 size_t valueEventLength(IonEventStream *stream, size_t start_index) {
+    size_t length = 1;
     IonEvent *start = stream->at(start_index);
     if (CONTAINER_START == start->event_type) {
-        size_t length;
         size_t i = start_index;
-        while (TRUE) {
-            IonEvent *curr = stream->at(++i);
+        while (++i < stream->size()) {
+            IonEvent *curr = stream->at(i);
             if (curr->event_type == CONTAINER_END && curr->depth == start->depth) {
                 length = ++i - start_index;
                 break;
             }
         }
-        return length;
     }
-    return 1;
+    return length;
 }
 
 iERR _ion_event_stream_read_all_recursive(hREADER hreader, IonEventStream *stream, BOOL in_struct, int depth, IonEventResult *result) {
@@ -244,8 +243,9 @@ iERR _ion_event_stream_read_all_recursive(hREADER hreader, IonEventStream *strea
  * Copies the given SCALAR event's value so that it may be used outside the scope of the event's owning stream. The
  * copied value is allocated such that it may be freed safely by free_ion_event_value.
  */
-iERR ion_event_copy_value(IonEvent *event, void **value, IonEventResult *result) {
+iERR ion_event_copy_value(IonEvent *event, void **value, std::string location, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(&location, NULL);
     BOOL *bool_val = NULL;
     ION_INT *int_val = NULL;
     double *float_val = NULL;
@@ -305,13 +305,15 @@ iERR ion_event_copy_value(IonEvent *event, void **value, IonEventResult *result)
     cRETURN;
 }
 
-iERR ion_event_copy(IonEvent **dst, IonEvent *src, IonEventResult *result) {
+iERR ion_event_copy(IonEvent **dst, IonEvent *src, std::string location, IonEventResult *result) {
     iENTER;
     ASSERT(dst != NULL);
     ASSERT(*dst == NULL);
     ASSERT(src != NULL);
     *dst = new IonEvent(src->event_type, src->ion_type, src->field_name, src->annotations, src->num_annotations, src->depth);
-    IONREPORT(ion_event_copy_value(src, &(*dst)->value, result));
+    if (src->event_type == SCALAR) {
+        IONREPORT(ion_event_copy_value(src, &(*dst)->value, location, result));
+    }
     cRETURN;
 }
 
@@ -641,10 +643,11 @@ cleanup:
     iRETURN;
 }
 
-iERR ion_event_stream_get_consensus_value(ION_CATALOG *catalog, std::string value_text, BYTE *value_binary,
+iERR ion_event_stream_get_consensus_value(std::string location, ION_CATALOG *catalog, std::string value_text, BYTE *value_binary,
                                           size_t value_binary_len, void **consensus_value, IonEventResult *result) {
     iENTER;
-    IonEventStream binary_stream("Binary scalar"), text_stream("Text scalar");
+    ION_SET_ERROR_CONTEXT(&location, NULL);
+    IonEventStream binary_stream(location + " binary scalar"), text_stream(location + " text scalar");
     ASSERT(!value_text.empty());
     ASSERT(value_binary);
     ASSERT(consensus_value);
@@ -656,7 +659,7 @@ iERR ion_event_stream_get_consensus_value(ION_CATALOG *catalog, std::string valu
         // Because the last event is always STREAM_END, the second-to-last event contains the scalar value.
         // NOTE: an IonEvent's value is freed during destruction of the event's IonEventStream. Since these event streams
         // are temporary, the value needs to be copied out.
-        IONREPORT(ion_event_copy_value(binary_stream.at(binary_stream.size() - 2), consensus_value, result));
+        IONREPORT(ion_event_copy_value(binary_stream.at(binary_stream.size() - 2), consensus_value, location, result));
     }
     else {
         std::string message;
@@ -823,7 +826,7 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
         FAILWITHMSG(IERR_INVALID_ARG, "Invalid event: value_text and value_binary must both be set.");
     }
     if (value_event_type == SCALAR) {
-        IONREPORT(ion_event_stream_get_consensus_value(catalog, value_text, &value_binary[0], value_binary.size(),
+        IONREPORT(ion_event_stream_get_consensus_value(stream->location, catalog, value_text, &value_binary[0], value_binary.size(),
                                                        &consensus_value, result));
     }
     else {

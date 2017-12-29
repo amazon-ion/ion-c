@@ -40,7 +40,7 @@
 /**
  * Conveys an illegal state error upward at the point it occurs.
  */
-#define IONFAILSTATE(code, msg, res) IONERROR(ERROR_TYPE_STATE, code, msg, NULL, NULL, res)
+#define IONFAILSTATE(code, msg, res) IONERROR(ERROR_TYPE_STATE, code, msg, _error_location, _error_event_index, res)
 
 #define IONCCALL(type, x, loc, idx, m) \
     err = (x); \
@@ -57,7 +57,7 @@
  */
 #define IONCREAD(x) IONCCALL(ERROR_TYPE_READ, x, _error_location, NULL, "")
 #define IONCWRITE(x) IONCCALL(ERROR_TYPE_WRITE, x, _error_location, _error_event_index, "")
-#define IONCSTATE(x, m) IONCCALL(ERROR_TYPE_STATE, x, NULL, NULL, m)
+#define IONCSTATE(x, m) IONCCALL(ERROR_TYPE_STATE, x, _error_location, NULL, m)
 
 #define ION_NON_FATAL(x, m) { \
     iERR err_backup = (x); \
@@ -131,6 +131,7 @@ typedef enum _ion_event_error_type {
     ERROR_TYPE_READ = 0,
     ERROR_TYPE_WRITE,
     ERROR_TYPE_STATE,
+    ERROR_TYPE_UNKNOWN
 } ION_EVENT_ERROR_TYPE;
 
 typedef struct _ion_event_error_description {
@@ -201,6 +202,8 @@ public:
     bool hasComparisonFailures() {
         return !comparison_report.empty();
     }
+    std::vector<ION_EVENT_ERROR_DESCRIPTION> *getErrors() { return &error_report; }
+    std::vector<ION_EVENT_COMPARISON_RESULT> *getComparisonResults() { return &comparison_report; }
 };
 
 iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, std::string *location, IonEventResult *result);
@@ -245,6 +248,6 @@ iERR ion_event_stream_write_error(hWRITER writer, ION_EVENT_ERROR_DESCRIPTION *e
 
 iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result, std::string *location, IonEventResult *result);
 
-iERR ion_event_copy(IonEvent **dst, IonEvent *src, IonEventResult *result);
+iERR ion_event_copy(IonEvent **dst, IonEvent *src, std::string location, IonEventResult *result);
 
 #endif //IONC_VALUE_STREAM_H

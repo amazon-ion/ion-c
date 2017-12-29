@@ -31,10 +31,12 @@ BOOL assertIonEventsEq(IonEventStream *stream_expected, size_t index_expected, I
 
 void _ion_cli_set_comparison_result(IonEventResult *result, COMPARISON_TYPE comparison_type, IonEvent *lhs, IonEvent *rhs, size_t lhs_index, size_t rhs_index, std::string lhs_location, std::string rhs_location, std::string message) {
     if (result != NULL) {
-        ion_event_copy(&result->comparison_result.lhs.event, lhs, NULL); // TODO pass result through
+        if (ion_event_copy(&result->comparison_result.lhs.event, lhs, lhs_location, result)
+            || ion_event_copy(&result->comparison_result.rhs.event, rhs, lhs_location, result)) {
+            return;
+        }
         result->comparison_result.lhs.event_index = lhs_index;
         result->comparison_result.lhs.location = lhs_location;
-        ion_event_copy(&result->comparison_result.rhs.event, rhs, NULL); // TODO pass result through
         result->comparison_result.rhs.event_index = rhs_index;
         result->comparison_result.rhs.location = rhs_location;
         result->comparison_result.message = message;
@@ -58,14 +60,14 @@ BOOL assertIonScalarEq(IonEventStream *stream_expected, size_t index_expected, I
     void *expected_value = expected->value;
     void *actual_value = actual->value;
     int tid = ION_TID_INT(expected->ion_type);
-    ION_EXPECT_FALSE((expected_value == NULL) ^ (actual_value == NULL));
+    ION_EXPECT_FALSE((expected_value == NULL) ^ (actual_value == NULL), "Only one value was null.");
     if (expected_value == NULL) {
         // Equivalence of ion types has already been tested.
         return TRUE;
     }
     switch (tid) {
         case TID_BOOL:
-            ION_EXPECT_EQ(*(BOOL *) expected_value, *(BOOL *) actual_value);
+            ION_EXPECT_BOOL_EQ((BOOL *)expected_value, (BOOL *)actual_value);
             break;
         case TID_POS_INT:
         case TID_NEG_INT:
@@ -106,7 +108,7 @@ BOOL assertIonStructIsSubset(IonEventStream *stream_expected, size_t index_expec
     size_t index_actual_start = index_actual;
     std::set<size_t> skips;
     BOOL field_names_equal;
-    while (TRUE) {
+    while (index_expected < stream_expected->size()) {
         index_actual = index_actual_start;
         IonEvent *expected = stream_expected->at(index_expected);
         if (expected->event_type == CONTAINER_END && expected->depth == target_depth) {
@@ -114,10 +116,10 @@ BOOL assertIonStructIsSubset(IonEventStream *stream_expected, size_t index_expec
         }
         ION_SYMBOL *expected_field_name = expected->field_name;
         ION_ASSERT(expected_field_name != NULL, "Field name in struct cannot be null.");
-        while (TRUE) {
+        while (index_actual < stream_actual->size()) {
             if (skips.count(index_actual) == 0) {
                 IonEvent *actual = stream_actual->at(index_actual);
-                ION_EXPECT_TRUE_MSG(!(actual->event_type == CONTAINER_END && actual->depth == target_depth),
+                ION_EXPECT_TRUE(!(actual->event_type == CONTAINER_END && actual->depth == target_depth),
                                     "Did not find matching field for "
                                     + ion_event_symbol_to_string(expected_field_name));
                 ION_EXPECT_OK(ion_symbol_is_equal(expected_field_name, actual->field_name, &field_names_equal));
@@ -162,7 +164,7 @@ BOOL assertIonSequenceEq(IonEventStream *stream_expected, size_t index_expected,
         IonEvent *actual = stream_actual->at(index_actual);
         sequence_end = expected->event_type == CONTAINER_END && expected->depth == target_depth;
         if (sequence_end ^ (actual->event_type == CONTAINER_END && actual->depth == target_depth)) {
-            ION_EXPECT_TRUE_MSG(FALSE, "Sequences have different lengths.");
+            ION_EXPECT_TRUE(FALSE, "Sequences have different lengths.");
         }
         if (sequence_end) {
             break;
@@ -182,11 +184,11 @@ BOOL assertIonEventsEq(IonEventStream *stream_expected, size_t index_expected, I
     IonEvent *actual = stream_actual->at(index_actual);
 
     int tid = ION_TID_INT(expected->ion_type);
-    ION_EXPECT_EQ(expected->event_type, actual->event_type);
-    ION_EXPECT_EQ(expected->ion_type, actual->ion_type);
-    ION_EXPECT_EQ(expected->depth, actual->depth);
+    ION_EXPECT_EVENT_TYPE_EQ(expected->event_type, actual->event_type);
+    ION_EXPECT_EQ(expected->ion_type, actual->ion_type, "Ion types did not match.");
+    ION_EXPECT_EQ(expected->depth, actual->depth, "Depths did not match.");
     ION_EXPECT_SYMBOL_EQ(expected->field_name, actual->field_name);
-    ION_EXPECT_EQ(expected->num_annotations, actual->num_annotations);
+    ION_EXPECT_EQ(expected->num_annotations, actual->num_annotations, "Number of annotations did not match.");
     for (size_t i = 0; i < expected->num_annotations; i++) {
         ION_EXPECT_SYMBOL_EQ(&expected->annotations[i], &actual->annotations[i]);
     }
@@ -243,8 +245,8 @@ BOOL assertIonEventStreamEq(IonEventStream *stream_expected, IonEventStream *str
         index_expected += valueEventLength(stream_expected, index_expected);
         index_actual += valueEventLength(stream_actual, index_actual);
     }
-    ION_EXPECT_TRUE_MSG(stream_expected->size() == index_expected, "Expected stream did not reach its end.");
-    ION_EXPECT_TRUE_MSG(stream_actual->size() == index_actual, "Actual stream did not reach its end.");
+    ION_EXPECT_TRUE(stream_expected->size() == index_expected, "Expected stream did not reach its end.");
+    ION_EXPECT_TRUE(stream_actual->size() == index_actual, "Actual stream did not reach its end.");
     ION_EXIT_ASSERTIONS;
 }
 
@@ -264,7 +266,7 @@ BOOL comparisonNonequivs(IonEventStream *stream_expected, size_t index_expected,
         IonEvent *actual = stream_actual->at(index_actual);
         // Since inequality is expected here, passing a NULL result here prevents the comparison report from being
         // polluted. If the events are equal, a comparison result stating such will be added to the report.
-        ION_EXPECT_FALSE(assertIonEventsEq(stream_expected, index_expected, stream_actual, index_actual, comparison_type, NULL));
+        ION_EXPECT_FALSE(assertIonEventsEq(stream_expected, index_expected, stream_actual, index_actual, comparison_type, NULL), "Equivalent values in a non-equivs set.");
     }
     ION_EXIT_ASSERTIONS;
 }
@@ -296,7 +298,7 @@ BOOL testEquivsSet(IonEventStream *lhs, size_t lhs_index, IonEventStream *rhs, s
 
 std::string ion_event_embedded_stream_location(IonEventStream *owning_stream, size_t index, ION_STRING *embedded_stream) {
     std::ostringstream ss;
-    ss << owning_stream->location << "embedded stream at index "
+    ss << owning_stream->location << " embedded stream at index "
        << index << ": " << ION_EVENT_STRING_OR_NULL(embedded_stream);
     return ss.str();
 }
@@ -338,7 +340,7 @@ BOOL testEmbeddedDocumentSet(IonEventStream *stream_expected, size_t index_expec
                 }
                 else {
                     ION_ASSERT(comparison_type == COMPARISON_TYPE_NONEQUIVS, "Invalid embedded documents comparison type.");
-                    ION_EXPECT_FALSE(assertIonEventStreamEq(&expected_embedded, &actual_embedded, NULL)); // Result not needed.
+                    ION_EXPECT_FALSE(assertIonEventStreamEq(&expected_embedded, &actual_embedded, NULL), "Equivalent streams in a non-equivs set."); // Result not needed.
                 }
             }
             j += 1;
@@ -356,41 +358,41 @@ BOOL testComparisonSets(IonEventStream *stream_expected, IonEventStream *stream_
     size_t index_expected = 0, index_actual = 0;
     IonEvent *expected = stream_expected->at(index_expected);
     IonEvent *actual = stream_actual->at(index_expected);
-    ION_EXPECT_TRUE(!(stream_expected->size() == 0 ^ stream_actual->size()== 0));
+    ION_EXPECT_TRUE(!(stream_expected->size() == 0 ^ stream_actual->size()== 0), "Only one of the streams was empty.");
     if (stream_expected->size() == 0) return TRUE;
     while (TRUE) {
         if (index_expected == stream_expected->size() - 1) {
             // Even if the streams' corresponding sets have different number of elements, the loop will reach the
             // end of each stream at the same time as long as the streams have the same number of sets. And if they
             // don't have the same number of sets, an error is raised.
-            ION_EXPECT_EQ(stream_actual->size() - 1, index_actual);
-            ION_EXPECT_EQ(STREAM_END, expected->event_type);
-            ION_EXPECT_EQ(STREAM_END, actual->event_type);
+            ION_EXPECT_EQ(stream_actual->size() - 1, index_actual, "Only one of the streams reached its end.");
+            ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, expected->event_type);
+            ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, actual->event_type);
             break;
         }
         else if (index_actual == stream_actual->size() - 1) {
-            ION_EXPECT_EQ(stream_expected->size() - 1, index_expected);
-            ION_EXPECT_EQ(STREAM_END, actual->event_type);
-            ION_EXPECT_EQ(STREAM_END, expected->event_type);
+            ION_EXPECT_EQ(stream_expected->size() - 1, index_expected, "Only one of the streams reached its end.");
+            ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, actual->event_type);
+            ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, expected->event_type);
             break;
         }
         else {
-            ION_EXPECT_EQ(CONTAINER_START, expected->event_type);
-            ION_EXPECT_TRUE((tid_SEXP == expected->ion_type) || (tid_LIST == expected->ion_type));
-            ION_EXPECT_EQ(CONTAINER_START, actual->event_type);
-            ION_EXPECT_TRUE((tid_SEXP == actual->ion_type) || (tid_LIST == actual->ion_type));
+            ION_ASSERT(CONTAINER_START == expected->event_type, "Comparison sets must be lists or s-expressions.");
+            ION_ASSERT((tid_SEXP == expected->ion_type) || (tid_LIST == expected->ion_type), "Comparison sets must be lists or s-expressions.");
+            ION_ASSERT(CONTAINER_START == actual->event_type, "Comparison sets must be lists or s-expressions.");
+            ION_ASSERT((tid_SEXP == actual->ion_type) || (tid_LIST == actual->ion_type), "Comparison sets must be lists or s-expressions.");
             size_t step_lhs = valueEventLength(stream_expected, index_expected);
             size_t step_rhs = valueEventLength(stream_actual, index_actual);
             // Because reflexive comparisons are incompatible with the nonequivs semantic, nonequivs comparison sets
             // must have an equivalent number of elements so that corresponding indices are assumed to be equivalent.
-            ION_EXPECT_TRUE(comparison_type == COMPARISON_TYPE_NONEQUIVS ? step_lhs == step_rhs : TRUE);
+            ION_ASSERT(comparison_type == COMPARISON_TYPE_NONEQUIVS ? step_lhs == step_rhs : TRUE, "Non-equivs sets have a different number of elements.");
             ION_STRING *lhs_annotation = (expected->num_annotations > 0) ? &expected->annotations[0].value : NULL;
             ION_STRING *rhs_annotation = (actual->num_annotations > 0) ? &actual->annotations[0].value : NULL;
             if (lhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, lhs_annotation)) {
-                ION_EXPECT_TRUE(rhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation));
+                ION_ASSERT(rhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation), "Embedded streams set expected.");
                 ION_ACCUMULATE_ASSERTION(testEmbeddedDocumentSet(stream_expected, index_expected + 1, stream_actual, index_actual + 1, 0, comparison_type, result));
             } else {
-                ION_EXPECT_FALSE(rhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation));
+                ION_ASSERT(!(rhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation)), "Embedded streams set not expected.");
                 ION_ACCUMULATE_ASSERTION(testEquivsSet(stream_expected, index_expected + 1, stream_actual, index_actual + 1, 0, comparison_type, result));
             }
             index_expected += step_lhs;
@@ -400,6 +402,23 @@ BOOL testComparisonSets(IonEventStream *stream_expected, IonEventStream *stream_
         }
     }
     ION_EXIT_ASSERTIONS;
+}
+
+BOOL assertIonBoolEq(BOOL *expected, BOOL *actual, std::string *failure_message, IonEventResult *result) {
+    if (!(expected == NULL ^ actual == NULL)) {
+        if (expected == NULL) {
+            return TRUE;
+        }
+        if (*expected == *actual) {
+            return TRUE;
+        }
+    }
+    if (failure_message) {
+        *failure_message = std::string("")
+                           + (expected ? ((*expected) ? "true" : "false") : "null") + " vs. "
+                           + (actual ? ((*actual) ? "true" : "false") : "null");
+    }
+    return FALSE;
 }
 
 BOOL assertIonStringEq(ION_STRING *expected, ION_STRING *actual, std::string *failure_message, IonEventResult *result) {
