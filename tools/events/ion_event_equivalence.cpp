@@ -414,12 +414,9 @@ BOOL testComparisonSets(IonEventStream *stream_expected, IonEventStream *stream_
                 index_actual++;
                 ION_ACCUMULATE_ASSERTION(testEmbeddedDocumentSet(stream_expected, index_expected, stream_actual, index_actual, 0, comparison_type, &step_lhs, &step_rhs, result));
             } else {
+                ION_ASSERT(!(rhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation)), "Embedded streams set not expected.");
                 step_lhs = valueEventLength(stream_expected, index_expected);
                 step_rhs = valueEventLength(stream_actual, index_actual);
-                // Because reflexive comparisons are incompatible with the nonequivs semantic, nonequivs comparison sets
-                // must have an equivalent number of elements so that corresponding indices are assumed to be equivalent.
-                ION_ASSERT(comparison_type == COMPARISON_TYPE_NONEQUIVS ? step_lhs == step_rhs : TRUE, "Non-equivs sets have a different number of elements.");
-                ION_ASSERT(!(rhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation)), "Embedded streams set not expected.");
                 ION_ACCUMULATE_ASSERTION(testEquivsSet(stream_expected, index_expected + 1, stream_actual, index_actual + 1, 0, comparison_type, result));
             }
             index_expected += step_lhs;

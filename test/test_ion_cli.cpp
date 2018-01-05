@@ -16,6 +16,7 @@
 #include <ion_event_stream.h>
 #include "cli.h"
 #include "ion_test_util.h"
+#include "gather_vectors.h"
 #include "ion_event_util.h"
 
 void test_ion_cli_assert_error_equals(ION_EVENT_ERROR_DESCRIPTION *actual, ION_EVENT_ERROR_TYPE expected_type, iERR expected_code, std::string expected_location_suffix="", int expected_event_index=-1) {
@@ -39,19 +40,6 @@ void test_ion_cli_assert_comparison_result_equals(ION_EVENT_COMPARISON_RESULT *a
     ASSERT_EQ(expected_rhs_index, actual->rhs.event_index);
 }
 
-/*
-void test_ion_cli_assert_error(char *actual_error, ION_EVENT_ERROR_TYPE expected_type, iERR expected_code, std::string expected_location_suffix="", int expected_event_index=-1) {
-    hREADER reader;
-    ION_EVENT_ERROR_DESCRIPTION error;
-    ION_ASSERT_OK(ion_test_new_text_reader(actual_error, &reader));
-    ION_ASSERT_OK(ion_event_stream_read_error(reader, &error));
-    ION_ASSERT_OK(ion_reader_close(reader));
-    test_ion_cli_assert_error_equals(&error, expected_type, expected_code, expected_location_suffix, expected_event_index);
-}
-
-void test_ion_cli_assert_comparison()
-*/
-
 void test_ion_cli_process_events(std::string filepath, ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, BYTE **output, SIZE *output_len, IonEventResult *result) {
     ION_EVENT_WRITER_CONTEXT writer_context;
     ION_CLI_COMMON_ARGS common_args;
@@ -74,22 +62,26 @@ void test_ion_cli_process_standard(std::string filepath, ION_WRITER_OUTPUT_TYPE 
     ION_ASSERT_OK(ion_event_in_memory_writer_close(&writer_context, output, output_len));
 }
 
+void test_ion_cli_read_stream_successfully(BYTE *data, size_t data_len, IonEventStream *stream) {
+    ION_CLI_READER_CONTEXT reader_context;
+    memset(&reader_context, 0, sizeof(ION_CLI_READER_CONTEXT));
+    IonEventResult result;
+    reader_context.event_stream = stream;
+    ION_ASSERT_OK(ion_test_new_reader(data, (SIZE)data_len, &reader_context.reader));
+    ION_ASSERT_OK(ion_cli_read_stream(&reader_context, NULL, stream, &result));
+    ION_ASSERT_OK(ion_reader_close(reader_context.reader));
+    ASSERT_FALSE(result.has_error_description);
+    ASSERT_FALSE(result.has_comparison_result);
+}
+
 void test_ion_cli_assert_streams_equal(const char *expected_str, BYTE *actual_bytes, SIZE actual_bytes_len) {
-    ION_CLI_READER_CONTEXT expected_reader, actual_reader;
-    memset(&expected_reader, 0, sizeof(ION_CLI_READER_CONTEXT));
-    memset(&actual_reader, 0, sizeof(ION_CLI_READER_CONTEXT));
     IonEventStream expected("expected"), actual("actual");
     IonEventResult result;
 
-    expected_reader.event_stream = &expected;
-    actual_reader.event_stream = &actual;
-    ION_ASSERT_OK(ion_test_new_reader(actual_bytes, actual_bytes_len, &actual_reader.reader));
-    ION_ASSERT_OK(ion_test_new_text_reader(expected_str, &expected_reader.reader));
-    ION_ASSERT_OK(ion_cli_read_stream(&actual_reader, NULL, &actual, NULL));
-    ION_ASSERT_OK(ion_cli_read_stream(&expected_reader, NULL, &expected, NULL));
+    test_ion_cli_read_stream_successfully((BYTE *)expected_str, strlen(expected_str), &expected);
+    test_ion_cli_read_stream_successfully(actual_bytes, (size_t)actual_bytes_len, &actual);
+
     ASSERT_TRUE(assertIonEventStreamEq(&expected, &actual, &result));
-    ION_ASSERT_OK(ion_reader_close(actual_reader.reader));
-    ION_ASSERT_OK(ion_reader_close(expected_reader.reader));
     ASSERT_FALSE(result.has_comparison_result);
     ASSERT_FALSE(result.has_error_description);
 }
@@ -98,7 +90,7 @@ TEST(IonCli, ProcessBasic) {
     BYTE *output = NULL;
     SIZE len;
     IonEventResult result;
-    test_ion_cli_process_events("../ion-tests/iontestdata/good/one.ion", ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, NULL, &output, &len, &result);
+    test_ion_cli_process_events(join_path(full_good_path, "one.ion"), ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, NULL, &output, &len, &result);
     ASSERT_FALSE(result.has_error_description);
     ASSERT_FALSE(result.has_comparison_result);
     test_ion_cli_assert_streams_equal("1", output, len);
@@ -108,22 +100,23 @@ TEST(IonCli, ProcessBasic) {
 
 TEST(IonCli, UnequalValueTextAndValueBinaryFails) {
     // Text value is integer 1, binary value is integer 2
+    const char *test_name = "unequal text and binary";
     const char *event_stream = "$ion_event_stream {event_type:SCALAR, ion_type:INT, value_text:\"1\", value_binary:[0xE0, 0x01, 0x00, 0xEA, 0x21, 0x02], depth: 0} {event_type: STREAM_END, depth: 0}";
     IonEventResult result;
     ION_CLI_READER_CONTEXT reader;
     memset(&reader, 0, sizeof(ION_CLI_READER_CONTEXT));
-    IonEventStream stream("unequal text and binary");
+    IonEventStream stream(test_name);
     reader.event_stream = &stream;
     ION_ASSERT_OK(ion_test_new_text_reader(event_stream, &reader.reader));
     ION_ASSERT_FAIL(ion_cli_read_stream(&reader, NULL, &stream, &result));
     ION_ASSERT_OK(ion_reader_close(reader.reader));
     ASSERT_TRUE(result.has_error_description);
-    test_ion_cli_assert_error_equals(&result.error_description, ERROR_TYPE_STATE, IERR_INVALID_ARG, "unequal text and binary");
+    test_ion_cli_assert_error_equals(&result.error_description, ERROR_TYPE_STATE, IERR_INVALID_ARG, test_name);
     ASSERT_TRUE(result.has_comparison_result);
-    test_ion_cli_assert_comparison_result_equals(&result.comparison_result, COMPARISON_RESULT_NOT_EQUAL, "unequal text and binary", "unequal text and binary", 0, 0);
+    test_ion_cli_assert_comparison_result_equals(&result.comparison_result, COMPARISON_RESULT_NOT_EQUAL, test_name, test_name, 0, 0);
 }
 
-void test_ion_cli_assert_comparison(const char **files, size_t num_files, COMPARISON_TYPE comparison_type, IonEventReport *report) {
+void test_ion_cli_assert_comparison(std::string *files, size_t num_files, COMPARISON_TYPE comparison_type, IonEventReport *report) {
     ION_CLI_COMMON_ARGS common_args;
     ION_CLI_COMPARE_ARGS compare_args;
     memset(&compare_args, 0, sizeof(ION_CLI_COMPARE_ARGS));
@@ -136,7 +129,7 @@ void test_ion_cli_assert_comparison(const char **files, size_t num_files, COMPAR
 }
 
 TEST(IonCli, CompareNullsBasic) {
-    const char *test_file = "../ion-tests/iontestdata/good/allNulls.ion";
+    std::string test_file = join_path(full_good_path, "allNulls.ion");
     IonEventReport report;
     test_ion_cli_assert_comparison(&test_file, 1, COMPARISON_TYPE_BASIC, &report);
     ASSERT_FALSE(report.hasErrors());
@@ -144,7 +137,7 @@ TEST(IonCli, CompareNullsBasic) {
 }
 
 TEST(IonCli, CompareListsEquivs) {
-    const char *test_file = "../ion-tests/iontestdata/good/equivs/lists.ion";
+    std::string test_file = join_path(full_good_equivs_path, "lists.ion");
     IonEventReport report;
     test_ion_cli_assert_comparison(&test_file, 1, COMPARISON_TYPE_EQUIVS, &report);
     ASSERT_FALSE(report.hasErrors());
@@ -152,7 +145,7 @@ TEST(IonCli, CompareListsEquivs) {
 }
 
 TEST(IonCli, CompareSexpsNonequivs) {
-    const char *test_file = "../ion-tests/iontestdata/good/non-equivs/sexps.ion";
+    std::string test_file = join_path(full_good_nonequivs_path, "sexps.ion");
     IonEventReport report;
     test_ion_cli_assert_comparison(&test_file, 1, COMPARISON_TYPE_NONEQUIVS, &report);
     ASSERT_FALSE(report.hasErrors());
@@ -160,7 +153,7 @@ TEST(IonCli, CompareSexpsNonequivs) {
 }
 
 TEST(IonCli, CompareAnnotatedIvmsEmbeddedNonequivs) {
-    const char *test_file = "../ion-tests/iontestdata/good/non-equivs/annotatedIvms.ion";
+    std::string test_file = join_path(full_good_nonequivs_path, "annotatedIvms.ion");
     IonEventReport report;
     // NOTE: this is a non-equivs file being compared for equivs; comparison failures are expected.
     test_ion_cli_assert_comparison(&test_file, 1, COMPARISON_TYPE_EQUIVS, &report);
@@ -172,10 +165,10 @@ TEST(IonCli, CompareAnnotatedIvmsEmbeddedNonequivs) {
 }
 
 TEST(IonCli, CompareMultipleInputFiles) {
-    const char *test_files[3];
-    test_files[0] = "../ion-tests/iontestdata/good/one.ion";
-    test_files[1] = "../ion-tests/iontestdata/good/one.ion";
-    test_files[2] = "../ion-tests/iontestdata/good/empty.ion";
+    std::string test_files[3];
+    test_files[0] = join_path(full_good_path, "one.ion");
+    test_files[1] = join_path(full_good_path, "one.ion");
+    test_files[2] = join_path(full_good_path, "empty.ion");
     IonEventReport report;
     test_ion_cli_assert_comparison(test_files, 3, COMPARISON_TYPE_BASIC, &report);
     ASSERT_FALSE(report.hasErrors());
@@ -189,7 +182,7 @@ TEST(IonCli, CompareMultipleInputFiles) {
 }
 
 TEST(IonCli, ErrorIsConveyed) {
-    const char *test_file = "../ion-tests/iontestdata/bad/annotationFalse.ion";
+    std::string test_file = join_path(full_bad_path, "annotationFalse.ion");
     BYTE *output = NULL;
     SIZE len;
     IonEventResult result;
@@ -201,7 +194,7 @@ TEST(IonCli, ErrorIsConveyed) {
 }
 
 TEST(IonCli, ErrorIsConveyedEvents) {
-    const char *test_file = "../ion-tests/iontestdata/bad/fieldNameFalse.ion";
+    std::string test_file = join_path(full_bad_path, "fieldNameFalse.ion");
     BYTE *output = NULL;
     SIZE len;
     IonEventResult result;
@@ -214,7 +207,7 @@ TEST(IonCli, ErrorIsConveyedEvents) {
 }
 
 TEST(IonCli, AnnotatedIvmsEmbedded) {
-    const char *test_file = "../ion-tests/iontestdata/good/non-equivs/annotatedIvms.ion";
+    std::string test_file = join_path(full_good_nonequivs_path, "annotatedIvms.ion");
     ION_CLI_READER_CONTEXT reader_context;
     BYTE *output = NULL;
     SIZE len;
@@ -224,10 +217,7 @@ TEST(IonCli, AnnotatedIvmsEmbedded) {
     ASSERT_FALSE(result.has_error_description);
     ASSERT_FALSE(result.has_comparison_result);
     ASSERT_TRUE(output != NULL);
-    ION_ASSERT_OK(ion_test_new_reader(output, len, &reader_context.reader));
-    reader_context.event_stream = &stream;
-    ION_ASSERT_OK(ion_cli_read_stream(&reader_context, NULL, &stream, &result));
-    ION_ASSERT_OK(ion_reader_close(reader_context.reader));
+    test_ion_cli_read_stream_successfully(output, (size_t)len, &stream);
     ASSERT_EQ(CONTAINER_START, stream.at(0)->event_type);
     ASSERT_EQ(0, stream.at(0)->depth);
     ASSERT_EQ(SCALAR, stream.at(1)->event_type);
@@ -243,8 +233,36 @@ TEST(IonCli, AnnotatedIvmsEmbedded) {
 
 // TODO consider having a list of (location, index) in error report to better convey errors during comparison
 // TODO test piping output of one command through stdin to another.
-// TODO reuse path building logic from gather_vectors
 
-// TODO Expect error when comparison sets of different lengths are compared
 // TODO process command with catalog and/or imports
 // TODO compare command with catalog and/or imports
+
+TEST(IonCli, ComparisonSetsDifferentLengthsEquivsSucceeds) {
+    const char *lhs_data = "(1 0x1 0b1)";
+    const char *rhs_data = "(0x1 1)";
+    IonEventResult result;
+    IonEventStream lhs(lhs_data), rhs(rhs_data);
+    test_ion_cli_read_stream_successfully((BYTE *)lhs_data, strlen(lhs_data), &lhs);
+    test_ion_cli_read_stream_successfully((BYTE *)rhs_data, strlen(rhs_data), &rhs);
+    ion_cli_command_compare_streams(COMPARISON_TYPE_EQUIVS, &lhs, &rhs, &result);
+    ASSERT_FALSE(result.has_error_description);
+    ASSERT_FALSE(result.has_comparison_result);
+    ion_cli_command_compare_streams(COMPARISON_TYPE_EQUIVS, &rhs, &lhs, &result);
+    ASSERT_FALSE(result.has_error_description);
+    ASSERT_FALSE(result.has_comparison_result);
+}
+
+TEST(IonCli, ComparisonSetsDifferentLengthsNonequivsSucceeds) {
+    const char *lhs_data = "(1)";
+    const char *rhs_data = "(2 3)";
+    IonEventResult result;
+    IonEventStream lhs(lhs_data), rhs(rhs_data);
+    test_ion_cli_read_stream_successfully((BYTE *)lhs_data, strlen(lhs_data), &lhs);
+    test_ion_cli_read_stream_successfully((BYTE *)rhs_data, strlen(rhs_data), &rhs);
+    ion_cli_command_compare_streams(COMPARISON_TYPE_NONEQUIVS, &lhs, &rhs, &result);
+    ASSERT_FALSE(result.has_error_description);
+    ASSERT_FALSE(result.has_comparison_result);
+    ion_cli_command_compare_streams(COMPARISON_TYPE_NONEQUIVS, &rhs, &lhs, &result);
+    ASSERT_FALSE(result.has_error_description);
+    ASSERT_FALSE(result.has_comparison_result);
+}

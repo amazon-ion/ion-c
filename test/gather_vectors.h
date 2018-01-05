@@ -50,6 +50,24 @@ typedef enum _test_file_classification
 
 } TEST_FILE_CLASSIFICATION;
 
+std::string find_ion_tests_path();
+std::string join_path(std::string prefix, std::string suffix);
+
+static const std::string iontests_path = find_ion_tests_path();
+static const std::string good_path = join_path("iontestdata", "good");
+static const std::string bad_path = join_path("iontestdata", "bad");
+static const std::string bad_timestamp_path = join_path(bad_path, "timestamp");
+static const std::string good_equivs_path = join_path(good_path, "equivs");
+static const std::string good_nonequivs_path = join_path(good_path, "non-equivs");
+static const std::string good_timestamp_path = join_path(good_path, "timestamp");
+static const std::string good_timestamp_equivtimeline_path = join_path(good_timestamp_path, "equivTimeline");
+
+static const std::string full_good_path = join_path(iontests_path, good_path);
+static const std::string full_good_equivs_path = join_path(full_good_path, "equivs");
+static const std::string full_good_nonequivs_path = join_path(full_good_path, "non-equivs");
+static const std::string full_good_timestamp_equivtimeline_path = join_path(iontests_path, good_timestamp_equivtimeline_path);
+static const std::string full_bad_path = join_path(iontests_path, bad_path);
+
 /**
  * Gather all files of the given type and classification under the ion-tests directory.
  * @param filetype - specifies binary, text, or all files.
