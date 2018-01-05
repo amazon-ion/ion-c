@@ -320,7 +320,7 @@ iERR ion_cli_is_event_stream(ION_CLI_READER_CONTEXT *reader_context, bool *is_ev
         if (ion_type == tid_EOF) {
             IONCLEANEXIT;
         }
-        IONREPORT(ion_event_stream_read(reader_context->reader, stream, ion_type, FALSE, 0, result));
+        IONREPORT(ion_event_stream_read(reader_context->reader, stream, ion_type, FALSE, 0, FALSE, result));
         ASSERT(stream->size() > 0);
         event = stream->at(i);
         if (event->event_type == SYMBOL_TABLE) {

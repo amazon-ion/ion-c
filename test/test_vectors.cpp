@@ -274,19 +274,6 @@ cleanup:
     iRETURN;
 }
 
-/**
- * Constructs a writer using the given test type and catalog and uses it to write the given IonEventStream to BYTEs.
- */
-iERR write_value_stream(IonEventStream *stream, VECTOR_TEST_TYPE test_type, ION_CATALOG *catalog, BYTE **out, SIZE *len, IonEventResult *result) {
-    iENTER;
-    ION_EVENT_WRITER_CONTEXT writer_context;
-    IONREPORT(ion_event_in_memory_writer_open(&writer_context, stream->location, (test_type == ROUNDTRIP_BINARY ? ION_WRITER_OUTPUT_TYPE_BINARY : ION_WRITER_OUTPUT_TYPE_TEXT_UGLY), catalog, /*imports=*/NULL, result));
-    IONREPORT(ion_event_stream_write_all(writer_context.writer, stream, result));
-cleanup:
-    UPDATEERROR(ion_event_in_memory_writer_close(&writer_context, out, len));
-    iRETURN;
-}
-
 void write_ion_event_result(IonEventResult *result, std::string test_name) {
     ION_EVENT_WRITER_CONTEXT writer_context;
     std::string message;
@@ -318,7 +305,10 @@ iERR ionTestRoundtrip(IonEventStream *initial_stream, IonEventStream **roundtrip
     if (test_type > READ) {
         BYTE *written = NULL;
         SIZE len;
-        IONREPORT(write_value_stream(initial_stream, test_type, catalog, &written, &len, result));
+        IONREPORT(ion_event_stream_write_all_to_bytes(initial_stream,
+                                                      (test_type == ROUNDTRIP_BINARY ? ION_WRITER_OUTPUT_TYPE_BINARY
+                                                                                     : ION_WRITER_OUTPUT_TYPE_TEXT_UGLY),
+                                                      catalog, &written, &len, result));
         *roundtrip_stream = new IonEventStream(test_name + "re-read");
         IONREPORT(read_value_stream_from_bytes(written, len, *roundtrip_stream, catalog, result));
         IONREPORT(assertIonEventStreamEq(initial_stream, *roundtrip_stream, result) ? IERR_OK : IERR_INVALID_STATE);

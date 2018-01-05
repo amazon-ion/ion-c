@@ -42,7 +42,7 @@ extern decContext g_IonEventDecimalContext;
 // Event stream marker
 static ION_STRING ion_cli_event_stream_symbol = {17, (BYTE *)"$ion_event_stream"}; // TODO where should this go?
 
-// Embedded stream marker
+// Embedded stream marker // TODO transition this to $ion_embedded_streams (so that it's a reserved symbol)
 static ION_STRING ion_event_embedded_streams_annotation = {18, (BYTE *)"embedded_documents"};
 
 // Event fields

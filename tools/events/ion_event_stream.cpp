@@ -83,18 +83,22 @@ void free_ion_event_value(void *value, ION_TYPE ion_type, ION_EVENT_TYPE event_t
     }
 }
 
-ION_STRING *copy_ion_string(ION_STRING *src) {
-    ION_STRING *string_value = (ION_STRING *)malloc(sizeof(ION_STRING));
+void copy_ion_string_into(ION_STRING *copy, ION_STRING *src) {
     size_t len = (size_t)src->length;
     if (src->value == NULL) {
         ASSERT(len == 0);
-        string_value->value = NULL;
+        copy->value = NULL;
     }
     else {
-        string_value->value = (BYTE *) malloc(len);
-        memcpy(string_value->value, src->value, len);
+        copy->value = (BYTE *)malloc(len);
+        memcpy(copy->value, src->value, len);
     }
-    string_value->length = (int32_t)len;
+    copy->length = (int32_t)len;
+}
+
+ION_STRING *copy_ion_string(ION_STRING *src) {
+    ION_STRING *string_value = (ION_STRING *)malloc(sizeof(ION_STRING));
+    copy_ion_string_into(string_value, src);
     return string_value;
 }
 
@@ -225,7 +229,7 @@ size_t valueEventLength(IonEventStream *stream, size_t start_index) {
     return length;
 }
 
-iERR _ion_event_stream_read_all_recursive(hREADER hreader, IonEventStream *stream, BOOL in_struct, int depth, IonEventResult *result) {
+iERR _ion_event_stream_read_all_recursive(hREADER hreader, IonEventStream *stream, BOOL in_struct, int depth, BOOL is_embedded_stream_set, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&stream->location, NULL);
     ION_TYPE t;
@@ -234,7 +238,7 @@ iERR _ion_event_stream_read_all_recursive(hREADER hreader, IonEventStream *strea
         if (t == tid_EOF) {
             break;
         }
-        IONREPORT(ion_event_stream_read(hreader, stream, t, in_struct, depth, result));
+        IONREPORT(ion_event_stream_read(hreader, stream, t, in_struct, depth, is_embedded_stream_set, result));
     }
     cRETURN;
 }
@@ -307,9 +311,13 @@ iERR ion_event_copy_value(IonEvent *event, void **value, std::string location, I
 
 iERR ion_event_copy(IonEvent **dst, IonEvent *src, std::string location, IonEventResult *result) {
     iENTER;
+    ION_SET_ERROR_CONTEXT(&location, NULL);
     ASSERT(dst != NULL);
     ASSERT(*dst == NULL);
     ASSERT(src != NULL);
+    if (src->event_type == SYMBOL_TABLE) {
+        IONFAILSTATE(IERR_INVALID_ARG, "Cannot copy a SYMBOL_TABLE event.", result);
+    }
     *dst = new IonEvent(src->event_type, src->ion_type, src->field_name, src->annotations, src->num_annotations, src->depth);
     if (src->event_type == SCALAR) {
         IONREPORT(ion_event_copy_value(src, &(*dst)->value, location, result));
@@ -333,11 +341,27 @@ void ion_event_register_symbol_table_callback(ION_READER_OPTIONS *options, IonEv
     options->context_change_notifier.context = stream;
 }
 
+iERR ion_event_stream_read_embedded_stream(hREADER reader, IonEventStream *stream, IonEventResult *result) {
+    iENTER;
+    ION_SET_ERROR_CONTEXT(&stream->location, NULL);
+    ION_STRING embedded_stream;
+
+    IONCREAD(ion_reader_read_string(reader, &embedded_stream));
+    if (ION_STRING_IS_NULL(&embedded_stream)) {
+        IONFAILSTATE(IERR_INVALID_ARG, "Embedded streams must not be null.", result);
+    }
+    // NOTE: this means the embedded stream will use the same catalog as the outer reader. If the embedded streams
+    // contain shared symbol table imports, those shared symbol tables should be made available in that reader's
+    // catalog.
+    IONREPORT(read_value_stream_from_bytes(embedded_stream.value, embedded_stream.length, stream, reader->_catalog, result));
+    cRETURN;
+}
+
 /**
  * Reads the reader's current value into an IonEvent and appends that event to the given IonEventStream. The event's
  * value is allocated such that it may be freed safely by free_ion_event_value.
  */
-iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth, IonEventResult *result) {
+iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth, BOOL is_embedded_stream_set, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&stream->location, NULL);
     BOOL is_null;
@@ -360,7 +384,14 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
     }
 
     IONCREAD(ion_reader_is_null(hreader, &is_null));
-    if (is_null) {
+    if (is_embedded_stream_set) {
+        if (ion_type != TID_STRING) {
+            IONFAILSTATE(IERR_INVALID_ARG, "Elements of embedded streams sets must be strings.", result);
+        }
+        IONREPORT(ion_event_stream_read_embedded_stream(hreader, stream, result));
+        IONCLEANEXIT;
+    }
+    else if (is_null) {
         IONCREAD(ion_reader_read_null(hreader, &t));
         event_type = SCALAR;
     }
@@ -411,10 +442,9 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
         }
         case TID_STRING:
         {
-            ION_STRING tmp;
-            IONCREAD(ion_reader_read_string(hreader, &tmp));
-            ION_STRING *string_value = copy_ion_string(&tmp);
-            event->value = string_value;
+            ION_STRING string_value;
+            IONCREAD(ion_reader_read_string(hreader, &string_value));
+            event->value = copy_ion_string(&string_value);
             break;
         }
         case TID_CLOB: // intentional fall-through
@@ -436,11 +466,13 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
             event->value = lob_value;
             break;
         }
-        case TID_STRUCT: // intentional fall-through
         case TID_SEXP: // intentional fall-through
         case TID_LIST:
+            is_embedded_stream_set = depth == 0 && annotation_count > 0 && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, &annotations[0].value);
+            // intentional fall-through
+        case TID_STRUCT:
             IONCREAD(ion_reader_step_in(hreader));
-            IONREPORT(_ion_event_stream_read_all_recursive(hreader, stream, t == tid_STRUCT, depth + 1, result));
+            IONREPORT(_ion_event_stream_read_all_recursive(hreader, stream, t == tid_STRUCT, depth + 1, is_embedded_stream_set, result));
             IONCREAD(ion_reader_step_out(hreader));
             stream->append_new(CONTAINER_END, t, /*field_name=*/NULL, /*annotations=*/NULL, /*annotation_count=*/0,
                                depth);
@@ -460,7 +492,7 @@ cleanup:
 
 iERR ion_event_stream_read_all(hREADER hreader, IonEventStream *stream, IonEventResult *result) {
     iENTER;
-    IONREPORT(_ion_event_stream_read_all_recursive(hreader, stream, /*in_struct=*/FALSE, /*depth=*/0, result));
+    IONREPORT(_ion_event_stream_read_all_recursive(hreader, stream, /*in_struct=*/FALSE, /*depth=*/0, /*is_embedded_stream_set=*/FALSE, result));
     stream->append_new(STREAM_END, tid_none, NULL, NULL, 0, 0);
     cRETURN;
 }
@@ -469,7 +501,7 @@ iERR ion_event_stream_read_import_location(hREADER reader, ION_SYMBOL_IMPORT_LOC
     iENTER;
     ION_SET_ERROR_CONTEXT(location, NULL);
     ION_TYPE ion_type;
-    ION_STRING field_name;
+    ION_STRING field_name, location_name;
     BOOL is_null;
     ASSERT(import_location);
 
@@ -482,7 +514,8 @@ iERR ion_event_stream_read_import_location(hREADER reader, ION_SYMBOL_IMPORT_LOC
             if (is_null || ion_type != tid_STRING) {
                 IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: ImportLocation import_name must be a string.", result);
             }
-            IONCREAD(ion_reader_read_string(reader, &import_location->name));
+            IONCREAD(ion_reader_read_string(reader, &location_name));
+            copy_ion_string_into(&import_location->name, &location_name);
         }
         else if (ION_STRING_EQUALS(&ion_event_import_sid_field, &field_name)) {
             if (is_null || ion_type != tid_INT) {
@@ -504,7 +537,7 @@ iERR ion_event_stream_read_symbol_token(hREADER reader, ION_SYMBOL *symbol, std:
     iENTER;
     ION_SET_ERROR_CONTEXT(location, NULL);
     ION_TYPE ion_type;
-    ION_STRING field_name;
+    ION_STRING field_name, text;
     BOOL is_null;
     ASSERT(symbol);
 
@@ -526,7 +559,8 @@ iERR ion_event_stream_read_symbol_token(hREADER reader, ION_SYMBOL *symbol, std:
             if (ion_type != tid_STRING) {
                 IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: SymbolToken text must be a string.", result);
             }
-            IONCREAD(ion_reader_read_string(reader, &symbol->value));
+            IONCREAD(ion_reader_read_string(reader, &text));
+            copy_ion_string_into(&symbol->value, &text);
         }
         else if (ION_STRING_EQUALS(&ion_event_import_location_field, &field_name)) {
             if (is_null) {
@@ -552,7 +586,7 @@ iERR ion_event_stream_read_import(hREADER reader, ION_COLLECTION *imports, std::
     iENTER;
     ION_SET_ERROR_CONTEXT(location, NULL);
     ION_TYPE ion_type;
-    ION_STRING field_name;
+    ION_STRING field_name, import_name;
     BOOL is_null;
     ION_SYMBOL_TABLE_IMPORT *import = NULL;
     ION_SYMBOL_TABLE_IMPORT_DESCRIPTOR descriptor;
@@ -569,7 +603,8 @@ iERR ion_event_stream_read_import(hREADER reader, ION_COLLECTION *imports, std::
             if (is_null || ion_type != tid_STRING) {
                 IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: ImportDescriptor name must be a string.", result);
             }
-            IONCREAD(ion_reader_read_string(reader, &descriptor.name));
+            IONCREAD(ion_reader_read_string(reader, &import_name));
+            IONCREAD(ion_string_copy_to_owner(imports, &descriptor.name, &import_name));
         }
         else if (ION_STRING_EQUALS(&ion_event_version_field, &field_name)) {
             if (is_null) {
@@ -643,23 +678,44 @@ cleanup:
     iRETURN;
 }
 
+ION_SYMBOL *ion_event_stream_new_ivm_symbol() {
+    ION_SYMBOL *ivm_symbol = (ION_SYMBOL *)calloc(1, sizeof(ION_SYMBOL));
+    ivm_symbol->value.value = (BYTE *)malloc(sizeof(BYTE) * ION_SYS_STRLEN_IVM);
+    memcpy(ivm_symbol->value.value, (BYTE *)ION_SYS_SYMBOL_IVM, ION_SYS_STRLEN_IVM);
+    ivm_symbol->value.length = ION_SYS_STRLEN_IVM;
+    ivm_symbol->sid = UNKNOWN_SID; // Not needed; text is known.
+    return ivm_symbol;
+}
+
 iERR ion_event_stream_get_consensus_value(std::string location, ION_CATALOG *catalog, std::string value_text, BYTE *value_binary,
                                           size_t value_binary_len, void **consensus_value, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&location, NULL);
     IonEventStream binary_stream(location + " binary scalar"), text_stream(location + " text scalar");
-    ASSERT(!value_text.empty());
-    ASSERT(value_binary);
     ASSERT(consensus_value);
 
-    IONREPORT(read_value_stream_from_bytes(value_binary, (SIZE)value_binary_len, &binary_stream, catalog, result));
-    IONREPORT(read_value_stream_from_bytes((BYTE *)value_text.c_str(), (SIZE)value_text.length(), &text_stream, catalog, result));
+    if (value_binary && value_binary_len > 0) {
+        IONREPORT(read_value_stream_from_bytes(value_binary, (SIZE) value_binary_len, &binary_stream, catalog, result));
+    }
+    if (!value_text.empty()) {
+        IONREPORT(read_value_stream_from_bytes((BYTE *) value_text.c_str(), (SIZE) value_text.length(), &text_stream,
+                                               catalog, result));
+    }
 
     if (assertIonEventStreamEq(&binary_stream, &text_stream, result)) {
         // Because the last event is always STREAM_END, the second-to-last event contains the scalar value.
         // NOTE: an IonEvent's value is freed during destruction of the event's IonEventStream. Since these event streams
         // are temporary, the value needs to be copied out.
-        IONREPORT(ion_event_copy_value(binary_stream.at(binary_stream.size() - 2), consensus_value, location, result));
+        if (binary_stream.size() > 1) {
+            IONREPORT(ion_event_copy_value(binary_stream.at(binary_stream.size() - 2), consensus_value, location,
+                                           result));
+        }
+        else {
+            ASSERT(binary_stream.size() == 0 || binary_stream.at(0)->event_type == STREAM_END);
+            ASSERT(text_stream.size() == 0 || text_stream.at(0)->event_type == STREAM_END);
+            // NOTE: the only value that can produce an empty value_binary and value_text is the IVM symbol.
+            *consensus_value = ion_event_stream_new_ivm_symbol();
+        }
     }
     else {
         std::string message;
@@ -975,11 +1031,100 @@ iERR write_event(hWRITER writer, IonEvent *event, std::string *location, size_t 
     cRETURN;
 }
 
+iERR _ion_event_stream_write_all_recursive(hWRITER writer, IonEventStream *stream, size_t start_index, size_t end_index, IonEventResult *result);
+
+iERR _ion_event_stream_write_all_to_bytes_helper(IonEventStream *stream, size_t start_index, size_t end_index,
+                                                 ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, BYTE **out,
+                                                 SIZE *len, IonEventResult *result) {
+    iENTER;
+    ION_EVENT_WRITER_CONTEXT writer_context;
+    IONREPORT(ion_event_in_memory_writer_open(&writer_context, stream->location, output_type, catalog, /*imports=*/NULL, result));
+    IONREPORT(_ion_event_stream_write_all_recursive(writer_context.writer, stream, start_index, end_index, result));
+cleanup:
+    UPDATEERROR(ion_event_in_memory_writer_close(&writer_context, out, len));
+    iRETURN;
+}
+
+/**
+ * Constructs a writer using the given test type and catalog and uses it to write the given IonEventStream to BYTEs.
+ */
+iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_WRITER_OUTPUT_TYPE output_type,
+                                         ION_CATALOG *catalog, BYTE **out, SIZE *len, IonEventResult *result) {
+    iENTER;
+    IONREPORT(_ion_event_stream_write_all_to_bytes_helper(stream, 0, stream->size(), output_type, catalog, out, len, result));
+    cRETURN;
+}
+
+iERR ion_event_stream_write_embedded_stream(hWRITER writer, IonEventStream *stream, size_t start_index, size_t end_index, IonEventResult *result) {
+    iENTER;
+    ION_SET_ERROR_CONTEXT(&stream->location, &start_index);
+    ION_STRING embedded_string;
+    ION_STRING_INIT(&embedded_string);
+
+    IONREPORT(_ion_event_stream_write_all_to_bytes_helper(stream, start_index, end_index,
+                                                          ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, writer->pcatalog,
+                                                          &embedded_string.value, &embedded_string.length,
+                                                          result));
+    IONCWRITE(ion_writer_write_string(writer, &embedded_string));
+cleanup:
+    if (embedded_string.value) {
+        free(embedded_string.value);
+    }
+    iRETURN;
+}
+
+size_t ion_event_stream_length(IonEventStream *stream, size_t index) {
+    // NOTE: this will break if embedded streams themselves contain embedded streams. This should be explicitly
+    // disallowed, as nested embedded streams are not a useful concept.
+    size_t end_index = index;
+    while (stream->size() - end_index > 0 && stream->at(end_index++)->event_type != STREAM_END);
+    return  end_index - index;
+}
+
+size_t ion_event_embedded_set_length(IonEventStream *stream, size_t index) {
+    IonEvent *event = stream->at(index);
+    ASSERT(event->event_type == CONTAINER_START);
+    size_t end_index = index;
+    int target_depth = event->depth;
+    BOOL active_stream = FALSE;
+    while (++end_index < stream->size()) {
+        event = stream->at(end_index);
+        if (!active_stream && event->event_type == CONTAINER_END && event->depth == target_depth) {
+            break;
+        }
+        active_stream = event->event_type != STREAM_END;
+    }
+    return end_index - index;
+}
+
+iERR _ion_event_stream_write_all_recursive(hWRITER writer, IonEventStream *stream, size_t start_index, size_t end_index, IonEventResult *result) {
+    iENTER;
+    size_t i = start_index;
+    while (i < end_index) {
+        IonEvent *event = stream->at(i);
+        IONREPORT(write_event(writer, event, &stream->location, i, result));
+        if (event->depth == 0 && event->event_type == CONTAINER_START && event->num_annotations > 0
+            && (event->ion_type == tid_LIST || event->ion_type == tid_SEXP)
+            && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, &event->annotations[0].value)) {
+            size_t container_end = i + ion_event_embedded_set_length(stream, i);
+            i++; // Skip past the CONTAINER_START
+            while (i < container_end) {
+                size_t stream_length = ion_event_stream_length(stream, i);
+                IONREPORT(ion_event_stream_write_embedded_stream(writer, stream, i, i + stream_length, result));
+                i += stream_length;
+            }
+            ASSERT(stream->at(i)->event_type == CONTAINER_END);
+        }
+        else {
+            i++;
+        }
+    }
+    cRETURN;
+}
+
 iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream, IonEventResult *result) {
     iENTER;
-    for (size_t i = 0; i < stream->size(); i++) {
-        IONREPORT(write_event(writer, stream->at(i), &stream->location, i, result));
-    }
+    IONREPORT(_ion_event_stream_write_all_recursive(writer, stream, 0, stream->size(), result));
     cRETURN;
 }
 

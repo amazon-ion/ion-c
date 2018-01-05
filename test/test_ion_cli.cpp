@@ -161,9 +161,6 @@ TEST(IonCli, CompareSexpsNonequivs) {
 
 TEST(IonCli, CompareAnnotatedIvmsEmbeddedNonequivs) {
     const char *test_file = "../ion-tests/iontestdata/good/non-equivs/annotatedIvms.ion";
-    // TODO note: since value_text and value_binary are written unannotated, when they contain an annotated IVM
-    // (which is interpreted as a user value), the value_text and value_binary will be empty (because the unannotated
-    // IVM written manually is a no-op). This happens here. Verify whether that's a problem.
     IonEventReport report;
     // NOTE: this is a non-equivs file being compared for equivs; comparison failures are expected.
     test_ion_cli_assert_comparison(&test_file, 1, COMPARISON_TYPE_EQUIVS, &report);
@@ -171,7 +168,7 @@ TEST(IonCli, CompareAnnotatedIvmsEmbeddedNonequivs) {
     ASSERT_TRUE(report.hasComparisonFailures());
     std::vector<ION_EVENT_COMPARISON_RESULT> *comparison_results = report.getComparisonResults();
     ASSERT_EQ(1, comparison_results->size());
-    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(0), COMPARISON_RESULT_NOT_EQUAL, test_file, test_file, 0, 0);
+    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(0), COMPARISON_RESULT_NOT_EQUAL, test_file, test_file, 1, 3);
 }
 
 TEST(IonCli, CompareMultipleInputFiles) {
@@ -216,9 +213,37 @@ TEST(IonCli, ErrorIsConveyedEvents) {
     free(output);
 }
 
-// TODO add support for reading and writing embedded streams (in addition to comparing them).
+TEST(IonCli, AnnotatedIvmsEmbedded) {
+    const char *test_file = "../ion-tests/iontestdata/good/non-equivs/annotatedIvms.ion";
+    ION_CLI_READER_CONTEXT reader_context;
+    BYTE *output = NULL;
+    SIZE len;
+    IonEventResult result;
+    IonEventStream stream(test_file);
+    test_ion_cli_process_events(test_file, ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, NULL, &output, &len, &result);
+    ASSERT_FALSE(result.has_error_description);
+    ASSERT_FALSE(result.has_comparison_result);
+    ASSERT_TRUE(output != NULL);
+    ION_ASSERT_OK(ion_test_new_reader(output, len, &reader_context.reader));
+    reader_context.event_stream = &stream;
+    ION_ASSERT_OK(ion_cli_read_stream(&reader_context, NULL, &stream, &result));
+    ION_ASSERT_OK(ion_reader_close(reader_context.reader));
+    ASSERT_EQ(CONTAINER_START, stream.at(0)->event_type);
+    ASSERT_EQ(0, stream.at(0)->depth);
+    ASSERT_EQ(SCALAR, stream.at(1)->event_type);
+    ASSERT_EQ(tid_SYMBOL, stream.at(1)->ion_type);
+    ASSERT_EQ(1, stream.at(1)->num_annotations);
+    ASSERT_EQ(0, stream.at(1)->depth);
+    ASSERT_EQ(STREAM_END, stream.at(2)->event_type);
+    ASSERT_EQ(STREAM_END, stream.at(3)->event_type);
+    ASSERT_EQ(CONTAINER_END, stream.at(4)->event_type);
+    ASSERT_EQ(0, stream.at(4)->depth);
+    free(output);
+}
+
 // TODO consider having a list of (location, index) in error report to better convey errors during comparison
-// TODO optional fields in comparison report for embedded streams? (embedded stream index and text)
+// TODO test piping output of one command through stdin to another.
+// TODO reuse path building logic from gather_vectors
 
 // TODO Expect error when comparison sets of different lengths are compared
 // TODO process command with catalog and/or imports
