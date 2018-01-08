@@ -118,14 +118,11 @@ TEST(IonCli, UnequalValueTextAndValueBinaryFails) {
 
 void test_ion_cli_assert_comparison(std::string *files, size_t num_files, COMPARISON_TYPE comparison_type, IonEventReport *report) {
     ION_CLI_COMMON_ARGS common_args;
-    ION_CLI_COMPARE_ARGS compare_args;
-    memset(&compare_args, 0, sizeof(ION_CLI_COMPARE_ARGS));
     memset(&common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
     for (size_t i = 0; i < num_files; i++) {
         common_args.input_files.push_back(files[i]);
     }
-    compare_args.comparison_type = comparison_type;
-    ION_ASSERT_OK(ion_cli_command_compare_standard(&common_args, &compare_args, report, NULL));
+    ION_ASSERT_OK(ion_cli_command_compare_standard(&common_args, comparison_type, /*catalog=*/NULL, report, NULL));
 }
 
 TEST(IonCli, CompareNullsBasic) {
@@ -265,4 +262,10 @@ TEST(IonCli, ComparisonSetsDifferentLengthsNonequivsSucceeds) {
     ion_cli_command_compare_streams(COMPARISON_TYPE_NONEQUIVS, &rhs, &lhs, &result);
     ASSERT_FALSE(result.has_error_description);
     ASSERT_FALSE(result.has_comparison_result);
+}
+
+TEST(IonCli, BasicProcessWithCatalog) {
+    const char *foo = "$ion_shared_symbol_table::{name:\"foo\", version:1, symbols[\"abc\"]}";
+    const char *data = "$ion_symbol_table::{symbols:[\"def\"], imports[{name:\"foo\", version:1, max_id:1}]} $10::$11";
+    // TODO
 }

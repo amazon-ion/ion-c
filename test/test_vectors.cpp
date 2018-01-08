@@ -274,7 +274,7 @@ cleanup:
     iRETURN;
 }
 
-void write_ion_event_result(IonEventResult *result, std::string test_name) {
+void write_ion_event_result(IonEventResult *result, ION_CATALOG *catalog, std::string test_name) {
     ION_EVENT_WRITER_CONTEXT writer_context;
     std::string message;
     BYTE *out = NULL;
@@ -284,7 +284,7 @@ void write_ion_event_result(IonEventResult *result, std::string test_name) {
         ASSERT_EQ(IERR_OK, ion_event_stream_write_error(writer_context.writer, &result->error_description));
     }
     if (result->has_comparison_result) {
-        ASSERT_EQ(IERR_OK, ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result, &test_name, NULL));
+        ASSERT_EQ(IERR_OK, ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result, &test_name, catalog, NULL));
     }
     ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_close(&writer_context, &out, &len));
     if (out) {
@@ -328,7 +328,7 @@ cleanup:
 cleanup: \
     if (err != IERR_OK) { \
         if (result->has_comparison_result || result->has_error_description) { \
-            write_ion_event_result(result, test_name); \
+            write_ion_event_result(result, catalog, test_name); \
         } \
         else { \
             GTEST_FAIL() << "Unknown failure in " << test_name << std::endl; \

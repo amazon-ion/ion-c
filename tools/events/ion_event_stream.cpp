@@ -191,25 +191,25 @@ iERR IonEventReport::writeErrorsTo(hWRITER writer) {
     cRETURN;
 }
 
-iERR IonEventReport::writeComparisonResultsTo(hWRITER writer, std::string *location, IonEventResult *result) {
+iERR IonEventReport::writeComparisonResultsTo(hWRITER writer, std::string *location, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     for (size_t i = 0; i < comparison_report.size(); i++) {
-        IONREPORT(ion_event_stream_write_comparison_result(writer, &comparison_report.at(i), location, result));
+        IONREPORT(ion_event_stream_write_comparison_result(writer, &comparison_report.at(i), location, catalog, result));
     }
     cRETURN;
 }
 
-iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, std::string *location, IonEventResult *result) {
+iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, std::string *location, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     ASSERT(report);
     IONREPORT(report->writeErrorsTo(writer));
     cRETURN;
 }
 
-iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report, std::string *location, IonEventResult *result) {
+iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report, std::string *location, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     ASSERT(report);
-    IONREPORT(report->writeComparisonResultsTo(writer, location, result));
+    IONREPORT(report->writeComparisonResultsTo(writer, location, catalog, result));
     cRETURN;
 }
 
@@ -637,14 +637,11 @@ iERR ion_event_stream_read_import(hREADER reader, ION_COLLECTION *imports, std::
     cRETURN;
 }
 
-iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION **imports, std::string *location, IonEventResult *result) {
+iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION *imports, std::string *location, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(location, NULL);
     ION_TYPE ion_type;
     ASSERT(imports);
-
-    *imports = (ION_COLLECTION *)ion_alloc_owner(sizeof(ION_COLLECTION));
-    _ion_collection_initialize(*imports, *imports, sizeof (ION_SYMBOL_TABLE_IMPORT));
 
     for (;;) {
         IONCREAD(ion_reader_next(reader, &ion_type));
@@ -653,13 +650,13 @@ iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION **imports, std
             IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: ImportDescriptor must be a struct.", result);
         }
         IONCREAD(ion_reader_step_in(reader));
-        IONREPORT(ion_event_stream_read_import(reader, *imports, location, result));
+        IONREPORT(ion_event_stream_read_import(reader, imports, location, result));
         IONCREAD(ion_reader_step_out(reader));
     }
     cRETURN;
 }
 
-iERR ion_event_stream_write_scalar_value_comparison_result(std::string location, std::string *comparison_report, IonEventResult *result) {
+iERR ion_event_stream_write_scalar_value_comparison_result(std::string location, std::string *comparison_report, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&location, NULL);
     ION_EVENT_WRITER_CONTEXT writer_context;
@@ -668,7 +665,7 @@ iERR ion_event_stream_write_scalar_value_comparison_result(std::string location,
     ASSERT(comparison_report);
 
     IONREPORT(ion_event_in_memory_writer_open(&writer_context, location, ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY, NULL, NULL, result));
-    IONREPORT(ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result, &location, result));
+    IONREPORT(ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result, &location, catalog, result));
 cleanup:
     UPDATEERROR(ion_event_in_memory_writer_close(&writer_context, &value, &len, result));
     if (value) {
@@ -720,7 +717,7 @@ iERR ion_event_stream_get_consensus_value(std::string location, ION_CATALOG *cat
     else {
         std::string message;
         if (result->has_comparison_result) {
-            IONREPORT(ion_event_stream_write_scalar_value_comparison_result(value_text + " scalar comparison result", &message, result));
+            IONREPORT(ion_event_stream_write_scalar_value_comparison_result(value_text + " scalar comparison result", &message, catalog, result));
         }
         IONFAILSTATE(IERR_INVALID_ARG, "Invalid event; text and binary scalar representations are not equal. " + message, result);
     }
@@ -792,7 +789,9 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
                 IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: imports must be a list.", result);
             }
             IONCREAD(ion_reader_step_in(reader));
-            IONREPORT(ion_event_stream_read_imports(reader, &value_imports, &stream->location, result));
+            value_imports = (ION_COLLECTION *)ion_alloc_owner(sizeof(ION_COLLECTION));
+            _ion_collection_initialize(value_imports, value_imports, sizeof (ION_SYMBOL_TABLE_IMPORT));
+            IONREPORT(ion_event_stream_read_imports(reader, value_imports, &stream->location, result));
             IONCREAD(ion_reader_step_out(reader));
         }
         else if (ION_STRING_EQUALS(&ion_event_depth_field, &field_name)) {
@@ -1295,7 +1294,7 @@ iERR ion_event_stream_write_error(hWRITER writer, ION_EVENT_ERROR_DESCRIPTION *e
     cRETURN;
 }
 
-iERR ion_event_stream_write_comparison_context(hWRITER writer, ION_EVENT_COMPARISON_CONTEXT *comparison_context, std::string *location, IonEventResult *result) {
+iERR ion_event_stream_write_comparison_context(hWRITER writer, ION_EVENT_COMPARISON_CONTEXT *comparison_context, std::string *location, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(location, NULL);
     ION_STRING event_location;
@@ -1305,14 +1304,14 @@ iERR ion_event_stream_write_comparison_context(hWRITER writer, ION_EVENT_COMPARI
     ION_EVENT_ION_STRING_FROM_STRING(&event_location, comparison_context->location);
     IONCWRITE(ion_writer_write_string(writer, &event_location));
     IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_field));
-    IONREPORT(ion_event_stream_write_event(writer, comparison_context->event, NULL, location, NULL, result)); // TODO what about catalog?
+    IONREPORT(ion_event_stream_write_event(writer, comparison_context->event, catalog, location, NULL, result));
     IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_index_field));
     IONCWRITE(ion_writer_write_int(writer, (int)comparison_context->event_index));
     IONCWRITE(ion_writer_finish_container(writer));
     cRETURN;
 }
 
-iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result, std::string *location, IonEventResult *result) {
+iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result, std::string *location, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(location, NULL);
     ION_STRING message;
@@ -1326,9 +1325,9 @@ iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARIS
         IONCWRITE(ion_writer_write_string(writer, &message));
     }
     IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_lhs_field));
-    IONREPORT(ion_event_stream_write_comparison_context(writer, &comparison_result->lhs, location, result));
+    IONREPORT(ion_event_stream_write_comparison_context(writer, &comparison_result->lhs, location, catalog, result));
     IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_rhs_field));
-    IONREPORT(ion_event_stream_write_comparison_context(writer, &comparison_result->rhs, location, result));
+    IONREPORT(ion_event_stream_write_comparison_context(writer, &comparison_result->rhs, location, catalog, result));
     IONCWRITE(ion_writer_finish_container(writer));
     cRETURN;
 }

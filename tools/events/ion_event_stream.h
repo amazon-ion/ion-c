@@ -195,7 +195,7 @@ public:
     }
     void addResult(IonEventResult *result);
     iERR writeErrorsTo(hWRITER writer);
-    iERR writeComparisonResultsTo(hWRITER writer, std::string *location, IonEventResult *result);
+    iERR writeComparisonResultsTo(hWRITER writer, std::string *location, ION_CATALOG *catalog, IonEventResult *result);
     bool hasErrors() {
         return !error_report.empty();
     }
@@ -206,8 +206,8 @@ public:
     std::vector<ION_EVENT_COMPARISON_RESULT> *getComparisonResults() { return &comparison_report; }
 };
 
-iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, std::string *location, IonEventResult *result);
-iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report, std::string *location, IonEventResult *result);
+iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, std::string *location, ION_CATALOG *catalog, IonEventResult *result);
+iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report, std::string *location, ION_CATALOG *catalog, IonEventResult *result);
 
 /**
  * Configure the given reader options to add a SYMBOL_TABLE event to the given IonEventStream whenever the symbol
@@ -225,6 +225,8 @@ size_t valueEventLength(IonEventStream *stream, size_t start_index);
  * streams will always return 1.
  */
 size_t ion_event_stream_length(IonEventStream *stream, size_t index);
+
+iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION *imports, std::string *location, IonEventResult *result);
 
 /**
  * Reads IonEvents from the given BYTE* of Ion data into the given IonEventStream.
@@ -255,7 +257,7 @@ iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, I
 
 iERR ion_event_stream_write_error(hWRITER writer, ION_EVENT_ERROR_DESCRIPTION *error_description);
 
-iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result, std::string *location, IonEventResult *result);
+iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result, std::string *location, ION_CATALOG *catalog, IonEventResult *result);
 
 iERR ion_event_copy(IonEvent **dst, IonEvent *src, std::string location, IonEventResult *result);
 
