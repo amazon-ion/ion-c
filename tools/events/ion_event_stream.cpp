@@ -1033,7 +1033,7 @@ iERR write_event(hWRITER writer, IonEvent *event, std::string *location, size_t 
 iERR _ion_event_stream_write_all_recursive(hWRITER writer, IonEventStream *stream, size_t start_index, size_t end_index, IonEventResult *result);
 
 iERR _ion_event_stream_write_all_to_bytes_helper(IonEventStream *stream, size_t start_index, size_t end_index,
-                                                 ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, BYTE **out,
+                                                 ION_WRITER_OUTPUT_FORMAT output_type, ION_CATALOG *catalog, BYTE **out,
                                                  SIZE *len, IonEventResult *result) {
     iENTER;
     ION_EVENT_WRITER_CONTEXT writer_context;
@@ -1047,7 +1047,7 @@ cleanup:
 /**
  * Constructs a writer using the given test type and catalog and uses it to write the given IonEventStream to BYTEs.
  */
-iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_WRITER_OUTPUT_TYPE output_type,
+iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_WRITER_OUTPUT_FORMAT output_type,
                                          ION_CATALOG *catalog, BYTE **out, SIZE *len, IonEventResult *result) {
     iENTER;
     IONREPORT(_ion_event_stream_write_all_to_bytes_helper(stream, 0, stream->size(), output_type, catalog, out, len, result));
@@ -1175,7 +1175,7 @@ iERR ion_event_stream_write_symbol_table_imports(hWRITER writer, ION_COLLECTION 
     cRETURN;
 }
 
-iERR ion_event_stream_write_scalar_value(ION_WRITER_OUTPUT_TYPE output_type, IonEvent *event, ION_COLLECTION *imports, ION_CATALOG *catalog, std::string location, size_t *index, BYTE **value, SIZE *len, IonEventResult *result) {
+iERR ion_event_stream_write_scalar_value(ION_WRITER_OUTPUT_FORMAT output_type, IonEvent *event, ION_COLLECTION *imports, ION_CATALOG *catalog, std::string location, size_t *index, BYTE **value, SIZE *len, IonEventResult *result) {
     iENTER;
     std::string scalar_location = location + ((output_type == ION_WRITER_OUTPUT_TYPE_BINARY) ? " binary scalar" : " text scalar");
     ION_SET_ERROR_CONTEXT(&scalar_location, index);

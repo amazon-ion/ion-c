@@ -25,21 +25,34 @@
 
 #define ION_CLI_VERSION "1.0"
 
+typedef enum _ion_cli_input_format {
+    INPUT_FORMAT_FILE = 0,
+    INPUT_FORMAT_CONSOLE,
+    INPUT_FORMAT_MEMORY
+} ION_CLI_IO_TYPE;
+
 /**
  * Arguments shared by the process, compare, and extract commands.
  */
 typedef struct _ion_cli_common_args {
+    ION_CLI_IO_TYPE output_type;
     std::string output;
+    ION_CLI_IO_TYPE error_report_type;
     std::string error_report;
     std::string output_format;
-    bool input_is_stdin;
+    ION_CLI_IO_TYPE catalogs_format;
+    std::vector<std::string> catalogs;
+    ION_CLI_IO_TYPE inputs_format;
     std::vector<std::string> input_files;
 } ION_CLI_COMMON_ARGS;
 
 typedef struct _ion_cli_process_args {
     std::string perf_report;
     std::string filter;
+    ION_CLI_IO_TYPE traverse_format;
     std::string traverse;
+    ION_CLI_IO_TYPE imports_format;
+    std::vector<std::string> imports;
 } ION_CLI_PROCESS_ARGS;
 
 typedef struct _ion_cli_reader_context {
@@ -58,5 +71,7 @@ iERR ion_cli_read_stream(ION_CLI_READER_CONTEXT *reader_context, ION_CATALOG *ca
 iERR ion_cli_command_process_standard(ION_EVENT_WRITER_CONTEXT *writer_context, ION_CLI_COMMON_ARGS *common_args, ION_CATALOG *catalog, IonEventResult *result);
 void ion_cli_command_compare_streams(COMPARISON_TYPE comparison_type, IonEventStream *lhs, IonEventStream *rhs, IonEventResult *result);
 iERR ion_cli_command_compare_standard(ION_CLI_COMMON_ARGS *common_args, COMPARISON_TYPE comparison_type, ION_CATALOG *catalog, IonEventReport *report, IonEventResult *result);
+iERR ion_cli_command_compare(ION_CLI_COMMON_ARGS *common_args, COMPARISON_TYPE comparison_type, ION_STRING *output, IonEventReport *report);
+iERR ion_cli_command_process(ION_CLI_COMMON_ARGS *common_args, ION_CLI_PROCESS_ARGS *process_args, ION_STRING *output, IonEventReport *report);
 
 #endif //IONC_CLI_H

@@ -40,7 +40,7 @@ void test_ion_cli_assert_comparison_result_equals(ION_EVENT_COMPARISON_RESULT *a
     ASSERT_EQ(expected_rhs_index, actual->rhs.event_index);
 }
 
-void test_ion_cli_process_events(std::string filepath, ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, BYTE **output, SIZE *output_len, IonEventResult *result) {
+void test_ion_cli_process_events(std::string filepath, ION_WRITER_OUTPUT_FORMAT output_type, ION_CATALOG *catalog, BYTE **output, SIZE *output_len, IonEventResult *result) {
     ION_EVENT_WRITER_CONTEXT writer_context;
     ION_CLI_COMMON_ARGS common_args;
     memset(&common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
@@ -52,7 +52,7 @@ void test_ion_cli_process_events(std::string filepath, ION_WRITER_OUTPUT_TYPE ou
     ION_ASSERT_OK(ion_event_in_memory_writer_close(&writer_context, output, output_len));
 }
 
-void test_ion_cli_process_standard(std::string filepath, ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, BYTE **output, SIZE *output_len, IonEventResult *result) {
+void test_ion_cli_process_standard(std::string filepath, ION_WRITER_OUTPUT_FORMAT output_type, ION_CATALOG *catalog, BYTE **output, SIZE *output_len, IonEventResult *result) {
     ION_EVENT_WRITER_CONTEXT writer_context;
     ION_CLI_COMMON_ARGS common_args;
     memset(&common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
@@ -265,7 +265,23 @@ TEST(IonCli, ComparisonSetsDifferentLengthsNonequivsSucceeds) {
 }
 
 TEST(IonCli, BasicProcessWithCatalog) {
-    const char *foo = "$ion_shared_symbol_table::{name:\"foo\", version:1, symbols[\"abc\"]}";
-    const char *data = "$ion_symbol_table::{symbols:[\"def\"], imports[{name:\"foo\", version:1, max_id:1}]} $10::$11";
-    // TODO
+    ION_CLI_COMMON_ARGS common_args;
+    ION_CLI_PROCESS_ARGS process_args;
+    memset(&common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
+    memset(&process_args, 0, sizeof(ION_CLI_PROCESS_ARGS));
+    common_args.catalogs.push_back("$ion_shared_symbol_table::{name:\"foo\", version:1, symbols[\"abc\"]}");
+    common_args.catalogs_format = INPUT_FORMAT_MEMORY;
+    common_args.input_files.push_back("$ion_symbol_table::{symbols:[\"def\"], imports[{name:\"foo\", version:1, max_id:1}]} $10::$11");
+    common_args.inputs_format = INPUT_FORMAT_MEMORY;
+    common_args.output_type = INPUT_FORMAT_MEMORY;
+    common_args.error_report = "stderr";
+    common_args.error_report_type = INPUT_FORMAT_CONSOLE;
+    common_args.output_format = "text";
+    IonEventReport report;
+    ION_STRING output;
+    ION_STRING_INIT(&output);
+    //ION_ASSERT_OK(ion_cli_command_process(&common_args, &process_args, &output, &report));
+    //ASSERT_FALSE(report.hasComparisonFailures());
+    //ASSERT_FALSE(report.hasErrors());
+    //free(output.value);
 }

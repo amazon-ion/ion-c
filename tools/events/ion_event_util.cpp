@@ -152,7 +152,7 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options) {
     options->max_annotation_count = ION_EVENT_ANNOTATION_MAX;
 }
 
-iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, std::string location, ION_WRITER_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result) {
+iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, std::string location, ION_WRITER_OUTPUT_FORMAT output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&location, NULL);
     memset(writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
@@ -170,6 +170,7 @@ iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, s
     cRETURN;
 }
 
+// TODO standardize with ion_cli_writer_close
 iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&writer_context->output_location, NULL);

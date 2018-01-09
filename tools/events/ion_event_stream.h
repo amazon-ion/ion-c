@@ -125,7 +125,7 @@ typedef enum _ion_writer_output_type {
     ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY = 0,
     ION_WRITER_OUTPUT_TYPE_TEXT_UGLY,
     ION_WRITER_OUTPUT_TYPE_BINARY,
-} ION_WRITER_OUTPUT_TYPE;
+} ION_WRITER_OUTPUT_FORMAT;
 
 typedef enum _ion_event_error_type {
     ERROR_TYPE_READ = 0,
@@ -242,7 +242,7 @@ iERR ion_event_stream_read_all(hREADER hreader, IonEventStream *stream, IonEvent
 
 iERR ion_event_stream_read_all_events(hREADER reader, IonEventStream *stream, ION_CATALOG *catalog, IonEventResult *result);
 
-iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_WRITER_OUTPUT_TYPE output_type,
+iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_WRITER_OUTPUT_FORMAT output_type,
                                          ION_CATALOG *catalog, BYTE **out, SIZE *len, IonEventResult *result);
 
 /**
