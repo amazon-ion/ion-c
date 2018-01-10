@@ -40,26 +40,42 @@ void test_ion_cli_assert_comparison_result_equals(ION_EVENT_COMPARISON_RESULT *a
     ASSERT_EQ(expected_rhs_index, actual->rhs.event_index);
 }
 
-void test_ion_cli_process_events(std::string filepath, ION_WRITER_OUTPUT_FORMAT output_type, ION_CATALOG *catalog, BYTE **output, SIZE *output_len, IonEventResult *result) {
-    ION_EVENT_WRITER_CONTEXT writer_context;
-    ION_CLI_COMMON_ARGS common_args;
-    memset(&common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
-    common_args.input_files.push_back(filepath);
-    common_args.output_format = "events";
-    ION_ASSERT_OK(ion_event_in_memory_writer_open(&writer_context, filepath, output_type, catalog, NULL, NULL));
-    ION_ASSERT_OK(ion_writer_write_symbol(writer_context.writer, &ion_cli_event_stream_symbol));
-    ion_cli_command_process_standard(&writer_context, &common_args, catalog, result);
-    ION_ASSERT_OK(ion_event_in_memory_writer_close(&writer_context, output, output_len));
+void test_ion_cli_init_common_args(ION_CLI_COMMON_ARGS *common_args, const char *output_format="text",
+                                   const char *error_report="stdout", ION_CLI_IO_TYPE error_type=INPUT_FORMAT_CONSOLE) {
+    memset(common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
+    common_args->output_type = INPUT_FORMAT_MEMORY;
+    common_args->error_report_type = error_type;
+    common_args->output_format = output_format;
+    common_args->error_report = error_report;
 }
 
-void test_ion_cli_process_standard(std::string filepath, ION_WRITER_OUTPUT_FORMAT output_type, ION_CATALOG *catalog, BYTE **output, SIZE *output_len, IonEventResult *result) {
-    ION_EVENT_WRITER_CONTEXT writer_context;
+void test_ion_cli_add_input(const char *input, ION_CLI_IO_TYPE input_type, ION_CLI_COMMON_ARGS *common_args) {
+    common_args->input_files.push_back(input);
+    common_args->inputs_format = input_type;
+}
+
+void test_ion_cli_add_catalog(const char *catalog, ION_CLI_IO_TYPE input_type, ION_CLI_COMMON_ARGS *common_args) {
+    common_args->catalogs.push_back(catalog);
+    common_args->catalogs_format = input_type;
+}
+
+void test_ion_cli_init_process_args(ION_CLI_PROCESS_ARGS *process_args) {
+    memset(process_args, 0, sizeof(ION_CLI_PROCESS_ARGS));
+}
+
+void test_ion_cli_add_import(const char *import, ION_CLI_IO_TYPE input_type, ION_CLI_PROCESS_ARGS *process_args) {
+    process_args->imports_format = input_type;
+    process_args->imports.push_back(import);
+}
+
+void test_ion_cli_process(const char *filepath, ION_CLI_IO_TYPE input_type, ION_STRING *command_output,
+                          IonEventReport *report, const char *output_format = "text") {
     ION_CLI_COMMON_ARGS common_args;
-    memset(&common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
-    common_args.input_files.push_back(filepath);
-    ION_ASSERT_OK(ion_event_in_memory_writer_open(&writer_context, filepath, output_type, catalog, NULL, NULL));
-    ion_cli_command_process_standard(&writer_context, &common_args, catalog, result);
-    ION_ASSERT_OK(ion_event_in_memory_writer_close(&writer_context, output, output_len));
+    ION_CLI_PROCESS_ARGS process_args;
+    test_ion_cli_init_common_args(&common_args, output_format);
+    test_ion_cli_add_input(filepath, input_type, &common_args);
+    test_ion_cli_init_process_args(&process_args);
+    ion_cli_command_process(&common_args, &process_args, command_output, report);
 }
 
 void test_ion_cli_read_stream_successfully(BYTE *data, size_t data_len, IonEventStream *stream) {
@@ -74,12 +90,12 @@ void test_ion_cli_read_stream_successfully(BYTE *data, size_t data_len, IonEvent
     ASSERT_FALSE(result.has_comparison_result);
 }
 
-void test_ion_cli_assert_streams_equal(const char *expected_str, BYTE *actual_bytes, SIZE actual_bytes_len) {
+void test_ion_cli_assert_streams_equal(const char *expected_str, ION_STRING *actual_str) {
     IonEventStream expected("expected"), actual("actual");
     IonEventResult result;
 
     test_ion_cli_read_stream_successfully((BYTE *)expected_str, strlen(expected_str), &expected);
-    test_ion_cli_read_stream_successfully(actual_bytes, (size_t)actual_bytes_len, &actual);
+    test_ion_cli_read_stream_successfully(actual_str->value, (size_t)actual_str->length, &actual);
 
     ASSERT_TRUE(assertIonEventStreamEq(&expected, &actual, &result));
     ASSERT_FALSE(result.has_comparison_result);
@@ -87,42 +103,42 @@ void test_ion_cli_assert_streams_equal(const char *expected_str, BYTE *actual_by
 }
 
 TEST(IonCli, ProcessBasic) {
-    BYTE *output = NULL;
-    SIZE len;
-    IonEventResult result;
-    test_ion_cli_process_events(join_path(full_good_path, "one.ion"), ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, NULL, &output, &len, &result);
-    ASSERT_FALSE(result.has_error_description);
-    ASSERT_FALSE(result.has_comparison_result);
-    test_ion_cli_assert_streams_equal("1", output, len);
-    test_ion_cli_assert_streams_equal("$ion_event_stream {event_type:SCALAR, ion_type:INT, value_text:\"1\", value_binary:[0xE0, 0x01, 0x00, 0xEA, 0x21, 0x01], depth: 0} {event_type: STREAM_END, depth: 0}", output, len);
-    free(output);
+    ION_STRING command_output;
+    IonEventReport report;
+    test_ion_cli_process(join_path(full_good_path, "one.ion").c_str(), INPUT_FORMAT_FILE, &command_output, &report,
+                         "events");
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
+    test_ion_cli_assert_streams_equal("1", &command_output);
+    test_ion_cli_assert_streams_equal("$ion_event_stream {event_type:SCALAR, ion_type:INT, value_text:\"1\", value_binary:[0xE0, 0x01, 0x00, 0xEA, 0x21, 0x01], depth: 0} {event_type: STREAM_END, depth: 0}", &command_output);
+    free(command_output.value);
 }
 
 TEST(IonCli, UnequalValueTextAndValueBinaryFails) {
     // Text value is integer 1, binary value is integer 2
-    const char *test_name = "unequal text and binary";
     const char *event_stream = "$ion_event_stream {event_type:SCALAR, ion_type:INT, value_text:\"1\", value_binary:[0xE0, 0x01, 0x00, 0xEA, 0x21, 0x02], depth: 0} {event_type: STREAM_END, depth: 0}";
-    IonEventResult result;
-    ION_CLI_READER_CONTEXT reader;
-    memset(&reader, 0, sizeof(ION_CLI_READER_CONTEXT));
-    IonEventStream stream(test_name);
-    reader.event_stream = &stream;
-    ION_ASSERT_OK(ion_test_new_text_reader(event_stream, &reader.reader));
-    ION_ASSERT_FAIL(ion_cli_read_stream(&reader, NULL, &stream, &result));
-    ION_ASSERT_OK(ion_reader_close(reader.reader));
-    ASSERT_TRUE(result.has_error_description);
-    test_ion_cli_assert_error_equals(&result.error_description, ERROR_TYPE_STATE, IERR_INVALID_ARG, test_name);
-    ASSERT_TRUE(result.has_comparison_result);
-    test_ion_cli_assert_comparison_result_equals(&result.comparison_result, COMPARISON_RESULT_NOT_EQUAL, test_name, test_name, 0, 0);
+    IonEventReport report;
+    ION_STRING command_output;
+    ION_STRING_INIT(&command_output);
+    test_ion_cli_process(event_stream, INPUT_FORMAT_MEMORY, &command_output, &report);
+    ASSERT_TRUE(report.hasErrors());
+    test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_STATE, IERR_INVALID_ARG, event_stream);
+    ASSERT_TRUE(report.hasComparisonFailures());
+    test_ion_cli_assert_comparison_result_equals(&report.getComparisonResults()->at(0), COMPARISON_RESULT_NOT_EQUAL, event_stream, event_stream, 0, 0);
+    ASSERT_EQ(0, command_output.length);
 }
 
-void test_ion_cli_assert_comparison(std::string *files, size_t num_files, COMPARISON_TYPE comparison_type, IonEventReport *report) {
+void test_ion_cli_assert_comparison(std::string *files, size_t num_files, COMPARISON_TYPE comparison_type, IonEventReport *report, ION_STRING *command_output=NULL) {
     ION_CLI_COMMON_ARGS common_args;
-    memset(&common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
+    ION_STRING _command_output;
+    test_ion_cli_init_common_args(&common_args);
     for (size_t i = 0; i < num_files; i++) {
-        common_args.input_files.push_back(files[i]);
+        test_ion_cli_add_input(files[i].c_str(), INPUT_FORMAT_FILE, &common_args);
     }
-    ION_ASSERT_OK(ion_cli_command_compare_standard(&common_args, comparison_type, /*catalog=*/NULL, report, NULL));
+    ION_ASSERT_OK(ion_cli_command_compare(&common_args, comparison_type, &_command_output, report));
+    if (command_output) {
+        ION_STRING_ASSIGN(command_output, &_command_output);
+    }
 }
 
 TEST(IonCli, CompareNullsBasic) {
@@ -180,41 +196,39 @@ TEST(IonCli, CompareMultipleInputFiles) {
 
 TEST(IonCli, ErrorIsConveyed) {
     std::string test_file = join_path(full_bad_path, "annotationFalse.ion");
-    BYTE *output = NULL;
-    SIZE len;
-    IonEventResult result;
-    test_ion_cli_process_standard(test_file, ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, NULL, &output, &len, &result);
-    ASSERT_TRUE(result.has_error_description);
-    ASSERT_FALSE(result.has_comparison_result);
-    test_ion_cli_assert_error_equals(&result.error_description, ERROR_TYPE_READ, IERR_INVALID_SYNTAX, test_file);
-    free(output);
+    ION_STRING command_output;
+    IonEventReport report;
+    test_ion_cli_process(test_file.c_str(), INPUT_FORMAT_FILE, &command_output, &report);
+    ASSERT_TRUE(report.hasErrors());
+    ASSERT_FALSE(report.hasComparisonFailures());
+    test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_READ, IERR_INVALID_SYNTAX, test_file);
+    free(command_output.value);
 }
 
 TEST(IonCli, ErrorIsConveyedEvents) {
     std::string test_file = join_path(full_bad_path, "fieldNameFalse.ion");
-    BYTE *output = NULL;
-    SIZE len;
-    IonEventResult result;
-    test_ion_cli_process_events(test_file, ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, NULL, &output, &len, &result);
-    ASSERT_TRUE(result.has_error_description);
-    ASSERT_FALSE(result.has_comparison_result);
-    test_ion_cli_assert_error_equals(&result.error_description, ERROR_TYPE_READ, IERR_INVALID_FIELDNAME, test_file);
-    test_ion_cli_assert_streams_equal("$ion_event_stream {event_type:CONTAINER_START, ion_type:STRUCT, depth: 0}", output, len);
-    free(output);
+    ION_STRING command_output;
+    IonEventReport report;
+    test_ion_cli_process(test_file.c_str(), INPUT_FORMAT_FILE, &command_output, &report, "events");
+    ASSERT_TRUE(report.hasErrors());
+    ASSERT_FALSE(report.hasComparisonFailures());
+    test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_READ, IERR_INVALID_FIELDNAME, test_file);
+    test_ion_cli_assert_streams_equal("$ion_event_stream {event_type:CONTAINER_START, ion_type:STRUCT, depth: 0}", &command_output);
+    free(command_output.value);
 }
 
 TEST(IonCli, AnnotatedIvmsEmbedded) {
     std::string test_file = join_path(full_good_nonequivs_path, "annotatedIvms.ion");
     ION_CLI_READER_CONTEXT reader_context;
-    BYTE *output = NULL;
-    SIZE len;
-    IonEventResult result;
+    ION_STRING command_output;
+    ION_STRING_INIT(&command_output);
+    IonEventReport report;
     IonEventStream stream(test_file);
-    test_ion_cli_process_events(test_file, ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, NULL, &output, &len, &result);
-    ASSERT_FALSE(result.has_error_description);
-    ASSERT_FALSE(result.has_comparison_result);
-    ASSERT_TRUE(output != NULL);
-    test_ion_cli_read_stream_successfully(output, (size_t)len, &stream);
+    test_ion_cli_process(test_file.c_str(), INPUT_FORMAT_FILE, &command_output, &report, "events");
+    ASSERT_FALSE(report.hasErrors());
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_FALSE(ION_STRING_IS_NULL(&command_output));
+    test_ion_cli_read_stream_successfully(command_output.value, (size_t)command_output.length, &stream);
     ASSERT_EQ(CONTAINER_START, stream.at(0)->event_type);
     ASSERT_EQ(0, stream.at(0)->depth);
     ASSERT_EQ(SCALAR, stream.at(1)->event_type);
@@ -225,7 +239,7 @@ TEST(IonCli, AnnotatedIvmsEmbedded) {
     ASSERT_EQ(STREAM_END, stream.at(3)->event_type);
     ASSERT_EQ(CONTAINER_END, stream.at(4)->event_type);
     ASSERT_EQ(0, stream.at(4)->depth);
-    free(output);
+    free(command_output.value);
 }
 
 // TODO consider having a list of (location, index) in error report to better convey errors during comparison
@@ -237,66 +251,49 @@ TEST(IonCli, AnnotatedIvmsEmbedded) {
 TEST(IonCli, ComparisonSetsDifferentLengthsEquivsSucceeds) {
     const char *lhs_data = "(1 0x1 0b1)";
     const char *rhs_data = "(0x1 1)";
-    IonEventResult result;
-    IonEventStream lhs(lhs_data), rhs(rhs_data);
-    test_ion_cli_read_stream_successfully((BYTE *)lhs_data, strlen(lhs_data), &lhs);
-    test_ion_cli_read_stream_successfully((BYTE *)rhs_data, strlen(rhs_data), &rhs);
-    ion_cli_command_compare_streams(COMPARISON_TYPE_EQUIVS, &lhs, &rhs, &result);
-    ASSERT_FALSE(result.has_error_description);
-    ASSERT_FALSE(result.has_comparison_result);
-    ion_cli_command_compare_streams(COMPARISON_TYPE_EQUIVS, &rhs, &lhs, &result);
-    ASSERT_FALSE(result.has_error_description);
-    ASSERT_FALSE(result.has_comparison_result);
+    IonEventReport report;
+    ION_CLI_COMMON_ARGS common_args;
+    test_ion_cli_init_common_args(&common_args);
+    test_ion_cli_add_input(lhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    test_ion_cli_add_input(rhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    ion_cli_command_compare(&common_args, COMPARISON_TYPE_EQUIVS, NULL, &report);
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
+    // Reverse the order of the inputs.
+    test_ion_cli_init_common_args(&common_args);
+    test_ion_cli_add_input(rhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    test_ion_cli_add_input(lhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    ion_cli_command_compare(&common_args, COMPARISON_TYPE_EQUIVS, NULL, &report);
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
+
 }
 
 TEST(IonCli, ComparisonSetsDifferentLengthsNonequivsSucceeds) {
     const char *lhs_data = "(1)";
     const char *rhs_data = "(2 3)";
-    IonEventResult result;
-    IonEventStream lhs(lhs_data), rhs(rhs_data);
-    test_ion_cli_read_stream_successfully((BYTE *)lhs_data, strlen(lhs_data), &lhs);
-    test_ion_cli_read_stream_successfully((BYTE *)rhs_data, strlen(rhs_data), &rhs);
-    ion_cli_command_compare_streams(COMPARISON_TYPE_NONEQUIVS, &lhs, &rhs, &result);
-    ASSERT_FALSE(result.has_error_description);
-    ASSERT_FALSE(result.has_comparison_result);
-    ion_cli_command_compare_streams(COMPARISON_TYPE_NONEQUIVS, &rhs, &lhs, &result);
-    ASSERT_FALSE(result.has_error_description);
-    ASSERT_FALSE(result.has_comparison_result);
-}
-
-void test_ion_cli_init_common_args(ION_CLI_COMMON_ARGS *common_args, const char *output_format="text",
-                                   const char *error_report="stdout", ION_CLI_IO_TYPE error_type=INPUT_FORMAT_CONSOLE) {
-    memset(common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
-    common_args->output_type = INPUT_FORMAT_MEMORY;
-    common_args->error_report_type = error_type;
-    common_args->output_format = output_format;
-    common_args->error_report = error_report;
-}
-
-void test_ion_cli_add_input(const char *input, ION_CLI_IO_TYPE input_type, ION_CLI_COMMON_ARGS *common_args) {
-    common_args->input_files.push_back(input);
-    common_args->inputs_format = input_type;
-}
-
-void test_ion_cli_add_catalog(const char *catalog, ION_CLI_IO_TYPE input_type, ION_CLI_COMMON_ARGS *common_args) {
-    common_args->catalogs.push_back(catalog);
-    common_args->catalogs_format = input_type;
-}
-
-void test_ion_cli_init_process_args(ION_CLI_PROCESS_ARGS *process_args) {
-    memset(process_args, 0, sizeof(ION_CLI_PROCESS_ARGS));
-}
-
-void test_ion_cli_add_import(const char *import, ION_CLI_IO_TYPE input_type, ION_CLI_PROCESS_ARGS *process_args) {
-    process_args->imports_format = input_type;
-    process_args->imports.push_back(import);
+    IonEventReport report;
+    ION_CLI_COMMON_ARGS common_args;
+    test_ion_cli_init_common_args(&common_args);
+    test_ion_cli_add_input(lhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    test_ion_cli_add_input(rhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    ion_cli_command_compare(&common_args, COMPARISON_TYPE_NONEQUIVS, NULL, &report);
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
+    // Reverse the order of the inputs.
+    test_ion_cli_init_common_args(&common_args);
+    test_ion_cli_add_input(rhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    test_ion_cli_add_input(lhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    ion_cli_command_compare(&common_args, COMPARISON_TYPE_NONEQUIVS, NULL, &report);
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
 }
 
 TEST(IonCli, BasicProcessWithCatalog) {
     ION_CLI_COMMON_ARGS common_args;
     ION_CLI_PROCESS_ARGS process_args;
     IonEventReport report;
-    ION_STRING output;
+    ION_STRING command_output;
     test_ion_cli_init_common_args(&common_args);
     test_ion_cli_add_input(
             "$ion_symbol_table::{symbols:[\"def\"], imports:[{name:\"foo\", version:1, max_id:1}]} $10::$11",
@@ -304,10 +301,10 @@ TEST(IonCli, BasicProcessWithCatalog) {
     test_ion_cli_add_catalog("$ion_shared_symbol_table::{name:\"foo\", version:1, symbols:[\"abc\"]}",
                              INPUT_FORMAT_MEMORY, &common_args);
     test_ion_cli_init_process_args(&process_args);
-    ION_STRING_INIT(&output);
-    ION_ASSERT_OK(ion_cli_command_process(&common_args, &process_args, &output, &report));
+    ION_STRING_INIT(&command_output);
+    ION_ASSERT_OK(ion_cli_command_process(&common_args, &process_args, &command_output, &report));
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
-    test_ion_cli_assert_streams_equal("abc::def", output.value, output.length);
-    free(output.value);
+    test_ion_cli_assert_streams_equal("abc::def", &command_output);
+    free(command_output.value);
 }

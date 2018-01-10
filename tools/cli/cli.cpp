@@ -608,13 +608,9 @@ cleanup:
     iRETURN;
 }
 
-void ion_cli_command_compare_streams(COMPARISON_TYPE comparison_type, IonEventStream *lhs, IonEventStream *rhs, IonEventResult *result) {
-    if (comparison_type == COMPARISON_TYPE_BASIC) {
-        assertIonEventStreamEq(lhs, rhs, result);
-    }
-    else {
-        testComparisonSets(lhs, rhs, comparison_type, result);
-    }
+inline BOOL ion_cli_command_compare_streams(COMPARISON_TYPE comparison_type, IonEventStream *lhs, IonEventStream *rhs, IonEventResult *result) {
+    return (comparison_type == COMPARISON_TYPE_BASIC)
+           ? assertIonEventStreamEq(lhs, rhs, result) : testComparisonSets(lhs, rhs, comparison_type, result);
 }
 
 iERR ion_cli_command_compare_standard(ION_CLI_COMMON_ARGS *common_args, COMPARISON_TYPE comparison_type, ION_CATALOG *catalog, IonEventReport *report, IonEventResult *result) {
@@ -636,8 +632,9 @@ iERR ion_cli_command_compare_standard(ION_CLI_COMMON_ARGS *common_args, COMPARIS
     for (size_t i = 0; i < num_inputs; i++) {
         for (size_t j = 0; j < num_inputs; j++) {
             IonEventResult compare_result;
-            ion_cli_command_compare_streams(comparison_type, streams[i], streams[j], &compare_result);
-            report->addResult(&compare_result);
+            if (!ion_cli_command_compare_streams(comparison_type, streams[i], streams[j], &compare_result)) {
+                report->addResult(&compare_result);
+            }
         }
     }
 cleanup:
