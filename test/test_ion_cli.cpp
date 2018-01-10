@@ -41,9 +41,9 @@ void test_ion_cli_assert_comparison_result_equals(ION_EVENT_COMPARISON_RESULT *a
 }
 
 void test_ion_cli_init_common_args(ION_CLI_COMMON_ARGS *common_args, const char *output_format="text",
-                                   const char *error_report="stdout", ION_CLI_IO_TYPE error_type=INPUT_FORMAT_CONSOLE) {
+                                   const char *error_report="stdout", ION_CLI_IO_TYPE error_type=IO_TYPE_CONSOLE) {
     memset(common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
-    common_args->output_type = INPUT_FORMAT_MEMORY;
+    common_args->output_type = IO_TYPE_MEMORY;
     common_args->error_report_type = error_type;
     common_args->output_format = output_format;
     common_args->error_report = error_report;
@@ -82,9 +82,8 @@ void test_ion_cli_read_stream_successfully(BYTE *data, size_t data_len, IonEvent
     ION_CLI_READER_CONTEXT reader_context;
     memset(&reader_context, 0, sizeof(ION_CLI_READER_CONTEXT));
     IonEventResult result;
-    reader_context.event_stream = stream;
     ION_ASSERT_OK(ion_test_new_reader(data, (SIZE)data_len, &reader_context.reader));
-    ION_ASSERT_OK(ion_cli_read_stream(&reader_context, NULL, stream, &result));
+    ION_ASSERT_OK(ion_event_stream_read_all(reader_context.reader, NULL, stream, &result));
     ION_ASSERT_OK(ion_reader_close(reader_context.reader));
     ASSERT_FALSE(result.has_error_description);
     ASSERT_FALSE(result.has_comparison_result);
@@ -105,7 +104,7 @@ void test_ion_cli_assert_streams_equal(const char *expected_str, ION_STRING *act
 TEST(IonCli, ProcessBasic) {
     ION_STRING command_output;
     IonEventReport report;
-    test_ion_cli_process(join_path(full_good_path, "one.ion").c_str(), INPUT_FORMAT_FILE, &command_output, &report,
+    test_ion_cli_process(join_path(full_good_path, "one.ion").c_str(), IO_TYPE_FILE, &command_output, &report,
                          "events");
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
@@ -120,7 +119,7 @@ TEST(IonCli, UnequalValueTextAndValueBinaryFails) {
     IonEventReport report;
     ION_STRING command_output;
     ION_STRING_INIT(&command_output);
-    test_ion_cli_process(event_stream, INPUT_FORMAT_MEMORY, &command_output, &report);
+    test_ion_cli_process(event_stream, IO_TYPE_MEMORY, &command_output, &report);
     ASSERT_TRUE(report.hasErrors());
     test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_STATE, IERR_INVALID_ARG, event_stream);
     ASSERT_TRUE(report.hasComparisonFailures());
@@ -133,7 +132,7 @@ void test_ion_cli_assert_comparison(std::string *files, size_t num_files, COMPAR
     ION_STRING _command_output;
     test_ion_cli_init_common_args(&common_args);
     for (size_t i = 0; i < num_files; i++) {
-        test_ion_cli_add_input(files[i].c_str(), INPUT_FORMAT_FILE, &common_args);
+        test_ion_cli_add_input(files[i].c_str(), IO_TYPE_FILE, &common_args);
     }
     ION_ASSERT_OK(ion_cli_command_compare(&common_args, comparison_type, &_command_output, report));
     if (command_output) {
@@ -198,7 +197,7 @@ TEST(IonCli, ErrorIsConveyed) {
     std::string test_file = join_path(full_bad_path, "annotationFalse.ion");
     ION_STRING command_output;
     IonEventReport report;
-    test_ion_cli_process(test_file.c_str(), INPUT_FORMAT_FILE, &command_output, &report);
+    test_ion_cli_process(test_file.c_str(), IO_TYPE_FILE, &command_output, &report);
     ASSERT_TRUE(report.hasErrors());
     ASSERT_FALSE(report.hasComparisonFailures());
     test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_READ, IERR_INVALID_SYNTAX, test_file);
@@ -209,7 +208,7 @@ TEST(IonCli, ErrorIsConveyedEvents) {
     std::string test_file = join_path(full_bad_path, "fieldNameFalse.ion");
     ION_STRING command_output;
     IonEventReport report;
-    test_ion_cli_process(test_file.c_str(), INPUT_FORMAT_FILE, &command_output, &report, "events");
+    test_ion_cli_process(test_file.c_str(), IO_TYPE_FILE, &command_output, &report, "events");
     ASSERT_TRUE(report.hasErrors());
     ASSERT_FALSE(report.hasComparisonFailures());
     test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_READ, IERR_INVALID_FIELDNAME, test_file);
@@ -224,7 +223,7 @@ TEST(IonCli, AnnotatedIvmsEmbedded) {
     ION_STRING_INIT(&command_output);
     IonEventReport report;
     IonEventStream stream(test_file);
-    test_ion_cli_process(test_file.c_str(), INPUT_FORMAT_FILE, &command_output, &report, "events");
+    test_ion_cli_process(test_file.c_str(), IO_TYPE_FILE, &command_output, &report, "events");
     ASSERT_FALSE(report.hasErrors());
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(ION_STRING_IS_NULL(&command_output));
@@ -254,15 +253,15 @@ TEST(IonCli, ComparisonSetsDifferentLengthsEquivsSucceeds) {
     IonEventReport report;
     ION_CLI_COMMON_ARGS common_args;
     test_ion_cli_init_common_args(&common_args);
-    test_ion_cli_add_input(lhs_data, INPUT_FORMAT_MEMORY, &common_args);
-    test_ion_cli_add_input(rhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    test_ion_cli_add_input(lhs_data, IO_TYPE_MEMORY, &common_args);
+    test_ion_cli_add_input(rhs_data, IO_TYPE_MEMORY, &common_args);
     ion_cli_command_compare(&common_args, COMPARISON_TYPE_EQUIVS, NULL, &report);
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
     // Reverse the order of the inputs.
     test_ion_cli_init_common_args(&common_args);
-    test_ion_cli_add_input(rhs_data, INPUT_FORMAT_MEMORY, &common_args);
-    test_ion_cli_add_input(lhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    test_ion_cli_add_input(rhs_data, IO_TYPE_MEMORY, &common_args);
+    test_ion_cli_add_input(lhs_data, IO_TYPE_MEMORY, &common_args);
     ion_cli_command_compare(&common_args, COMPARISON_TYPE_EQUIVS, NULL, &report);
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
@@ -275,15 +274,15 @@ TEST(IonCli, ComparisonSetsDifferentLengthsNonequivsSucceeds) {
     IonEventReport report;
     ION_CLI_COMMON_ARGS common_args;
     test_ion_cli_init_common_args(&common_args);
-    test_ion_cli_add_input(lhs_data, INPUT_FORMAT_MEMORY, &common_args);
-    test_ion_cli_add_input(rhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    test_ion_cli_add_input(lhs_data, IO_TYPE_MEMORY, &common_args);
+    test_ion_cli_add_input(rhs_data, IO_TYPE_MEMORY, &common_args);
     ion_cli_command_compare(&common_args, COMPARISON_TYPE_NONEQUIVS, NULL, &report);
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
     // Reverse the order of the inputs.
     test_ion_cli_init_common_args(&common_args);
-    test_ion_cli_add_input(rhs_data, INPUT_FORMAT_MEMORY, &common_args);
-    test_ion_cli_add_input(lhs_data, INPUT_FORMAT_MEMORY, &common_args);
+    test_ion_cli_add_input(rhs_data, IO_TYPE_MEMORY, &common_args);
+    test_ion_cli_add_input(lhs_data, IO_TYPE_MEMORY, &common_args);
     ion_cli_command_compare(&common_args, COMPARISON_TYPE_NONEQUIVS, NULL, &report);
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
@@ -297,9 +296,9 @@ TEST(IonCli, BasicProcessWithCatalog) {
     test_ion_cli_init_common_args(&common_args);
     test_ion_cli_add_input(
             "$ion_symbol_table::{symbols:[\"def\"], imports:[{name:\"foo\", version:1, max_id:1}]} $10::$11",
-            INPUT_FORMAT_MEMORY, &common_args);
+            IO_TYPE_MEMORY, &common_args);
     test_ion_cli_add_catalog("$ion_shared_symbol_table::{name:\"foo\", version:1, symbols:[\"abc\"]}",
-                             INPUT_FORMAT_MEMORY, &common_args);
+                             IO_TYPE_MEMORY, &common_args);
     test_ion_cli_init_process_args(&process_args);
     ION_STRING_INIT(&command_output);
     ION_ASSERT_OK(ion_cli_command_process(&common_args, &process_args, &command_output, &report));

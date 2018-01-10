@@ -257,7 +257,7 @@ iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std
         default:
             IONFAILSTATE(IERR_INVALID_ARG, "Unknown READER_INPUT_TYPE.", result);
     }
-    IONREPORT(ion_event_stream_read_all(reader, stream, result));
+    IONREPORT(ion_event_stream_read_all(reader, NULL, stream, result));
 cleanup:
     if (reader) {
         ION_NON_FATAL(ion_reader_close(reader), "Failed to close reader.");

@@ -29,6 +29,7 @@ TIMESTAMP_COMPARISON_FN g_TimestampEquals = ion_timestamp_equals;
 BOOL assertIonEventsEq(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual,
                        size_t index_actual, COMPARISON_TYPE comparison_type, IonEventResult *result);
 
+// TODO rename
 void _ion_cli_set_comparison_result(IonEventResult *result, COMPARISON_TYPE comparison_type, IonEvent *lhs, IonEvent *rhs, size_t lhs_index, size_t rhs_index, std::string lhs_location, std::string rhs_location, std::string message) {
     if (result != NULL) {
         if (ion_event_copy(&result->comparison_result.lhs.event, lhs, lhs_location, result)

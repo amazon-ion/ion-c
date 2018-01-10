@@ -195,13 +195,13 @@ iERR ion_cli_open_reader_basic(ION_CLI_READER_CONTEXT *reader_context, ION_CLI_I
     ION_SET_ERROR_CONTEXT(file_path, NULL);
 
     switch (input_format) {
-        case INPUT_FORMAT_FILE:
+        case IO_TYPE_FILE:
             IONREPORT(ion_cli_open_reader_file(reader_context, file_path, result));
             break;
-        case INPUT_FORMAT_CONSOLE:
+        case IO_TYPE_CONSOLE:
             IONREPORT(ion_cli_open_reader_stdin(reader_context, result));
             break;
-        case INPUT_FORMAT_MEMORY:
+        case IO_TYPE_MEMORY:
             IONREPORT(ion_cli_open_reader_memory(reader_context, file_path, result));
             break;
         default:
@@ -216,7 +216,6 @@ iERR ion_cli_open_reader(ION_CLI_IO_TYPE input_format, ION_CATALOG *catalog, std
     memset(reader_context, 0, sizeof(ION_CLI_READER_CONTEXT));
     ion_event_initialize_reader_options(&reader_context->options);
     reader_context->options.pcatalog = catalog;
-    reader_context->event_stream = event_stream;
     ion_event_register_symbol_table_callback(&reader_context->options, event_stream);
 
     IONREPORT(ion_cli_open_reader_basic(reader_context, input_format, file_path, result));
@@ -270,14 +269,14 @@ iERR ion_cli_open_writer_basic(ION_CLI_IO_TYPE output_type, ION_WRITER_OUTPUT_FO
     writer_context->output_location = output_destination;
 
     switch (output_type) {
-        case INPUT_FORMAT_FILE:
+        case IO_TYPE_FILE:
             writer_context->file_stream = fopen(output_destination.c_str(), "wb");
             if (!writer_context->file_stream) {
                 IONFAILSTATE(IERR_CANT_FIND_FILE, output_destination, result);
             }
             IONCWRITE(ion_stream_open_file_out(writer_context->file_stream, &writer_context->ion_stream));
             break;
-        case INPUT_FORMAT_CONSOLE:
+        case IO_TYPE_CONSOLE:
             if (output_destination == "stdout") {
                 IONCWRITE(ion_stream_open_stdout(&writer_context->ion_stream));
             }
@@ -288,7 +287,7 @@ iERR ion_cli_open_writer_basic(ION_CLI_IO_TYPE output_type, ION_WRITER_OUTPUT_FO
                 IONFAILSTATE(IERR_INVALID_STATE, "Unknown console output destination.", result);
             }
             break;
-        case INPUT_FORMAT_MEMORY:
+        case IO_TYPE_MEMORY:
             IONCWRITE(ion_stream_open_memory_only(&writer_context->ion_stream));
             break;
         default:
@@ -318,7 +317,7 @@ iERR ion_cli_close_writer(ION_EVENT_WRITER_CONTEXT *context, ION_CLI_IO_TYPE out
     iENTER;
     ASSERT(context);
     ION_SET_ERROR_CONTEXT(&context->output_location, NULL);
-    if (output_type == INPUT_FORMAT_MEMORY) {
+    if (output_type == IO_TYPE_MEMORY) {
         ASSERT(output);
         IONREPORT(ion_event_in_memory_writer_close(context, &output->value, &output->length, result));
         IONCLEANEXIT;
@@ -377,63 +376,6 @@ iERR ion_cli_open_event_writer(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTE
     cRETURN;
 }
 
-iERR ion_cli_is_event_stream(ION_CLI_READER_CONTEXT *reader_context, bool *is_event_stream, bool *has_more_events, IonEventResult *result) {
-    iENTER;
-    ION_SET_ERROR_CONTEXT(&reader_context->input_location, NULL);
-    ION_TYPE ion_type;
-    ION_SYMBOL *symbol_value = NULL;
-    IonEvent *event;
-    size_t i = 0;
-    IonEventStream *stream = reader_context->event_stream;
-    ASSERT(is_event_stream);
-
-    *is_event_stream = FALSE;
-    *has_more_events = TRUE;
-    for (;; i++) {
-        IONCREAD(ion_reader_next(reader_context->reader, &ion_type));
-        if (ion_type == tid_EOF) {
-            IONCLEANEXIT;
-        }
-        IONREPORT(ion_event_stream_read(reader_context->reader, stream, ion_type, FALSE, 0, FALSE, result));
-        ASSERT(stream->size() > 0);
-        event = stream->at(i);
-        if (event->event_type == SYMBOL_TABLE) {
-            // It's unlikely, but event streams could be serialized with imports. If this is true, skip to the next
-            // event.
-            continue;
-        }
-        if (event->event_type == SCALAR && event->ion_type == tid_SYMBOL
-            && event->num_annotations == 0 && event->depth == 0) {
-            symbol_value = (ION_SYMBOL *) event->value;
-            if (ION_STRING_EQUALS(&ion_cli_event_stream_symbol, &symbol_value->value)) {
-                *is_event_stream = TRUE;
-                stream->remove(i); // Toss this event -- it's not part of the user data.
-            }
-        }
-        else if (event->event_type == STREAM_END) {
-            *has_more_events = FALSE;
-        }
-        break;
-    }
-    cRETURN;
-}
-
-iERR ion_cli_read_stream(ION_CLI_READER_CONTEXT *reader_context, ION_CATALOG *catalog, IonEventStream *stream, IonEventResult *result) {
-    iENTER;
-    bool is_event_stream, has_more_events;
-
-    IONREPORT(ion_cli_is_event_stream(reader_context, &is_event_stream, &has_more_events, result));
-    if (has_more_events) {
-        if (is_event_stream) {
-            IONREPORT(ion_event_stream_read_all_events(reader_context->reader, stream, catalog, result));
-        }
-        else {
-            IONREPORT(ion_event_stream_read_all(reader_context->reader, stream, result));
-        }
-    }
-    cRETURN;
-}
-
 iERR ion_cli_write_value(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *writer_context, ION_CATALOG *catalog, std::string *file_path, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(file_path, NULL);
@@ -442,12 +384,12 @@ iERR ion_cli_write_value(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *wr
     IONREPORT(ion_cli_open_reader(args->inputs_format, catalog, file_path, &reader_context, &stream, result));
     if (args->output_format == "events") {
         // NOTE: don't short-circuit on read failure. Write as many events as possible.
-        err = ion_cli_read_stream(&reader_context, catalog, &stream, result);
+        err = ion_event_stream_read_all(reader_context.reader, catalog, &stream, result);
         UPDATEERROR(ion_event_stream_write_all_events(writer_context->writer, &stream, catalog, result));
         IONREPORT(err);
     }
     else if (args->output_format != "none"){
-        IONREPORT(ion_cli_read_stream(&reader_context, catalog, &stream, result));
+        IONREPORT(ion_event_stream_read_all(reader_context.reader, catalog, &stream, result));
         IONREPORT(ion_event_stream_write_all(writer_context->writer, &stream, result));
         // Would be nice to use this (especially for performance testing), but having to peek at the first value in the
         // stream (to identify $ion_event_stream) rules it out.
@@ -461,7 +403,7 @@ cleanup:
 iERR ion_cli_command_process_standard(ION_EVENT_WRITER_CONTEXT *writer_context, ION_CLI_COMMON_ARGS *common_args, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&common_args->output, NULL);
-    if (common_args->inputs_format == INPUT_FORMAT_CONSOLE) {
+    if (common_args->inputs_format == IO_TYPE_CONSOLE) {
         IONREPORT(ion_cli_write_value(common_args, writer_context, catalog, NULL, result));
     }
     else {
@@ -478,23 +420,23 @@ iERR ion_cli_args_common(std::map<std::string, docopt::value> *args, ION_CLI_COM
     ION_SET_ERROR_CONTEXT(&common_args->output, NULL);
     IonEventResult result;
     if (common_args->output == "stdout" || common_args->output == "stderr") {
-        common_args->output_type = INPUT_FORMAT_CONSOLE;
+        common_args->output_type = IO_TYPE_CONSOLE;
     }
     common_args->output_format = args->find("--output-format")->second.asString();
     common_args->error_report = args->find("--error-report")->second.asString();
     if (common_args->error_report == "stdout" || common_args->error_report == "stderr") {
-        common_args->error_report_type = INPUT_FORMAT_CONSOLE;
+        common_args->error_report_type = IO_TYPE_CONSOLE;
     }
     if (ion_cli_has_value(args, "--catalog")) {
         common_args->catalogs = args->find("--catalog")->second.asStringList();
     }
     if (ion_cli_has_flag(args, "-")) {
-        common_args->inputs_format = INPUT_FORMAT_CONSOLE;
+        common_args->inputs_format = IO_TYPE_CONSOLE;
     }
     else {
         common_args->input_files = args->find("<input_file>")->second.asStringList();
     }
-    if (!common_args->inputs_format == INPUT_FORMAT_CONSOLE && common_args->input_files.empty()) {
+    if (!common_args->inputs_format == IO_TYPE_CONSOLE && common_args->input_files.empty()) {
         IONFAILSTATE(IERR_INVALID_ARG, "Input not specified.", &result);
     }
 cleanup:
@@ -626,7 +568,7 @@ iERR ion_cli_command_compare_standard(ION_CLI_COMMON_ARGS *common_args, COMPARIS
     for (size_t i = 0; i < num_inputs; i++) {
         streams[i] = new IonEventStream(common_args->input_files.at(i));
         IONREPORT(ion_cli_open_reader(common_args->inputs_format, catalog, &common_args->input_files.at(i), &reader_contexts[i], streams[i], result));
-        IONREPORT(ion_cli_read_stream(&reader_contexts[i], catalog, streams[i], result));
+        IONREPORT(ion_event_stream_read_all(reader_contexts[i].reader, catalog, streams[i], result));
     }
 
     for (size_t i = 0; i < num_inputs; i++) {

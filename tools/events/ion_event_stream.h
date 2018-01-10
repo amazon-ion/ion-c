@@ -236,11 +236,9 @@ iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStre
 iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth, BOOL is_embedded_stream_set, IonEventResult *result);
 
 /**
- * Reads an IonEventStream from the given reader's data.
+ * Reads an IonEventStream from the given reader's data, which may contain a regular Ion stream or an event stream.
  */
-iERR ion_event_stream_read_all(hREADER hreader, IonEventStream *stream, IonEventResult *result);
-
-iERR ion_event_stream_read_all_events(hREADER reader, IonEventStream *stream, ION_CATALOG *catalog, IonEventResult *result);
+iERR ion_event_stream_read_all(hREADER hreader, ION_CATALOG *catalog, IonEventStream *stream, IonEventResult *result);
 
 iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_WRITER_OUTPUT_FORMAT output_type,
                                          ION_CATALOG *catalog, BYTE **out, SIZE *len, IonEventResult *result);

@@ -229,118 +229,6 @@ size_t valueEventLength(IonEventStream *stream, size_t start_index) {
     return length;
 }
 
-iERR _ion_event_stream_read_all_recursive(hREADER hreader, IonEventStream *stream, BOOL in_struct, int depth, BOOL is_embedded_stream_set, IonEventResult *result) {
-    iENTER;
-    ION_SET_ERROR_CONTEXT(&stream->location, NULL);
-    ION_TYPE t;
-    for (;;) {
-        IONCREAD(ion_reader_next(hreader, &t));
-        if (t == tid_EOF) {
-            break;
-        }
-        IONREPORT(ion_event_stream_read(hreader, stream, t, in_struct, depth, is_embedded_stream_set, result));
-    }
-    cRETURN;
-}
-
-/**
- * Copies the given SCALAR event's value so that it may be used outside the scope of the event's owning stream. The
- * copied value is allocated such that it may be freed safely by free_ion_event_value.
- */
-iERR ion_event_copy_value(IonEvent *event, void **value, std::string location, IonEventResult *result) {
-    iENTER;
-    ION_SET_ERROR_CONTEXT(&location, NULL);
-    BOOL *bool_val = NULL;
-    ION_INT *int_val = NULL;
-    double *float_val = NULL;
-    ION_DECIMAL *decimal = NULL;
-    ION_TIMESTAMP *timestamp = NULL;
-    ION_SYMBOL *symbol = NULL;
-
-    ASSERT(value);
-    ASSERT(event);
-
-    if (event->event_type != SCALAR) {
-        IONFAILSTATE(IERR_INVALID_ARG, "Illegal state: cannot copy the value of a non-SCALAR event.", result);
-    }
-    switch (ION_TID_INT(event->ion_type)) {
-        case TID_NULL:
-            break;
-        case TID_BOOL:
-            bool_val = (BOOL *)malloc(sizeof(BOOL));
-            *bool_val = *(BOOL *)event->value;
-            *value = bool_val;
-            break;
-        case TID_POS_INT:
-        case TID_NEG_INT:
-            // NOTE: owner must be NULL; otherwise, this may be unexpectedly freed.
-            IONCSTATE(ion_int_alloc(NULL, &int_val), "Failed to allocate a new ION_INT.");
-            *value = int_val;
-            IONCSTATE(ion_int_copy(int_val, (ION_INT *)event->value, int_val->_owner), "Failed to copy int value.");
-            break;
-        case TID_FLOAT:
-            float_val = (double *)malloc(sizeof(double));
-            *float_val = *(double *)event->value;
-            *value = float_val;
-            break;
-        case TID_DECIMAL:
-            decimal = (ION_DECIMAL *)calloc(1, sizeof(ION_DECIMAL));
-            *value = decimal;
-            IONCSTATE(ion_decimal_copy(decimal, (ION_DECIMAL *)event->value), "Failed to copy decimal value.");
-            break;
-        case TID_TIMESTAMP:
-            timestamp = (ION_TIMESTAMP *)malloc(sizeof(ION_TIMESTAMP));
-            // TODO it will not be this simple if ION_TIMESTAMP's fraction field is upgraded to use ION_DECIMAL.
-            memcpy(timestamp, (ION_TIMESTAMP *)event->value, sizeof(ION_TIMESTAMP));
-            *value = timestamp;
-            break;
-        case TID_SYMBOL:
-            copy_ion_symbol(&symbol, (ION_SYMBOL *)event->value);
-            *value = symbol;
-            break;
-        case TID_STRING:
-        case TID_CLOB:
-        case TID_BLOB:
-            *value = copy_ion_string((ION_STRING *)event->value);
-            break;
-        default:
-            IONFAILSTATE(IERR_INVALID_ARG, "Illegal state: unknown Ion type in event.", result);
-    }
-    cRETURN;
-}
-
-iERR ion_event_copy(IonEvent **dst, IonEvent *src, std::string location, IonEventResult *result) {
-    iENTER;
-    ION_SET_ERROR_CONTEXT(&location, NULL);
-    ASSERT(dst != NULL);
-    ASSERT(*dst == NULL);
-    ASSERT(src != NULL);
-    if (src->event_type == SYMBOL_TABLE) {
-        IONFAILSTATE(IERR_INVALID_ARG, "Cannot copy a SYMBOL_TABLE event.", result);
-    }
-    *dst = new IonEvent(src->event_type, src->ion_type, src->field_name, src->annotations, src->num_annotations, src->depth);
-    if (src->event_type == SCALAR) {
-        IONREPORT(ion_event_copy_value(src, &(*dst)->value, location, result));
-    }
-    cRETURN;
-}
-
-iERR record_symbol_table_context_change(void *stream, ION_COLLECTION *imports) {
-    iENTER;
-    IonEventStream *event_stream = (IonEventStream *)stream;
-    IonEvent *event = event_stream->append_new(SYMBOL_TABLE, tid_none, NULL, NULL, 0, 0);
-    ION_COLLECTION *copied_imports = (ION_COLLECTION *)ion_alloc_owner(sizeof(ION_COLLECTION));
-    _ion_collection_initialize(copied_imports, copied_imports, sizeof(ION_SYMBOL_TABLE_IMPORT));
-    event->value = copied_imports;
-    IONCHECK(_ion_collection_copy(copied_imports, imports, &_ion_symbol_table_local_import_copy_new_owner, copied_imports));
-    iRETURN;
-}
-
-void ion_event_register_symbol_table_callback(ION_READER_OPTIONS *options, IonEventStream *stream) {
-    options->context_change_notifier.notify = &record_symbol_table_context_change;
-    options->context_change_notifier.context = stream;
-}
-
 iERR ion_event_stream_read_embedded_stream(hREADER reader, IonEventStream *stream, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&stream->location, NULL);
@@ -357,6 +245,7 @@ iERR ion_event_stream_read_embedded_stream(hREADER reader, IonEventStream *strea
     cRETURN;
 }
 
+iERR _ion_event_stream_read_all_recursive(hREADER hreader, IonEventStream *stream, BOOL in_struct, int depth, BOOL is_embedded_stream_set, IonEventResult *result);
 /**
  * Reads the reader's current value into an IonEvent and appends that event to the given IonEventStream. The event's
  * value is allocated such that it may be freed safely by free_ion_event_value.
@@ -474,7 +363,7 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
             IONCREAD(ion_reader_step_in(hreader));
             IONREPORT(_ion_event_stream_read_all_recursive(hreader, stream, t == tid_STRUCT, depth + 1, is_embedded_stream_set, result));
             IONCREAD(ion_reader_step_out(hreader));
-            stream->append_new(CONTAINER_END, t, /*field_name=*/NULL, /*annotations=*/NULL, /*annotation_count=*/0,
+            stream->append_new(CONTAINER_END, t, /*field_name=*/NULL, /*annotations=*/NULL, /*num_annotations=*/0,
                                depth);
             break;
         case TID_DATAGRAM:
@@ -490,7 +379,37 @@ cleanup:
     iRETURN;
 }
 
-iERR ion_event_stream_read_all(hREADER hreader, IonEventStream *stream, IonEventResult *result) {
+iERR _ion_event_stream_read_all_recursive(hREADER hreader, IonEventStream *stream, BOOL in_struct, int depth, BOOL is_embedded_stream_set, IonEventResult *result) {
+    iENTER;
+    ION_SET_ERROR_CONTEXT(&stream->location, NULL);
+    ION_TYPE t;
+    for (;;) {
+        IONCREAD(ion_reader_next(hreader, &t));
+        if (t == tid_EOF) {
+            break;
+        }
+        IONREPORT(ion_event_stream_read(hreader, stream, t, in_struct, depth, is_embedded_stream_set, result));
+    }
+    cRETURN;
+}
+
+iERR record_symbol_table_context_change(void *stream, ION_COLLECTION *imports) {
+    iENTER;
+    IonEventStream *event_stream = (IonEventStream *)stream;
+    IonEvent *event = event_stream->append_new(SYMBOL_TABLE, tid_none, NULL, NULL, 0, 0);
+    ION_COLLECTION *copied_imports = (ION_COLLECTION *)ion_alloc_owner(sizeof(ION_COLLECTION));
+    _ion_collection_initialize(copied_imports, copied_imports, sizeof(ION_SYMBOL_TABLE_IMPORT));
+    event->value = copied_imports;
+    IONCHECK(_ion_collection_copy(copied_imports, imports, &_ion_symbol_table_local_import_copy_new_owner, copied_imports));
+    iRETURN;
+}
+
+void ion_event_register_symbol_table_callback(ION_READER_OPTIONS *options, IonEventStream *stream) {
+    options->context_change_notifier.notify = &record_symbol_table_context_change;
+    options->context_change_notifier.context = stream;
+}
+
+iERR ion_event_stream_read_all_values(hREADER hreader, IonEventStream *stream, IonEventResult *result) {
     iENTER;
     IONREPORT(_ion_event_stream_read_all_recursive(hreader, stream, /*in_struct=*/FALSE, /*depth=*/0, /*is_embedded_stream_set=*/FALSE, result));
     stream->append_new(STREAM_END, tid_none, NULL, NULL, 0, 0);
@@ -682,6 +601,88 @@ ION_SYMBOL *ion_event_stream_new_ivm_symbol() {
     ivm_symbol->value.length = ION_SYS_STRLEN_IVM;
     ivm_symbol->sid = UNKNOWN_SID; // Not needed; text is known.
     return ivm_symbol;
+}
+
+/**
+ * Copies the given SCALAR event's value so that it may be used outside the scope of the event's owning stream. The
+ * copied value is allocated such that it may be freed safely by free_ion_event_value.
+ */
+iERR ion_event_copy_value(IonEvent *event, void **value, std::string location, IonEventResult *result) {
+    iENTER;
+    ION_SET_ERROR_CONTEXT(&location, NULL);
+    BOOL *bool_val = NULL;
+    ION_INT *int_val = NULL;
+    double *float_val = NULL;
+    ION_DECIMAL *decimal = NULL;
+    ION_TIMESTAMP *timestamp = NULL;
+    ION_SYMBOL *symbol = NULL;
+
+    ASSERT(value);
+    ASSERT(event);
+
+    if (event->event_type != SCALAR) {
+        IONFAILSTATE(IERR_INVALID_ARG, "Illegal state: cannot copy the value of a non-SCALAR event.", result);
+    }
+    switch (ION_TID_INT(event->ion_type)) {
+        case TID_NULL:
+            break;
+        case TID_BOOL:
+            bool_val = (BOOL *)malloc(sizeof(BOOL));
+            *bool_val = *(BOOL *)event->value;
+            *value = bool_val;
+            break;
+        case TID_POS_INT:
+        case TID_NEG_INT:
+            // NOTE: owner must be NULL; otherwise, this may be unexpectedly freed.
+        IONCSTATE(ion_int_alloc(NULL, &int_val), "Failed to allocate a new ION_INT.");
+            *value = int_val;
+            IONCSTATE(ion_int_copy(int_val, (ION_INT *)event->value, int_val->_owner), "Failed to copy int value.");
+            break;
+        case TID_FLOAT:
+            float_val = (double *)malloc(sizeof(double));
+            *float_val = *(double *)event->value;
+            *value = float_val;
+            break;
+        case TID_DECIMAL:
+            decimal = (ION_DECIMAL *)calloc(1, sizeof(ION_DECIMAL));
+            *value = decimal;
+            IONCSTATE(ion_decimal_copy(decimal, (ION_DECIMAL *)event->value), "Failed to copy decimal value.");
+            break;
+        case TID_TIMESTAMP:
+            timestamp = (ION_TIMESTAMP *)malloc(sizeof(ION_TIMESTAMP));
+            // TODO it will not be this simple if ION_TIMESTAMP's fraction field is upgraded to use ION_DECIMAL.
+            memcpy(timestamp, (ION_TIMESTAMP *)event->value, sizeof(ION_TIMESTAMP));
+            *value = timestamp;
+            break;
+        case TID_SYMBOL:
+            copy_ion_symbol(&symbol, (ION_SYMBOL *)event->value);
+            *value = symbol;
+            break;
+        case TID_STRING:
+        case TID_CLOB:
+        case TID_BLOB:
+            *value = copy_ion_string((ION_STRING *)event->value);
+            break;
+        default:
+        IONFAILSTATE(IERR_INVALID_ARG, "Illegal state: unknown Ion type in event.", result);
+    }
+    cRETURN;
+}
+
+iERR ion_event_copy(IonEvent **dst, IonEvent *src, std::string location, IonEventResult *result) {
+    iENTER;
+    ION_SET_ERROR_CONTEXT(&location, NULL);
+    ASSERT(dst != NULL);
+    ASSERT(*dst == NULL);
+    ASSERT(src != NULL);
+    if (src->event_type == SYMBOL_TABLE) {
+        IONFAILSTATE(IERR_INVALID_ARG, "Cannot copy a SYMBOL_TABLE event.", result);
+    }
+    *dst = new IonEvent(src->event_type, src->ion_type, src->field_name, src->annotations, src->num_annotations, src->depth);
+    if (src->event_type == SCALAR) {
+        IONREPORT(ion_event_copy_value(src, &(*dst)->value, location, result));
+    }
+    cRETURN;
 }
 
 iERR ion_event_stream_get_consensus_value(std::string location, ION_CATALOG *catalog, std::string value_text, BYTE *value_binary,
@@ -938,6 +939,63 @@ iERR ion_event_stream_read_all_events(hREADER reader, IonEventStream *stream, IO
     cRETURN;
 }
 
+iERR ion_event_stream_is_event_stream(hREADER reader, IonEventStream *stream, bool *is_event_stream, bool *has_more_events, IonEventResult *result) {
+    iENTER;
+    ION_SET_ERROR_CONTEXT(&stream->location, NULL);
+    ION_TYPE ion_type;
+    ION_SYMBOL *symbol_value = NULL;
+    IonEvent *event;
+    size_t i = 0;
+    ASSERT(is_event_stream);
+
+    *is_event_stream = FALSE;
+    *has_more_events = TRUE;
+    for (;; i++) {
+        IONCREAD(ion_reader_next(reader, &ion_type));
+        if (ion_type == tid_EOF) {
+            IONCLEANEXIT;
+        }
+        IONREPORT(ion_event_stream_read(reader, stream, ion_type, FALSE, 0, FALSE, result));
+        ASSERT(stream->size() > 0);
+        event = stream->at(i);
+        if (event->event_type == SYMBOL_TABLE) {
+            // It's unlikely, but event streams could be serialized with imports. If this is true, skip to the next
+            // event.
+            continue;
+        }
+        if (event->event_type == SCALAR && event->ion_type == tid_SYMBOL
+            && event->num_annotations == 0 && event->depth == 0) {
+            symbol_value = (ION_SYMBOL *) event->value;
+            if (!ION_SYMBOL_IS_NULL(symbol_value)
+                && ION_STRING_EQUALS(&ion_cli_event_stream_symbol, &symbol_value->value)) {
+                *is_event_stream = TRUE;
+                stream->remove(i); // Toss this event -- it's not part of the user data.
+            }
+        }
+        else if (event->event_type == STREAM_END) {
+            *has_more_events = FALSE;
+        }
+        break;
+    }
+    cRETURN;
+}
+
+iERR ion_event_stream_read_all(hREADER reader, ION_CATALOG *catalog, IonEventStream *stream, IonEventResult *result) {
+    iENTER;
+    bool is_event_stream, has_more_events;
+
+    IONREPORT(ion_event_stream_is_event_stream(reader, stream, &is_event_stream, &has_more_events, result));
+    if (has_more_events) {
+        if (is_event_stream) {
+            IONREPORT(ion_event_stream_read_all_events(reader, stream, catalog, result));
+        }
+        else {
+            IONREPORT(ion_event_stream_read_all_values(reader, stream, result));
+        }
+    }
+    cRETURN;
+}
+
 iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStream *stream, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&stream->location, NULL);
@@ -950,7 +1008,7 @@ iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStre
     ion_event_register_symbol_table_callback(&options, stream);
 
     IONCREAD(ion_reader_open_buffer(&reader, (BYTE *)ion_string, len, &options));
-    IONREPORT(ion_event_stream_read_all(reader, stream, result));
+    IONREPORT(ion_event_stream_read_all(reader, catalog, stream, result));
 cleanup:
     ION_NON_FATAL(ion_reader_close(reader), "Failed to close reader.");
     iRETURN;

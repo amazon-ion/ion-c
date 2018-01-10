@@ -25,11 +25,10 @@
 
 #define ION_CLI_VERSION "1.0"
 
-// TODO rename the structure and the elements to IO_TYPE
 typedef enum _ion_cli_input_format {
-    INPUT_FORMAT_FILE = 0,
-    INPUT_FORMAT_CONSOLE,
-    INPUT_FORMAT_MEMORY
+    IO_TYPE_FILE = 0,
+    IO_TYPE_CONSOLE,
+    IO_TYPE_MEMORY
 } ION_CLI_IO_TYPE;
 
 // TODO make all these classes?
@@ -63,14 +62,10 @@ typedef struct _ion_cli_reader_context {
     FILE *file_stream;
     std::string input_location;
     ION_STREAM *ion_stream;
-    IonEventStream *event_stream;
 } ION_CLI_READER_CONTEXT;
 
 // TODO remove from header, move impl to main?
 iERR ion_cli_parse(std::vector<std::string> const &argv);
-
-// TODO move to ion_event_stream?
-iERR ion_cli_read_stream(ION_CLI_READER_CONTEXT *reader_context, ION_CATALOG *catalog, IonEventStream *stream, IonEventResult *result);
 
 iERR ion_cli_command_compare(ION_CLI_COMMON_ARGS *common_args, COMPARISON_TYPE comparison_type, ION_STRING *output, IonEventReport *report);
 iERR ion_cli_command_process(ION_CLI_COMMON_ARGS *common_args, ION_CLI_PROCESS_ARGS *process_args, ION_STRING *output, IonEventReport *report);
