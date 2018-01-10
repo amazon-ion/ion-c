@@ -64,7 +64,7 @@ typedef struct _ion_cli_reader_context {
     ION_STREAM *ion_stream;
 } ION_CLI_READER_CONTEXT;
 
-iERR ion_cli_command_compare(ION_CLI_COMMON_ARGS *common_args, COMPARISON_TYPE comparison_type, ION_STRING *output, IonEventReport *report);
+iERR ion_cli_command_compare(ION_CLI_COMMON_ARGS *common_args, ION_EVENT_COMPARISON_TYPE comparison_type, ION_STRING *output, IonEventReport *report);
 iERR ion_cli_command_process(ION_CLI_COMMON_ARGS *common_args, ION_CLI_PROCESS_ARGS *process_args, ION_STRING *output, IonEventReport *report);
 
 iERR ion_cli_write_error_report(IonEventReport *report, ION_CLI_COMMON_ARGS *common_args);

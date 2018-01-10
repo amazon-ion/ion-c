@@ -127,7 +127,7 @@ TEST(IonCli, UnequalValueTextAndValueBinaryFails) {
     ASSERT_EQ(0, command_output.length);
 }
 
-void test_ion_cli_assert_comparison(std::string *files, size_t num_files, COMPARISON_TYPE comparison_type, IonEventReport *report, ION_STRING *command_output=NULL) {
+void test_ion_cli_assert_comparison(std::string *files, size_t num_files, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventReport *report, ION_STRING *command_output=NULL) {
     ION_CLI_COMMON_ARGS common_args;
     ION_STRING _command_output;
     test_ion_cli_init_common_args(&common_args);
@@ -242,7 +242,6 @@ TEST(IonCli, AnnotatedIvmsEmbedded) {
 }
 
 // TODO consider having a list of (location, index) in error report to better convey errors during comparison
-// TODO test piping output of one command through stdin to another.
 
 // TODO process command with catalog and/or imports
 // TODO compare command with catalog and/or imports

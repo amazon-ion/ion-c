@@ -137,7 +137,7 @@ iERR ion_cli_args_common(std::map<std::string, docopt::value> *args, ION_CLI_COM
     if (!common_args->inputs_format == IO_TYPE_CONSOLE && common_args->input_files.empty()) {
         IONFAILSTATE(IERR_INVALID_ARG, "Input not specified.", &result);
     }
-    cleanup:
+cleanup:
     if (result.has_error_description) {
         report->addResult(&result);
     }
@@ -162,7 +162,7 @@ iERR ion_cli_args_process(std::map<std::string, docopt::value> *args, ION_CLI_PR
     cRETURN;
 }
 
-COMPARISON_TYPE ion_cli_comparison_type_from_string(const std::string type_str) {
+ION_EVENT_COMPARISON_TYPE ion_cli_comparison_type_from_string(const std::string type_str) {
     if ("basic" == type_str) {
         return COMPARISON_TYPE_BASIC;
     }
@@ -199,7 +199,7 @@ iERR ion_cli_parse(std::vector<std::string> const &argv) {
         IONREPORT(ion_cli_command_process(&common_args, &process_args, NULL, &report));
     }
     else if (ion_cli_has_flag(&args, "compare")) {
-        COMPARISON_TYPE comparison_type = COMPARISON_TYPE_BASIC;
+        ION_EVENT_COMPARISON_TYPE comparison_type = COMPARISON_TYPE_BASIC;
         if (ion_cli_has_value(&args, "--comparison-type")) {
             comparison_type = ion_cli_comparison_type_from_string(args.find("--comparison-type")->second.asString());
         }

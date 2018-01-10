@@ -27,10 +27,11 @@ TIMESTAMP_COMPARISON_FN g_TimestampEquals = ion_timestamp_equals;
  * the containers' children.
  */
 BOOL assertIonEventsEq(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual,
-                       size_t index_actual, COMPARISON_TYPE comparison_type, IonEventResult *result);
+                       size_t index_actual, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result);
 
-// TODO rename
-void _ion_cli_set_comparison_result(IonEventResult *result, COMPARISON_TYPE comparison_type, IonEvent *lhs, IonEvent *rhs, size_t lhs_index, size_t rhs_index, std::string lhs_location, std::string rhs_location, std::string message) {
+void _ion_event_set_comparison_result(IonEventResult *result, ION_EVENT_COMPARISON_TYPE comparison_type, IonEvent *lhs,
+                                      IonEvent *rhs, size_t lhs_index, size_t rhs_index, std::string lhs_location,
+                                      std::string rhs_location, std::string message) {
     if (result != NULL) {
         if (ion_event_copy(&result->comparison_result.lhs.event, lhs, lhs_location, result)
             || ion_event_copy(&result->comparison_result.rhs.event, rhs, lhs_location, result)) {
@@ -54,7 +55,7 @@ void _ion_cli_set_comparison_result(IonEventResult *result, COMPARISON_TYPE comp
     }
 }
 
-BOOL assertIonScalarEq(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual, size_t index_actual, COMPARISON_TYPE comparison_type, IonEventResult *result) {
+BOOL assertIonScalarEq(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual, size_t index_actual, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result) {
     ION_ENTER_ASSERTIONS;
     IonEvent *expected = stream_expected->at(index_expected);
     IonEvent *actual = stream_actual->at(index_actual);
@@ -101,7 +102,7 @@ BOOL assertIonScalarEq(IonEventStream *stream_expected, size_t index_expected, I
  * Asserts that the struct starting at index_expected is a subset of the struct starting at index_actual.
  */
 BOOL assertIonStructIsSubset(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual,
-                             size_t index_actual, COMPARISON_TYPE comparison_type, IonEventResult *result) {
+                             size_t index_actual, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result) {
     ION_ENTER_ASSERTIONS;
     int target_depth = stream_expected->at(index_expected)->depth;
     index_expected++; // Move past the CONTAINER_START events
@@ -141,7 +142,7 @@ BOOL assertIonStructIsSubset(IonEventStream *stream_expected, size_t index_expec
 }
 
 BOOL assertIonStructEq(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual,
-                       size_t index_actual, COMPARISON_TYPE comparison_type, IonEventResult *result) {
+                       size_t index_actual, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result) {
     ION_ENTER_ASSERTIONS;
     // By asserting that 'expected' and 'actual' are bidirectional subsets, we are asserting they are equivalent.
     ION_ACCUMULATE_ASSERTION(
@@ -152,7 +153,7 @@ BOOL assertIonStructEq(IonEventStream *stream_expected, size_t index_expected, I
 }
 
 BOOL assertIonSequenceEq(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual,
-                         size_t index_actual, COMPARISON_TYPE comparison_type, IonEventResult *result) {
+                         size_t index_actual, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result) {
     ION_ENTER_ASSERTIONS;
     int target_depth = stream_expected->at(index_expected)->depth;
     index_expected++; // Move past the CONTAINER_START events
@@ -187,7 +188,7 @@ BOOL assertIonSequenceEq(IonEventStream *stream_expected, size_t index_expected,
 // TODO just pass through an object containing the comparison type and result?
 
 BOOL assertIonEventsEq(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual,
-                       size_t index_actual, COMPARISON_TYPE comparison_type, IonEventResult *result) {
+                       size_t index_actual, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result) {
     ION_ENTER_ASSERTIONS;
     IonEvent *expected = stream_expected->at(index_expected);
     IonEvent *actual = stream_actual->at(index_actual);
@@ -238,7 +239,7 @@ BOOL assertIonEventSubstreamEq(IonEventStream *stream_expected, size_t expected_
     size_t index_actual = actual_start;
     IonEvent *actual = NULL;
     IonEvent *expected = NULL;
-    const COMPARISON_TYPE comparison_type = COMPARISON_TYPE_BASIC;
+    const ION_EVENT_COMPARISON_TYPE comparison_type = COMPARISON_TYPE_BASIC;
     while (index_expected < expected_end && index_actual < actual_end) {
         expected = stream_expected->at(index_expected);
         actual = stream_actual->at(index_actual);
@@ -263,15 +264,15 @@ BOOL assertIonEventStreamEq(IonEventStream *stream_expected, IonEventStream *str
     ION_EXIT_ASSERTIONS;
 }
 
-typedef BOOL (*COMPARISON_FN)(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual, size_t index_actual, COMPARISON_TYPE comparison_type, IonEventResult *result);
+typedef BOOL (*COMPARISON_FN)(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual, size_t index_actual, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result);
 
-BOOL comparisonEquivs(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual, size_t index_actual, COMPARISON_TYPE comparison_type, IonEventResult *result) {
+BOOL comparisonEquivs(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual, size_t index_actual, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result) {
     ION_ENTER_ASSERTIONS;
     ION_ACCUMULATE_ASSERTION(assertIonEventsEq(stream_expected, index_expected, stream_actual, index_actual, comparison_type, result));
     ION_EXIT_ASSERTIONS;
 }
 
-BOOL comparisonNonequivs(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual, size_t index_actual, COMPARISON_TYPE comparison_type, IonEventResult *result) {
+BOOL comparisonNonequivs(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual, size_t index_actual, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result) {
     ION_ENTER_ASSERTIONS;
     // The corresponding indices are assumed to be equivalent.
     if (index_expected != index_actual) {
@@ -288,7 +289,7 @@ BOOL comparisonNonequivs(IonEventStream *stream_expected, size_t index_expected,
  * Compares each element in the current container to every other element in the container. The given index refers
  * to the starting index of the first element in the container.
  */
-BOOL testEquivsSet(IonEventStream *lhs, size_t lhs_index, IonEventStream *rhs, size_t rhs_index, int target_depth, COMPARISON_TYPE comparison_type, IonEventResult *result) {
+BOOL testEquivsSet(IonEventStream *lhs, size_t lhs_index, IonEventStream *rhs, size_t rhs_index, int target_depth, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result) {
     ION_ENTER_ASSERTIONS;
     COMPARISON_FN comparison_fn = (comparison_type == COMPARISON_TYPE_EQUIVS) ? comparisonEquivs
                                                                               : comparisonNonequivs;
@@ -313,7 +314,7 @@ BOOL testEquivsSet(IonEventStream *lhs, size_t lhs_index, IonEventStream *rhs, s
  * The 'embedded_documents' annotation denotes that the current container contains streams of Ion data embedded
  * in string values. These embedded streams are parsed and their resulting IonEventStreams compared.
  */
-BOOL testEmbeddedDocumentSet(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual, size_t index_actual, int target_depth, COMPARISON_TYPE comparison_type, size_t *expected_len, size_t *actual_len, IonEventResult *result) {
+BOOL testEmbeddedDocumentSet(IonEventStream *stream_expected, size_t index_expected, IonEventStream *stream_actual, size_t index_actual, int target_depth, ION_EVENT_COMPARISON_TYPE comparison_type, size_t *expected_len, size_t *actual_len, IonEventResult *result) {
     ION_ENTER_ASSERTIONS;
     size_t expected_stream_count = 0;
     size_t actual_stream_count = 0;
@@ -376,7 +377,7 @@ BOOL testEmbeddedDocumentSet(IonEventStream *stream_expected, size_t index_expec
  * Comparison sets are conveyed as sequences. Each element in the sequence must be equivalent to all other elements
  * in the same sequence.
  */
-BOOL testComparisonSets(IonEventStream *stream_expected, IonEventStream *stream_actual, COMPARISON_TYPE comparison_type, IonEventResult *result) {
+BOOL testComparisonSets(IonEventStream *stream_expected, IonEventStream *stream_actual, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result) {
     ION_ENTER_ASSERTIONS;
     size_t index_expected = 0, index_actual = 0;
     IonEvent *expected = stream_expected->at(index_expected);

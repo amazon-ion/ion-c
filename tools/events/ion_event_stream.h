@@ -34,7 +34,7 @@
  * Conveys an error upward at the point it occurs.
  */
 #define IONERROR(type, code, msg, loc, idx, res) \
-    _ion_cli_set_error(res, type, code, msg, loc, idx, __FILE__, __LINE__); \
+    _ion_event_set_error(res, type, code, msg, loc, idx, __FILE__, __LINE__); \
     IONREPORT(code)
 
 /**
@@ -63,7 +63,7 @@
     iERR err_backup = (x); \
     if (err == IERR_OK && err_backup != IERR_OK) { \
         err = err_backup; \
-        _ion_cli_set_error(result, ERROR_TYPE_STATE, err, "", _error_location, _error_event_index, __FILE__, __LINE__); \
+        _ion_event_set_error(result, ERROR_TYPE_STATE, err, "", _error_location, _error_event_index, __FILE__, __LINE__); \
     } \
 }
 

@@ -27,11 +27,11 @@
 #define ION_ACCUMULATE_ASSERTION(x) if (!(x)) return FALSE;
 
 #define ION_FAIL_COMPARISON(message) \
-    _ion_cli_set_comparison_result(result, comparison_type, expected, actual, index_expected, index_actual, stream_expected->location, stream_actual->location, message); \
+    _ion_event_set_comparison_result(result, comparison_type, expected, actual, index_expected, index_actual, stream_expected->location, stream_actual->location, message); \
     return FALSE;
 
 #define ION_FAIL_ASSERTION(message) \
-    _ion_cli_set_error(result, ERROR_TYPE_STATE, IERR_INVALID_STATE, message, NULL, NULL, __FILE__, __LINE__); \
+    _ion_event_set_error(result, ERROR_TYPE_STATE, IERR_INVALID_STATE, message, NULL, NULL, __FILE__, __LINE__); \
     return FALSE;
 
 #define ION_EXPECT_OK(x) \
@@ -62,12 +62,12 @@
 #define ION_EXPECT_TIMESTAMP_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonTimestampEq)
 
 
-typedef enum _comparison_type {
+typedef enum _ion_event_comparison_type {
     COMPARISON_TYPE_EQUIVS = 0,
     COMPARISON_TYPE_NONEQUIVS,
     COMPARISON_TYPE_BASIC,
     COMPARISON_TYPE_UNKNOWN
-} COMPARISON_TYPE;
+} ION_EVENT_COMPARISON_TYPE;
 
 typedef iERR (*TIMESTAMP_COMPARISON_FN)(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2, BOOL *is_equal, decContext *pcontext);
 
@@ -83,7 +83,7 @@ extern TIMESTAMP_COMPARISON_FN g_TimestampEquals;
  */
 BOOL assertIonEventStreamEq(IonEventStream *stream_expected, IonEventStream *stream_actual, IonEventResult *result=NULL);
 
-BOOL testComparisonSets(IonEventStream *lhs, IonEventStream *rhs, COMPARISON_TYPE comparison_type, IonEventResult *result=NULL);
+BOOL testComparisonSets(IonEventStream *lhs, IonEventStream *rhs, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result=NULL);
 
 BOOL assertIonBoolEq(BOOL *expected, BOOL *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);
 BOOL assertIonStringEq(ION_STRING *expected, ION_STRING *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);

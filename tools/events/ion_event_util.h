@@ -40,7 +40,7 @@
 extern decContext g_IonEventDecimalContext;
 
 // Event stream marker
-static ION_STRING ion_cli_event_stream_symbol = {17, (BYTE *)"$ion_event_stream"}; // TODO where should this go?
+static ION_STRING ion_event_stream_marker = {17, (BYTE *)"$ion_event_stream"};
 
 // Embedded stream marker // TODO transition this to $ion_embedded_streams (so that it's a reserved symbol)
 static ION_STRING ion_event_embedded_streams_annotation = {18, (BYTE *)"embedded_documents"};
@@ -148,7 +148,8 @@ void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options);
 iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, std::string location, ION_WRITER_OUTPUT_FORMAT output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result);
 iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, IonEventResult *result=NULL);
 
-void _ion_cli_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg, std::string *location, size_t *event_index, const char *file, int line);
+void _ion_event_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg,
+                          std::string *location, size_t *event_index, const char *file, int line);
 
 std::string ion_event_symbol_to_string(ION_SYMBOL *symbol);
 
