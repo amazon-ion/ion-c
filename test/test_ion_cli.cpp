@@ -264,24 +264,50 @@ TEST(IonCli, ComparisonSetsDifferentLengthsNonequivsSucceeds) {
     ASSERT_FALSE(result.has_comparison_result);
 }
 
+void test_ion_cli_init_common_args(ION_CLI_COMMON_ARGS *common_args, const char *output_format="text",
+                                   const char *error_report="stdout", ION_CLI_IO_TYPE error_type=INPUT_FORMAT_CONSOLE) {
+    memset(common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
+    common_args->output_type = INPUT_FORMAT_MEMORY;
+    common_args->error_report_type = error_type;
+    common_args->output_format = output_format;
+    common_args->error_report = error_report;
+}
+
+void test_ion_cli_add_input(const char *input, ION_CLI_IO_TYPE input_type, ION_CLI_COMMON_ARGS *common_args) {
+    common_args->input_files.push_back(input);
+    common_args->inputs_format = input_type;
+}
+
+void test_ion_cli_add_catalog(const char *catalog, ION_CLI_IO_TYPE input_type, ION_CLI_COMMON_ARGS *common_args) {
+    common_args->catalogs.push_back(catalog);
+    common_args->catalogs_format = input_type;
+}
+
+void test_ion_cli_init_process_args(ION_CLI_PROCESS_ARGS *process_args) {
+    memset(process_args, 0, sizeof(ION_CLI_PROCESS_ARGS));
+}
+
+void test_ion_cli_add_import(const char *import, ION_CLI_IO_TYPE input_type, ION_CLI_PROCESS_ARGS *process_args) {
+    process_args->imports_format = input_type;
+    process_args->imports.push_back(import);
+}
+
 TEST(IonCli, BasicProcessWithCatalog) {
     ION_CLI_COMMON_ARGS common_args;
     ION_CLI_PROCESS_ARGS process_args;
-    memset(&common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
-    memset(&process_args, 0, sizeof(ION_CLI_PROCESS_ARGS));
-    common_args.catalogs.push_back("$ion_shared_symbol_table::{name:\"foo\", version:1, symbols[\"abc\"]}");
-    common_args.catalogs_format = INPUT_FORMAT_MEMORY;
-    common_args.input_files.push_back("$ion_symbol_table::{symbols:[\"def\"], imports[{name:\"foo\", version:1, max_id:1}]} $10::$11");
-    common_args.inputs_format = INPUT_FORMAT_MEMORY;
-    common_args.output_type = INPUT_FORMAT_MEMORY;
-    common_args.error_report = "stderr";
-    common_args.error_report_type = INPUT_FORMAT_CONSOLE;
-    common_args.output_format = "text";
     IonEventReport report;
     ION_STRING output;
+    test_ion_cli_init_common_args(&common_args);
+    test_ion_cli_add_input(
+            "$ion_symbol_table::{symbols:[\"def\"], imports:[{name:\"foo\", version:1, max_id:1}]} $10::$11",
+            INPUT_FORMAT_MEMORY, &common_args);
+    test_ion_cli_add_catalog("$ion_shared_symbol_table::{name:\"foo\", version:1, symbols:[\"abc\"]}",
+                             INPUT_FORMAT_MEMORY, &common_args);
+    test_ion_cli_init_process_args(&process_args);
     ION_STRING_INIT(&output);
-    //ION_ASSERT_OK(ion_cli_command_process(&common_args, &process_args, &output, &report));
-    //ASSERT_FALSE(report.hasComparisonFailures());
-    //ASSERT_FALSE(report.hasErrors());
-    //free(output.value);
+    ION_ASSERT_OK(ion_cli_command_process(&common_args, &process_args, &output, &report));
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
+    test_ion_cli_assert_streams_equal("abc::def", output.value, output.length);
+    free(output.value);
 }

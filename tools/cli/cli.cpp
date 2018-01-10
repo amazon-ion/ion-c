@@ -233,7 +233,7 @@ iERR ion_cli_add_shared_tables_to_catalog(std::string file_path, ION_CLI_IO_TYPE
 
     IONREPORT(ion_cli_open_reader_basic(&reader_context, input_format, &file_path, result));
     IONCREAD(ion_reader_next(reader_context.reader, &type));
-    while (type != tid_none) {
+    while (type != tid_EOF) {
         ION_SYMBOL_TABLE *symbol_table;
         IONCREAD(ion_symbol_table_load(reader_context.reader, catalog, &symbol_table));
         IONCREAD(ion_catalog_add_symbol_table(catalog, symbol_table));
@@ -358,7 +358,7 @@ iERR ion_cli_create_imports(std::vector<std::string> *import_files, ION_CLI_IO_T
     ION_COLLECTION *p_imports;
     ASSERT(imports);
 
-    if (import_files->empty()) {
+    if (!import_files->empty()) {
         *imports = (ION_COLLECTION *)ion_alloc_owner(sizeof(ION_COLLECTION));
         p_imports = *imports;
         _ion_collection_initialize(p_imports, p_imports, sizeof(ION_SYMBOL_TABLE_IMPORT));
