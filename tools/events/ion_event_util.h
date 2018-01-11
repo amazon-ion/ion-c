@@ -60,11 +60,11 @@ static ION_STRING ion_event_text_field = {4, (BYTE *)"text"};
 static ION_STRING ion_event_import_location_field = {15, (BYTE *)"import_location"};
 
 // Import location fields
-static ION_STRING ion_event_name_field = {4, (BYTE *)"name"};
+static ION_STRING ion_event_import_name_field = {11, (BYTE *)"import_name"};
 static ION_STRING ion_event_import_sid_field = {8, (BYTE *)"location"};
 
 // Symbol table import fields
-static ION_STRING ion_event_import_name_field = {11, (BYTE *)"import_name"};
+static ION_STRING ion_event_name_field = {4, (BYTE *)"name"};
 static ION_STRING ion_event_max_id_field = {6, (BYTE *)"max_id"};
 static ION_STRING ion_event_version_field = {7, (BYTE *)"version"};
 
@@ -146,7 +146,9 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options);
 void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options);
 
 iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, std::string location, ION_WRITER_OUTPUT_FORMAT output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result);
-iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, IonEventResult *result=NULL);
+iERR ion_event_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, IonEventResult *result, iERR err=IERR_OK,
+                            bool in_memory=false, BYTE **bytes=NULL, SIZE *bytes_len=NULL);
+iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, iERR err=IERR_OK, IonEventResult *result=NULL);
 
 void _ion_event_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg,
                           std::string *location, size_t *event_index, const char *file, int line);

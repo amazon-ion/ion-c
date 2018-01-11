@@ -39,8 +39,7 @@ iERR ion_cli_command_process_traverse(ION_EVENT_WRITER_CONTEXT *writer_context, 
     cRETURN;
 }
 
-iERR ion_cli_close_reader(ION_CLI_READER_CONTEXT *context, IonEventResult *result) {
-    iENTER;
+iERR ion_cli_close_reader(ION_CLI_READER_CONTEXT *context, iERR err, IonEventResult *result) {
     ASSERT(context);
     ION_SET_ERROR_CONTEXT(&context->input_location, NULL);
     if (context->reader) {
@@ -143,7 +142,7 @@ iERR ion_cli_add_shared_tables_to_catalog(std::string file_path, ION_CLI_IO_TYPE
         IONCREAD(ion_reader_next(reader_context.reader, &type));
     }
 cleanup:
-    UPDATEERROR(ion_cli_close_reader(&reader_context, result));
+    UPDATEERROR(ion_cli_close_reader(&reader_context, err, result));
     iRETURN;
 }
 
@@ -217,31 +216,8 @@ iERR ion_cli_open_writer(ION_CLI_COMMON_ARGS *common_args, ION_CATALOG *catalog,
     cRETURN;
 }
 
-iERR ion_cli_close_writer(ION_EVENT_WRITER_CONTEXT *context, ION_CLI_IO_TYPE output_type, ION_STRING *output, IonEventResult *result) {
-    iENTER;
-    ASSERT(context);
-    ION_SET_ERROR_CONTEXT(&context->output_location, NULL);
-    if (output_type == IO_TYPE_MEMORY) {
-        ASSERT(output);
-        IONREPORT(ion_event_in_memory_writer_close(context, &output->value, &output->length, result));
-        IONCLEANEXIT;
-    }
-    if (context->writer) {
-        ION_NON_FATAL(ion_writer_close(context->writer), "Failed to close writer.");
-        context->writer = NULL;
-    }
-    if (context->has_imports) {
-        ION_NON_FATAL(ion_writer_options_close_shared_imports(&context->options), "Failed to close writer imports.");
-        context->has_imports = FALSE;
-    }
-    if (context->ion_stream) {
-        ION_NON_FATAL(ion_stream_close(context->ion_stream), "Failed to close ION_STREAM.");
-        context->ion_stream = NULL;
-    }
-    if (context->file_stream) {
-        fclose(context->file_stream);
-        context->file_stream = NULL;
-    }
+iERR ion_cli_close_writer(ION_EVENT_WRITER_CONTEXT *context, ION_CLI_IO_TYPE output_type, ION_STRING *output, iERR err, IonEventResult *result) {
+    UPDATEERROR(ion_event_writer_close(context, result, err, output_type == IO_TYPE_MEMORY, &output->value, &output->length));
     cRETURN;
 }
 
@@ -252,7 +228,7 @@ iERR ion_cli_add_imports_to_collection(ION_COLLECTION *imports, ION_CLI_IO_TYPE 
     IONREPORT(ion_cli_open_reader_basic(&reader_context, input_format, &filepath, result));
     IONREPORT(ion_event_stream_read_imports(reader_context.reader, imports, &filepath, result));
 cleanup:
-    UPDATEERROR(ion_cli_close_reader(&reader_context, result));
+    UPDATEERROR(ion_cli_close_reader(&reader_context, err, result));
     iRETURN;
 }
 
@@ -300,7 +276,7 @@ iERR ion_cli_write_value(ION_CLI_COMMON_ARGS *args, ION_EVENT_WRITER_CONTEXT *wr
         //IONCHECK(ion_writer_write_all_values(writer_context->writer, reader_context.reader));
     }
 cleanup:
-    UPDATEERROR(ion_cli_close_reader(&reader_context, result));
+    UPDATEERROR(ion_cli_close_reader(&reader_context, err, result));
     iRETURN;
 }
 
@@ -357,7 +333,7 @@ iERR ion_cli_command_process(ION_CLI_COMMON_ARGS *common_args, ION_CLI_PROCESS_A
     IONREPORT(ion_cli_command_process_standard(&writer_context, common_args, catalog, result));
 
 cleanup:
-    UPDATEERROR(ion_cli_close_writer(&writer_context, common_args->output_type, output, result));
+    UPDATEERROR(ion_cli_close_writer(&writer_context, common_args->output_type, output, err, result));
     if (catalog) {
         ION_NON_FATAL(ion_catalog_close(catalog), "Failed to close catalog.");
     }
@@ -378,7 +354,7 @@ iERR ion_cli_write_report(IonEventReport *report, std::string report_destination
     IONREPORT(ion_cli_open_writer_basic(report_type, ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY, report_destination, &writer_context, result));
     IONREPORT(write_func(writer_context.writer, report, &report_destination, catalog, result));
 cleanup:
-    UPDATEERROR(ion_cli_close_writer(&writer_context, report_type, output, result));
+    UPDATEERROR(ion_cli_close_writer(&writer_context, report_type, output, err, result));
     iRETURN;
 }
 

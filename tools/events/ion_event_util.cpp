@@ -170,29 +170,47 @@ iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, s
     cRETURN;
 }
 
-// TODO standardize with ion_cli_writer_close
-iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, IonEventResult *result) {
-    iENTER;
+iERR ion_event_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, IonEventResult *result, iERR err, bool in_memory,
+                            BYTE **bytes, SIZE *bytes_len) {
     ION_SET_ERROR_CONTEXT(&writer_context->output_location, NULL);
-    POSITION pos;
-    ION_NON_FATAL(ion_writer_close(writer_context->writer), "Failed to close writer.");
-    pos = ion_stream_get_position(writer_context->ion_stream);
-    ION_NON_FATAL(ion_stream_seek(writer_context->ion_stream, 0), "Failed to seek the output stream to the beginning.");
-    *bytes = (BYTE *)(malloc((size_t)pos));
-    SIZE bytes_read;
-    ION_NON_FATAL(ion_stream_read(writer_context->ion_stream, *bytes, (SIZE) pos, &bytes_read),
-                  "Failed to retrieve bytes from the output stream.");
-
-    ION_NON_FATAL(ion_stream_close(writer_context->ion_stream), "Failed to close ION_STREAM.");
-    if (bytes_read != (SIZE)pos) {
-        ION_NON_FATAL(IERR_EOF, "Read an invalid number of bytes from the output stream.");
+    if (writer_context->writer) {
+        ION_NON_FATAL(ion_writer_close(writer_context->writer), "Failed to close writer.");
+        writer_context->writer = NULL;
     }
     if (writer_context->has_imports) {
-        ION_NON_FATAL(ion_writer_options_close_shared_imports(&writer_context->options),
-                      "Failed to close the writer's imports.");
+        ION_NON_FATAL(ion_writer_options_close_shared_imports(&writer_context->options), "Failed to close writer imports.");
+        writer_context->has_imports = FALSE;
     }
-    *bytes_len = bytes_read;
+    if (writer_context->ion_stream) {
+        ASSERT(!writer_context->file_stream);
+        if (in_memory) {
+            ASSERT(bytes);
+            SIZE bytes_read;
+            POSITION pos = ion_stream_get_position(writer_context->ion_stream);
+            ION_NON_FATAL(ion_stream_seek(writer_context->ion_stream, 0), "Failed to seek the output stream to the beginning.");
+            *bytes = (BYTE *)malloc((size_t)pos);
+            ION_NON_FATAL(ion_stream_read(writer_context->ion_stream, *bytes, (SIZE) pos, &bytes_read),
+                          "Failed to retrieve bytes from the output stream.");
+
+            if (bytes_read != (SIZE)pos) {
+                ION_NON_FATAL(IERR_EOF, "Read an invalid number of bytes from the output stream.");
+            }
+            *bytes_len = bytes_read;
+        }
+        ION_NON_FATAL(ion_stream_close(writer_context->ion_stream), "Failed to close ION_STREAM.");
+        writer_context->ion_stream = NULL;
+    }
+    if (writer_context->file_stream) {
+        ASSERT(!in_memory);
+        fclose(writer_context->file_stream);
+        writer_context->file_stream = NULL;
+    }
     iRETURN;
+}
+
+iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, iERR err, IonEventResult *result) {
+    UPDATEERROR(ion_event_writer_close(writer_context, result, err, true, bytes, bytes_len));
+    cRETURN;
 }
 
 std::string _ion_error_message(iERR error_code, std::string msg, const char *file, int line) {

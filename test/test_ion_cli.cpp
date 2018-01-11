@@ -68,12 +68,12 @@ void test_ion_cli_add_import(const char *import, ION_CLI_IO_TYPE input_type, ION
     process_args->imports.push_back(import);
 }
 
-void test_ion_cli_process(const char *filepath, ION_CLI_IO_TYPE input_type, ION_STRING *command_output,
+void test_ion_cli_process(const char *input, ION_CLI_IO_TYPE input_type, ION_STRING *command_output,
                           IonEventReport *report, const char *output_format = "text") {
     ION_CLI_COMMON_ARGS common_args;
     ION_CLI_PROCESS_ARGS process_args;
     test_ion_cli_init_common_args(&common_args, output_format);
-    test_ion_cli_add_input(filepath, input_type, &common_args);
+    test_ion_cli_add_input(input, input_type, &common_args);
     test_ion_cli_init_process_args(&process_args);
     ion_cli_command_process(&common_args, &process_args, command_output, report);
 }
@@ -305,4 +305,19 @@ TEST(IonCli, BasicProcessWithCatalog) {
     ASSERT_FALSE(report.hasErrors());
     test_ion_cli_assert_streams_equal("abc::def", &command_output);
     free(command_output.value);
+}
+
+TEST(IonCli, ProcessSymbolsWithUnknownTextWithoutCatalog) {
+    IonEventReport report;
+    ION_STRING command_output;
+    std::string filepath = join_path(full_good_path, "item1.10n");
+    test_ion_cli_process(filepath.c_str(), IO_TYPE_FILE, &command_output, &report, "events");
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
+    ION_CLI_COMMON_ARGS common_args;
+    test_ion_cli_init_common_args(&common_args);
+    IonEventStream stream;
+    // TODO compare the event stream and the initial input. Refactor the args classes so that input location and IO type are grouped.
+    //ion_cli_command_compare()
+    test_ion_cli_read_stream_successfully(command_output.value, (size_t)command_output.length, &stream);
 }

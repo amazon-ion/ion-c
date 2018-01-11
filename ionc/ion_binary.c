@@ -26,6 +26,13 @@ int ion_binary_len_uint_64(uint64_t value) {
     return len;
 }
 
+int ion_binary_len_uint64_signed(int64_t value) {
+    if (value != 0) {
+        return ion_binary_len_uint_64(abs_int64(value));
+    }
+    return 0;
+}
+
 int ion_binary_len_int_64_unsigned(uint64_t value) {
     int top_byte, len = 0;
     if (value != 0) {
