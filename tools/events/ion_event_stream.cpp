@@ -578,12 +578,12 @@ iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION *imports, std:
 iERR ion_event_stream_write_scalar_value_comparison_result(std::string location, std::string *comparison_report, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&location, NULL);
-    ION_EVENT_WRITER_CONTEXT writer_context;
+    IonEventWriterContext writer_context;
     BYTE *value = NULL;
     SIZE len;
     ASSERT(comparison_report);
 
-    IONREPORT(ion_event_in_memory_writer_open(&writer_context, location, ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY, NULL, NULL, result));
+    IONREPORT(ion_event_in_memory_writer_open(&writer_context, location, OUTPUT_TYPE_TEXT_PRETTY, NULL, NULL, result));
     IONREPORT(ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result, &location, catalog, result));
 cleanup:
     UPDATEERROR(ion_event_in_memory_writer_close(&writer_context, &value, &len, err, result));
@@ -1091,10 +1091,10 @@ iERR write_event(hWRITER writer, IonEvent *event, std::string *location, size_t 
 iERR _ion_event_stream_write_all_recursive(hWRITER writer, IonEventStream *stream, size_t start_index, size_t end_index, IonEventResult *result);
 
 iERR _ion_event_stream_write_all_to_bytes_helper(IonEventStream *stream, size_t start_index, size_t end_index,
-                                                 ION_WRITER_OUTPUT_FORMAT output_type, ION_CATALOG *catalog, BYTE **out,
+                                                 ION_EVENT_OUTPUT_TYPE output_type, ION_CATALOG *catalog, BYTE **out,
                                                  SIZE *len, IonEventResult *result) {
     iENTER;
-    ION_EVENT_WRITER_CONTEXT writer_context;
+    IonEventWriterContext writer_context;
     IONREPORT(ion_event_in_memory_writer_open(&writer_context, stream->location, output_type, catalog, /*imports=*/NULL, result));
     IONREPORT(_ion_event_stream_write_all_recursive(writer_context.writer, stream, start_index, end_index, result));
 cleanup:
@@ -1105,7 +1105,7 @@ cleanup:
 /**
  * Constructs a writer using the given test type and catalog and uses it to write the given IonEventStream to BYTEs.
  */
-iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_WRITER_OUTPUT_FORMAT output_type,
+iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_EVENT_OUTPUT_TYPE output_type,
                                          ION_CATALOG *catalog, BYTE **out, SIZE *len, IonEventResult *result) {
     iENTER;
     IONREPORT(_ion_event_stream_write_all_to_bytes_helper(stream, 0, stream->size(), output_type, catalog, out, len, result));
@@ -1119,7 +1119,7 @@ iERR ion_event_stream_write_embedded_stream(hWRITER writer, IonEventStream *stre
     ION_STRING_INIT(&embedded_string);
 
     IONREPORT(_ion_event_stream_write_all_to_bytes_helper(stream, start_index, end_index,
-                                                          ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, writer->pcatalog,
+                                                          OUTPUT_TYPE_TEXT_UGLY, writer->pcatalog,
                                                           &embedded_string.value, &embedded_string.length,
                                                           result));
     IONCWRITE(ion_writer_write_string(writer, &embedded_string));
@@ -1233,11 +1233,11 @@ iERR ion_event_stream_write_symbol_table_imports(hWRITER writer, ION_COLLECTION 
     cRETURN;
 }
 
-iERR ion_event_stream_write_scalar_value(ION_WRITER_OUTPUT_FORMAT output_type, IonEvent *event, ION_CATALOG *catalog, std::string location, size_t *index, BYTE **value, SIZE *len, IonEventResult *result) {
+iERR ion_event_stream_write_scalar_value(ION_EVENT_OUTPUT_TYPE output_type, IonEvent *event, ION_CATALOG *catalog, std::string location, size_t *index, BYTE **value, SIZE *len, IonEventResult *result) {
     iENTER;
-    std::string scalar_location = location + ((output_type == ION_WRITER_OUTPUT_TYPE_BINARY) ? " binary scalar" : " text scalar");
+    std::string scalar_location = location + ((output_type == OUTPUT_TYPE_BINARY) ? " binary scalar" : " text scalar");
     ION_SET_ERROR_CONTEXT(&scalar_location, index);
-    ION_EVENT_WRITER_CONTEXT writer_context;
+    IonEventWriterContext writer_context;
     ION_COLLECTION *imports = NULL;
     ASSERT(value);
     ASSERT(len);
@@ -1277,8 +1277,8 @@ iERR ion_event_stream_write_scalar_event(hWRITER writer, IonEvent *event, ION_CA
     ION_STRING text_stream;
     ASSERT(location);
 
-    IONREPORT(ion_event_stream_write_scalar_value(ION_WRITER_OUTPUT_TYPE_TEXT_UGLY, event, catalog, *location, index, &text_value, &text_len, result));
-    IONREPORT(ion_event_stream_write_scalar_value(ION_WRITER_OUTPUT_TYPE_BINARY, event, catalog, *location, index, &binary_value, &binary_len, result));
+    IONREPORT(ion_event_stream_write_scalar_value(OUTPUT_TYPE_TEXT_UGLY, event, catalog, *location, index, &text_value, &text_len, result));
+    IONREPORT(ion_event_stream_write_scalar_value(OUTPUT_TYPE_BINARY, event, catalog, *location, index, &binary_value, &binary_len, result));
 
     ion_string_assign_cstr(&text_stream, (char *)text_value, text_len);
     IONCWRITE(ion_writer_write_field_name(writer, &ion_event_value_text_field));
@@ -1348,7 +1348,7 @@ iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, I
     iRETURN;
 }
 
-iERR ion_event_stream_write_error(hWRITER writer, ION_EVENT_ERROR_DESCRIPTION *error_description) {
+iERR ion_event_stream_write_error(hWRITER writer, IonEventErrorDescription *error_description) {
     iENTER;
     ION_SET_ERROR_CONTEXT(NULL, NULL); // In the event that writing the error report fails, this information can't be used anyway
     IonEventResult *result = NULL;
@@ -1373,7 +1373,7 @@ iERR ion_event_stream_write_error(hWRITER writer, ION_EVENT_ERROR_DESCRIPTION *e
     cRETURN;
 }
 
-iERR ion_event_stream_write_comparison_context(hWRITER writer, ION_EVENT_COMPARISON_CONTEXT *comparison_context, std::string *location, ION_CATALOG *catalog, IonEventResult *result) {
+iERR ion_event_stream_write_comparison_context(hWRITER writer, IonEventComparisonContext *comparison_context, std::string *location, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(location, NULL);
     ION_STRING event_location;
@@ -1390,7 +1390,7 @@ iERR ion_event_stream_write_comparison_context(hWRITER writer, ION_EVENT_COMPARI
     cRETURN;
 }
 
-iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result, std::string *location, ION_CATALOG *catalog, IonEventResult *result) {
+iERR ion_event_stream_write_comparison_result(hWRITER writer, IonEventComparisonResult *comparison_result, std::string *location, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(location, NULL);
     ION_STRING message;

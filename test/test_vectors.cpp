@@ -275,11 +275,11 @@ cleanup:
 }
 
 void write_ion_event_result(IonEventResult *result, ION_CATALOG *catalog, std::string test_name) {
-    ION_EVENT_WRITER_CONTEXT writer_context;
+    IonEventWriterContext writer_context;
     std::string message;
     BYTE *out = NULL;
     SIZE len;
-    ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_open(&writer_context, test_name + "error result", ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY, NULL, /*imports=*/NULL, /*result=*/NULL));
+    ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_open(&writer_context, test_name + "error result", OUTPUT_TYPE_TEXT_PRETTY, NULL, /*imports=*/NULL, /*result=*/NULL));
     if (result->has_error_description) {
         ASSERT_EQ(IERR_OK, ion_event_stream_write_error(writer_context.writer, &result->error_description));
     }
@@ -306,8 +306,8 @@ iERR ionTestRoundtrip(IonEventStream *initial_stream, IonEventStream **roundtrip
         BYTE *written = NULL;
         SIZE len;
         IONREPORT(ion_event_stream_write_all_to_bytes(initial_stream,
-                                                      (test_type == ROUNDTRIP_BINARY ? ION_WRITER_OUTPUT_TYPE_BINARY
-                                                                                     : ION_WRITER_OUTPUT_TYPE_TEXT_UGLY),
+                                                      (test_type == ROUNDTRIP_BINARY ? OUTPUT_TYPE_BINARY
+                                                                                     : OUTPUT_TYPE_TEXT_UGLY),
                                                       catalog, &written, &len, result));
         *roundtrip_stream = new IonEventStream(test_name + "re-read");
         IONREPORT(read_value_stream_from_bytes(written, len, *roundtrip_stream, catalog, result));

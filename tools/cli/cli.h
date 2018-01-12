@@ -31,11 +31,11 @@ typedef enum _ion_cli_input_format {
     IO_TYPE_MEMORY
 } ION_CLI_IO_TYPE;
 
-// TODO make all these classes?
 /**
  * Arguments shared by the process, compare, and extract commands.
  */
-typedef struct _ion_cli_common_args {
+class IonCliCommonArgs {
+public:
     ION_CLI_IO_TYPE output_type;
     std::string output;
     ION_CLI_IO_TYPE error_report_type;
@@ -45,28 +45,42 @@ typedef struct _ion_cli_common_args {
     std::vector<std::string> catalogs;
     ION_CLI_IO_TYPE inputs_format;
     std::vector<std::string> input_files;
-} ION_CLI_COMMON_ARGS;
 
-typedef struct _ion_cli_process_args {
+    IonCliCommonArgs() {
+        memset(this, 0, sizeof(IonCliCommonArgs));
+    }
+};
+
+class IonCliProcessArgs {
+public:
     std::string perf_report;
     std::string filter;
     ION_CLI_IO_TYPE traverse_format;
     std::string traverse;
     ION_CLI_IO_TYPE imports_format;
     std::vector<std::string> imports;
-} ION_CLI_PROCESS_ARGS;
 
-typedef struct _ion_cli_reader_context {
+    IonCliProcessArgs() {
+        memset(this, 0, sizeof(IonCliProcessArgs));
+    }
+};
+
+class IonCliReaderContext {
+public:
     ION_READER_OPTIONS options;
     hREADER reader;
     FILE *file_stream;
     std::string input_location;
     ION_STREAM *ion_stream;
-} ION_CLI_READER_CONTEXT;
 
-iERR ion_cli_command_compare(ION_CLI_COMMON_ARGS *common_args, ION_EVENT_COMPARISON_TYPE comparison_type, ION_STRING *output, IonEventReport *report);
-iERR ion_cli_command_process(ION_CLI_COMMON_ARGS *common_args, ION_CLI_PROCESS_ARGS *process_args, ION_STRING *output, IonEventReport *report);
+    IonCliReaderContext() {
+        memset(this, 0, sizeof(IonCliReaderContext));
+    }
+};
 
-iERR ion_cli_write_error_report(IonEventReport *report, ION_CLI_COMMON_ARGS *common_args);
+iERR ion_cli_command_compare(IonCliCommonArgs *common_args, ION_EVENT_COMPARISON_TYPE comparison_type, ION_STRING *output, IonEventReport *report);
+iERR ion_cli_command_process(IonCliCommonArgs *common_args, IonCliProcessArgs *process_args, ION_STRING *output, IonEventReport *report);
+
+iERR ion_cli_write_error_report(IonEventReport *report, IonCliCommonArgs *common_args);
 
 #endif //IONC_CLI_H

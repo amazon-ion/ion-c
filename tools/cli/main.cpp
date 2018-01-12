@@ -111,9 +111,8 @@ inline void ion_cli_print_help() {
     std::cout << USAGE << COMMANDS << OPTIONS << EXAMPLES << std::endl;
 }
 
-iERR ion_cli_args_common(std::map<std::string, docopt::value> *args, ION_CLI_COMMON_ARGS *common_args, IonEventReport *report) {
+iERR ion_cli_args_common(std::map<std::string, docopt::value> *args, IonCliCommonArgs *common_args, IonEventReport *report) {
     iENTER;
-    memset(common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
     common_args->output = args->find("--output")->second.asString();
     ION_SET_ERROR_CONTEXT(&common_args->output, NULL);
     IonEventResult result;
@@ -144,9 +143,8 @@ cleanup:
     iRETURN;
 }
 
-iERR ion_cli_args_process(std::map<std::string, docopt::value> *args, ION_CLI_PROCESS_ARGS *process_args) {
+iERR ion_cli_args_process(std::map<std::string, docopt::value> *args, IonCliProcessArgs *process_args) {
     iENTER;
-    memset(process_args, 0, sizeof(ION_CLI_PROCESS_ARGS));
     if (ion_cli_has_value(args, "--perf-report")) {
         process_args->perf_report = args->find("--perf-report")->second.asString();
     }
@@ -181,7 +179,7 @@ iERR ion_cli_parse(std::vector<std::string> const &argv) {
     std::map<std::string, docopt::value> args = docopt::docopt(docopt_input, argv, false, ION_CLI_VERSION);
 
     IonEventReport report;
-    ION_CLI_COMMON_ARGS common_args;
+    IonCliCommonArgs common_args;
 
     if (ion_cli_has_flag(&args, "help") || ion_cli_has_flag(&args, "--help")) {
         ion_cli_print_help();
@@ -194,7 +192,7 @@ iERR ion_cli_parse(std::vector<std::string> const &argv) {
 
     IONREPORT(ion_cli_args_common(&args, &common_args, &report));
     if (ion_cli_has_flag(&args, "process")) {
-        ION_CLI_PROCESS_ARGS process_args;
+        IonCliProcessArgs process_args;
         IONREPORT(ion_cli_args_process(&args, &process_args));
         IONREPORT(ion_cli_command_process(&common_args, &process_args, NULL, &report));
     }

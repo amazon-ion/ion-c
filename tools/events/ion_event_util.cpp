@@ -152,14 +152,13 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options) {
     options->max_annotation_count = ION_EVENT_ANNOTATION_MAX;
 }
 
-iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, std::string location, ION_WRITER_OUTPUT_FORMAT output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result) {
+iERR ion_event_in_memory_writer_open(IonEventWriterContext *writer_context, std::string location, ION_EVENT_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&location, NULL);
-    memset(writer_context, 0, sizeof(ION_EVENT_WRITER_CONTEXT));
     IONCWRITE(ion_stream_open_memory_only(&writer_context->ion_stream));
     ion_event_initialize_writer_options(&writer_context->options);
-    writer_context->options.output_as_binary = (output_type == ION_WRITER_OUTPUT_TYPE_BINARY);
-    writer_context->options.pretty_print = (output_type == ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY);
+    writer_context->options.output_as_binary = (output_type == OUTPUT_TYPE_BINARY);
+    writer_context->options.pretty_print = (output_type == OUTPUT_TYPE_TEXT_PRETTY);
     writer_context->options.pcatalog = catalog;
     if (imports) {
         IONCWRITE(ion_writer_options_initialize_shared_imports(&writer_context->options));
@@ -170,7 +169,7 @@ iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, s
     cRETURN;
 }
 
-iERR ion_event_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, IonEventResult *result, iERR err, bool in_memory,
+iERR ion_event_writer_close(IonEventWriterContext *writer_context, IonEventResult *result, iERR err, bool in_memory,
                             BYTE **bytes, SIZE *bytes_len) {
     ION_SET_ERROR_CONTEXT(&writer_context->output_location, NULL);
     if (writer_context->writer) {
@@ -208,7 +207,7 @@ iERR ion_event_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, IonEventRe
     iRETURN;
 }
 
-iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, iERR err, IonEventResult *result) {
+iERR ion_event_in_memory_writer_close(IonEventWriterContext *writer_context, BYTE **bytes, SIZE *bytes_len, iERR err, IonEventResult *result) {
     UPDATEERROR(ion_event_writer_close(writer_context, result, err, true, bytes, bytes_len));
     cRETURN;
 }

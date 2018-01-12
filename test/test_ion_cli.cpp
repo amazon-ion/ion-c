@@ -19,7 +19,7 @@
 #include "gather_vectors.h"
 #include "ion_event_util.h"
 
-void test_ion_cli_assert_error_equals(ION_EVENT_ERROR_DESCRIPTION *actual, ION_EVENT_ERROR_TYPE expected_type, iERR expected_code, std::string expected_location_suffix="", int expected_event_index=-1) {
+void test_ion_cli_assert_error_equals(IonEventErrorDescription *actual, ION_EVENT_ERROR_TYPE expected_type, iERR expected_code, std::string expected_location_suffix="", int expected_event_index=-1) {
     ASSERT_EQ(expected_type, actual->error_type);
     if (expected_event_index >= 0) {
         ASSERT_TRUE(actual->has_event_index);
@@ -32,7 +32,7 @@ void test_ion_cli_assert_error_equals(ION_EVENT_ERROR_DESCRIPTION *actual, ION_E
     ASSERT_NE(actual->message.find(ion_error_to_str(expected_code)), actual->message.npos);
 }
 
-void test_ion_cli_assert_comparison_result_equals(ION_EVENT_COMPARISON_RESULT *actual, ION_EVENT_COMPARISON_RESULT_TYPE expected_type, std::string expected_lhs_location, std::string expected_rhs_location, size_t expected_lhs_index, size_t expected_rhs_index) {
+void test_ion_cli_assert_comparison_result_equals(IonEventComparisonResult *actual, ION_EVENT_COMPARISON_RESULT_TYPE expected_type, std::string expected_lhs_location, std::string expected_rhs_location, size_t expected_lhs_index, size_t expected_rhs_index) {
     ASSERT_EQ(expected_type, actual->result);
     ASSERT_NE(actual->lhs.location.npos, actual->lhs.location.find(expected_lhs_location)) << actual->lhs.location;
     ASSERT_NE(actual->rhs.location.npos, actual->rhs.location.find(expected_rhs_location)) << actual->rhs.location;
@@ -40,38 +40,36 @@ void test_ion_cli_assert_comparison_result_equals(ION_EVENT_COMPARISON_RESULT *a
     ASSERT_EQ(expected_rhs_index, actual->rhs.event_index);
 }
 
-void test_ion_cli_init_common_args(ION_CLI_COMMON_ARGS *common_args, const char *output_format="text",
+void test_ion_cli_init_common_args(IonCliCommonArgs *common_args, const char *output_format="text",
                                    const char *error_report="stdout", ION_CLI_IO_TYPE error_type=IO_TYPE_CONSOLE) {
-    memset(common_args, 0, sizeof(ION_CLI_COMMON_ARGS));
     common_args->output_type = IO_TYPE_MEMORY;
     common_args->error_report_type = error_type;
     common_args->output_format = output_format;
     common_args->error_report = error_report;
 }
 
-void test_ion_cli_add_input(const char *input, ION_CLI_IO_TYPE input_type, ION_CLI_COMMON_ARGS *common_args) {
+void test_ion_cli_add_input(const char *input, ION_CLI_IO_TYPE input_type, IonCliCommonArgs *common_args) {
     common_args->input_files.push_back(input);
     common_args->inputs_format = input_type;
 }
 
-void test_ion_cli_add_catalog(const char *catalog, ION_CLI_IO_TYPE input_type, ION_CLI_COMMON_ARGS *common_args) {
+void test_ion_cli_add_catalog(const char *catalog, ION_CLI_IO_TYPE input_type, IonCliCommonArgs *common_args) {
     common_args->catalogs.push_back(catalog);
     common_args->catalogs_format = input_type;
 }
 
-void test_ion_cli_init_process_args(ION_CLI_PROCESS_ARGS *process_args) {
-    memset(process_args, 0, sizeof(ION_CLI_PROCESS_ARGS));
+void test_ion_cli_init_process_args(IonCliProcessArgs *process_args) {
 }
 
-void test_ion_cli_add_import(const char *import, ION_CLI_IO_TYPE input_type, ION_CLI_PROCESS_ARGS *process_args) {
+void test_ion_cli_add_import(const char *import, ION_CLI_IO_TYPE input_type, IonCliProcessArgs *process_args) {
     process_args->imports_format = input_type;
     process_args->imports.push_back(import);
 }
 
 void test_ion_cli_process(const char *input, ION_CLI_IO_TYPE input_type, ION_STRING *command_output,
                           IonEventReport *report, const char *output_format = "text") {
-    ION_CLI_COMMON_ARGS common_args;
-    ION_CLI_PROCESS_ARGS process_args;
+    IonCliCommonArgs common_args;
+    IonCliProcessArgs process_args;
     test_ion_cli_init_common_args(&common_args, output_format);
     test_ion_cli_add_input(input, input_type, &common_args);
     test_ion_cli_init_process_args(&process_args);
@@ -79,8 +77,7 @@ void test_ion_cli_process(const char *input, ION_CLI_IO_TYPE input_type, ION_STR
 }
 
 void test_ion_cli_read_stream_successfully(BYTE *data, size_t data_len, IonEventStream *stream) {
-    ION_CLI_READER_CONTEXT reader_context;
-    memset(&reader_context, 0, sizeof(ION_CLI_READER_CONTEXT));
+    IonCliReaderContext reader_context;
     IonEventResult result;
     ION_ASSERT_OK(ion_test_new_reader(data, (SIZE)data_len, &reader_context.reader));
     ION_ASSERT_OK(ion_event_stream_read_all(reader_context.reader, NULL, stream, &result));
@@ -128,7 +125,7 @@ TEST(IonCli, UnequalValueTextAndValueBinaryFails) {
 }
 
 void test_ion_cli_assert_comparison(std::string *files, size_t num_files, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventReport *report, ION_STRING *command_output=NULL) {
-    ION_CLI_COMMON_ARGS common_args;
+    IonCliCommonArgs common_args;
     ION_STRING _command_output;
     test_ion_cli_init_common_args(&common_args);
     for (size_t i = 0; i < num_files; i++) {
@@ -171,7 +168,7 @@ TEST(IonCli, CompareAnnotatedIvmsEmbeddedNonequivs) {
     test_ion_cli_assert_comparison(&test_file, 1, COMPARISON_TYPE_EQUIVS, &report);
     ASSERT_FALSE(report.hasErrors());
     ASSERT_TRUE(report.hasComparisonFailures());
-    std::vector<ION_EVENT_COMPARISON_RESULT> *comparison_results = report.getComparisonResults();
+    std::vector<IonEventComparisonResult> *comparison_results = report.getComparisonResults();
     ASSERT_EQ(1, comparison_results->size());
     test_ion_cli_assert_comparison_result_equals(&comparison_results->at(0), COMPARISON_RESULT_NOT_EQUAL, test_file, test_file, 1, 3);
 }
@@ -185,7 +182,7 @@ TEST(IonCli, CompareMultipleInputFiles) {
     test_ion_cli_assert_comparison(test_files, 3, COMPARISON_TYPE_BASIC, &report);
     ASSERT_FALSE(report.hasErrors());
     ASSERT_TRUE(report.hasComparisonFailures());
-    std::vector<ION_EVENT_COMPARISON_RESULT> *comparison_results = report.getComparisonResults();
+    std::vector<IonEventComparisonResult> *comparison_results = report.getComparisonResults();
     ASSERT_EQ(4, comparison_results->size()); // one vs empty, one vs empty, empty vs one, empty vs one
     test_ion_cli_assert_comparison_result_equals(&comparison_results->at(0), COMPARISON_RESULT_NOT_EQUAL, test_files[0], test_files[2], 0, 0);
     test_ion_cli_assert_comparison_result_equals(&comparison_results->at(1), COMPARISON_RESULT_NOT_EQUAL, test_files[1], test_files[2], 0, 0);
@@ -218,7 +215,7 @@ TEST(IonCli, ErrorIsConveyedEvents) {
 
 TEST(IonCli, AnnotatedIvmsEmbedded) {
     std::string test_file = join_path(full_good_nonequivs_path, "annotatedIvms.ion");
-    ION_CLI_READER_CONTEXT reader_context;
+    IonCliReaderContext reader_context;
     ION_STRING command_output;
     ION_STRING_INIT(&command_output);
     IonEventReport report;
@@ -250,7 +247,7 @@ TEST(IonCli, ComparisonSetsDifferentLengthsEquivsSucceeds) {
     const char *lhs_data = "(1 0x1 0b1)";
     const char *rhs_data = "(0x1 1)";
     IonEventReport report;
-    ION_CLI_COMMON_ARGS common_args;
+    IonCliCommonArgs common_args;
     test_ion_cli_init_common_args(&common_args);
     test_ion_cli_add_input(lhs_data, IO_TYPE_MEMORY, &common_args);
     test_ion_cli_add_input(rhs_data, IO_TYPE_MEMORY, &common_args);
@@ -271,7 +268,7 @@ TEST(IonCli, ComparisonSetsDifferentLengthsNonequivsSucceeds) {
     const char *lhs_data = "(1)";
     const char *rhs_data = "(2 3)";
     IonEventReport report;
-    ION_CLI_COMMON_ARGS common_args;
+    IonCliCommonArgs common_args;
     test_ion_cli_init_common_args(&common_args);
     test_ion_cli_add_input(lhs_data, IO_TYPE_MEMORY, &common_args);
     test_ion_cli_add_input(rhs_data, IO_TYPE_MEMORY, &common_args);
@@ -288,8 +285,8 @@ TEST(IonCli, ComparisonSetsDifferentLengthsNonequivsSucceeds) {
 }
 
 TEST(IonCli, BasicProcessWithCatalog) {
-    ION_CLI_COMMON_ARGS common_args;
-    ION_CLI_PROCESS_ARGS process_args;
+    IonCliCommonArgs common_args;
+    IonCliProcessArgs process_args;
     IonEventReport report;
     ION_STRING command_output;
     test_ion_cli_init_common_args(&common_args);
@@ -314,7 +311,7 @@ TEST(IonCli, ProcessSymbolsWithUnknownTextWithoutCatalog) {
     test_ion_cli_process(filepath.c_str(), IO_TYPE_FILE, &command_output, &report, "events");
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
-    ION_CLI_COMMON_ARGS common_args;
+    IonCliCommonArgs common_args;
     test_ion_cli_init_common_args(&common_args);
     IonEventStream stream;
     // TODO compare the event stream and the initial input. Refactor the args classes so that input location and IO type are grouped.

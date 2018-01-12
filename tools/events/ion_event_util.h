@@ -117,14 +117,19 @@ static ION_STRING ion_event_comparison_result_type_equal = {5, (BYTE *)"EQUAL"};
 static ION_STRING ion_event_comparison_result_type_not_equal = {9, (BYTE *)"NOT_EQUAL"};
 static ION_STRING ion_event_comparison_result_type_error = {5, (BYTE *)"ERROR"};
 
-typedef struct _ion_cli_writer_context {
+class IonEventWriterContext {
+public:
     ION_WRITER_OPTIONS options;
     hWRITER writer;
     FILE *file_stream;
     std::string output_location;
     ION_STREAM *ion_stream;
     bool has_imports;
-} ION_EVENT_WRITER_CONTEXT;
+
+    IonEventWriterContext() {
+        memset(this, 0, sizeof(IonEventWriterContext));
+    }
+};
 
 ION_STRING *ion_event_type_to_string(ION_EVENT_TYPE type);
 ION_EVENT_TYPE ion_event_type_from_string(ION_STRING *type_str);
@@ -145,10 +150,10 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options);
  */
 void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options);
 
-iERR ion_event_in_memory_writer_open(ION_EVENT_WRITER_CONTEXT *writer_context, std::string location, ION_WRITER_OUTPUT_FORMAT output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result);
-iERR ion_event_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, IonEventResult *result, iERR err=IERR_OK,
+iERR ion_event_in_memory_writer_open(IonEventWriterContext *writer_context, std::string location, ION_EVENT_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result);
+iERR ion_event_writer_close(IonEventWriterContext *writer_context, IonEventResult *result, iERR err=IERR_OK,
                             bool in_memory=false, BYTE **bytes=NULL, SIZE *bytes_len=NULL);
-iERR ion_event_in_memory_writer_close(ION_EVENT_WRITER_CONTEXT *writer_context, BYTE **bytes, SIZE *bytes_len, iERR err=IERR_OK, IonEventResult *result=NULL);
+iERR ion_event_in_memory_writer_close(IonEventWriterContext *writer_context, BYTE **bytes, SIZE *bytes_len, iERR err=IERR_OK, IonEventResult *result=NULL);
 
 void _ion_event_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg,
                           std::string *location, size_t *event_index, const char *file, int line);

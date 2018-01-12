@@ -121,27 +121,32 @@ public:
     }
 };
 
-typedef enum _ion_writer_output_type {
-    ION_WRITER_OUTPUT_TYPE_TEXT_PRETTY = 0,
-    ION_WRITER_OUTPUT_TYPE_TEXT_UGLY,
-    ION_WRITER_OUTPUT_TYPE_BINARY,
-} ION_WRITER_OUTPUT_FORMAT;
+typedef enum _ion_event_output_type {
+    OUTPUT_TYPE_TEXT_PRETTY = 0,
+    OUTPUT_TYPE_TEXT_UGLY,
+    OUTPUT_TYPE_BINARY,
+} ION_EVENT_OUTPUT_TYPE;
 
 typedef enum _ion_event_error_type {
-    ERROR_TYPE_READ = 0,
+    ERROR_TYPE_UNKNOWN = 0,
+    ERROR_TYPE_READ,
     ERROR_TYPE_WRITE,
     ERROR_TYPE_STATE,
-    ERROR_TYPE_UNKNOWN
 } ION_EVENT_ERROR_TYPE;
 
-typedef struct _ion_event_error_description {
+class IonEventErrorDescription {
+public:
     ION_EVENT_ERROR_TYPE error_type;
     std::string message;
     std::string location;
     size_t event_index;
     bool has_location;
     bool has_event_index;
-} ION_EVENT_ERROR_DESCRIPTION;
+
+    IonEventErrorDescription() {
+        memset(this, 0, sizeof(IonEventErrorDescription));
+    }
+};
 
 typedef enum _ion_event_comparison_result_type {
     COMPARISON_RESULT_EQUAL = 0,
@@ -149,42 +154,49 @@ typedef enum _ion_event_comparison_result_type {
     COMPARISON_RESULT_ERROR
 } ION_EVENT_COMPARISON_RESULT_TYPE;
 
-typedef struct _ion_event_report_context {
+class IonEventComparisonContext {
+public:
     std::string location;
     IonEvent *event;
     size_t event_index;
-} ION_EVENT_COMPARISON_CONTEXT;
 
-typedef struct _ion_event_comparison_result {
+    IonEventComparisonContext() {
+        memset(this, 0, sizeof(IonEventComparisonContext));
+    }
+};
+
+class IonEventComparisonResult {
+public:
     ION_EVENT_COMPARISON_RESULT_TYPE result;
-    ION_EVENT_COMPARISON_CONTEXT lhs;
-    ION_EVENT_COMPARISON_CONTEXT rhs;
+    IonEventComparisonContext lhs;
+    IonEventComparisonContext rhs;
     std::string message;
-} ION_EVENT_COMPARISON_RESULT;
+
+    IonEventComparisonResult() {
+        memset(this, 0, sizeof(IonEventComparisonResult));
+    }
+};
 
 class IonEventResult {
 public:
-    ION_EVENT_ERROR_DESCRIPTION error_description;
-    ION_EVENT_COMPARISON_RESULT comparison_result;
+    IonEventErrorDescription error_description;
+    IonEventComparisonResult comparison_result;
     bool has_error_description;
     bool has_comparison_result;
 
     IonEventResult() {
-        memset(&error_description, 0, sizeof(ION_EVENT_ERROR_DESCRIPTION));
-        memset(&comparison_result, 0, sizeof(ION_EVENT_COMPARISON_RESULT));
-        has_error_description = false;
-        has_comparison_result = false;
+        memset(this, 0, sizeof(IonEventResult));
     }
 };
 
 class IonEventReport {
-    std::vector<ION_EVENT_ERROR_DESCRIPTION> error_report;
-    std::vector<ION_EVENT_COMPARISON_RESULT> comparison_report;
+    std::vector<IonEventErrorDescription> error_report;
+    std::vector<IonEventComparisonResult> comparison_report;
 public:
     IonEventReport() {}
     ~IonEventReport() {
         for (size_t i = 0; i < comparison_report.size(); i++) {
-            ION_EVENT_COMPARISON_RESULT *comparison_result = &comparison_report.at(i);
+            IonEventComparisonResult *comparison_result = &comparison_report.at(i);
             if (comparison_result->lhs.event) {
                 delete comparison_result->lhs.event;
             }
@@ -202,8 +214,8 @@ public:
     bool hasComparisonFailures() {
         return !comparison_report.empty();
     }
-    std::vector<ION_EVENT_ERROR_DESCRIPTION> *getErrors() { return &error_report; }
-    std::vector<ION_EVENT_COMPARISON_RESULT> *getComparisonResults() { return &comparison_report; }
+    std::vector<IonEventErrorDescription> *getErrors() { return &error_report; }
+    std::vector<IonEventComparisonResult> *getComparisonResults() { return &comparison_report; }
 };
 
 iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, std::string *location, ION_CATALOG *catalog, IonEventResult *result);
@@ -240,7 +252,7 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
  */
 iERR ion_event_stream_read_all(hREADER hreader, ION_CATALOG *catalog, IonEventStream *stream, IonEventResult *result);
 
-iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_WRITER_OUTPUT_FORMAT output_type,
+iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_EVENT_OUTPUT_TYPE output_type,
                                          ION_CATALOG *catalog, BYTE **out, SIZE *len, IonEventResult *result);
 
 /**
@@ -253,9 +265,9 @@ iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream, IonEvent
  */
 iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog, IonEventResult *result);
 
-iERR ion_event_stream_write_error(hWRITER writer, ION_EVENT_ERROR_DESCRIPTION *error_description);
+iERR ion_event_stream_write_error(hWRITER writer, IonEventErrorDescription *error_description);
 
-iERR ion_event_stream_write_comparison_result(hWRITER writer, ION_EVENT_COMPARISON_RESULT *comparison_result, std::string *location, ION_CATALOG *catalog, IonEventResult *result);
+iERR ion_event_stream_write_comparison_result(hWRITER writer, IonEventComparisonResult *comparison_result, std::string *location, ION_CATALOG *catalog, IonEventResult *result);
 
 iERR ion_event_copy(IonEvent **dst, IonEvent *src, std::string location, IonEventResult *result);
 
