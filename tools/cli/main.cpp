@@ -21,9 +21,9 @@ R"(
 ion-c CLI
 
 Usage:
-    ion process [--output <file>] [--error-report <file>] [--output-format <type>] [--catalog <file>]... [--imports <file>]... [--perf-report <file>] [--filter <filter> | --traverse <file>] (- | <input_file>...)
-    ion compare [--output <file>] [--error-report <file>] [--output-format <type>] [--catalog <file>]... [--comparison-type <type>] (- | <input_file>...)
-    ion extract [--output <file>] [--error-report <file>] [--output-format <type>] (--symtab-name <name>) (--symtab-version <version>) (- | <input_file>...)
+    ion process [--output <file>] [--error-report <file>] [--output-format <type>] [--catalog <file>]... [--imports <file>]... [--perf-report <file>] [--filter <filter> | --traverse <file>] [-] [<input_file>]...
+    ion compare [--output <file>] [--error-report <file>] [--output-format <type>] [--catalog <file>]... [--comparison-type <type>] [-] [<input_file>]...
+    ion extract [--output <file>] [--error-report <file>] [--output-format <type>] (--symtab-name <name>) (--symtab-version <version>) [-] [<input_file>]...
     ion help [extract | compare | process]
     ion --help
     ion version
@@ -111,29 +111,41 @@ inline void ion_cli_print_help() {
     std::cout << USAGE << COMMANDS << OPTIONS << EXAMPLES << std::endl;
 }
 
+std::vector<IonCliIO> ion_cli_files_list_to_IO(const std::vector<std::string> *files_list) {
+    std::vector<IonCliIO> io;
+    for (size_t i = 0; i < files_list->size(); i++) {
+        io.emplace_back(files_list->at(i)); // Implicitly converts to a file-type IonCliIO
+    }
+    return io;
+}
+
 iERR ion_cli_args_common(std::map<std::string, docopt::value> *args, IonCliCommonArgs *common_args, IonEventReport *report) {
     iENTER;
-    common_args->output = args->find("--output")->second.asString();
-    ION_SET_ERROR_CONTEXT(&common_args->output, NULL);
+    ION_CLI_IO_TYPE output_type = IO_TYPE_FILE;
+    std::string output_destination = args->find("--output")->second.asString();
+    if (output_destination == "stdout" || output_destination == "stderr") {
+        output_type = IO_TYPE_CONSOLE;
+    }
+    common_args->output = IonCliIO(output_destination, output_type);
+    ION_SET_ERROR_CONTEXT(&common_args->output.contents, NULL);
     IonEventResult result;
-    if (common_args->output == "stdout" || common_args->output == "stderr") {
-        common_args->output_type = IO_TYPE_CONSOLE;
-    }
     common_args->output_format = args->find("--output-format")->second.asString();
-    common_args->error_report = args->find("--error-report")->second.asString();
-    if (common_args->error_report == "stdout" || common_args->error_report == "stderr") {
-        common_args->error_report_type = IO_TYPE_CONSOLE;
+    ION_CLI_IO_TYPE error_report_type = IO_TYPE_FILE;
+    std::string error_report_destination = args->find("--error-report")->second.asString();
+    if (error_report_destination == "stdout" || error_report_destination == "stderr") {
+        error_report_type = IO_TYPE_CONSOLE;
     }
+    common_args->error_report = IonCliIO(error_report_destination, error_report_type);
     if (ion_cli_has_value(args, "--catalog")) {
-        common_args->catalogs = args->find("--catalog")->second.asStringList();
+        common_args->catalogs = ion_cli_files_list_to_IO(&args->find("--catalog")->second.asStringList());
+    }
+    if (ion_cli_has_value(args, "<input_file>")) {
+        common_args->input_files = ion_cli_files_list_to_IO(&args->find("<input_file>")->second.asStringList());
     }
     if (ion_cli_has_flag(args, "-")) {
-        common_args->inputs_format = IO_TYPE_CONSOLE;
+        common_args->input_files.emplace_back(IonCliIO("stdin", IO_TYPE_CONSOLE));
     }
-    else {
-        common_args->input_files = args->find("<input_file>")->second.asStringList();
-    }
-    if (!common_args->inputs_format == IO_TYPE_CONSOLE && common_args->input_files.empty()) {
+    if (common_args->input_files.empty()) {
         IONFAILSTATE(IERR_INVALID_ARG, "Input not specified.", &result);
     }
 cleanup:
@@ -155,7 +167,7 @@ iERR ion_cli_args_process(std::map<std::string, docopt::value> *args, IonCliProc
         process_args->traverse = args->find("--traverse")->second.asString();
     }
     if (ion_cli_has_value(args, "--imports")) {
-        process_args->imports = args->find("--imports")->second.asStringList();
+        process_args->imports = ion_cli_files_list_to_IO(&args->find("--imports")->second.asStringList());
     }
     cRETURN;
 }
@@ -210,7 +222,7 @@ iERR ion_cli_parse(std::vector<std::string> const &argv) {
 cleanup:
     if (report.hasErrors()) {
         if (IERR_OK != ion_cli_write_error_report(&report, &common_args)) {
-            std::cerr << "Error writing error report to " << common_args.error_report << "." << std::endl;
+            std::cerr << "Error writing error report to " << common_args.error_report.contents << "." << std::endl;
         }
     }
     iRETURN;

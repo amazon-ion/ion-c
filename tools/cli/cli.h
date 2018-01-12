@@ -31,20 +31,32 @@ typedef enum _ion_cli_input_format {
     IO_TYPE_MEMORY
 } ION_CLI_IO_TYPE;
 
+
+class IonCliIO {
+public:
+    ION_CLI_IO_TYPE type;
+    std::string contents;
+
+    IonCliIO(){
+        memset(this, 0, sizeof(IonCliIO));
+    }
+
+    IonCliIO(std::string contents, ION_CLI_IO_TYPE type=IO_TYPE_FILE) {
+        this->contents = contents;
+        this->type = type;
+    }
+};
+
 /**
  * Arguments shared by the process, compare, and extract commands.
  */
 class IonCliCommonArgs {
 public:
-    ION_CLI_IO_TYPE output_type;
-    std::string output;
-    ION_CLI_IO_TYPE error_report_type;
-    std::string error_report;
-    std::string output_format;
-    ION_CLI_IO_TYPE catalogs_format;
-    std::vector<std::string> catalogs;
-    ION_CLI_IO_TYPE inputs_format;
-    std::vector<std::string> input_files;
+    IonCliIO output;
+    IonCliIO error_report;
+    std::string output_format; // TODO store as enum?
+    std::vector<IonCliIO> catalogs;
+    std::vector<IonCliIO> input_files;
 
     IonCliCommonArgs() {
         memset(this, 0, sizeof(IonCliCommonArgs));
@@ -53,12 +65,10 @@ public:
 
 class IonCliProcessArgs {
 public:
-    std::string perf_report;
+    IonCliIO perf_report;
     std::string filter;
-    ION_CLI_IO_TYPE traverse_format;
-    std::string traverse;
-    ION_CLI_IO_TYPE imports_format;
-    std::vector<std::string> imports;
+    IonCliIO traverse;
+    std::vector<IonCliIO> imports;
 
     IonCliProcessArgs() {
         memset(this, 0, sizeof(IonCliProcessArgs));
