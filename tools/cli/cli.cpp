@@ -156,17 +156,11 @@ iERR ion_cli_create_catalog(std::vector<IonCliIO> *catalogs, ION_CATALOG **catal
     cRETURN;
 }
 
-ION_EVENT_OUTPUT_TYPE ion_cli_output_type_from_arg(std::string output_format_arg) {
-    if (output_format_arg == "binary") return OUTPUT_TYPE_BINARY;
-    if (output_format_arg == "pretty" || output_format_arg == "events") return OUTPUT_TYPE_TEXT_PRETTY;
-    return OUTPUT_TYPE_TEXT_UGLY;
-}
-
 iERR ion_cli_open_writer_basic(IonCliIO *destination, ION_EVENT_OUTPUT_TYPE output_format, IonEventWriterContext *writer_context, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&destination->contents, NULL);
     writer_context->options.output_as_binary = output_format == OUTPUT_TYPE_BINARY;
-    writer_context->options.pretty_print = output_format == OUTPUT_TYPE_TEXT_PRETTY;
+    writer_context->options.pretty_print = output_format == OUTPUT_TYPE_TEXT_PRETTY || output_format == OUTPUT_TYPE_EVENTS;
     writer_context->output_location = destination->contents;
 
     switch (destination->type) {
@@ -209,7 +203,7 @@ iERR ion_cli_open_writer(IonCliCommonArgs *common_args, ION_CATALOG *catalog, IO
         IONCWRITE(ion_writer_options_add_shared_imports(&writer_context->options, imports));
     }
 
-    IONCWRITE(ion_cli_open_writer_basic(&common_args->output, ion_cli_output_type_from_arg(common_args->output_format), writer_context, result));
+    IONCWRITE(ion_cli_open_writer_basic(&common_args->output, common_args->output_format, writer_context, result));
     cRETURN;
 }
 
@@ -246,7 +240,7 @@ iERR ion_cli_create_imports(std::vector<IonCliIO> *import_inputs, ION_COLLECTION
 
 iERR ion_cli_open_event_writer(IonCliCommonArgs *args, IonEventWriterContext *writer_context, IonEventResult *result) {
     iENTER;
-    IONREPORT(ion_cli_open_writer_basic(&args->output, ion_cli_output_type_from_arg(args->output_format), writer_context, result));
+    IONREPORT(ion_cli_open_writer_basic(&args->output, args->output_format, writer_context, result));
     IONREPORT(ion_writer_write_symbol(writer_context->writer, &ion_event_stream_marker));
     cRETURN;
 }
@@ -258,13 +252,13 @@ iERR ion_cli_write_input(IonCliCommonArgs *args, IonEventWriterContext *writer_c
     IonCliReaderContext reader_context;
     IonEventStream stream(input->contents);
     IONREPORT(ion_cli_open_reader(input, catalog, &reader_context, &stream, result));
-    if (args->output_format == "events") {
+    if (args->output_format == OUTPUT_TYPE_EVENTS) {
         // NOTE: don't short-circuit on read failure. Write as many events as possible.
         err = ion_event_stream_read_all(reader_context.reader, catalog, &stream, result);
         UPDATEERROR(ion_event_stream_write_all_events(writer_context->writer, &stream, catalog, result));
         IONREPORT(err);
     }
-    else if (args->output_format != "none"){
+    else if (args->output_format != OUTPUT_TYPE_NONE){
         IONREPORT(ion_event_stream_read_all(reader_context.reader, catalog, &stream, result));
         IONREPORT(ion_event_stream_write_all(writer_context->writer, &stream, result));
         // Would be nice to use this (especially for performance testing), but having to peek at the first value in the
@@ -294,10 +288,10 @@ iERR ion_cli_command_process(IonCliCommonArgs *common_args, IonCliProcessArgs *p
 
     IONREPORT(ion_cli_create_catalog(&common_args->catalogs, &catalog, result));
     IONREPORT(ion_cli_create_imports(&process_args->imports, &imports, result));
-    if (common_args->output_format == "events") {
+    if (common_args->output_format == OUTPUT_TYPE_EVENTS) {
         IONREPORT(ion_cli_open_event_writer(common_args, &writer_context, result));
     }
-    else if (common_args->output_format != "none") {
+    else if (common_args->output_format != OUTPUT_TYPE_NONE) {
         IONREPORT(ion_cli_open_writer(common_args, catalog, imports, &writer_context, result));
     }
     else {

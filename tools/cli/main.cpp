@@ -119,6 +119,14 @@ std::vector<IonCliIO> ion_cli_files_list_to_IO(const std::vector<std::string> *f
     return io;
 }
 
+ION_EVENT_OUTPUT_TYPE ion_cli_output_type_from_arg(const std::string *output_format_arg) {
+    if (!output_format_arg || *output_format_arg == "pretty") return OUTPUT_TYPE_TEXT_PRETTY;
+    if (*output_format_arg == "binary") return OUTPUT_TYPE_BINARY;
+    if (*output_format_arg == "events") return OUTPUT_TYPE_EVENTS;
+    if (*output_format_arg == "none") return OUTPUT_TYPE_NONE;
+    return OUTPUT_TYPE_TEXT_UGLY;
+}
+
 iERR ion_cli_args_common(std::map<std::string, docopt::value> *args, IonCliCommonArgs *common_args, IonEventReport *report) {
     iENTER;
     ION_CLI_IO_TYPE output_type = IO_TYPE_FILE;
@@ -129,7 +137,7 @@ iERR ion_cli_args_common(std::map<std::string, docopt::value> *args, IonCliCommo
     common_args->output = IonCliIO(output_destination, output_type);
     ION_SET_ERROR_CONTEXT(&common_args->output.contents, NULL);
     IonEventResult result;
-    common_args->output_format = args->find("--output-format")->second.asString();
+    common_args->output_format = ion_cli_output_type_from_arg(&args->find("--output-format")->second.asString());
     ION_CLI_IO_TYPE error_report_type = IO_TYPE_FILE;
     std::string error_report_destination = args->find("--error-report")->second.asString();
     if (error_report_destination == "stdout" || error_report_destination == "stderr") {

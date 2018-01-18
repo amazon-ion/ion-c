@@ -125,6 +125,8 @@ typedef enum _ion_event_output_type {
     OUTPUT_TYPE_TEXT_PRETTY = 0,
     OUTPUT_TYPE_TEXT_UGLY,
     OUTPUT_TYPE_BINARY,
+    OUTPUT_TYPE_EVENTS,
+    OUTPUT_TYPE_NONE,
 } ION_EVENT_OUTPUT_TYPE;
 
 typedef enum _ion_event_error_type {

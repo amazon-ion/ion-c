@@ -40,7 +40,8 @@ void test_ion_cli_assert_comparison_result_equals(IonEventComparisonResult *actu
     ASSERT_EQ(expected_rhs_index, actual->rhs.event_index);
 }
 
-void test_ion_cli_init_common_args(IonCliCommonArgs *common_args, const char *output_format="text",
+void test_ion_cli_init_common_args(IonCliCommonArgs *common_args,
+                                   ION_EVENT_OUTPUT_TYPE output_format=OUTPUT_TYPE_TEXT_UGLY,
                                    const char *error_report="stdout", ION_CLI_IO_TYPE error_type=IO_TYPE_CONSOLE) {
     common_args->output = IonCliIO();
     common_args->output.type = IO_TYPE_MEMORY;
@@ -64,7 +65,7 @@ void test_ion_cli_add_import(const char *import, ION_CLI_IO_TYPE input_type, Ion
 }
 
 void test_ion_cli_process(const char *input, ION_CLI_IO_TYPE input_type, ION_STRING *command_output,
-                          IonEventReport *report, const char *output_format = "text") {
+                          IonEventReport *report, ION_EVENT_OUTPUT_TYPE output_format=OUTPUT_TYPE_TEXT_UGLY) {
     IonCliCommonArgs common_args;
     IonCliProcessArgs process_args;
     test_ion_cli_init_common_args(&common_args, output_format);
@@ -99,7 +100,7 @@ TEST(IonCli, ProcessBasic) {
     ION_STRING command_output;
     IonEventReport report;
     test_ion_cli_process(join_path(full_good_path, "one.ion").c_str(), IO_TYPE_FILE, &command_output, &report,
-                         "events");
+                         OUTPUT_TYPE_EVENTS);
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
     test_ion_cli_assert_streams_equal("1", &command_output);
@@ -203,7 +204,7 @@ TEST(IonCli, ErrorIsConveyedEvents) {
     std::string test_file = join_path(full_bad_path, "fieldNameFalse.ion");
     ION_STRING command_output;
     IonEventReport report;
-    test_ion_cli_process(test_file.c_str(), IO_TYPE_FILE, &command_output, &report, "events");
+    test_ion_cli_process(test_file.c_str(), IO_TYPE_FILE, &command_output, &report, OUTPUT_TYPE_EVENTS);
     ASSERT_TRUE(report.hasErrors());
     ASSERT_FALSE(report.hasComparisonFailures());
     test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_READ, IERR_INVALID_FIELDNAME, test_file);
@@ -218,7 +219,7 @@ TEST(IonCli, AnnotatedIvmsEmbedded) {
     ION_STRING_INIT(&command_output);
     IonEventReport report;
     IonEventStream stream(test_file);
-    test_ion_cli_process(test_file.c_str(), IO_TYPE_FILE, &command_output, &report, "events");
+    test_ion_cli_process(test_file.c_str(), IO_TYPE_FILE, &command_output, &report, OUTPUT_TYPE_EVENTS);
     ASSERT_FALSE(report.hasErrors());
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(ION_STRING_IS_NULL(&command_output));
@@ -306,7 +307,7 @@ TEST(IonCli, ProcessSymbolsWithUnknownTextWithoutCatalog) {
     IonEventReport report;
     ION_STRING command_output;
     std::string filepath = join_path(full_good_path, "item1.10n");
-    test_ion_cli_process(filepath.c_str(), IO_TYPE_FILE, &command_output, &report, "events");
+    test_ion_cli_process(filepath.c_str(), IO_TYPE_FILE, &command_output, &report, OUTPUT_TYPE_EVENTS);
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
     IonCliCommonArgs common_args;

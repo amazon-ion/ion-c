@@ -54,7 +54,7 @@ class IonCliCommonArgs {
 public:
     IonCliIO output;
     IonCliIO error_report;
-    std::string output_format; // TODO store as enum?
+    ION_EVENT_OUTPUT_TYPE output_format;
     std::vector<IonCliIO> catalogs;
     std::vector<IonCliIO> input_files;
 
