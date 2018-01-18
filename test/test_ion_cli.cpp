@@ -194,6 +194,7 @@ TEST(IonCli, ErrorIsConveyed) {
     test_ion_cli_process(test_file.c_str(), IO_TYPE_FILE, &command_output, &report);
     ASSERT_TRUE(report.hasErrors());
     ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_EQ(0, command_output.length);
     test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_READ, IERR_INVALID_SYNTAX, test_file);
     free(command_output.value);
 }
@@ -318,5 +319,18 @@ TEST(IonCli, ProcessSymbolsWithUnknownTextWithoutCatalog) {
     ION_ASSERT_OK(ion_cli_command_compare(&common_args, COMPARISON_TYPE_BASIC, &command_output, &report));
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
+    free(command_output.value);
+}
+
+TEST(IonCli, EventWithDuplicateFieldFails) {
+    const char *data = "$ion_event_stream {event_type: STREAM_END, depth: 0, event_type: STREAM_END}";
+    ION_STRING command_output;
+    IonEventReport report;
+    ION_STRING_INIT(&command_output);
+    test_ion_cli_process(data, IO_TYPE_MEMORY, &command_output, &report);
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_TRUE(report.hasErrors());
+    ASSERT_EQ(0, command_output.length);
+    test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_STATE, IERR_INVALID_ARG, data);
     free(command_output.value);
 }

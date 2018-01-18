@@ -416,12 +416,20 @@ iERR ion_event_stream_read_all_values(hREADER hreader, IonEventStream *stream, I
     cRETURN;
 }
 
+
+#define ION_EVENT_REQUIRE_UNIQUE_FIELD(fields, mask, name) \
+    if ((fields) & (mask)) { \
+        IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: repeated " + std::string(name) + " field.", result); \
+    } \
+    (fields) |= (mask);
+
 iERR ion_event_stream_read_import_location(hREADER reader, ION_SYMBOL_IMPORT_LOCATION *import_location, std::string *location, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(location, NULL);
     ION_TYPE ion_type;
     ION_STRING field_name, location_name;
     BOOL is_null;
+    uint8_t visited_fields = 0;
     ASSERT(import_location);
 
     for (;;) {
@@ -430,6 +438,7 @@ iERR ion_event_stream_read_import_location(hREADER reader, ION_SYMBOL_IMPORT_LOC
         IONCREAD(ion_reader_get_field_name(reader, &field_name));
         IONCREAD(ion_reader_is_null(reader, &is_null));
         if (ION_STRING_EQUALS(&ion_event_import_name_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x1, "import_name");
             if (is_null || ion_type != tid_STRING) {
                 IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: ImportLocation import_name must be a string.", result);
             }
@@ -437,6 +446,7 @@ iERR ion_event_stream_read_import_location(hREADER reader, ION_SYMBOL_IMPORT_LOC
             copy_ion_string_into(&import_location->name, &location_name);
         }
         else if (ION_STRING_EQUALS(&ion_event_import_sid_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x2, "import_sid");
             if (is_null || ion_type != tid_INT) {
                 IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: Location import_sid must be an int.", result);
             }
@@ -458,6 +468,7 @@ iERR ion_event_stream_read_symbol_token(hREADER reader, ION_SYMBOL *symbol, std:
     ION_TYPE ion_type;
     ION_STRING field_name, text;
     BOOL is_null;
+    uint8_t visited_fields = 0;
     ASSERT(symbol);
 
     symbol->add_count = 0;
@@ -472,6 +483,7 @@ iERR ion_event_stream_read_symbol_token(hREADER reader, ION_SYMBOL *symbol, std:
         IONCREAD(ion_reader_get_field_name(reader, &field_name));
         IONCREAD(ion_reader_is_null(reader, &is_null));
         if (ION_STRING_EQUALS(&ion_event_text_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x1, "text");
             if (is_null) {
                 continue;
             }
@@ -482,11 +494,12 @@ iERR ion_event_stream_read_symbol_token(hREADER reader, ION_SYMBOL *symbol, std:
             copy_ion_string_into(&symbol->value, &text);
         }
         else if (ION_STRING_EQUALS(&ion_event_import_location_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x2, "import_location");
             if (is_null) {
                 continue;
             }
             if (ion_type != tid_STRUCT) {
-                IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: SymbolToken location must be an ImportLocation struct.", result);
+                IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: SymbolToken import_location must be an ImportLocation struct.", result);
             }
             IONCREAD(ion_reader_step_in(reader));
             IONREPORT(ion_event_stream_read_import_location(reader, &symbol->import_location, location, result));
@@ -512,6 +525,7 @@ iERR ion_event_stream_read_import(hREADER reader, ION_COLLECTION *imports, std::
     memset(&descriptor, 0, sizeof(ION_SYMBOL_TABLE_IMPORT_DESCRIPTOR));
     descriptor.version = 1;
     descriptor.max_id = -1;
+    uint8_t visited_fields = 0;
 
     for (;;) {
         IONCREAD(ion_reader_next(reader, &ion_type));
@@ -519,6 +533,7 @@ iERR ion_event_stream_read_import(hREADER reader, ION_COLLECTION *imports, std::
         IONCREAD(ion_reader_get_field_name(reader, &field_name));
         IONCREAD(ion_reader_is_null(reader, &is_null));
         if (ION_STRING_EQUALS(&ion_event_name_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x1, "name");
             if (is_null || ion_type != tid_STRING) {
                 IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: ImportDescriptor name must be a string.", result);
             }
@@ -526,6 +541,7 @@ iERR ion_event_stream_read_import(hREADER reader, ION_COLLECTION *imports, std::
             IONCREAD(ion_string_copy_to_owner(imports, &descriptor.name, &import_name));
         }
         else if (ION_STRING_EQUALS(&ion_event_version_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x2, "version");
             if (is_null) {
                 continue;
             }
@@ -535,6 +551,7 @@ iERR ion_event_stream_read_import(hREADER reader, ION_COLLECTION *imports, std::
             IONCREAD(ion_reader_read_int(reader, &descriptor.version));
         }
         else if (ION_STRING_EQUALS(&ion_event_max_id_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x4, "max_id");
             if (is_null) {
                 continue;
             }
@@ -750,8 +767,7 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
     ION_STRING value_text_str;
     std::string value_text;
     void *consensus_value = NULL;
-
-    // TODO error on repeated fields
+    uint8_t visited_fields = 0;
 
     ION_SYMBOL_INIT(&value_field_name);
     ION_STRING_INIT(&value_text_str);
@@ -762,6 +778,7 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
         IONCREAD(ion_reader_get_field_name(reader, &field_name));
         IONCREAD(ion_reader_is_null(reader, &is_null));
         if (ION_STRING_EQUALS(&ion_event_event_type_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x1, "event_type");
             if (is_null || ion_type != tid_SYMBOL) {
                 IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: invalid event type.", result);
             }
@@ -771,6 +788,7 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
             }
         }
         else if (ION_STRING_EQUALS(&ion_event_ion_type_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x2, "ion_type");
             if (is_null) {
                 continue;
             }
@@ -783,6 +801,7 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
             }
         }
         else if (ION_STRING_EQUALS(&ion_event_imports_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x4, "imports");
             if (is_null) {
                 continue;
             }
@@ -796,12 +815,14 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
             IONCREAD(ion_reader_step_out(reader));
         }
         else if (ION_STRING_EQUALS(&ion_event_depth_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x8, "depth");
             if (is_null || ion_type != tid_INT) {
                 IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: depth must be an int.", result);
             }
             IONCREAD(ion_reader_read_int(reader, &value_depth));
         }
         else if (ION_STRING_EQUALS(&ion_event_value_text_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x10, "value_text");
             if (is_null) {
                 continue;
             }
@@ -813,6 +834,7 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
             value_text = std::string((char *)value_text_str.value, (size_t)value_text_str.length);
         }
         else if (ION_STRING_EQUALS(&ion_event_value_binary_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x20, "value_binary");
             if (is_null) {
                 continue;
             }
@@ -832,6 +854,7 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
             IONCREAD(ion_reader_step_out(reader));
         }
         else if (ION_STRING_EQUALS(&ion_event_field_name_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x40, "field_name");
             if (is_null) {
                 continue;
             }
@@ -844,6 +867,7 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
             p_value_field_name = &value_field_name;
         }
         else if (ION_STRING_EQUALS(&ion_event_annotations_field, &field_name)) {
+            ION_EVENT_REQUIRE_UNIQUE_FIELD(visited_fields, 0x80, "annotations");
             if (is_null) {
                 continue;
             }
@@ -893,7 +917,7 @@ iERR ion_event_stream_read_event(hREADER reader, IonEventStream *stream, ION_CAT
     if (value_imports != NULL && value_event_type != SYMBOL_TABLE) {
         IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: imports must only be present with SYMBOL_TABLE events.", result);
     }
-    if (value_annotations.size() > 0 && (value_event_type == CONTAINER_END || value_event_type == STREAM_END
+    if (!value_annotations.empty() && (value_event_type == CONTAINER_END || value_event_type == STREAM_END
                                  || value_event_type == SYMBOL_TABLE)) {
         IONFAILSTATE(IERR_INVALID_ARG, "Invalid event: only SCALAR and CONTAINER_START events may have annotations.", result);
     }
