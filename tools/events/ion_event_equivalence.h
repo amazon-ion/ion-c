@@ -26,12 +26,21 @@
 
 #define ION_ACCUMULATE_ASSERTION(x) if (!(x)) return FALSE;
 
+#define ION_STREAM_EXPECTED_ARG stream_expected
+#define ION_INDEX_EXPECTED_ARG index_expected
+#define ION_STREAM_ACTUAL_ARG stream_actual
+#define ION_INDEX_ACTUAL_ARG index_actual
+#define ION_COMPARISON_TYPE_ARG comparison_type
+#define ION_RESULT_ARG result
+
 #define ION_FAIL_COMPARISON(message) \
-    _ion_event_set_comparison_result(result, comparison_type, expected, actual, index_expected, index_actual, stream_expected->location, stream_actual->location, message); \
+    _ion_event_set_comparison_result(ION_RESULT_ARG, ION_COMPARISON_TYPE_ARG, expected, actual, \
+        ION_INDEX_EXPECTED_ARG, ION_INDEX_ACTUAL_ARG, ION_STREAM_EXPECTED_ARG->location, \
+        ION_STREAM_ACTUAL_ARG->location, message); \
     return FALSE;
 
 #define ION_FAIL_ASSERTION(message) \
-    _ion_event_set_error(result, ERROR_TYPE_STATE, IERR_INVALID_STATE, message, NULL, NULL, __FILE__, __LINE__); \
+    _ion_event_set_error(ION_RESULT_ARG, ERROR_TYPE_STATE, IERR_INVALID_STATE, message, NULL, NULL, __FILE__, __LINE__); \
     return FALSE;
 
 #define ION_EXPECT_OK(x) \
@@ -44,7 +53,7 @@
 
 #define _ION_IS_VALUE_EQ(x, y, assertion) { \
     std::string m; \
-    if (!assertion(x, y, &m, result)) { \
+    if (!assertion(x, y, &m, ION_RESULT_ARG)) { \
         ION_FAIL_COMPARISON(m); \
     } \
 }
@@ -81,20 +90,20 @@ extern TIMESTAMP_COMPARISON_FN g_TimestampEquals;
  * Tests the given IonEventStreams for equivalence, meaning that the corresponding values in each stream
  * must all be equivalent.
  */
-BOOL assertIonEventStreamEq(IonEventStream *stream_expected, IonEventStream *stream_actual, IonEventResult *result=NULL);
+BOOL assertIonEventStreamEq(IonEventStream *ION_STREAM_EXPECTED_ARG, IonEventStream *ION_STREAM_ACTUAL_ARG, IonEventResult *ION_RESULT_ARG=NULL);
 
-BOOL testComparisonSets(IonEventStream *lhs, IonEventStream *rhs, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result=NULL);
+BOOL testComparisonSets(IonEventStream *ION_STREAM_EXPECTED_ARG, IonEventStream *ION_STREAM_ACTUAL_ARG, ION_EVENT_COMPARISON_TYPE ION_COMPARISON_TYPE_ARG, IonEventResult *ION_RESULT_ARG=NULL);
 
-BOOL assertIonBoolEq(BOOL *expected, BOOL *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);
-BOOL assertIonStringEq(ION_STRING *expected, ION_STRING *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);
-BOOL assertIonSymbolEq(ION_SYMBOL *expected, ION_SYMBOL *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);
-BOOL assertIonIntEq(ION_INT *expected, ION_INT *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);
-BOOL assertIonDecimalEq(ION_DECIMAL *expected, ION_DECIMAL *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);
-BOOL assertIonFloatEq(double *expected, double *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);
+BOOL assertIonBoolEq(BOOL *expected, BOOL *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
+BOOL assertIonStringEq(ION_STRING *expected, ION_STRING *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
+BOOL assertIonSymbolEq(ION_SYMBOL *expected, ION_SYMBOL *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
+BOOL assertIonIntEq(ION_INT *expected, ION_INT *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
+BOOL assertIonDecimalEq(ION_DECIMAL *expected, ION_DECIMAL *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
+BOOL assertIonFloatEq(double *expected, double *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
 
 /**
  * Asserts that the given timestamps are equal. Uses g_TimestampEquals as the comparison method.
  */
-BOOL assertIonTimestampEq(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message=NULL, IonEventResult *result=NULL);
+BOOL assertIonTimestampEq(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
 
 #endif //IONC_ION_EVENT_EQUIVALENCE_H

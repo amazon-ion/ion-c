@@ -295,7 +295,7 @@ iERR ion_cli_command_process(IonCliCommonArgs *common_args, IonCliProcessArgs *p
         IONREPORT(ion_cli_open_writer(common_args, catalog, imports, &writer_context, result));
     }
     else {
-        // TODO how should "no output" be conveyed?
+        // TODO add "silent" support.
         IONFAILSTATE(IERR_NOT_IMPL, "output-format = none not yet implemented.", result);
     }
     if (!process_args->perf_report.contents.empty()) {
