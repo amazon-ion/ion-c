@@ -91,7 +91,7 @@ void test_ion_cli_assert_streams_equal(const char *expected_str, ION_STRING *act
     test_ion_cli_read_stream_successfully((BYTE *)expected_str, strlen(expected_str), &expected);
     test_ion_cli_read_stream_successfully(actual_str->value, (size_t)actual_str->length, &actual);
 
-    ASSERT_TRUE(assertIonEventStreamEq(&expected, &actual, &result));
+    ASSERT_TRUE(ion_compare_streams(&expected, &actual, &result));
     ASSERT_FALSE(result.has_comparison_result);
     ASSERT_FALSE(result.has_error_description);
 }
@@ -306,6 +306,7 @@ TEST(IonCli, BasicProcessWithCatalog) {
 TEST(IonCli, ProcessSymbolsWithUnknownTextWithoutCatalog) {
     IonEventReport report;
     ION_STRING command_output;
+    ION_STRING_INIT(&command_output);
     std::string filepath = join_path(full_good_path, "item1.10n");
     test_ion_cli_process(filepath.c_str(), IO_TYPE_FILE, &command_output, &report, OUTPUT_TYPE_EVENTS);
     ASSERT_FALSE(report.hasComparisonFailures());
@@ -317,6 +318,7 @@ TEST(IonCli, ProcessSymbolsWithUnknownTextWithoutCatalog) {
     test_ion_cli_add_input(event_data.c_str(), IO_TYPE_MEMORY, &common_args);
     test_ion_cli_add_input(filepath.c_str(), IO_TYPE_FILE, &common_args);
     free(command_output.value);
+    ION_STRING_INIT(&command_output);
     ION_ASSERT_OK(ion_cli_command_compare(&common_args, COMPARISON_TYPE_BASIC, &command_output, &report));
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());

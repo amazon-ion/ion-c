@@ -237,7 +237,7 @@ iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std
 
     fstream = fopen(pathname.c_str(), "rb");
     if (!fstream) {
-        IONFAILSTATE(IERR_CANT_FIND_FILE, pathname, result);
+        IONFAILSTATE(IERR_CANT_FIND_FILE, pathname);
     }
     switch (input_type) {
         case STREAM:
@@ -255,7 +255,7 @@ iERR read_value_stream(IonEventStream *stream, READER_INPUT_TYPE input_type, std
             IONCREAD(ion_reader_open_buffer(&reader, (BYTE *)buffer, (SIZE)buffer_len, &options));
             break;
         default:
-            IONFAILSTATE(IERR_INVALID_ARG, "Unknown READER_INPUT_TYPE.", result);
+            IONFAILSTATE(IERR_INVALID_ARG, "Unknown READER_INPUT_TYPE.");
     }
     IONREPORT(ion_event_stream_read_all(reader, NULL, stream, result));
 cleanup:
@@ -279,12 +279,14 @@ void write_ion_event_result(IonEventResult *result, ION_CATALOG *catalog, std::s
     std::string message;
     BYTE *out = NULL;
     SIZE len;
-    ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_open(&writer_context, test_name + "error result", OUTPUT_TYPE_TEXT_PRETTY, NULL, /*imports=*/NULL, /*result=*/NULL));
+    std::string location = test_name + " result";
+    ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_open(&writer_context, OUTPUT_TYPE_TEXT_PRETTY, NULL, NULL,
+                                                       &location, NULL));
     if (result->has_error_description) {
         ASSERT_EQ(IERR_OK, ion_event_stream_write_error(writer_context.writer, &result->error_description));
     }
     if (result->has_comparison_result) {
-        ASSERT_EQ(IERR_OK, ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result, &test_name, catalog, NULL));
+        ASSERT_EQ(IERR_OK, ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result, catalog,  &location, NULL));
     }
     ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_close(&writer_context, &out, &len));
     if (out) {
@@ -310,8 +312,8 @@ iERR ionTestRoundtrip(IonEventStream *initial_stream, IonEventStream **roundtrip
                                                                                      : OUTPUT_TYPE_TEXT_UGLY),
                                                       catalog, &written, &len, result));
         *roundtrip_stream = new IonEventStream(test_name + "re-read");
-        IONREPORT(read_value_stream_from_bytes(written, len, *roundtrip_stream, catalog, result));
-        IONREPORT(assertIonEventStreamEq(initial_stream, *roundtrip_stream, result) ? IERR_OK : IERR_INVALID_STATE);
+        IONREPORT(ion_event_stream_read_from_bytes(written, len, catalog, *roundtrip_stream, result));
+        IONREPORT(ion_compare_streams(initial_stream, *roundtrip_stream, result) ? IERR_OK : IERR_INVALID_STATE);
 cleanup:
         if (written) {
             free(written);
@@ -377,11 +379,11 @@ INSTANTIATE_TEST_CASE_P(
 TEST_P(GoodEquivsVector, GoodEquivs) {
     ION_TEST_VECTOR_START;
     IONREPORT(read_value_stream(initial_stream, input_type, filename, catalog, result));
-    IONREPORT(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVS, result) ? IERR_OK : IERR_INVALID_STATE);
+    IONREPORT(ion_compare_sets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVS, result) ? IERR_OK : IERR_INVALID_STATE);
     if (test_type > READ) {
         IONREPORT(ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
                                   test_type, result));
-        IONREPORT(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVS, result) ? IERR_OK : IERR_INVALID_STATE);
+        IONREPORT(ion_compare_sets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVS, result) ? IERR_OK : IERR_INVALID_STATE);
     }
     ION_TEST_VECTOR_COMPLETE;
 }
@@ -419,11 +421,11 @@ TEST_P(GoodTimestampEquivTimelineVector, GoodTimestampEquivTimeline) {
     ION_TEST_VECTOR_START;
     g_TimestampEquals = ion_timestamp_instant_equals;
     IONREPORT(read_value_stream(initial_stream, input_type, filename, catalog, result));
-    IONREPORT(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVS) ? IERR_OK : IERR_INVALID_STATE);
+    IONREPORT(ion_compare_sets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVS) ? IERR_OK : IERR_INVALID_STATE);
     if (test_type > READ) {
         IONREPORT(ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
                                   test_type, result));
-        IONREPORT(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVS) ? IERR_OK : IERR_INVALID_STATE);
+        IONREPORT(ion_compare_sets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVS) ? IERR_OK : IERR_INVALID_STATE);
     }
     ION_TEST_VECTOR_COMPLETE;
 }
@@ -459,11 +461,11 @@ INSTANTIATE_TEST_CASE_P(
 TEST_P(GoodNonequivsVector, GoodNonequivs) {
     ION_TEST_VECTOR_START;
     IONREPORT(read_value_stream(initial_stream, input_type, filename, catalog, result));
-    IONREPORT(testComparisonSets(initial_stream, initial_stream, COMPARISON_TYPE_NONEQUIVS) ? IERR_OK : IERR_INVALID_STATE);
+    IONREPORT(ion_compare_sets(initial_stream, initial_stream, COMPARISON_TYPE_NONEQUIVS) ? IERR_OK : IERR_INVALID_STATE);
     if (test_type > READ) {
         IONREPORT(ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
                                   test_type, result));
-        IONREPORT(testComparisonSets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_NONEQUIVS) ? IERR_OK : IERR_INVALID_STATE);
+        IONREPORT(ion_compare_sets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_NONEQUIVS) ? IERR_OK : IERR_INVALID_STATE);
     }
     ION_TEST_VECTOR_COMPLETE;
 }

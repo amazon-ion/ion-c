@@ -57,9 +57,9 @@ TEST(IonWriterAddAnnotation, SameInTextAndBinary) {
     IonEventStream binary_stream, text_stream;
     ION_ASSERT_OK(ion_test_add_annotations(TRUE, &binary_data, &binary_len));
     ION_ASSERT_OK(ion_test_add_annotations(FALSE, &text_data, &text_len));
-    ION_ASSERT_OK(read_value_stream_from_bytes(binary_data, binary_len, &binary_stream, NULL));
-    ION_ASSERT_OK(read_value_stream_from_bytes(text_data, text_len, &text_stream, NULL));
-    ASSERT_TRUE(assertIonEventStreamEq(&binary_stream, &text_stream));
+    ION_ASSERT_OK(ion_event_stream_read_from_bytes(binary_data, binary_len, NULL, &binary_stream));
+    ION_ASSERT_OK(ion_event_stream_read_from_bytes(text_data, text_len, NULL, &text_stream));
+    ASSERT_TRUE(ion_compare_streams(&binary_stream, &text_stream));
 }
 
 TEST(IonBinaryTimestamp, WriterConvertsToUTC) {
@@ -94,7 +94,7 @@ TEST(IonBinaryTimestamp, ReaderConvertsFromUTC) {
     ION_ASSERT_OK(ion_reader_read_timestamp(reader, &actual));
     ION_ASSERT_OK(ion_reader_close(reader));
 
-    ASSERT_TRUE(assertIonTimestampEq(&expected, &actual));
+    ASSERT_TRUE(ion_compare_timestamps(&expected, &actual));
 }
 
 TEST(IonBinaryTimestamp, WriterIgnoresSuperfluousOffset) {
@@ -129,7 +129,7 @@ TEST(IonBinaryTimestamp, ReaderIgnoresSuperfluousOffset) {
     ION_ASSERT_OK(ion_reader_read_timestamp(reader, &actual));
     ION_ASSERT_OK(ion_reader_close(reader));
 
-    ASSERT_TRUE(assertIonTimestampEq(&expected, &actual));
+    ASSERT_TRUE(ion_compare_timestamps(&expected, &actual));
 }
 
 TEST(IonBinarySymbol, WriterWritesSymbolValueThatLooksLikeSymbolZero) {

@@ -150,7 +150,9 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options);
  */
 void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options);
 
-iERR ion_event_in_memory_writer_open(IonEventWriterContext *writer_context, std::string location, ION_EVENT_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result);
+iERR ion_event_in_memory_writer_open(IonEventWriterContext *writer_context, ION_EVENT_OUTPUT_TYPE output_type,
+                                     ION_COLLECTION *imports, ION_CATALOG *catalog, std::string *location,
+                                     IonEventResult *result);
 iERR ion_event_writer_close(IonEventWriterContext *writer_context, IonEventResult *result, iERR err=IERR_OK,
                             bool in_memory=false, BYTE **bytes=NULL, SIZE *bytes_len=NULL);
 iERR ion_event_in_memory_writer_close(IonEventWriterContext *writer_context, BYTE **bytes, SIZE *bytes_len, iERR err=IERR_OK, IonEventResult *result=NULL);

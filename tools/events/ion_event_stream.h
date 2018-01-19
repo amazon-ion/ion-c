@@ -19,6 +19,30 @@
 #include <string>
 #include "ion.h"
 
+#define ION_RESULT_ARG result
+#define ION_LOCATION_ARG location
+#define ION_STREAM_ARG stream
+#define ION_CATALOG_ARG catalog
+#define ION_INDEX_ARG index
+
+#define ION_EVENT_READ_PARAMS ION_CATALOG *ION_CATALOG_ARG, IonEventStream *ION_STREAM_ARG, IonEventResult *ION_RESULT_ARG
+#define ION_EVENT_READ_ARGS ION_CATALOG_ARG, ION_STREAM_ARG, ION_RESULT_ARG
+
+#define ION_EVENT_COMMON_PARAMS std::string *ION_LOCATION_ARG, IonEventResult *ION_RESULT_ARG
+#define ION_EVENT_COMMON_ARGS ION_LOCATION_ARG, ION_RESULT_ARG
+
+#define ION_EVENT_WRITER_PARAMS ION_CATALOG *ION_CATALOG_ARG, ION_EVENT_COMMON_PARAMS
+#define ION_EVENT_WRITER_ARGS ION_CATALOG_ARG, ION_EVENT_COMMON_ARGS
+
+#define ION_EVENT_WRITER_INDEX_PARAMS size_t *ION_INDEX_ARG, ION_EVENT_WRITER_PARAMS
+#define ION_EVENT_WRITER_INDEX_ARGS ION_INDEX_ARG, ION_EVENT_WRITER_ARGS
+
+#define ION_EVENT_INDEX_PARAMS size_t *ION_INDEX_ARG, ION_EVENT_COMMON_PARAMS
+#define ION_EVENT_INDEX_ARGS ION_INDEX_ARG, ION_EVENT_COMMON_ARGS
+
+#define ION_ERROR_LOCATION_VAR _error_location
+#define ION_ERROR_EVENT_INDEX_VAR _error_event_index
+
 #define IONCLEANEXIT goto cleanup
 
 /**
@@ -30,40 +54,52 @@
         IONCLEANEXIT; \
     }
 
-/**
- * Conveys an error upward at the point it occurs.
- */
-#define IONERROR(type, code, msg, loc, idx, res) \
+#define _IONERROR(type, code, msg, loc, idx, res) \
     _ion_event_set_error(res, type, code, msg, loc, idx, __FILE__, __LINE__); \
     IONREPORT(code)
 
 /**
  * Conveys an illegal state error upward at the point it occurs.
  */
-#define IONFAILSTATE(code, msg, res) IONERROR(ERROR_TYPE_STATE, code, msg, _error_location, _error_event_index, res)
+#define IONFAILSTATE(code, msg) _IONERROR(ERROR_TYPE_STATE, code, msg, ION_ERROR_LOCATION_VAR, ION_ERROR_EVENT_INDEX_VAR, ION_RESULT_ARG)
 
-#define IONCCALL(type, x, loc, idx, m) \
+#define _IONCCALL(type, x, loc, idx, m) \
     err = (x); \
     if (err) { \
-        IONERROR(type, err, m, loc, idx, result); \
+        _IONERROR(type, err, m, loc, idx, ION_RESULT_ARG); \
     }
 
+/**
+ * Sets the context required for conveying errors using IONFAILSTATE, IONCREAD, IONCWRITE, IONCSTATE, and ION_NON_FATAL.
+ */
 #define ION_SET_ERROR_CONTEXT(location, event_index) \
-    std::string *_error_location = location; \
-    size_t *_error_event_index = event_index;
+    std::string *ION_ERROR_LOCATION_VAR = location; \
+    size_t *ION_ERROR_EVENT_INDEX_VAR = event_index;
 
 /**
  * Conveys an error upward from a call to an ion-c read API.
  */
-#define IONCREAD(x) IONCCALL(ERROR_TYPE_READ, x, _error_location, NULL, "")
-#define IONCWRITE(x) IONCCALL(ERROR_TYPE_WRITE, x, _error_location, _error_event_index, "")
-#define IONCSTATE(x, m) IONCCALL(ERROR_TYPE_STATE, x, _error_location, NULL, m)
+#define IONCREAD(x) _IONCCALL(ERROR_TYPE_READ, x, ION_ERROR_LOCATION_VAR, NULL, "")
 
+/**
+ * Conveys an error upward from a call to an ion-c write API.
+ */
+#define IONCWRITE(x) _IONCCALL(ERROR_TYPE_WRITE, x, ION_ERROR_LOCATION_VAR, ION_ERROR_EVENT_INDEX_VAR, "")
+
+/**
+ * Conveys an error upward from a call to an ion-c state API (e.g. an initialization or cleanup function).
+ */
+#define IONCSTATE(x, m) _IONCCALL(ERROR_TYPE_STATE, x, ION_ERROR_LOCATION_VAR, NULL, m)
+
+/**
+ * Conveys the error only if an error had not previously occurred. Does not short-circuit on failure. This is useful
+ * for conveying errors that occur in cleanup routines.
+ */
 #define ION_NON_FATAL(x, m) { \
     iERR err_backup = (x); \
     if (err == IERR_OK && err_backup != IERR_OK) { \
         err = err_backup; \
-        _ion_event_set_error(result, ERROR_TYPE_STATE, err, m, _error_location, _error_event_index, __FILE__, __LINE__); \
+        _ion_event_set_error(ION_RESULT_ARG, ERROR_TYPE_STATE, err, m, ION_ERROR_LOCATION_VAR, ION_ERROR_EVENT_INDEX_VAR, __FILE__, __LINE__); \
     } \
 }
 
@@ -105,8 +141,8 @@ public:
      * Creates a new IonEvent from the given parameters, appends it to the IonEventStream, and returns it.
      * It is up to the caller to set the returned IonEvent's value.
      */
-    IonEvent *append_new(ION_EVENT_TYPE event_type, ION_TYPE ion_type, ION_SYMBOL *field_name,
-                         ION_SYMBOL *annotations, SIZE num_annotations, int depth);
+    IonEvent *appendNew(ION_EVENT_TYPE event_type, ION_TYPE ion_type, ION_SYMBOL *field_name,
+                        ION_SYMBOL *annotations, SIZE num_annotations, int depth);
 
     size_t size() {
         return event_stream->size();
@@ -199,17 +235,13 @@ public:
     ~IonEventReport() {
         for (size_t i = 0; i < comparison_report.size(); i++) {
             IonEventComparisonResult *comparison_result = &comparison_report.at(i);
-            if (comparison_result->lhs.event) {
-                delete comparison_result->lhs.event;
-            }
-            if (comparison_result->rhs.event) {
-                delete comparison_result->rhs.event;
-            }
+            delete comparison_result->lhs.event;
+            delete comparison_result->rhs.event;
         }
     }
     void addResult(IonEventResult *result);
     iERR writeErrorsTo(hWRITER writer);
-    iERR writeComparisonResultsTo(hWRITER writer, std::string *location, ION_CATALOG *catalog, IonEventResult *result);
+    iERR writeComparisonResultsTo(hWRITER writer, ION_CATALOG *catalog, std::string *location, IonEventResult *result);
     bool hasErrors() {
         return !error_report.empty();
     }
@@ -220,8 +252,8 @@ public:
     std::vector<IonEventComparisonResult> *getComparisonResults() { return &comparison_report; }
 };
 
-iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, std::string *location, ION_CATALOG *catalog, IonEventResult *result);
-iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report, std::string *location, ION_CATALOG *catalog, IonEventResult *result);
+iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, ION_CATALOG *catalog, std::string *location, IonEventResult *result);
+iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report, ION_CATALOG *catalog, std::string *location, IonEventResult *result);
 
 /**
  * Configure the given reader options to add a SYMBOL_TABLE event to the given IonEventStream whenever the symbol
@@ -232,7 +264,7 @@ void ion_event_register_symbol_table_callback(ION_READER_OPTIONS *options, IonEv
 /**
  * Returns the length of the value starting at start_index, in number of events. Scalars will always return 1.
  */
-size_t valueEventLength(IonEventStream *stream, size_t start_index);
+size_t ion_event_value_length(IonEventStream *stream, size_t start_index);
 
 /**
  * Returns the length of the stream starting at index and ending in a STREAM_END event, in number of events. Empty
@@ -245,7 +277,8 @@ iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION *imports, std:
 /**
  * Reads IonEvents from the given BYTE* of Ion data into the given IonEventStream.
  */
-iERR read_value_stream_from_bytes(const BYTE *ion_string, SIZE len, IonEventStream *stream, ION_CATALOG *catalog, IonEventResult *result=NULL);
+iERR ion_event_stream_read_from_bytes(const BYTE *ion_string, SIZE len, ION_CATALOG *catalog, IonEventStream *stream,
+                                      IonEventResult *result=NULL);
 
 iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth, BOOL is_embedded_stream_set, IonEventResult *result);
 
@@ -263,14 +296,15 @@ iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_EVENT_OUTPU
 iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream, IonEventResult *result);
 
 /**
- * Writes an IonEventStream as a serialized event stream using the given writer.
+ * Writes an IonEventStream as a serialized event stream using the given writer. The given catalog, which may be NULL,
+ * is used to by temporary scalar value writers to resolve the shared symbol tables for symbol values with unknown text.
  */
 iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog, IonEventResult *result);
 
 iERR ion_event_stream_write_error(hWRITER writer, IonEventErrorDescription *error_description);
 
-iERR ion_event_stream_write_comparison_result(hWRITER writer, IonEventComparisonResult *comparison_result, std::string *location, ION_CATALOG *catalog, IonEventResult *result);
+iERR ion_event_stream_write_comparison_result(hWRITER writer, IonEventComparisonResult *comparison_result, ION_CATALOG *catalog, std::string *location, IonEventResult *result);
 
-iERR ion_event_copy(IonEvent **dst, IonEvent *src, std::string location, IonEventResult *result);
+iERR ion_event_copy(IonEvent **dst, IonEvent *src, std::string *location, IonEventResult *result);
 
 #endif //IONC_VALUE_STREAM_H

@@ -136,7 +136,7 @@ iERR ion_cli_args_common(std::map<std::string, docopt::value> *args, IonCliCommo
     }
     common_args->output = IonCliIO(output_destination, output_type);
     ION_SET_ERROR_CONTEXT(&common_args->output.contents, NULL);
-    IonEventResult result;
+    IonEventResult _result, *result = &_result;
     common_args->output_format = ion_cli_output_type_from_arg(&args->find("--output-format")->second.asString());
     ION_CLI_IO_TYPE error_report_type = IO_TYPE_FILE;
     std::string error_report_destination = args->find("--error-report")->second.asString();
@@ -154,11 +154,11 @@ iERR ion_cli_args_common(std::map<std::string, docopt::value> *args, IonCliCommo
         common_args->input_files.emplace_back(IonCliIO("stdin", IO_TYPE_CONSOLE));
     }
     if (common_args->input_files.empty()) {
-        IONFAILSTATE(IERR_INVALID_ARG, "Input not specified.", &result);
+        IONFAILSTATE(IERR_INVALID_ARG, "Input not specified.");
     }
 cleanup:
-    if (result.has_error_description) {
-        report->addResult(&result);
+    if (result->has_error_description) {
+        report->addResult(result);
     }
     iRETURN;
 }

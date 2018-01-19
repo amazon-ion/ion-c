@@ -152,14 +152,15 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options) {
     options->max_annotation_count = ION_EVENT_ANNOTATION_MAX;
 }
 
-iERR ion_event_in_memory_writer_open(IonEventWriterContext *writer_context, std::string location, ION_EVENT_OUTPUT_TYPE output_type, ION_CATALOG *catalog, ION_COLLECTION *imports, IonEventResult *result) {
+iERR ion_event_in_memory_writer_open(IonEventWriterContext *writer_context, ION_EVENT_OUTPUT_TYPE output_type,
+                                     ION_COLLECTION *imports, ION_EVENT_WRITER_PARAMS) {
     iENTER;
-    ION_SET_ERROR_CONTEXT(&location, NULL);
+    ION_SET_ERROR_CONTEXT(ION_LOCATION_ARG, NULL);
     IONCWRITE(ion_stream_open_memory_only(&writer_context->ion_stream));
     ion_event_initialize_writer_options(&writer_context->options);
     writer_context->options.output_as_binary = (output_type == OUTPUT_TYPE_BINARY);
     writer_context->options.pretty_print = output_type == OUTPUT_TYPE_TEXT_PRETTY || output_type == OUTPUT_TYPE_EVENTS;
-    writer_context->options.pcatalog = catalog;
+    writer_context->options.pcatalog = ION_CATALOG_ARG;
     if (imports) {
         IONCWRITE(ion_writer_options_initialize_shared_imports(&writer_context->options));
         IONCWRITE(ion_writer_options_add_shared_imports(&writer_context->options, imports));

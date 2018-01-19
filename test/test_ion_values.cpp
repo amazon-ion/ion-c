@@ -36,6 +36,6 @@ TEST(IonTimestamp, IgnoresSuperfluousOffset) {
     ASSERT_FALSE(has_local_offset);
     ASSERT_EQ(0, actual.tz_offset);
     ASSERT_EQ(0, local_offset);
-    ASSERT_TRUE(assertIonTimestampEq(&expected1, &actual));
-    ASSERT_TRUE(assertIonTimestampEq(&expected2, &actual)); // Equivalence ignores the superfluous offset as well.
+    ASSERT_TRUE(ion_compare_timestamps(&expected1, &actual));
+    ASSERT_TRUE(ion_compare_timestamps(&expected2, &actual)); // Equivalence ignores the superfluous offset as well.
 }

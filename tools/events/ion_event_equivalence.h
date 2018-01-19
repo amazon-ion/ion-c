@@ -20,6 +20,8 @@
 #include "ion_event_stream.h"
 #include "floating_point_util.h"
 
+// TODO for all events/ headers, split into *impl.h
+
 #define ION_ENTER_ASSERTIONS
 
 #define ION_EXIT_ASSERTIONS return TRUE
@@ -31,10 +33,11 @@
 #define ION_STREAM_ACTUAL_ARG stream_actual
 #define ION_INDEX_ACTUAL_ARG index_actual
 #define ION_COMPARISON_TYPE_ARG comparison_type
-#define ION_RESULT_ARG result
+#define ION_EXPECTED_ARG expected
+#define ION_ACTUAL_ARG actual
 
 #define ION_FAIL_COMPARISON(message) \
-    _ion_event_set_comparison_result(ION_RESULT_ARG, ION_COMPARISON_TYPE_ARG, expected, actual, \
+    _ion_event_set_comparison_result(ION_RESULT_ARG, ION_COMPARISON_TYPE_ARG, ION_EXPECTED_ARG, ION_ACTUAL_ARG, \
         ION_INDEX_EXPECTED_ARG, ION_INDEX_ACTUAL_ARG, ION_STREAM_EXPECTED_ARG->location, \
         ION_STREAM_ACTUAL_ARG->location, message); \
     return FALSE;
@@ -62,13 +65,13 @@
 #define ION_EXPECT_FALSE(x, m) if (x) { ION_FAIL_COMPARISON(m); }
 #define ION_EXPECT_EQ(x, y, m) if((x) != (y)) { ION_FAIL_COMPARISON(m); }
 #define ION_EXPECT_EVENT_TYPE_EQ(x, y) ION_EXPECT_EQ(x, y, "Event types did not match.")
-#define ION_EXPECT_BOOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonBoolEq)
-#define ION_EXPECT_DOUBLE_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonFloatEq)
-#define ION_EXPECT_STRING_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonStringEq)
-#define ION_EXPECT_SYMBOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonSymbolEq)
-#define ION_EXPECT_INT_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonIntEq)
-#define ION_EXPECT_DECIMAL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonDecimalEq)
-#define ION_EXPECT_TIMESTAMP_EQ(x, y) _ION_IS_VALUE_EQ(x, y, assertIonTimestampEq)
+#define ION_EXPECT_BOOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_bools)
+#define ION_EXPECT_DOUBLE_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_floats)
+#define ION_EXPECT_STRING_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_strings)
+#define ION_EXPECT_SYMBOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_symbols)
+#define ION_EXPECT_INT_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_ints)
+#define ION_EXPECT_DECIMAL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_decimals)
+#define ION_EXPECT_TIMESTAMP_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_timestamps)
 
 
 typedef enum _ion_event_comparison_type {
@@ -90,20 +93,32 @@ extern TIMESTAMP_COMPARISON_FN g_TimestampEquals;
  * Tests the given IonEventStreams for equivalence, meaning that the corresponding values in each stream
  * must all be equivalent.
  */
-BOOL assertIonEventStreamEq(IonEventStream *ION_STREAM_EXPECTED_ARG, IonEventStream *ION_STREAM_ACTUAL_ARG, IonEventResult *ION_RESULT_ARG=NULL);
+BOOL ion_compare_streams(IonEventStream *stream_expected, IonEventStream *stream_actual, IonEventResult *result = NULL);
 
-BOOL testComparisonSets(IonEventStream *ION_STREAM_EXPECTED_ARG, IonEventStream *ION_STREAM_ACTUAL_ARG, ION_EVENT_COMPARISON_TYPE ION_COMPARISON_TYPE_ARG, IonEventResult *ION_RESULT_ARG=NULL);
+/**
+ * Compares the comparison sets contained in the given stream based on the given comparison type. A comparison set
+ * is a top-level sequence type (list or s-expression) that contains values or embedded streams that will be compared
+ * for equivalence or non-equivalence against all other values or embedded streams in that sequence.
+ */
+BOOL ion_compare_sets(IonEventStream *stream_expected, IonEventStream *stream_actual,
+                      ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result = NULL);
 
-BOOL assertIonBoolEq(BOOL *expected, BOOL *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
-BOOL assertIonStringEq(ION_STRING *expected, ION_STRING *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
-BOOL assertIonSymbolEq(ION_SYMBOL *expected, ION_SYMBOL *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
-BOOL assertIonIntEq(ION_INT *expected, ION_INT *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
-BOOL assertIonDecimalEq(ION_DECIMAL *expected, ION_DECIMAL *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
-BOOL assertIonFloatEq(double *expected, double *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
+BOOL ion_compare_bools(BOOL *expected, BOOL *actual, std::string *failure_message = NULL, IonEventResult *result = NULL);
+BOOL ion_compare_strings(ION_STRING *expected, ION_STRING *actual, std::string *failure_message = NULL,
+                         IonEventResult *result = NULL);
+BOOL ion_compare_symbols(ION_SYMBOL *expected, ION_SYMBOL *actual, std::string *failure_message = NULL,
+                         IonEventResult *result = NULL);
+BOOL ion_compare_ints(ION_INT *expected, ION_INT *actual, std::string *failure_message = NULL,
+                      IonEventResult *result = NULL);
+BOOL ion_compare_decimals(ION_DECIMAL *expected, ION_DECIMAL *actual, std::string *failure_message = NULL,
+                          IonEventResult *result = NULL);
+BOOL ion_compare_floats(double *expected, double *actual, std::string *failure_message = NULL,
+                        IonEventResult *result = NULL);
 
 /**
  * Asserts that the given timestamps are equal. Uses g_TimestampEquals as the comparison method.
  */
-BOOL assertIonTimestampEq(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message=NULL, IonEventResult *ION_RESULT_ARG=NULL);
+BOOL ion_compare_timestamps(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message = NULL,
+                            IonEventResult *result = NULL);
 
 #endif //IONC_ION_EVENT_EQUIVALENCE_H

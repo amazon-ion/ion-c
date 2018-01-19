@@ -159,7 +159,7 @@ TEST(IonBinaryDecimal, RoundtripPreservesFullFidelityDecNumber) {
     ION_ASSERT_OK(ion_reader_read_ion_decimal(reader, &ion_decimal_after));
     ION_ASSERT_OK(ion_reader_close(reader));
 
-    ASSERT_TRUE(assertIonDecimalEq(&ion_decimal, &ion_decimal_after));
+    ASSERT_TRUE(ion_compare_decimals(&ion_decimal, &ion_decimal_after));
 
     free(result);
     ION_DECIMAL_FREE_2(&ion_decimal, &ion_decimal_after);
@@ -293,7 +293,7 @@ TEST(IonDecimal, FMADecQuad) {
     ION_ASSERT_OK(ion_decimal_from_int32(&fhs, 1));
     ION_ASSERT_OK(ion_decimal_fma(&result, &lhs, &rhs, &fhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_int32(&expected, 101));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &result));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &result));
 
     ION_DECIMAL_FREE_5(&result, &lhs, &rhs, &fhs, &expected);
 }
@@ -304,7 +304,7 @@ TEST(IonDecimal, FMADecQuadInPlaceAllOperandsSame) {
     ION_ASSERT_OK(ion_decimal_from_int32(&lhs, 10));
     ION_ASSERT_OK(ion_decimal_fma(&lhs, &lhs, &lhs, &lhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_int32(&expected, 110));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &lhs));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &lhs));
 
     ION_DECIMAL_FREE_2(&lhs, &expected);
 }
@@ -317,7 +317,7 @@ TEST(IonDecimal, FMADecNumber) {
     ION_ASSERT_OK(ion_decimal_from_string(&fhs, "-100000000000000000000000000000000000001.", &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_fma(&result, &lhs, &rhs, &fhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&expected, "10000000000000000000000000000000000000100000000000000000000000000000000000000.", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &result));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &result));
 
     ION_DECIMAL_FREE_5(&result, &lhs, &rhs, &fhs, &expected);
 }
@@ -331,7 +331,7 @@ TEST(IonDecimal, FMAMixed) {
     ION_ASSERT_OK(ion_decimal_from_int32(&fhs, 1));
     ION_ASSERT_OK(ion_decimal_fma(&result, &lhs, &rhs, &fhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&expected, "1000000000000000000000000000000000000011.", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &result));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &result));
 
     // Asserts that the operation did not change the operands.
     ASSERT_EQ(ION_DECIMAL_TYPE_QUAD, rhs.type);
@@ -349,7 +349,7 @@ TEST(IonDecimal, FMAMixedInPlaceNumber) {
     ION_ASSERT_OK(ion_decimal_from_int32(&fhs, 1));
     ION_ASSERT_OK(ion_decimal_fma(&lhs, &lhs, &rhs, &fhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&expected, "1000000000000000000000000000000000000011.", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &lhs));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &lhs));
 
     // Asserts that the operation did not change the operands.
     ASSERT_EQ(ION_DECIMAL_TYPE_QUAD, rhs.type);
@@ -367,7 +367,7 @@ TEST(IonDecimal, FMAMixedInPlaceQuad) {
     ION_ASSERT_OK(ion_decimal_from_int32(&fhs, 1));
     ION_ASSERT_OK(ion_decimal_fma(&fhs, &lhs, &rhs, &fhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&expected, "1000000000000000000000000000000000000011.", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &fhs));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &fhs));
 
     // Asserts that the operation did not change the operands.
     ASSERT_EQ(ION_DECIMAL_TYPE_NUMBER, lhs.type);
@@ -385,7 +385,7 @@ TEST(IonDecimal, FMADecQuadOverflows) {
     // The operation will try to keep this in decQuads, but detects overflow and upgrades them to decNumbers.
     ION_ASSERT_OK(ion_decimal_fma(&result, &lhs, &rhs, &fhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&expected, "10000000000000000000000000000000011.", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &result));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &result));
 
     // Asserts that the operation results in a decNumber.
     ASSERT_EQ(ION_DECIMAL_TYPE_NUMBER, result.type);
@@ -407,7 +407,7 @@ TEST(IonDecimal, FMADecQuadOverflowsInPlace) {
     // The operation will try to keep this in decQuads, but detects overflow and upgrades them to decNumbers.
     ION_ASSERT_OK(ion_decimal_fma(&lhs, &lhs, &rhs, &fhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&expected, "10000000000000000000000000000000011.", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &lhs));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &lhs));
 
     // Asserts that the operation results in a decNumber.
     ASSERT_EQ(ION_DECIMAL_TYPE_NUMBER, lhs.type);
@@ -427,7 +427,7 @@ TEST(IonDecimal, FMADecQuadOverflowsTwoOperandsSameAsOutput) {
     // The operation will try to keep this in decQuads, but detects overflow and upgrades them to decNumbers.
     ION_ASSERT_OK(ion_decimal_fma(&rhs, &lhs, &rhs, &rhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&expected, "11000000000000000000000000000000022.", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &rhs));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &rhs));
 
     // Asserts that the operation results in a decNumber.
     ASSERT_EQ(ION_DECIMAL_TYPE_NUMBER, rhs.type);
@@ -447,7 +447,7 @@ TEST(IonDecimal, AddDecQuad) {
     ION_ASSERT_OK(ion_decimal_from_int32(&rhs, 1));
     ION_ASSERT_OK(ion_decimal_add(&result, &lhs, &rhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_int32(&expected, 10));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &result));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &result));
 
     ION_DECIMAL_FREE_4(&result, &lhs, &rhs, &expected);
 }
@@ -459,7 +459,7 @@ TEST(IonDecimal, AddDecNumber) {
     ION_ASSERT_OK(ion_decimal_from_string(&rhs, "100000000000000000000000000000000000001.", &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_add(&result, &lhs, &rhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&expected, "200000000000000000000000000000000000002.", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &result));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &result));
 
     ION_DECIMAL_FREE_4(&result, &lhs, &rhs, &expected);
 }
@@ -473,7 +473,7 @@ TEST(IonDecimal, AddMixed) {
     ION_ASSERT_OK(ion_decimal_from_int32(&rhs, -1));
     ION_ASSERT_OK(ion_decimal_add(&result, &lhs, &rhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&expected, "100000000000000000000000000000000000001.", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &result));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &result));
 
     // Asserts that the operation did not change the operands.
     ASSERT_EQ(ION_DECIMAL_TYPE_QUAD, rhs.type);
@@ -489,7 +489,7 @@ TEST(IonDecimal, AddDecQuadOverflows) {
     // The operation will try to keep this in decQuads, but detects overflow and upgrades them to decNumbers.
     ION_ASSERT_OK(ion_decimal_add(&result, &lhs, &rhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&expected, "10000000000000000000000000000000001.", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &result));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &result));
 
     // Asserts that the operation results in a decNumber.
     ASSERT_EQ(ION_DECIMAL_TYPE_NUMBER, result.type);
@@ -509,7 +509,7 @@ TEST(IonDecimal, AddDecQuadOverflowsInPlace) {
     // The operation will try to keep this in decQuads, but detects overflow and upgrades them to decNumbers.
     ION_ASSERT_OK(ion_decimal_add(&lhs, &lhs, &rhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&expected, "10000000000000000000000000000000001.", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &lhs));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &lhs));
 
     // Asserts that the operation results in a decNumber.
     ASSERT_EQ(ION_DECIMAL_TYPE_NUMBER, lhs.type);
@@ -525,7 +525,7 @@ TEST(IonDecimal, AddDecQuadInPlaceAllOperandsSame) {
     ION_ASSERT_OK(ion_decimal_from_int32(&lhs, 1));
     ION_ASSERT_OK(ion_decimal_add(&lhs, &lhs, &lhs, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_int32(&expected, 2));
-    ASSERT_TRUE(assertIonDecimalEq(&expected, &lhs));
+    ASSERT_TRUE(ion_compare_decimals(&expected, &lhs));
     ASSERT_EQ(ION_DECIMAL_TYPE_QUAD, lhs.type);
 
     ION_DECIMAL_FREE_2(&lhs, &expected);
@@ -539,7 +539,7 @@ TEST(IonDecimal, CopySign) {
     ION_ASSERT_OK(ion_decimal_copy_sign(&ion_number_result, &ion_number_positive, &ion_quad_negative, &g_IonEventDecimalContext));
     ASSERT_TRUE(ion_decimal_is_negative(&ion_number_result));
     ION_ASSERT_OK(ion_decimal_minus(&ion_number_result, &ion_number_result, &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_number_positive, &ion_number_result));
+    ASSERT_TRUE(ion_compare_decimals(&ion_number_positive, &ion_number_result));
 
     ION_DECIMAL_FREE_3(&ion_number_positive, &ion_quad_negative, &ion_number_result);
 }
@@ -558,10 +558,10 @@ TEST(IonDecimal, EqualsWithMixedOperands) {
     ION_ASSERT_OK(ion_decimal_from_number(&lhs, &number));
     ION_ASSERT_OK(ion_decimal_from_quad(&rhs, &quad));
 
-    ASSERT_TRUE(assertIonDecimalEq(&lhs, &rhs));
-    ASSERT_TRUE(assertIonDecimalEq(&rhs, &lhs));
-    ASSERT_TRUE(assertIonDecimalEq(&rhs, &rhs));
-    ASSERT_TRUE(assertIonDecimalEq(&lhs, &lhs));
+    ASSERT_TRUE(ion_compare_decimals(&lhs, &rhs));
+    ASSERT_TRUE(ion_compare_decimals(&rhs, &lhs));
+    ASSERT_TRUE(ion_compare_decimals(&rhs, &rhs));
+    ASSERT_TRUE(ion_compare_decimals(&lhs, &lhs));
 
     ION_DECIMAL_FREE_2(&lhs, &rhs);
 }
@@ -606,8 +606,8 @@ TEST(IonDecimal, AbsQuad) {
     ASSERT_FALSE(ion_decimal_is_negative(&ion_quad_negative));
     ASSERT_FALSE(ion_decimal_is_negative(&ion_quad_positive));
     ASSERT_FALSE(ion_decimal_is_negative(&ion_quad_positive_result));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_quad_positive, &ion_quad_negative));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_quad_positive, &ion_quad_positive_result));
+    ASSERT_TRUE(ion_compare_decimals(&ion_quad_positive, &ion_quad_negative));
+    ASSERT_TRUE(ion_compare_decimals(&ion_quad_positive, &ion_quad_positive_result));
 
     ION_DECIMAL_FREE_3(&ion_quad_positive, &ion_quad_negative, &ion_quad_positive_result);
 }
@@ -625,8 +625,8 @@ TEST(IonDecimal, AbsNumber) {
     ASSERT_FALSE(ion_decimal_is_negative(&ion_number_negative));
     ASSERT_FALSE(ion_decimal_is_negative(&ion_number_positive));
     ASSERT_FALSE(ion_decimal_is_negative(&ion_number_positive_result));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_number_positive, &ion_number_negative));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_number_positive, &ion_number_positive_result));
+    ASSERT_TRUE(ion_compare_decimals(&ion_number_positive, &ion_number_negative));
+    ASSERT_TRUE(ion_compare_decimals(&ion_number_positive, &ion_number_positive_result));
 
     ION_DECIMAL_FREE_3(&ion_number_positive, &ion_number_negative, &ion_number_positive_result);
 }
@@ -641,9 +641,9 @@ TEST(IonDecimal, ToIntegralValue) {
     ION_ASSERT_OK(ion_decimal_to_integral_value(&ion_number_result, &ion_number, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&ion_quad_expected, "9999999", &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&ion_number_expected, "999999999999999999999999999999999999999999999", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_quad_expected, &ion_quad));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_number_expected, &ion_number_result));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_number_expected, &ion_number));
+    ASSERT_TRUE(ion_compare_decimals(&ion_quad_expected, &ion_quad));
+    ASSERT_TRUE(ion_compare_decimals(&ion_number_expected, &ion_number_result));
+    ASSERT_TRUE(ion_compare_decimals(&ion_number_expected, &ion_number));
 
     ION_DECIMAL_FREE_5(&ion_quad, &ion_quad_expected, &ion_number, &ion_number_expected, &ion_number_result);
 }
@@ -656,9 +656,9 @@ TEST(IonDecimal, ToIntegralValueRounded) {
     ION_ASSERT_OK(ion_decimal_to_integral_value(&ion_number_result, &ion_number, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&ion_quad_expected, "9999", &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&ion_number_expected, "999999999999999999999999999999999999999999", &g_IonEventDecimalContext));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_quad_expected, &ion_quad));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_number_expected, &ion_number_result));
-    ASSERT_FALSE(assertIonDecimalEq(&ion_number_expected, &ion_number));
+    ASSERT_TRUE(ion_compare_decimals(&ion_quad_expected, &ion_quad));
+    ASSERT_TRUE(ion_compare_decimals(&ion_number_expected, &ion_number_result));
+    ASSERT_FALSE(ion_compare_decimals(&ion_number_expected, &ion_number));
 
     ION_DECIMAL_FREE_5(&ion_quad, &ion_quad_expected, &ion_number, &ion_number_expected, &ion_number_result);
 }
@@ -693,9 +693,9 @@ TEST(IonDecimal, ToAndFromString) {
     ION_ASSERT_OK(ion_decimal_from_string(&ion_number_small_after, small_str, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_decimal_from_string(&ion_number_large_after, large_str, &g_IonEventDecimalContext));
 
-    ASSERT_TRUE(assertIonDecimalEq(&ion_quad, &ion_quad_after));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_number_small, &ion_number_small_after));
-    ASSERT_TRUE(assertIonDecimalEq(&ion_number_large, &ion_number_large_after));
+    ASSERT_TRUE(ion_compare_decimals(&ion_quad, &ion_quad_after));
+    ASSERT_TRUE(ion_compare_decimals(&ion_number_small, &ion_number_small_after));
+    ASSERT_TRUE(ion_compare_decimals(&ion_number_large, &ion_number_large_after));
 
     free(quad_str);
     free(small_str);
