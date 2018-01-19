@@ -20,6 +20,7 @@
 #include <ion_helpers.h>
 #include <ion_event_util.h>
 #include <ion_event_stream.h>
+#include <ion_event_stream_impl.h>
 #include <ion_event_equivalence.h>
 #include "cli.h"
 

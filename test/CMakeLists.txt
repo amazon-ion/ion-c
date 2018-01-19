@@ -35,6 +35,7 @@ include_directories(
     googletest/googletest/include/gtest
     ../tools/cli
     ../tools/events
+    ../tools/events/inc
 )
 
 # Linking against gtest_main provides a basic main() method, which detects all tests, for free.

@@ -14,7 +14,7 @@
 
 #include "ion_event_util.h"
 #include <ion_helpers.h>
-#include <ion_event_stream.h>
+#include <ion_event_stream_impl.h>
 #include <sstream>
 
 decContext g_IonEventDecimalContext = {

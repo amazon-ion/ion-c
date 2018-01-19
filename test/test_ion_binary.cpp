@@ -14,6 +14,7 @@
 
 #include "ion_assert.h"
 #include "ion_event_stream.h"
+#include "ion_event_stream_impl.h"
 #include "ion_helpers.h"
 #include "ion_test_util.h"
 #include "ion_event_equivalence.h"
@@ -57,8 +58,8 @@ TEST(IonWriterAddAnnotation, SameInTextAndBinary) {
     IonEventStream binary_stream, text_stream;
     ION_ASSERT_OK(ion_test_add_annotations(TRUE, &binary_data, &binary_len));
     ION_ASSERT_OK(ion_test_add_annotations(FALSE, &text_data, &text_len));
-    ION_ASSERT_OK(ion_event_stream_read_from_bytes(binary_data, binary_len, NULL, &binary_stream));
-    ION_ASSERT_OK(ion_event_stream_read_from_bytes(text_data, text_len, NULL, &text_stream));
+    ION_ASSERT_OK(ion_event_stream_read_all_from_bytes(binary_data, binary_len, NULL, &binary_stream));
+    ION_ASSERT_OK(ion_event_stream_read_all_from_bytes(text_data, text_len, NULL, &text_stream));
     ASSERT_TRUE(ion_compare_streams(&binary_stream, &text_stream));
 }
 

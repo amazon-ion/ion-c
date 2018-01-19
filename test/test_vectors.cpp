@@ -17,6 +17,7 @@
 #include "ion_platform_config.h"
 #include "gather_vectors.h"
 #include "ion_event_stream.h"
+#include "ion_event_stream_impl.h"
 #include "ion_assert.h"
 #include "ion_timestamp_impl.h"
 #include "ion_event_equivalence.h"
@@ -312,7 +313,7 @@ iERR ionTestRoundtrip(IonEventStream *initial_stream, IonEventStream **roundtrip
                                                                                      : OUTPUT_TYPE_TEXT_UGLY),
                                                       catalog, &written, &len, result));
         *roundtrip_stream = new IonEventStream(test_name + "re-read");
-        IONREPORT(ion_event_stream_read_from_bytes(written, len, catalog, *roundtrip_stream, result));
+        IONREPORT(ion_event_stream_read_all_from_bytes(written, len, catalog, *roundtrip_stream, result));
         IONREPORT(ion_compare_streams(initial_stream, *roundtrip_stream, result) ? IERR_OK : IERR_INVALID_STATE);
 cleanup:
         if (written) {

@@ -18,61 +18,6 @@
 #include <cmath>
 #include "ion.h"
 #include "ion_event_stream.h"
-#include "floating_point_util.h"
-
-// TODO for all events/ headers, split into *impl.h
-
-#define ION_ENTER_ASSERTIONS
-
-#define ION_EXIT_ASSERTIONS return TRUE
-
-#define ION_ACCUMULATE_ASSERTION(x) if (!(x)) return FALSE;
-
-#define ION_STREAM_EXPECTED_ARG stream_expected
-#define ION_INDEX_EXPECTED_ARG index_expected
-#define ION_STREAM_ACTUAL_ARG stream_actual
-#define ION_INDEX_ACTUAL_ARG index_actual
-#define ION_COMPARISON_TYPE_ARG comparison_type
-#define ION_EXPECTED_ARG expected
-#define ION_ACTUAL_ARG actual
-
-#define ION_FAIL_COMPARISON(message) \
-    _ion_event_set_comparison_result(ION_RESULT_ARG, ION_COMPARISON_TYPE_ARG, ION_EXPECTED_ARG, ION_ACTUAL_ARG, \
-        ION_INDEX_EXPECTED_ARG, ION_INDEX_ACTUAL_ARG, ION_STREAM_EXPECTED_ARG->location, \
-        ION_STREAM_ACTUAL_ARG->location, message); \
-    return FALSE;
-
-#define ION_FAIL_ASSERTION(message) \
-    _ion_event_set_error(ION_RESULT_ARG, ERROR_TYPE_STATE, IERR_INVALID_STATE, message, NULL, NULL, __FILE__, __LINE__); \
-    return FALSE;
-
-#define ION_EXPECT_OK(x) \
-    if ((x) != IERR_OK) { \
-        std::string m = std::string("IERR_OK vs. ") + std::string(ion_error_to_str(x)); \
-        ION_FAIL_ASSERTION(m); \
-    } \
-
-#define ION_ASSERT(x, m) if (!(x)) { ION_FAIL_ASSERTION(m); }
-
-#define _ION_IS_VALUE_EQ(x, y, assertion) { \
-    std::string m; \
-    if (!assertion(x, y, &m, ION_RESULT_ARG)) { \
-        ION_FAIL_COMPARISON(m); \
-    } \
-}
-
-#define ION_EXPECT_TRUE(x, m) if (!(x)) { ION_FAIL_COMPARISON(m); }
-#define ION_EXPECT_FALSE(x, m) if (x) { ION_FAIL_COMPARISON(m); }
-#define ION_EXPECT_EQ(x, y, m) if((x) != (y)) { ION_FAIL_COMPARISON(m); }
-#define ION_EXPECT_EVENT_TYPE_EQ(x, y) ION_EXPECT_EQ(x, y, "Event types did not match.")
-#define ION_EXPECT_BOOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_bool)
-#define ION_EXPECT_DOUBLE_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_float)
-#define ION_EXPECT_STRING_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_string)
-#define ION_EXPECT_SYMBOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_symbol)
-#define ION_EXPECT_INT_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_int)
-#define ION_EXPECT_DECIMAL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_decimal)
-#define ION_EXPECT_TIMESTAMP_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_timestamp)
-
 
 typedef enum _ion_event_comparison_type {
     COMPARISON_TYPE_EQUIVS = 0,
