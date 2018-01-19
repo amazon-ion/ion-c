@@ -261,11 +261,11 @@ TEST(IonSymbolTable, SharedSymbolTableCanBelongToMultipleCatalogs) {
     ION_ASSERT_OK(ion_reader_read_string(reader_1, &sid_11));
     ION_ASSERT_OK(ion_reader_read_string(reader_2, &sid_21));
 
-    ASSERT_TRUE(ion_compare_strings(&sid_10, &sid_20));
-    ASSERT_TRUE(ion_compare_strings(&sid_10, &abc));
+    ASSERT_TRUE(ion_equals_string(&sid_10, &sid_20));
+    ASSERT_TRUE(ion_equals_string(&sid_10, &abc));
 
-    ASSERT_TRUE(ion_compare_strings(&sid_11, &sid_21));
-    ASSERT_TRUE(ion_compare_strings(&sid_11, &def));
+    ASSERT_TRUE(ion_equals_string(&sid_11, &sid_21));
+    ASSERT_TRUE(ion_equals_string(&sid_11, &def));
 
     ION_ASSERT_OK(ion_reader_close(reader_1));
     ION_ASSERT_OK(ion_reader_close(reader_2));
@@ -1169,21 +1169,21 @@ TEST_P(BinaryAndTextTest, ReaderCorrectlySetsImportLocation) {
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ION_ASSERT_OK(ion_reader_get_annotation_symbols(reader, annotation, 1, &annotation_count));
     ASSERT_EQ(1, annotation_count);
-    ASSERT_TRUE(ion_compare_strings(&import2_name, &annotation[0].import_location.name));
+    ASSERT_TRUE(ion_equals_string(&import2_name, &annotation[0].import_location.name));
     ASSERT_EQ(1, annotation[0].import_location.location);
-    ASSERT_TRUE(ion_compare_strings(&sym2, &annotation[0].value));
+    ASSERT_TRUE(ion_equals_string(&sym2, &annotation[0].value));
     ASSERT_EQ(11, annotation[0].sid);
 
     ION_ASSERT_OK(ion_reader_get_field_name_symbol(reader, &field_name));
-    ASSERT_TRUE(ion_compare_strings(&import1_name, &field_name->import_location.name));
+    ASSERT_TRUE(ion_equals_string(&import1_name, &field_name->import_location.name));
     ASSERT_EQ(1, field_name->import_location.location);
-    ASSERT_TRUE(ion_compare_strings(&sym1, &field_name->value));
+    ASSERT_TRUE(ion_equals_string(&sym1, &field_name->value));
     ASSERT_EQ(10, field_name->sid);
 
     ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &value));
-    ASSERT_TRUE(ion_compare_strings(&import2_name, &value.import_location.name));
+    ASSERT_TRUE(ion_equals_string(&import2_name, &value.import_location.name));
     ASSERT_EQ(2, value.import_location.location);
-    ASSERT_TRUE(ion_compare_strings(&sym3, &value.value));
+    ASSERT_TRUE(ion_equals_string(&sym3, &value.value));
     ASSERT_EQ(12, value.sid);
 
     ION_ASSERT_OK(ion_reader_step_out(reader));
@@ -1221,18 +1221,18 @@ TEST_P(BinaryAndTextTest, LocalSymbolHasNoImportLocation) {
     ASSERT_EQ(tid_SYMBOL, type);
 
     ION_ASSERT_OK(ion_reader_get_field_name_symbol(reader, &field_name));
-    ASSERT_TRUE(ion_compare_strings(&zoo, &field_name->value));
+    ASSERT_TRUE(ion_equals_string(&zoo, &field_name->value));
     ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(field_name));
     ASSERT_EQ(is_binary ? 10 : UNKNOWN_SID, field_name->sid);
 
     ION_ASSERT_OK(ion_reader_get_annotation_symbols(reader, annotation, 1, &annotation_count));
     ASSERT_EQ(1, annotation_count);
-    ASSERT_TRUE(ion_compare_strings(&zar, &annotation[0].value));
+    ASSERT_TRUE(ion_equals_string(&zar, &annotation[0].value));
     ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(&annotation[0]));
     ASSERT_EQ(is_binary ? 11 : UNKNOWN_SID, annotation[0].sid);
 
     ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &value));
-    ASSERT_TRUE(ion_compare_strings(&zaz, &value.value));
+    ASSERT_TRUE(ion_equals_string(&zaz, &value.value));
     ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(&value));
     ASSERT_EQ(is_binary ? 12 : UNKNOWN_SID, value.sid);
 

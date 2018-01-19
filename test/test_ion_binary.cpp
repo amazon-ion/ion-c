@@ -94,7 +94,7 @@ TEST(IonBinaryTimestamp, ReaderConvertsFromUTC) {
     ION_ASSERT_OK(ion_reader_read_timestamp(reader, &actual));
     ION_ASSERT_OK(ion_reader_close(reader));
 
-    ASSERT_TRUE(ion_compare_timestamps(&expected, &actual));
+    ASSERT_TRUE(ion_equals_timestamp(&expected, &actual));
 }
 
 TEST(IonBinaryTimestamp, WriterIgnoresSuperfluousOffset) {
@@ -129,7 +129,7 @@ TEST(IonBinaryTimestamp, ReaderIgnoresSuperfluousOffset) {
     ION_ASSERT_OK(ion_reader_read_timestamp(reader, &actual));
     ION_ASSERT_OK(ion_reader_close(reader));
 
-    ASSERT_TRUE(ion_compare_timestamps(&expected, &actual));
+    ASSERT_TRUE(ion_equals_timestamp(&expected, &actual));
 }
 
 TEST(IonBinarySymbol, WriterWritesSymbolValueThatLooksLikeSymbolZero) {

@@ -437,7 +437,7 @@ BOOL ion_compare_sets(IonEventStream *ION_STREAM_EXPECTED_ARG, IonEventStream *I
     ION_EXIT_ASSERTIONS;
 }
 
-BOOL ion_compare_bools(BOOL *expected, BOOL *actual, std::string *failure_message, IonEventResult *ION_RESULT_ARG) {
+BOOL ion_equals_bool(BOOL *expected, BOOL *actual, std::string *failure_message, IonEventResult *ION_RESULT_ARG) {
     if (!(expected == NULL ^ actual == NULL)) {
         if (expected == NULL) {
             return TRUE;
@@ -454,7 +454,8 @@ BOOL ion_compare_bools(BOOL *expected, BOOL *actual, std::string *failure_messag
     return FALSE;
 }
 
-BOOL ion_compare_strings(ION_STRING *expected, ION_STRING *actual, std::string *failure_message, IonEventResult *ION_RESULT_ARG) {
+BOOL ion_equals_string(ION_STRING *expected, ION_STRING *actual, std::string *failure_message,
+                       IonEventResult *ION_RESULT_ARG) {
     if (!(expected == NULL ^ actual == NULL)) {
         if (expected == NULL || ion_string_is_equal(expected, actual)) {
             return TRUE;
@@ -466,7 +467,8 @@ BOOL ion_compare_strings(ION_STRING *expected, ION_STRING *actual, std::string *
     return FALSE;
 }
 
-BOOL ion_compare_symbols(ION_SYMBOL *expected, ION_SYMBOL *actual, std::string *failure_message, IonEventResult *ION_RESULT_ARG) {
+BOOL ion_equals_symbol(ION_SYMBOL *expected, ION_SYMBOL *actual, std::string *failure_message,
+                       IonEventResult *ION_RESULT_ARG) {
     if (!(expected == NULL ^ actual == NULL)) {
         if (expected == NULL) {
             return TRUE;
@@ -491,7 +493,7 @@ char *ion_compare_int_to_string(ION_INT *value) {
     return int_str;
 }
 
-BOOL ion_compare_ints(ION_INT *expected, ION_INT *actual, std::string *failure_message, IonEventResult *ION_RESULT_ARG) {
+BOOL ion_equals_int(ION_INT *expected, ION_INT *actual, std::string *failure_message, IonEventResult *ION_RESULT_ARG) {
     int int_comparison = 0;
     char *expected_str = NULL;
     char *actual_str = NULL;
@@ -509,8 +511,8 @@ BOOL ion_compare_ints(ION_INT *expected, ION_INT *actual, std::string *failure_m
     return FALSE;
 }
 
-BOOL ion_compare_decimals(ION_DECIMAL *expected, ION_DECIMAL *actual, std::string *failure_message,
-                          IonEventResult *ION_RESULT_ARG) {
+BOOL ion_equals_decimal(ION_DECIMAL *expected, ION_DECIMAL *actual, std::string *failure_message,
+                        IonEventResult *ION_RESULT_ARG) {
     BOOL decimal_equals;
     ION_EXPECT_OK(ion_decimal_equals(expected, actual, &g_IonEventDecimalContext, &decimal_equals));
     if (decimal_equals) {
@@ -526,8 +528,8 @@ BOOL ion_compare_decimals(ION_DECIMAL *expected, ION_DECIMAL *actual, std::strin
     return FALSE;
 }
 
-BOOL ion_compare_timestamps(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message,
-                            IonEventResult *ION_RESULT_ARG) {
+BOOL ion_equals_timestamp(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message,
+                          IonEventResult *ION_RESULT_ARG) {
     BOOL timestamps_equal;
     ION_EXPECT_OK(g_TimestampEquals(expected, actual, &timestamps_equal, &g_IonEventDecimalContext));
     if (timestamps_equal) {
@@ -549,7 +551,7 @@ BOOL ion_compare_timestamps(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std:
     return FALSE;
 }
 
-BOOL ion_compare_floats(double *expected, double *actual, std::string *failure_message, IonEventResult *ION_RESULT_ARG) {
+BOOL ion_equals_float(double *expected, double *actual, std::string *failure_message, IonEventResult *ION_RESULT_ARG) {
     do {
         if (!(expected == NULL ^ actual == NULL)) {
             if (expected == NULL) {

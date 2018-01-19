@@ -65,13 +65,13 @@
 #define ION_EXPECT_FALSE(x, m) if (x) { ION_FAIL_COMPARISON(m); }
 #define ION_EXPECT_EQ(x, y, m) if((x) != (y)) { ION_FAIL_COMPARISON(m); }
 #define ION_EXPECT_EVENT_TYPE_EQ(x, y) ION_EXPECT_EQ(x, y, "Event types did not match.")
-#define ION_EXPECT_BOOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_bools)
-#define ION_EXPECT_DOUBLE_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_floats)
-#define ION_EXPECT_STRING_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_strings)
-#define ION_EXPECT_SYMBOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_symbols)
-#define ION_EXPECT_INT_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_ints)
-#define ION_EXPECT_DECIMAL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_decimals)
-#define ION_EXPECT_TIMESTAMP_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_compare_timestamps)
+#define ION_EXPECT_BOOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_bool)
+#define ION_EXPECT_DOUBLE_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_float)
+#define ION_EXPECT_STRING_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_string)
+#define ION_EXPECT_SYMBOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_symbol)
+#define ION_EXPECT_INT_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_int)
+#define ION_EXPECT_DECIMAL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_decimal)
+#define ION_EXPECT_TIMESTAMP_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_timestamp)
 
 
 typedef enum _ion_event_comparison_type {
@@ -103,22 +103,37 @@ BOOL ion_compare_streams(IonEventStream *stream_expected, IonEventStream *stream
 BOOL ion_compare_sets(IonEventStream *stream_expected, IonEventStream *stream_actual,
                       ION_EVENT_COMPARISON_TYPE comparison_type, IonEventResult *result = NULL);
 
-BOOL ion_compare_bools(BOOL *expected, BOOL *actual, std::string *failure_message = NULL, IonEventResult *result = NULL);
-BOOL ion_compare_strings(ION_STRING *expected, ION_STRING *actual, std::string *failure_message = NULL,
-                         IonEventResult *result = NULL);
-BOOL ion_compare_symbols(ION_SYMBOL *expected, ION_SYMBOL *actual, std::string *failure_message = NULL,
-                         IonEventResult *result = NULL);
-BOOL ion_compare_ints(ION_INT *expected, ION_INT *actual, std::string *failure_message = NULL,
-                      IonEventResult *result = NULL);
-BOOL ion_compare_decimals(ION_DECIMAL *expected, ION_DECIMAL *actual, std::string *failure_message = NULL,
-                          IonEventResult *result = NULL);
-BOOL ion_compare_floats(double *expected, double *actual, std::string *failure_message = NULL,
+// Equivalence checks. If the optional failure_message output parameter is supplied and the given values are not
+// equivalent, failure_message will be populated with a message explaining why. If the optional result output parameter
+// is supplied, it will be populated with an IonEventErrorDescription if an error occurs during the comparison. If an
+// error occurs, the function will always return FALSE.
+
+BOOL ion_equals_bool(BOOL *expected, BOOL *actual, std::string *failure_message = NULL, IonEventResult *result = NULL);
+
+
+BOOL ion_equals_string(ION_STRING *expected, ION_STRING *actual, std::string *failure_message = NULL,
+                       IonEventResult *result = NULL);
+
+
+BOOL ion_equals_symbol(ION_SYMBOL *expected, ION_SYMBOL *actual, std::string *failure_message = NULL,
+                       IonEventResult *result = NULL);
+
+
+BOOL ion_equals_int(ION_INT *expected, ION_INT *actual, std::string *failure_message = NULL,
+                    IonEventResult *result = NULL);
+
+
+BOOL ion_equals_decimal(ION_DECIMAL *expected, ION_DECIMAL *actual, std::string *failure_message = NULL,
                         IonEventResult *result = NULL);
 
+
+BOOL ion_equals_float(double *expected, double *actual, std::string *failure_message = NULL,
+                      IonEventResult *result = NULL);
+
 /**
- * Asserts that the given timestamps are equal. Uses g_TimestampEquals as the comparison method.
+ * Uses g_TimestampEquals as the comparison method.
  */
-BOOL ion_compare_timestamps(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message = NULL,
-                            IonEventResult *result = NULL);
+BOOL ion_equals_timestamp(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message = NULL,
+                          IonEventResult *result = NULL);
 
 #endif //IONC_ION_EVENT_EQUIVALENCE_H
