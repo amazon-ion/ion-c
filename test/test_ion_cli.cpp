@@ -264,9 +264,6 @@ TEST(IonCli, AnnotatedIvmsEmbedded) {
     free(command_output.value);
 }
 
-// TODO process command with catalog and/or imports
-// TODO compare command with catalog and/or imports
-
 TEST(IonCli, ComparisonSetsDifferentLengthsEquivsSucceeds) {
     const char *lhs_data = "(1 0x1 0b1)";
     const char *rhs_data = "(0x1 1)";
@@ -325,6 +322,111 @@ TEST(IonCli, BasicProcessWithCatalog) {
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
     test_ion_cli_assert_streams_equal("abc::def", &command_output);
+    free(command_output.value);
+}
+
+TEST(IonCli, ProcessWithImportsAndCatalog) {
+    IonCliCommonArgs common_args;
+    IonCliProcessArgs process_args;
+    IonEventReport report;
+    ION_STRING command_output;
+    test_ion_cli_init_common_args(&common_args);
+    test_ion_cli_add_input(
+            "$ion_symbol_table::{imports:[{name:\"foo\", version:1, max_id:1}]} $10",
+            IO_TYPE_MEMORY, &common_args);
+    test_ion_cli_add_catalog("$ion_shared_symbol_table::{name:\"foo\", version:1, symbols:[\"abc\"]}",
+                             IO_TYPE_MEMORY, &common_args);
+    test_ion_cli_init_process_args(&process_args);
+    test_ion_cli_add_import("{name:\"foo\", version:1, max_id:1}", IO_TYPE_MEMORY, &process_args);
+    ION_STRING_INIT(&command_output);
+    ION_ASSERT_OK(ion_cli_command_process(&common_args, &process_args, &command_output, &report));
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
+    test_ion_cli_assert_streams_equal("abc", &command_output);
+    free(command_output.value);
+}
+
+TEST(IonCli, ProcessWithImportsAndWithoutCatalog) {
+    IonCliCommonArgs common_args;
+    IonCliProcessArgs process_args;
+    IonEventReport report;
+    ION_STRING command_output;
+    const char *data = "$ion_symbol_table::{imports:[{name:\"foo\", version:1, max_id:1}]} $10";
+    test_ion_cli_init_common_args(&common_args);
+    test_ion_cli_add_input(data, IO_TYPE_MEMORY, &common_args);
+    test_ion_cli_init_process_args(&process_args);
+    test_ion_cli_add_import("{name:\"foo\", version:1, max_id:1}", IO_TYPE_MEMORY, &process_args);
+    ION_STRING_INIT(&command_output);
+    ION_ASSERT_OK(ion_cli_command_process(&common_args, &process_args, &command_output, &report));
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
+    test_ion_cli_assert_streams_equal(data, &command_output);
+    free(command_output.value);
+}
+
+TEST(IonCli, BasicCompareWithCatalog) {
+    IonCliCommonArgs common_args;
+    IonCliProcessArgs process_args;
+    IonEventReport report;
+    ION_STRING command_output;
+    test_ion_cli_init_common_args(&common_args);
+    test_ion_cli_add_input(
+            "$ion_symbol_table::{symbols:[\"def\"], imports:[{name:\"foo\", version:1, max_id:1}]} $10::$11",
+            IO_TYPE_MEMORY, &common_args);
+    test_ion_cli_add_catalog("$ion_shared_symbol_table::{name:\"foo\", version:1, symbols:[\"abc\"]}",
+                             IO_TYPE_MEMORY, &common_args);
+    ION_STRING_INIT(&command_output);
+    ION_ASSERT_OK(ion_cli_command_compare(&common_args, COMPARISON_TYPE_BASIC, &command_output, &report));
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
+    free(command_output.value);
+}
+
+TEST(IonCli, CompareWithResultsWithCatalog) {
+    IonCliCommonArgs common_args;
+    IonCliProcessArgs process_args;
+    IonEventReport report;
+    ION_STRING command_output;
+    const char *lhs_data
+            = "$ion_symbol_table::{symbols:[\"def\"], imports:[{name:\"foo\", version:1, max_id:1}]} $10::$11";
+    const char *rhs_data
+            = "$ion_symbol_table::{symbols:[\"ghi\"], imports:[{name:\"foo\", version:1, max_id:1}]} $10::$11";
+    test_ion_cli_init_common_args(&common_args);
+    test_ion_cli_add_input(lhs_data, IO_TYPE_MEMORY, &common_args);
+    test_ion_cli_add_input(rhs_data, IO_TYPE_MEMORY, &common_args);
+    test_ion_cli_add_catalog("$ion_shared_symbol_table::{name:\"foo\", version:1, symbols:[\"abc\"]}",
+                             IO_TYPE_MEMORY, &common_args);
+    ION_STRING_INIT(&command_output);
+    ION_ASSERT_OK(ion_cli_command_compare(&common_args, COMPARISON_TYPE_BASIC, &command_output, &report));
+    ASSERT_TRUE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
+    test_ion_cli_assert_comparison_result_equals(&report.getComparisonResults()->at(0), COMPARISON_RESULT_NOT_EQUAL,
+                                                 lhs_data, rhs_data, 1, 1);
+    test_ion_cli_assert_comparison_result_equals(&report.getComparisonResults()->at(1), COMPARISON_RESULT_NOT_EQUAL,
+                                                 rhs_data, lhs_data, 1, 1);
+    free(command_output.value);
+}
+
+TEST(IonCli, CompareWithResultsWithoutCatalog) {
+    IonCliCommonArgs common_args;
+    IonCliProcessArgs process_args;
+    IonEventReport report;
+    ION_STRING command_output;
+    const char *lhs_data
+            = "$ion_symbol_table::{symbols:[\"def\"], imports:[{name:\"foo\", version:1, max_id:1}]} $10::$11";
+    const char *rhs_data
+            = "$ion_symbol_table::{symbols:[\"def\"], imports:[{name:\"bar\", version:1, max_id:1}]} $10::$11";
+    test_ion_cli_init_common_args(&common_args);
+    test_ion_cli_add_input(lhs_data, IO_TYPE_MEMORY, &common_args);
+    test_ion_cli_add_input(rhs_data, IO_TYPE_MEMORY, &common_args);
+    ION_STRING_INIT(&command_output);
+    ION_ASSERT_OK(ion_cli_command_compare(&common_args, COMPARISON_TYPE_BASIC, &command_output, &report));
+    ASSERT_TRUE(report.hasComparisonFailures());
+    ASSERT_FALSE(report.hasErrors());
+    test_ion_cli_assert_comparison_result_equals(&report.getComparisonResults()->at(0), COMPARISON_RESULT_NOT_EQUAL,
+                                                 lhs_data, rhs_data, 1, 1);
+    test_ion_cli_assert_comparison_result_equals(&report.getComparisonResults()->at(1), COMPARISON_RESULT_NOT_EQUAL,
+                                                 rhs_data, lhs_data, 1, 1);
     free(command_output.value);
 }
 
