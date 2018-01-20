@@ -21,6 +21,7 @@
 #include <inc/ion_errors.h>
 #include <ion_event_equivalence.h>
 #include <ion_event_util.h>
+#include <ion_event_stream_impl.h>
 #include <ion_catalog_impl.h>
 
 #define ION_CLI_VERSION "1.0"
