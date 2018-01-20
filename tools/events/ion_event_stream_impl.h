@@ -127,7 +127,11 @@ size_t ion_event_stream_length(IonEventStream *stream, size_t index);
 iERR ion_event_stream_read_all_from_bytes(const BYTE *ion_string, SIZE len, ION_CATALOG *catalog,
                                           IonEventStream *stream, IonEventResult *result = NULL);
 
-iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION *imports, std::string *location, IonEventResult *result);
+/**
+ * Reads serialized ImportDescriptors into the given collection.
+ */
+iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION *imports, std::string *location,
+                                   IonEventResult *result);
 
 /**
  * Writes an IonEventStream as an Ion stream in the given format. The caller is responsible for freeing the output

@@ -178,7 +178,8 @@ iERR ion_event_writer_close(IonEventWriterContext *writer_context, IonEventResul
         writer_context->writer = NULL;
     }
     if (writer_context->has_imports) {
-        ION_NON_FATAL(ion_writer_options_close_shared_imports(&writer_context->options), "Failed to close writer imports.");
+        ION_NON_FATAL(ion_writer_options_close_shared_imports(&writer_context->options),
+                      "Failed to close writer imports.");
         writer_context->has_imports = FALSE;
     }
     if (writer_context->ion_stream) {
@@ -187,7 +188,8 @@ iERR ion_event_writer_close(IonEventWriterContext *writer_context, IonEventResul
             ASSERT(bytes);
             SIZE bytes_read;
             POSITION pos = ion_stream_get_position(writer_context->ion_stream);
-            ION_NON_FATAL(ion_stream_seek(writer_context->ion_stream, 0), "Failed to seek the output stream to the beginning.");
+            ION_NON_FATAL(ion_stream_seek(writer_context->ion_stream, 0),
+                          "Failed to seek the output stream to the beginning.");
             *bytes = (BYTE *)malloc((size_t)pos);
             ION_NON_FATAL(ion_stream_read(writer_context->ion_stream, *bytes, (SIZE) pos, &bytes_read),
                           "Failed to retrieve bytes from the output stream.");

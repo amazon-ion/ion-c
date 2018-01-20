@@ -19,7 +19,9 @@
 #include "gather_vectors.h"
 #include "ion_event_util.h"
 
-void test_ion_cli_assert_error_equals(IonEventErrorDescription *actual, ION_EVENT_ERROR_TYPE expected_type, iERR expected_code, std::string expected_location_suffix="", int expected_event_index=-1) {
+void test_ion_cli_assert_error_equals(IonEventErrorDescription *actual, ION_EVENT_ERROR_TYPE expected_type,
+                                      iERR expected_code, std::string expected_location_suffix="",
+                                      int expected_event_index=-1) {
     ASSERT_EQ(expected_type, actual->error_type);
     if (expected_event_index >= 0) {
         ASSERT_TRUE(actual->has_event_index);
@@ -27,12 +29,16 @@ void test_ion_cli_assert_error_equals(IonEventErrorDescription *actual, ION_EVEN
     }
     if (!expected_location_suffix.empty()) {
         ASSERT_TRUE(actual->has_location);
-        ASSERT_EQ(expected_location_suffix, actual->location.substr(actual->location.size() - expected_location_suffix.length()));
+        ASSERT_EQ(expected_location_suffix, actual->location.substr(actual->location.size()
+                                                                    - expected_location_suffix.length()));
     }
     ASSERT_NE(actual->message.find(ion_error_to_str(expected_code)), actual->message.npos);
 }
 
-void test_ion_cli_assert_comparison_result_equals(IonEventComparisonResult *actual, ION_EVENT_COMPARISON_RESULT_TYPE expected_type, std::string expected_lhs_location, std::string expected_rhs_location, size_t expected_lhs_index, size_t expected_rhs_index) {
+void test_ion_cli_assert_comparison_result_equals(IonEventComparisonResult *actual,
+                                                  ION_EVENT_COMPARISON_RESULT_TYPE expected_type,
+                                                  std::string expected_lhs_location, std::string expected_rhs_location,
+                                                  size_t expected_lhs_index, size_t expected_rhs_index) {
     ASSERT_EQ(expected_type, actual->result);
     ASSERT_NE(actual->lhs.location.npos, actual->lhs.location.find(expected_lhs_location)) << actual->lhs.location;
     ASSERT_NE(actual->rhs.location.npos, actual->rhs.location.find(expected_rhs_location)) << actual->rhs.location;
@@ -104,7 +110,8 @@ TEST(IonCli, ProcessBasic) {
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
     test_ion_cli_assert_streams_equal("1", &command_output);
-    test_ion_cli_assert_streams_equal("$ion_event_stream {event_type:SCALAR, ion_type:INT, value_text:\"1\", value_binary:[0xE0, 0x01, 0x00, 0xEA, 0x21, 0x01], depth: 0} {event_type: STREAM_END, depth: 0}", &command_output);
+    test_ion_cli_assert_streams_equal("$ion_event_stream {event_type:SCALAR, ion_type:INT, value_text:\"1\", value_binary:[0xE0, 0x01, 0x00, 0xEA, 0x21, 0x01], depth: 0} {event_type: STREAM_END, depth: 0}",
+                                      &command_output);
     free(command_output.value);
 }
 
@@ -118,11 +125,13 @@ TEST(IonCli, UnequalValueTextAndValueBinaryFails) {
     ASSERT_TRUE(report.hasErrors());
     test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_STATE, IERR_INVALID_ARG, event_stream);
     ASSERT_TRUE(report.hasComparisonFailures());
-    test_ion_cli_assert_comparison_result_equals(&report.getComparisonResults()->at(0), COMPARISON_RESULT_NOT_EQUAL, event_stream, event_stream, 0, 0);
+    test_ion_cli_assert_comparison_result_equals(&report.getComparisonResults()->at(0), COMPARISON_RESULT_NOT_EQUAL,
+                                                 event_stream, event_stream, 0, 0);
     ASSERT_EQ(0, command_output.length);
 }
 
-void test_ion_cli_assert_comparison(std::string *files, size_t num_files, ION_EVENT_COMPARISON_TYPE comparison_type, IonEventReport *report, ION_STRING *command_output=NULL) {
+void test_ion_cli_assert_comparison(std::string *files, size_t num_files, ION_EVENT_COMPARISON_TYPE comparison_type,
+                                    IonEventReport *report, ION_STRING *command_output=NULL) {
     IonCliCommonArgs common_args;
     ION_STRING _command_output;
     test_ion_cli_init_common_args(&common_args);
@@ -168,7 +177,8 @@ TEST(IonCli, CompareAnnotatedIvmsEmbeddedNonequivs) {
     ASSERT_TRUE(report.hasComparisonFailures());
     std::vector<IonEventComparisonResult> *comparison_results = report.getComparisonResults();
     ASSERT_EQ(1, comparison_results->size());
-    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(0), COMPARISON_RESULT_NOT_EQUAL, test_file, test_file, 1, 3);
+    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(0), COMPARISON_RESULT_NOT_EQUAL, test_file,
+                                                 test_file, 1, 3);
 }
 
 TEST(IonCli, CompareMultipleInputFiles) {
@@ -182,10 +192,14 @@ TEST(IonCli, CompareMultipleInputFiles) {
     ASSERT_TRUE(report.hasComparisonFailures());
     std::vector<IonEventComparisonResult> *comparison_results = report.getComparisonResults();
     ASSERT_EQ(4, comparison_results->size()); // one vs empty, one vs empty, empty vs one, empty vs one
-    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(0), COMPARISON_RESULT_NOT_EQUAL, test_files[0], test_files[2], 0, 0);
-    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(1), COMPARISON_RESULT_NOT_EQUAL, test_files[1], test_files[2], 0, 0);
-    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(2), COMPARISON_RESULT_NOT_EQUAL, test_files[2], test_files[0], 0, 0);
-    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(3), COMPARISON_RESULT_NOT_EQUAL, test_files[2], test_files[1], 0, 0);
+    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(0), COMPARISON_RESULT_NOT_EQUAL,
+                                                 test_files[0], test_files[2], 0, 0);
+    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(1), COMPARISON_RESULT_NOT_EQUAL,
+                                                 test_files[1], test_files[2], 0, 0);
+    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(2), COMPARISON_RESULT_NOT_EQUAL,
+                                                 test_files[2], test_files[0], 0, 0);
+    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(3), COMPARISON_RESULT_NOT_EQUAL,
+                                                 test_files[2], test_files[1], 0, 0);
 }
 
 TEST(IonCli, ErrorIsConveyed) {
@@ -208,7 +222,8 @@ TEST(IonCli, ErrorIsConveyedEvents) {
     ASSERT_TRUE(report.hasErrors());
     ASSERT_FALSE(report.hasComparisonFailures());
     test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_READ, IERR_INVALID_FIELDNAME, test_file);
-    test_ion_cli_assert_streams_equal("$ion_event_stream {event_type:CONTAINER_START, ion_type:STRUCT, depth: 0}", &command_output);
+    test_ion_cli_assert_streams_equal("$ion_event_stream {event_type:CONTAINER_START, ion_type:STRUCT, depth: 0}",
+                                      &command_output);
     free(command_output.value);
 }
 

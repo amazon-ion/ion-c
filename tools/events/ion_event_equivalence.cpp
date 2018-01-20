@@ -189,7 +189,8 @@ BOOL ion_compare_events(ION_EVENT_EQUIVALENCE_PARAMS) {
     ION_EXPECT_EQ(ION_EXPECTED_ARG->ion_type, ION_ACTUAL_ARG->ion_type, "Ion types did not match.");
     ION_EXPECT_EQ(ION_EXPECTED_ARG->depth, ION_ACTUAL_ARG->depth, "Depths did not match.");
     ION_EXPECT_SYMBOL_EQ(ION_EXPECTED_ARG->field_name, ION_ACTUAL_ARG->field_name);
-    ION_EXPECT_EQ(ION_EXPECTED_ARG->num_annotations, ION_ACTUAL_ARG->num_annotations, "Number of annotations did not match.");
+    ION_EXPECT_EQ(ION_EXPECTED_ARG->num_annotations, ION_ACTUAL_ARG->num_annotations,
+                  "Number of annotations did not match.");
     for (size_t i = 0; i < ION_EXPECTED_ARG->num_annotations; i++) {
         ION_EXPECT_SYMBOL_EQ(&ION_EXPECTED_ARG->annotations[i], &ION_ACTUAL_ARG->annotations[i]);
     }
@@ -238,7 +239,8 @@ BOOL ion_compare_substreams(ION_EVENT_EQUIVALENCE_PARAMS, size_t expected_end, s
     ION_EXIT_ASSERTIONS;
 }
 
-BOOL ion_compare_streams(IonEventStream *stream_expected, IonEventStream *stream_actual, IonEventResult *ION_RESULT_ARG) {
+BOOL ion_compare_streams(IonEventStream *stream_expected, IonEventStream *stream_actual,
+                         IonEventResult *ION_RESULT_ARG) {
     ION_ENTER_ASSERTIONS;
     size_t ION_INDEX_EXPECTED_ARG = 0;
     size_t ION_INDEX_ACTUAL_ARG = 0;
@@ -323,7 +325,8 @@ BOOL ion_compare_sets_embedded(ION_EVENT_EQUIVALENCE_PARAMS, size_t *expected_le
             if (ION_COMPARISON_TYPE_ARG != COMPARISON_TYPE_NONEQUIVS || expected_stream_count != actual_stream_count) {
                 if (ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_EQUIVS) {
                     if (step_expected == 1 ^ step_actual == 1) {
-                        ION_EXPECT_TRUE(step_expected == 1 && step_actual == 1, "Only one embedded stream represents an empty stream.");
+                        ION_EXPECT_TRUE(step_expected == 1 && step_actual == 1,
+                                        "Only one embedded stream represents an empty stream.");
                     }
                     else if (step_expected > 1 && step_actual > 1) {
                         ION_ACCUMULATE_ASSERTION(
@@ -336,9 +339,11 @@ BOOL ion_compare_sets_embedded(ION_EVENT_EQUIVALENCE_PARAMS, size_t *expected_le
                     }
                 }
                 else {
-                    ION_ASSERT(ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_NONEQUIVS, "Invalid embedded documents comparison type.");
+                    ION_ASSERT(ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_NONEQUIVS,
+                               "Invalid embedded documents comparison type.");
                     if (step_expected == 1 && step_actual == 1) {
-                        ION_EXPECT_FALSE(step_expected == 1 && step_actual == 1, "Both embedded streams are empty stream in a non-equivs set.")
+                        ION_EXPECT_FALSE(step_expected == 1 && step_actual == 1,
+                                         "Both embedded streams are empty stream in a non-equivs set.")
                     }
                     else if (step_expected > 1 && step_actual > 1) {
                         ION_EXPECT_FALSE(
@@ -369,40 +374,52 @@ BOOL ion_compare_sets(IonEventStream *ION_STREAM_EXPECTED_ARG, IonEventStream *I
     ION_ENTER_ASSERTIONS;
     size_t ION_INDEX_EXPECTED_ARG = 0, ION_INDEX_ACTUAL_ARG = 0;
     ION_PREPARE_COMPARISON;
-    ION_EXPECT_TRUE(!(ION_STREAM_EXPECTED_ARG->size() == 0 ^ ION_STREAM_ACTUAL_ARG->size()== 0), "Only one of the streams was empty.");
+    ION_EXPECT_TRUE(!(ION_STREAM_EXPECTED_ARG->size() == 0 ^ ION_STREAM_ACTUAL_ARG->size()== 0),
+                    "Only one of the streams was empty.");
     if (ION_STREAM_EXPECTED_ARG->size() == 0) return TRUE;
     while (TRUE) {
         if (ION_INDEX_EXPECTED_ARG == ION_STREAM_EXPECTED_ARG->size() - 1) {
             // Even if the streams' corresponding sets have different number of elements, the loop will reach the
             // end of each stream at the same time as long as the streams have the same number of sets. And if they
             // don't have the same number of sets, an error is raised.
-            ION_EXPECT_EQ(ION_STREAM_ACTUAL_ARG->size() - 1, ION_INDEX_ACTUAL_ARG, "Only one of the streams reached its end.");
+            ION_EXPECT_EQ(ION_STREAM_ACTUAL_ARG->size() - 1, ION_INDEX_ACTUAL_ARG,
+                          "Only one of the streams reached its end.");
             ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, ION_EXPECTED_ARG->event_type);
             ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, ION_ACTUAL_ARG->event_type);
             break;
         }
         else if (ION_INDEX_ACTUAL_ARG == ION_STREAM_ACTUAL_ARG->size() - 1) {
-            ION_EXPECT_EQ(ION_STREAM_EXPECTED_ARG->size() - 1, ION_INDEX_EXPECTED_ARG, "Only one of the streams reached its end.");
+            ION_EXPECT_EQ(ION_STREAM_EXPECTED_ARG->size() - 1, ION_INDEX_EXPECTED_ARG,
+                          "Only one of the streams reached its end.");
             ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, ION_ACTUAL_ARG->event_type);
             ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, ION_EXPECTED_ARG->event_type);
             break;
         }
         else {
-            ION_ASSERT(CONTAINER_START == ION_EXPECTED_ARG->event_type, "Comparison sets must be lists or s-expressions.");
-            ION_ASSERT((tid_SEXP == ION_EXPECTED_ARG->ion_type) || (tid_LIST == ION_EXPECTED_ARG->ion_type), "Comparison sets must be lists or s-expressions.");
-            ION_ASSERT(CONTAINER_START == ION_ACTUAL_ARG->event_type, "Comparison sets must be lists or s-expressions.");
-            ION_ASSERT((tid_SEXP == ION_ACTUAL_ARG->ion_type) || (tid_LIST == ION_ACTUAL_ARG->ion_type), "Comparison sets must be lists or s-expressions.");
-            ION_STRING *lhs_annotation = (ION_EXPECTED_ARG->num_annotations > 0) ? &ION_EXPECTED_ARG->annotations[0].value : NULL;
-            ION_STRING *rhs_annotation = (ION_ACTUAL_ARG->num_annotations > 0) ? &ION_ACTUAL_ARG->annotations[0].value : NULL;
+            ION_ASSERT(CONTAINER_START == ION_EXPECTED_ARG->event_type,
+                       "Comparison sets must be lists or s-expressions.");
+            ION_ASSERT((tid_SEXP == ION_EXPECTED_ARG->ion_type) || (tid_LIST == ION_EXPECTED_ARG->ion_type),
+                       "Comparison sets must be lists or s-expressions.");
+            ION_ASSERT(CONTAINER_START == ION_ACTUAL_ARG->event_type,
+                       "Comparison sets must be lists or s-expressions.");
+            ION_ASSERT((tid_SEXP == ION_ACTUAL_ARG->ion_type) || (tid_LIST == ION_ACTUAL_ARG->ion_type),
+                       "Comparison sets must be lists or s-expressions.");
+            ION_STRING *lhs_annotation = (ION_EXPECTED_ARG->num_annotations > 0)
+                                         ? &ION_EXPECTED_ARG->annotations[0].value : NULL;
+            ION_STRING *rhs_annotation = (ION_ACTUAL_ARG->num_annotations > 0)
+                                         ? &ION_ACTUAL_ARG->annotations[0].value : NULL;
             size_t step_lhs;
             size_t step_rhs;
             if (lhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, lhs_annotation)) {
-                ION_ASSERT(rhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation), "Embedded streams set expected.");
+                ION_ASSERT(rhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation),
+                           "Embedded streams set expected.");
                 // Skip past the CONTAINER_START events.
                 ION_NEXT_INDICES;
                 ION_ACCUMULATE_ASSERTION(ion_compare_sets_embedded(ION_EVENT_EQUIVALENCE_ARGS, &step_lhs, &step_rhs));
             } else {
-                ION_ASSERT(!(rhs_annotation && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation)), "Embedded streams set not expected.");
+                ION_ASSERT(!(rhs_annotation
+                             && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation)),
+                           "Embedded streams set not expected.");
                 step_lhs = ION_EXPECTED_VALUE_LENGTH;
                 step_rhs = ION_ACTUAL_VALUE_LENGTH;
                 ION_ACCUMULATE_ASSERTION(ion_compare_sets_standard(ION_STREAM_EXPECTED_ARG, ION_INDEX_EXPECTED_ARG + 1,

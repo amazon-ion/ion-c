@@ -80,8 +80,11 @@ public:
     }
 };
 
-iERR ion_cli_command_compare(IonCliCommonArgs *common_args, ION_EVENT_COMPARISON_TYPE comparison_type, ION_STRING *output, IonEventReport *report);
-iERR ion_cli_command_process(IonCliCommonArgs *common_args, IonCliProcessArgs *process_args, ION_STRING *output, IonEventReport *report);
+iERR ion_cli_command_compare(IonCliCommonArgs *common_args, ION_EVENT_COMPARISON_TYPE comparison_type,
+                             ION_STRING *output, IonEventReport *report);
+
+iERR ion_cli_command_process(IonCliCommonArgs *common_args, IonCliProcessArgs *process_args, ION_STRING *output,
+                             IonEventReport *report);
 
 iERR ion_cli_write_error_report(IonEventReport *report, IonCliCommonArgs *common_args);
 
