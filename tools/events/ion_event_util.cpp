@@ -208,38 +208,6 @@ iERR ion_event_writer_close(IonEventWriterContext *writer_context, IonEventResul
     iRETURN;
 }
 
-iERR ion_event_in_memory_writer_close(IonEventWriterContext *writer_context, BYTE **bytes, SIZE *bytes_len, iERR err, IonEventResult *result) {
-    UPDATEERROR(ion_event_writer_close(writer_context, result, err, true, bytes, bytes_len));
-    cRETURN;
-}
-
-std::string _ion_error_message(iERR error_code, std::string msg, const char *file, int line) {
-    std::ostringstream ss;
-    ss << file << ":" << line << " : "
-       << ion_error_to_str(error_code);
-       if (!msg.empty()) {
-           ss << ": " << msg;
-       }
-    return ss.str();
-}
-
-void _ion_event_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg,
-                          std::string *location, size_t *event_index, const char *file, int line) {
-    if (result != NULL) {
-        result->error_description.error_type = error_type;
-        result->error_description.message = _ion_error_message(error_code, msg, file, line);
-        if (location != NULL) {
-            result->error_description.location = *location; // TODO can there be multiple locations? Like when there's an error during comparison. Or multiple contexts?
-            result->error_description.has_location = true;
-        }
-        if (event_index != NULL) {
-            result->error_description.event_index = *event_index;
-            result->error_description.has_event_index = true;
-        }
-        result->has_error_description = true;
-    }
-}
-
 std::string ion_event_symbol_to_string(ION_SYMBOL *symbol) {
     std::ostringstream ss;
     ss << "(text=" << ION_EVENT_STRING_OR_NULL(&symbol->value) << ", local_sid=" << symbol->sid

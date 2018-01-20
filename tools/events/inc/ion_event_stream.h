@@ -28,6 +28,9 @@ typedef enum _ion_event_type {
     UNKNOWN
 } ION_EVENT_TYPE;
 
+/**
+ * Describes a single Ion parsing event.
+ */
 class IonEvent {
 public:
     ION_EVENT_TYPE event_type;
@@ -42,6 +45,9 @@ public:
     ~IonEvent();
 };
 
+/**
+ * Describes the sequence of Ion parsing events that make up a given Ion stream.
+ */
 class IonEventStream {
     std::vector<IonEvent*> *event_stream;
 public:
@@ -84,6 +90,9 @@ typedef enum _ion_event_error_type {
     ERROR_TYPE_STATE,
 } ION_EVENT_ERROR_TYPE;
 
+/**
+ * Describes a single error.
+ */
 class IonEventErrorDescription {
 public:
     ION_EVENT_ERROR_TYPE error_type;
@@ -96,6 +105,11 @@ public:
     IonEventErrorDescription() {
         memset(this, 0, sizeof(IonEventErrorDescription));
     }
+
+    /**
+     * Writes an Ion representation of this error description using the given writer.
+     */
+    iERR writeTo(hWRITER writer);
 };
 
 typedef enum _ion_event_comparison_result_type {
@@ -104,6 +118,11 @@ typedef enum _ion_event_comparison_result_type {
     COMPARISON_RESULT_ERROR
 } ION_EVENT_COMPARISON_RESULT_TYPE;
 
+class IonEventResult;
+
+/**
+ * Describes a single side of a comparison operation.
+ */
 class IonEventComparisonContext {
 public:
     std::string location;
@@ -113,8 +132,16 @@ public:
     IonEventComparisonContext() {
         memset(this, 0, sizeof(IonEventComparisonContext));
     }
+
+    /**
+     * Writes an Ion representation of this comparison context using the given writer.
+     */
+    iERR writeTo(hWRITER writer, ION_CATALOG *catalog, std::string *location, IonEventResult *result);
 };
 
+/**
+ * Describes a single comparison failure.
+ */
 class IonEventComparisonResult {
 public:
     ION_EVENT_COMPARISON_RESULT_TYPE result;
@@ -125,8 +152,16 @@ public:
     IonEventComparisonResult() {
         memset(this, 0, sizeof(IonEventComparisonResult));
     }
+
+    /**
+     * Writes an Ion representation of this comparison result using the given writer.
+     */
+    iERR writeTo(hWRITER writer, ION_CATALOG *catalog, std::string *location, IonEventResult *result);
 };
 
+/**
+ * Describes the result of a single compare or process operation.
+ */
 class IonEventResult {
 public:
     IonEventErrorDescription error_description;
@@ -137,8 +172,18 @@ public:
     IonEventResult() {
         memset(this, 0, sizeof(IonEventResult));
     }
+
+    ~IonEventResult() {
+        if (has_comparison_result) {
+            delete comparison_result.lhs.event;
+            delete comparison_result.rhs.event;
+        }
+    }
 };
 
+/**
+ * Describes the results of a set of compare or process operations.
+ */
 class IonEventReport {
     std::vector<IonEventErrorDescription> error_report;
     std::vector<IonEventComparisonResult> comparison_report;
@@ -151,9 +196,25 @@ public:
             delete comparison_result->rhs.event;
         }
     }
+
+    /**
+     * Adds the given IonEventResult's results to the report and claims ownership of their resources.
+     */
     void addResult(IonEventResult *result);
+
+    /**
+     * Writes an Ion representation of the report's errors using the given writer. Any errors that occur during writing
+     * are conveyed in a non-zero return value.
+     */
     iERR writeErrorsTo(hWRITER writer);
+
+    /**
+     * Writes an Ion representation of the report's comparison results using the given writer. If either of the events
+     * contain symbols with unknown text, the optional catalog is used to resolve their imports. Any errors that occur
+     * during writing are conveyed in `result` and in a non-zero return value.
+     */
     iERR writeComparisonResultsTo(hWRITER writer, ION_CATALOG *catalog, std::string *location, IonEventResult *result);
+
     bool hasErrors() {
         return !error_report.empty();
     }

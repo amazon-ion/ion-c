@@ -88,4 +88,8 @@ ION_STREAM_ACTUAL_ARG, ION_INDEX_ACTUAL_ARG, ION_COMPARISON_TYPE_ARG, ION_RESULT
 #define ION_NEXT_EXPECTED_VALUE_INDEX ION_INDEX_EXPECTED_ARG += ION_EXPECTED_VALUE_LENGTH
 #define ION_NEXT_VALUE_INDICES ION_NEXT_EXPECTED_VALUE_INDEX; ION_NEXT_ACTUAL_VALUE_INDEX
 
+void _ion_event_set_comparison_result(IonEventResult *result, ION_EVENT_COMPARISON_TYPE comparison_type, IonEvent *lhs,
+                                      IonEvent *rhs, size_t lhs_index, size_t rhs_index, std::string lhs_location,
+                                      std::string rhs_location, std::string message);
+
 #endif //IONC_ION_EVENT_EQUIVALENCE_IMPL_H

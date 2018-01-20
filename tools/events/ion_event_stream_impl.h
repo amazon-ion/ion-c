@@ -101,6 +101,7 @@
 
 #define cRETURN cleanup: RETURN(__location_name__, __line__, __count__++, err)
 
+// The ION_STRING type is well-suited to storing the binary types.
 typedef ION_STRING ION_LOB;
 
 /**
@@ -120,8 +121,6 @@ size_t ion_event_value_length(IonEventStream *stream, size_t start_index);
  */
 size_t ion_event_stream_length(IonEventStream *stream, size_t index);
 
-iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth, BOOL is_embedded_stream_set, IonEventResult *result);
-
 /**
  * Reads IonEvents from the given BYTE* of Ion data into the given IonEventStream.
  */
@@ -130,7 +129,6 @@ iERR ion_event_stream_read_all_from_bytes(const BYTE *ion_string, SIZE len, ION_
 
 iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION *imports, std::string *location, IonEventResult *result);
 
-
 /**
  * Writes an IonEventStream as an Ion stream in the given format. The caller is responsible for freeing the output
  * bytes.
@@ -138,11 +136,12 @@ iERR ion_event_stream_read_imports(hREADER reader, ION_COLLECTION *imports, std:
 iERR ion_event_stream_write_all_to_bytes(IonEventStream *stream, ION_EVENT_OUTPUT_TYPE output_type,
                                          ION_CATALOG *catalog, BYTE **out, SIZE *len, IonEventResult *result);
 
-iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, ION_CATALOG *catalog, std::string *location, IonEventResult *result);
-iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report, ION_CATALOG *catalog, std::string *location, IonEventResult *result);
-iERR ion_event_stream_write_error(hWRITER writer, IonEventErrorDescription *error_description);
-iERR ion_event_stream_write_comparison_result(hWRITER writer, IonEventComparisonResult *comparison_result, ION_CATALOG *catalog, std::string *location, IonEventResult *result);
-
+/**
+ * Copies the event so that it may be used outside the scope of its owning stream.
+ */
 iERR ion_event_copy(IonEvent **dst, IonEvent *src, std::string *location, IonEventResult *result);
+
+void _ion_event_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg,
+                          std::string *location, size_t *event_index, const char *file, int line);
 
 #endif //IONC_ION_EVENT_STREAM_IMPL_H

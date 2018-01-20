@@ -178,16 +178,18 @@ IonEvent * IonEventStream::appendNew(ION_EVENT_TYPE event_type, ION_TYPE ion_typ
 void IonEventReport::addResult(IonEventResult *result) {
     if (result->has_error_description) {
         error_report.push_back(result->error_description);
+        result->has_error_description = false; // This prevents the IonEventResult from deleting it.
     }
     if (result->has_comparison_result) {
         comparison_report.push_back(result->comparison_result);
+        result->has_comparison_result = false; // This prevents the IonEventResult from deleting it.
     }
 }
 
 iERR IonEventReport::writeErrorsTo(hWRITER writer) {
     iENTER;
     for (size_t i = 0; i < error_report.size(); i++) {
-        IONREPORT(ion_event_stream_write_error(writer, &error_report.at(i)));
+        IONREPORT(error_report.at(i).writeTo(writer));
     }
     cRETURN;
 }
@@ -195,22 +197,70 @@ iERR IonEventReport::writeErrorsTo(hWRITER writer) {
 iERR IonEventReport::writeComparisonResultsTo(hWRITER writer, ION_EVENT_WRITER_PARAMS) {
     iENTER;
     for (size_t i = 0; i < comparison_report.size(); i++) {
-        IONREPORT(ion_event_stream_write_comparison_result(writer, &comparison_report.at(i), ION_EVENT_WRITER_ARGS));
+        IONREPORT(comparison_report.at(i).writeTo(writer, ION_EVENT_WRITER_ARGS));
     }
     cRETURN;
 }
 
-iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, ION_EVENT_WRITER_PARAMS) {
+iERR IonEventErrorDescription::writeTo(hWRITER writer) {
     iENTER;
-    ASSERT(report);
-    IONREPORT(report->writeErrorsTo(writer));
+    ION_SET_ERROR_CONTEXT(NULL, NULL); // In the event that writing the error report fails, this information can't be used anyway
+    IonEventResult *ION_RESULT_ARG = NULL;
+    ION_STRING message, location;
+    IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_type_field));
+    IONCWRITE(ion_writer_write_symbol(writer, ion_event_error_type_to_string(this->error_type)));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_message_field));
+    ION_EVENT_ION_STRING_FROM_STRING(&message, this->message);
+    IONCWRITE(ion_writer_write_string(writer, &message));
+    if (this->has_location) {
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_location_field));
+        ION_EVENT_ION_STRING_FROM_STRING(&location, this->location);
+        IONCWRITE(ion_writer_write_string(writer, &location));
+    }
+    if (this->has_event_index) {
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_event_index_field));
+        IONCWRITE(ion_writer_write_int(writer, (int)this->event_index));
+    }
+    IONCWRITE(ion_writer_finish_container(writer));
     cRETURN;
 }
 
-iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report, ION_EVENT_WRITER_PARAMS) {
+iERR ion_event_stream_write_event_as_event(hWRITER writer, IonEvent *event, ION_EVENT_WRITER_INDEX_PARAMS);
+
+iERR IonEventComparisonContext::writeTo(hWRITER writer, ION_EVENT_WRITER_PARAMS) {
     iENTER;
-    ASSERT(report);
-    IONREPORT(report->writeComparisonResultsTo(writer, ION_EVENT_WRITER_ARGS));
+    ION_SET_ERROR_CONTEXT(ION_LOCATION_ARG, NULL);
+    ION_STRING event_location;
+    IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_context_location_field));
+    ION_EVENT_ION_STRING_FROM_STRING(&event_location, this->location);
+    IONCWRITE(ion_writer_write_string(writer, &event_location));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_field));
+    IONREPORT(ion_event_stream_write_event_as_event(writer, this->event, &this->event_index, ION_EVENT_WRITER_ARGS));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_index_field));
+    IONCWRITE(ion_writer_write_int(writer, (int)this->event_index));
+    IONCWRITE(ion_writer_finish_container(writer));
+    cRETURN;
+}
+
+iERR IonEventComparisonResult::writeTo(hWRITER writer, ION_EVENT_WRITER_PARAMS) {
+    iENTER;
+    ION_SET_ERROR_CONTEXT(ION_LOCATION_ARG, NULL);
+    ION_STRING message;
+    IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_type_field));
+    IONCWRITE(ion_writer_write_string(writer, ion_event_comparison_result_type_to_string(this->result)));
+    if (!this->message.empty()) {
+        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_message_field));
+        ION_EVENT_ION_STRING_FROM_STRING(&message, this->message);
+        IONCWRITE(ion_writer_write_string(writer, &message));
+    }
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_lhs_field));
+    IONREPORT(this->lhs.writeTo(writer, ION_EVENT_WRITER_ARGS));
+    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_rhs_field));
+    IONREPORT(this->rhs.writeTo(writer, ION_EVENT_WRITER_ARGS));
+    IONCWRITE(ion_writer_finish_container(writer));
     cRETURN;
 }
 
@@ -251,7 +301,7 @@ iERR ion_event_stream_read_embedded_stream(hREADER reader, IonEventStream *strea
 iERR _ion_event_stream_read_all_recursive(hREADER hreader, IonEventStream *stream, BOOL in_struct, int depth, BOOL is_embedded_stream_set, IonEventResult *ION_RESULT_ARG);
 /**
  * Reads the reader's current value into an IonEvent and appends that event to the given IonEventStream. The event's
- * value is allocated such that it may be freed safely by free_ion_event_value.
+ * value is allocated such that it may be freed safely by ion_free_event_value.
  */
 iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, BOOL in_struct, int depth, BOOL is_embedded_stream_set, IonEventResult *ION_RESULT_ARG) {
     iENTER;
@@ -607,9 +657,9 @@ iERR ion_event_stream_write_scalar_value_comparison_result(std::string *comparis
     ASSERT(comparison_report);
 
     IONREPORT(ion_event_in_memory_writer_open(&writer_context, OUTPUT_TYPE_TEXT_PRETTY, /*imports=*/NULL, /*catalog=*/NULL, ION_EVENT_COMMON_ARGS));
-    IONREPORT(ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result, ION_EVENT_WRITER_ARGS));
+    IONREPORT(result->comparison_result.writeTo(writer_context.writer, ION_EVENT_WRITER_ARGS));
 cleanup:
-    UPDATEERROR(ion_event_in_memory_writer_close(&writer_context, &value, &len, err, ION_RESULT_ARG));
+    UPDATEERROR(ion_event_writer_close(&writer_context, ION_RESULT_ARG, err, true, &value, &len));
     if (value) {
         *comparison_report = std::string((char *)value, (size_t)len);
         free(value);
@@ -1131,7 +1181,7 @@ iERR _ion_event_stream_write_all_to_bytes_helper(IonEventStream *stream, size_t 
     IONREPORT(ion_event_in_memory_writer_open(&writer_context, output_type, NULL, catalog, &stream->location, ION_RESULT_ARG));
     IONREPORT(_ion_event_stream_write_all_recursive(writer_context.writer, stream, start_index, end_index, ION_RESULT_ARG));
 cleanup:
-    UPDATEERROR(ion_event_in_memory_writer_close(&writer_context, out, len, err));
+    UPDATEERROR(ion_event_writer_close(&writer_context, ION_RESULT_ARG, err, true, out, len));
     iRETURN;
 }
 
@@ -1298,7 +1348,7 @@ iERR ion_event_stream_write_scalar_value(ION_EVENT_OUTPUT_TYPE output_type, IonE
     IONREPORT(ion_event_in_memory_writer_open(&writer_context, output_type, /*imports=*/NULL, /*catalog=*/NULL, ION_EVENT_COMMON_ARGS));
     IONREPORT(ion_event_stream_write_scalar(writer_context.writer, event, ION_EVENT_INDEX_ARGS));
 cleanup:
-    UPDATEERROR(ion_event_in_memory_writer_close(&writer_context, value, len, err, result));
+    UPDATEERROR(ion_event_writer_close(&writer_context, ION_RESULT_ARG, err, true, value, len));
     if (imports) {
         ion_free_owner(imports);
     }
@@ -1385,66 +1435,29 @@ iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, I
     cRETURN;
 }
 
-iERR ion_event_stream_write_error(hWRITER writer, IonEventErrorDescription *error_description) {
-    iENTER;
-    ION_SET_ERROR_CONTEXT(NULL, NULL); // In the event that writing the error report fails, this information can't be used anyway
-    IonEventResult *ION_RESULT_ARG = NULL;
-    ION_STRING message, location;
-    ASSERT(error_description);
-    IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
-    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_type_field));
-    IONCWRITE(ion_writer_write_symbol(writer, ion_event_error_type_to_string(error_description->error_type)));
-    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_message_field));
-    ION_EVENT_ION_STRING_FROM_STRING(&message, error_description->message);
-    IONCWRITE(ion_writer_write_string(writer, &message));
-    if (error_description->has_location) {
-        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_location_field));
-        ION_EVENT_ION_STRING_FROM_STRING(&location, error_description->location);
-        IONCWRITE(ion_writer_write_string(writer, &location));
+std::string _ion_error_message(iERR error_code, std::string msg, const char *file, int line) {
+    std::ostringstream ss;
+    ss << file << ":" << line << " : "
+       << ion_error_to_str(error_code);
+    if (!msg.empty()) {
+        ss << ": " << msg;
     }
-    if (error_description->has_event_index) {
-        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_error_event_index_field));
-        IONCWRITE(ion_writer_write_int(writer, (int)error_description->event_index));
-    }
-    IONCWRITE(ion_writer_finish_container(writer));
-    cRETURN;
+    return ss.str();
 }
 
-iERR ion_event_stream_write_comparison_context(hWRITER writer, IonEventComparisonContext *comparison_context, ION_EVENT_WRITER_PARAMS) {
-    iENTER;
-    ASSERT(comparison_context);
-    ION_SET_ERROR_CONTEXT(ION_LOCATION_ARG, NULL);
-    ION_STRING event_location;
-    IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
-    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_context_location_field));
-    ION_EVENT_ION_STRING_FROM_STRING(&event_location, comparison_context->location);
-    IONCWRITE(ion_writer_write_string(writer, &event_location));
-    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_field));
-    IONREPORT(ion_event_stream_write_event_as_event(writer, comparison_context->event, &comparison_context->event_index,
-                                                    ION_EVENT_WRITER_ARGS));
-    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_context_event_index_field));
-    IONCWRITE(ion_writer_write_int(writer, (int)comparison_context->event_index));
-    IONCWRITE(ion_writer_finish_container(writer));
-    cRETURN;
-}
-
-iERR ion_event_stream_write_comparison_result(hWRITER writer, IonEventComparisonResult *comparison_result, ION_EVENT_WRITER_PARAMS) {
-    iENTER;
-    ION_SET_ERROR_CONTEXT(ION_LOCATION_ARG, NULL);
-    ION_STRING message;
-    ASSERT(comparison_result);
-    IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
-    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_type_field));
-    IONCWRITE(ion_writer_write_string(writer, ion_event_comparison_result_type_to_string(comparison_result->result)));
-    if (!comparison_result->message.empty()) {
-        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_message_field));
-        ION_EVENT_ION_STRING_FROM_STRING(&message, comparison_result->message);
-        IONCWRITE(ion_writer_write_string(writer, &message));
+void _ion_event_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg,
+                          std::string *location, size_t *event_index, const char *file, int line) {
+    if (result != NULL) {
+        result->error_description.error_type = error_type;
+        result->error_description.message = _ion_error_message(error_code, msg, file, line);
+        if (location != NULL) {
+            result->error_description.location = *location; // TODO can there be multiple locations? Like when there's an error during comparison. Or multiple contexts?
+            result->error_description.has_location = true;
+        }
+        if (event_index != NULL) {
+            result->error_description.event_index = *event_index;
+            result->error_description.has_event_index = true;
+        }
+        result->has_error_description = true;
     }
-    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_lhs_field));
-    IONREPORT(ion_event_stream_write_comparison_context(writer, &comparison_result->lhs, ION_EVENT_WRITER_ARGS));
-    IONCWRITE(ion_writer_write_field_name(writer, &ion_event_comparison_result_rhs_field));
-    IONREPORT(ion_event_stream_write_comparison_context(writer, &comparison_result->rhs, ION_EVENT_WRITER_ARGS));
-    IONCWRITE(ion_writer_finish_container(writer));
-    cRETURN;
 }

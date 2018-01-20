@@ -284,12 +284,12 @@ void write_ion_event_result(IonEventResult *result, ION_CATALOG *catalog, std::s
     ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_open(&writer_context, OUTPUT_TYPE_TEXT_PRETTY, NULL, NULL,
                                                        &location, NULL));
     if (result->has_error_description) {
-        ASSERT_EQ(IERR_OK, ion_event_stream_write_error(writer_context.writer, &result->error_description));
+        ASSERT_EQ(IERR_OK, result->error_description.writeTo(writer_context.writer));
     }
     if (result->has_comparison_result) {
-        ASSERT_EQ(IERR_OK, ion_event_stream_write_comparison_result(writer_context.writer, &result->comparison_result, catalog,  &location, NULL));
+        ASSERT_EQ(IERR_OK, result->comparison_result.writeTo(writer_context.writer, catalog, &location, NULL));
     }
-    ASSERT_EQ(IERR_OK, ion_event_in_memory_writer_close(&writer_context, &out, &len));
+    ASSERT_EQ(IERR_OK, ion_event_writer_close(&writer_context, result, IERR_OK, TRUE, &out, &len));
     if (out) {
         message = std::string((char *)out, (size_t)len);
         free(out);

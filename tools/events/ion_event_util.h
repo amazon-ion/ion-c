@@ -117,6 +117,9 @@ static ION_STRING ion_event_comparison_result_type_equal = {5, (BYTE *)"EQUAL"};
 static ION_STRING ion_event_comparison_result_type_not_equal = {9, (BYTE *)"NOT_EQUAL"};
 static ION_STRING ion_event_comparison_result_type_error = {5, (BYTE *)"ERROR"};
 
+/**
+ * Stores the resources required by an ION_WRITER.
+ */
 class IonEventWriterContext {
 public:
     ION_WRITER_OPTIONS options;
@@ -150,16 +153,23 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options);
  */
 void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options);
 
+/**
+ * Opens a new in-memory writer. Must be closed using `ion_event_writer_close` with in_memory=true.
+ */
 iERR ion_event_in_memory_writer_open(IonEventWriterContext *writer_context, ION_EVENT_OUTPUT_TYPE output_type,
                                      ION_COLLECTION *imports, ION_CATALOG *catalog, std::string *location,
                                      IonEventResult *result);
+
+/**
+ * Closes a writer given its context. If the writer is an in-memory writer, in_memory must be true and bytes and
+ * bytes_len must be non-null. It is the caller's responsibility to free the output bytes, if any.
+ */
 iERR ion_event_writer_close(IonEventWriterContext *writer_context, IonEventResult *result, iERR err=IERR_OK,
                             bool in_memory=false, BYTE **bytes=NULL, SIZE *bytes_len=NULL);
-iERR ion_event_in_memory_writer_close(IonEventWriterContext *writer_context, BYTE **bytes, SIZE *bytes_len, iERR err=IERR_OK, IonEventResult *result=NULL);
 
-void _ion_event_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg,
-                          std::string *location, size_t *event_index, const char *file, int line);
-
+/**
+ * Creates a debug string describing the given ION_SYMBOL.
+ */
 std::string ion_event_symbol_to_string(ION_SYMBOL *symbol);
 
 #endif //IONC_ION_EVENT_UTIL_H

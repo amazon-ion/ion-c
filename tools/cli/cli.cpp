@@ -334,6 +334,20 @@ cleanup:
 
 typedef iERR (*ION_CLI_WRITE_FUNC)(hWRITER writer, IonEventReport *report, ION_CATALOG *catalog, std::string *location, IonEventResult *result);
 
+iERR ion_event_stream_write_error_report(hWRITER writer, IonEventReport *report, ION_EVENT_WRITER_PARAMS) {
+    iENTER;
+    ASSERT(report);
+    IONREPORT(report->writeErrorsTo(writer));
+    cRETURN;
+}
+
+iERR ion_event_stream_write_comparison_report(hWRITER writer, IonEventReport *report, ION_EVENT_WRITER_PARAMS) {
+    iENTER;
+    ASSERT(report);
+    IONREPORT(report->writeComparisonResultsTo(writer, ION_EVENT_WRITER_ARGS));
+    cRETURN;
+}
+
 iERR ion_cli_write_report(IonEventReport *report, IonCliIO *report_destination, ION_CLI_WRITE_FUNC write_func, ION_STRING *output, ION_CATALOG *catalog=NULL, IonEventResult *ION_RESULT_ARG=NULL) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&report_destination->contents, NULL);
