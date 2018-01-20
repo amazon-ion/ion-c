@@ -68,8 +68,8 @@
 /**
  * Sets the context required for conveying errors using IONFAILSTATE, IONCREAD, IONCWRITE, IONCSTATE, and ION_NON_FATAL.
  */
-#define ION_SET_ERROR_CONTEXT(location, event_index) \
-    std::string *ION_ERROR_LOCATION_VAR = location; \
+#define ION_SET_ERROR_CONTEXT(loc, event_index) \
+    std::string *ION_ERROR_LOCATION_VAR = loc; \
     size_t *ION_ERROR_EVENT_INDEX_VAR = event_index;
 
 /**

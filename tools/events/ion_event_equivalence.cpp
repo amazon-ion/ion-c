@@ -25,11 +25,6 @@
 
 TIMESTAMP_COMPARISON_FN g_TimestampEquals = ion_timestamp_equals;
 
-/**
- * Tests the values starting at the given indices in the given streams (they may be the same) for equivalence
- * under the Ion data model. If the indices start on CONTAINER_START events, this will recursively compare
- * the containers' children.
- */
 BOOL ion_compare_events(ION_EVENT_EQUIVALENCE_PARAMS);
 
 void _ion_event_set_comparison_result(IonEventResult *result, ION_EVENT_COMPARISON_TYPE comparison_type, IonEvent *lhs,
@@ -123,7 +118,9 @@ BOOL ion_compare_struct_subset(ION_EVENT_EQUIVALENCE_PARAMS) {
                 ION_SET_ACTUAL;
                 ION_EXPECT_TRUE(!(ION_ACTUAL_ARG->event_type == CONTAINER_END && ION_ACTUAL_ARG->depth == target_depth),
                                 "Did not find matching field for " + ion_event_symbol_to_string(expected_field_name));
-                ION_EXPECT_OK(ion_symbol_is_equal(expected_field_name, ION_ACTUAL_ARG->field_name, &field_names_equal));
+                ION_ASSERT(IERR_OK == ion_symbol_is_equal(expected_field_name,
+                                                          ION_ACTUAL_ARG->field_name, &field_names_equal),
+                           "Failed to compare field names.");
                 if (field_names_equal
                     && ion_compare_events(ION_STREAM_EXPECTED_ARG, ION_INDEX_EXPECTED_ARG, ION_STREAM_ACTUAL_ARG,
                                           ION_INDEX_ACTUAL_ARG, ION_COMPARISON_TYPE_ARG,
@@ -181,6 +178,11 @@ BOOL ion_compare_sequences(ION_EVENT_EQUIVALENCE_PARAMS) {
     ION_EXIT_ASSERTIONS;
 }
 
+/**
+ * Tests the values starting at the given indices in the given streams (they may be the same) for equivalence
+ * under the Ion data model. If the indices start on CONTAINER_START events, this will recursively compare
+ * the containers' children.
+ */
 BOOL ion_compare_events(ION_EVENT_EQUIVALENCE_PARAMS) {
     ION_ENTER_ASSERTIONS;
     ION_PREPARE_COMPARISON;

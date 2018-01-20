@@ -737,7 +737,7 @@ iERR ion_event_copy_value(IonEvent *event, void **value, ION_EVENT_COMMON_PARAMS
             break;
         case TID_TIMESTAMP:
             timestamp = (ION_TIMESTAMP *)malloc(sizeof(ION_TIMESTAMP));
-            // TODO it will not be this simple if ION_TIMESTAMP's fraction field is upgraded to use ION_DECIMAL.
+            // NOTE: this will not be this simple if ION_TIMESTAMP's fraction field is upgraded to use ION_DECIMAL.
             memcpy(timestamp, (ION_TIMESTAMP *)event->value, sizeof(ION_TIMESTAMP));
             *value = timestamp;
             break;
@@ -1484,7 +1484,7 @@ void _ion_event_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_typ
         result->error_description.error_type = error_type;
         result->error_description.message = _ion_error_message(error_code, msg, file, line);
         if (location != NULL) {
-            result->error_description.location = *location; // TODO can there be multiple locations? Like when there's an error during comparison. Or multiple contexts?
+            result->error_description.location = *location;
             result->error_description.has_location = true;
         }
         if (event_index != NULL) {

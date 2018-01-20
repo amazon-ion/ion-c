@@ -227,6 +227,19 @@ TEST(IonCli, ErrorIsConveyedEvents) {
     free(command_output.value);
 }
 
+TEST(IonCli, ErrorIsConveyedComparison) {
+    // This should fail because equivs comparisons must involve sequence types.
+    const char *data = "1 2";
+    IonEventReport report;
+    IonCliCommonArgs common_args;
+    test_ion_cli_init_common_args(&common_args);
+    test_ion_cli_add_input(data, IO_TYPE_MEMORY, &common_args);
+    ion_cli_command_compare(&common_args, COMPARISON_TYPE_EQUIVS, NULL, &report);
+    ASSERT_FALSE(report.hasComparisonFailures());
+    ASSERT_TRUE(report.hasErrors());
+    test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_STATE, IERR_INVALID_STATE, data);
+}
+
 TEST(IonCli, AnnotatedIvmsEmbedded) {
     std::string test_file = join_path(full_good_nonequivs_path, "annotatedIvms.ion");
     ION_STRING command_output;
@@ -250,8 +263,6 @@ TEST(IonCli, AnnotatedIvmsEmbedded) {
     ASSERT_EQ(0, stream.at(4)->depth);
     free(command_output.value);
 }
-
-// TODO consider having a list of (location, index) in error report to better convey errors during comparison
 
 // TODO process command with catalog and/or imports
 // TODO compare command with catalog and/or imports

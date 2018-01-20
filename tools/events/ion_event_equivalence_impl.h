@@ -41,8 +41,8 @@
 /**
  * Sets the current IonEventResult's error_description with context about the error and returns.
  */
-#define ION_FAIL_ASSERTION(message) \
-    _ion_event_set_error(ION_RESULT_ARG, ERROR_TYPE_STATE, IERR_INVALID_STATE, message, NULL, NULL, __FILE__, __LINE__); \
+#define ION_FAIL_ASSERTION(message, loc) \
+    _ion_event_set_error(ION_RESULT_ARG, ERROR_TYPE_STATE, IERR_INVALID_STATE, message, loc, NULL, __FILE__, __LINE__); \
     return FALSE;
 
 /**
@@ -51,13 +51,17 @@
 #define ION_EXPECT_OK(x) \
     if ((x) != IERR_OK) { \
         std::string m = std::string("IERR_OK vs. ") + std::string(ion_error_to_str(x)); \
-        ION_FAIL_ASSERTION(m); \
+        ION_FAIL_ASSERTION(m, NULL); \
     } \
 
 /**
  * Fails in error if the first argument is false. Conveys the given message in the error_description.
  */
-#define ION_ASSERT(x, m) if (!(x)) { ION_FAIL_ASSERTION(m); }
+#define ION_ASSERT(x, m) \
+    if (!(x)) { \
+        std::string ION_ERROR_LOCATION_VAR = ION_STREAM_EXPECTED_ARG->location + ";" + ION_STREAM_ACTUAL_ARG->location; \
+        ION_FAIL_ASSERTION(m, &ION_ERROR_LOCATION_VAR); \
+    }
 
 #define _ION_IS_VALUE_EQ(x, y, assertion) { \
     std::string m; \
