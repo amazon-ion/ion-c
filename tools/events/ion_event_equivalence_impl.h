@@ -29,22 +29,34 @@
 #define ION_EXPECTED_ARG expected
 #define ION_ACTUAL_ARG actual
 
+/**
+ * Sets the current IonEventResult's comparison_result with context about the comparison failure and returns.
+ */
 #define ION_FAIL_COMPARISON(message) \
     _ion_event_set_comparison_result(ION_RESULT_ARG, ION_COMPARISON_TYPE_ARG, ION_EXPECTED_ARG, ION_ACTUAL_ARG, \
         ION_INDEX_EXPECTED_ARG, ION_INDEX_ACTUAL_ARG, ION_STREAM_EXPECTED_ARG->location, \
         ION_STREAM_ACTUAL_ARG->location, message); \
     return FALSE;
 
+/**
+ * Sets the current IonEventResult's error_description with context about the error and returns.
+ */
 #define ION_FAIL_ASSERTION(message) \
     _ion_event_set_error(ION_RESULT_ARG, ERROR_TYPE_STATE, IERR_INVALID_STATE, message, NULL, NULL, __FILE__, __LINE__); \
     return FALSE;
 
+/**
+ * Fails in error (setting the error_description) if the given error code is not IERR_OK.
+ */
 #define ION_EXPECT_OK(x) \
     if ((x) != IERR_OK) { \
         std::string m = std::string("IERR_OK vs. ") + std::string(ion_error_to_str(x)); \
         ION_FAIL_ASSERTION(m); \
     } \
 
+/**
+ * Fails in error if the first argument is false. Conveys the given message in the error_description.
+ */
 #define ION_ASSERT(x, m) if (!(x)) { ION_FAIL_ASSERTION(m); }
 
 #define _ION_IS_VALUE_EQ(x, y, assertion) { \
@@ -54,6 +66,7 @@
     } \
 }
 
+// Equivalence assertions. Each sets the comparison_result and returns in the event of inequality.
 #define ION_EXPECT_TRUE(x, m) if (!(x)) { ION_FAIL_COMPARISON(m); }
 #define ION_EXPECT_FALSE(x, m) if (x) { ION_FAIL_COMPARISON(m); }
 #define ION_EXPECT_EQ(x, y, m) if((x) != (y)) { ION_FAIL_COMPARISON(m); }

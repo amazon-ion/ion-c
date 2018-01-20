@@ -19,10 +19,25 @@
 #include <inc/ion.h>
 #include <ion_helpers.h>
 #include <ion_event_util.h>
-#include <ion_event_stream.h>
 #include <ion_event_stream_impl.h>
 #include <ion_event_equivalence.h>
 #include "cli.h"
+
+/**
+ * Stores the resources required by an ION_READER.
+ */
+class IonCliReaderContext {
+public:
+    ION_READER_OPTIONS options;
+    hREADER reader;
+    FILE *file_stream;
+    std::string input_location;
+    ION_STREAM *ion_stream;
+
+    IonCliReaderContext() {
+        memset(this, 0, sizeof(IonCliReaderContext));
+    }
+};
 
 iERR ion_cli_command_process_filter(IonEventWriterContext *writer_context, IonCliCommonArgs *common_args, IonCliProcessArgs *process_args, ION_CATALOG *catalog, IonEventResult *result) {
     iENTER;

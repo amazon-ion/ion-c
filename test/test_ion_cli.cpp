@@ -75,11 +75,11 @@ void test_ion_cli_process(const char *input, ION_CLI_IO_TYPE input_type, ION_STR
 }
 
 void test_ion_cli_read_stream_successfully(BYTE *data, size_t data_len, IonEventStream *stream) {
-    IonCliReaderContext reader_context;
+    hREADER reader;
     IonEventResult result;
-    ION_ASSERT_OK(ion_test_new_reader(data, (SIZE)data_len, &reader_context.reader));
-    ION_ASSERT_OK(ion_event_stream_read_all(reader_context.reader, NULL, stream, &result));
-    ION_ASSERT_OK(ion_reader_close(reader_context.reader));
+    ION_ASSERT_OK(ion_test_new_reader(data, (SIZE)data_len, &reader));
+    ION_ASSERT_OK(ion_event_stream_read_all(reader, NULL, stream, &result));
+    ION_ASSERT_OK(ion_reader_close(reader));
     ASSERT_FALSE(result.has_error_description);
     ASSERT_FALSE(result.has_comparison_result);
 }
@@ -214,7 +214,6 @@ TEST(IonCli, ErrorIsConveyedEvents) {
 
 TEST(IonCli, AnnotatedIvmsEmbedded) {
     std::string test_file = join_path(full_good_nonequivs_path, "annotatedIvms.ion");
-    IonCliReaderContext reader_context;
     ION_STRING command_output;
     ION_STRING_INIT(&command_output);
     IonEventReport report;

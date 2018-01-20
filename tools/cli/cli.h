@@ -31,7 +31,9 @@ typedef enum _ion_cli_input_format {
     IO_TYPE_MEMORY
 } ION_CLI_IO_TYPE;
 
-
+/**
+ * Describes an input to or output from a CLI command.
+ */
 class IonCliIO {
 public:
     ION_CLI_IO_TYPE type;
@@ -63,6 +65,9 @@ public:
     }
 };
 
+/**
+ * Arguments specific to the process command.
+ */
 class IonCliProcessArgs {
 public:
     IonCliIO perf_report;
@@ -72,19 +77,6 @@ public:
 
     IonCliProcessArgs() {
         memset(this, 0, sizeof(IonCliProcessArgs));
-    }
-};
-
-class IonCliReaderContext {
-public:
-    ION_READER_OPTIONS options;
-    hREADER reader;
-    FILE *file_stream;
-    std::string input_location;
-    ION_STREAM *ion_stream;
-
-    IonCliReaderContext() {
-        memset(this, 0, sizeof(IonCliReaderContext));
     }
 };
 
