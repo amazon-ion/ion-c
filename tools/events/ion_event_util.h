@@ -130,7 +130,11 @@ public:
     bool has_imports;
 
     IonEventWriterContext() {
-        memset(this, 0, sizeof(IonEventWriterContext));
+        memset(&options, 0, sizeof(ION_WRITER_OPTIONS));
+        writer = NULL;
+        file_stream = NULL;
+        ion_stream = NULL;
+        has_imports = false;
     }
 };
 

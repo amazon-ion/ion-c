@@ -103,7 +103,10 @@ public:
     bool has_event_index;
 
     IonEventErrorDescription() {
-        memset(this, 0, sizeof(IonEventErrorDescription));
+        this->error_type = ERROR_TYPE_UNKNOWN;
+        this->event_index = -1;
+        this->has_location = false;
+        this->has_event_index = false;
     }
 
     /**
@@ -130,7 +133,8 @@ public:
     size_t event_index;
 
     IonEventComparisonContext() {
-        memset(this, 0, sizeof(IonEventComparisonContext));
+        this->event = NULL;
+        this->event_index = -1;
     }
 
     /**
@@ -149,9 +153,7 @@ public:
     IonEventComparisonContext rhs;
     std::string message;
 
-    IonEventComparisonResult() {
-        memset(this, 0, sizeof(IonEventComparisonResult));
-    }
+    IonEventComparisonResult() {}
 
     /**
      * Writes an Ion representation of this comparison result using the given writer.
@@ -170,7 +172,8 @@ public:
     bool has_comparison_result;
 
     IonEventResult() {
-        memset(this, 0, sizeof(IonEventResult));
+        has_error_description = false;
+        has_comparison_result = false;
     }
 
     ~IonEventResult() {

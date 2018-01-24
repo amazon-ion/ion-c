@@ -35,7 +35,10 @@ public:
     ION_STREAM *ion_stream;
 
     IonCliReaderContext() {
-        memset(this, 0, sizeof(IonCliReaderContext));
+        memset(&options, 0, sizeof(ION_READER_OPTIONS));
+        reader = NULL;
+        file_stream = NULL;
+        ion_stream = NULL;
     }
 };
 
@@ -403,17 +406,18 @@ iERR ion_cli_command_compare_standard(IonCliCommonArgs *common_args, ION_EVENT_C
     iENTER;
     ION_SET_ERROR_CONTEXT(&common_args->output.contents, NULL);
     IonEventStream **streams = NULL;
-    IonCliReaderContext *reader_contexts = NULL;
+    IonCliReaderContext **reader_contexts = NULL;
     size_t num_inputs = common_args->input_files.size();
 
     streams = (IonEventStream**)calloc(num_inputs, sizeof(IonEventStream*));
-    reader_contexts = (IonCliReaderContext *)calloc(num_inputs, sizeof(IonCliReaderContext));
+    reader_contexts = (IonCliReaderContext **)calloc(num_inputs, sizeof(IonCliReaderContext *));
 
     for (size_t i = 0; i < num_inputs; i++) {
         streams[i] = new IonEventStream(common_args->input_files.at(i).contents);
-        IONREPORT(ion_cli_open_reader(&common_args->input_files.at(i), catalog, &reader_contexts[i], streams[i],
+        reader_contexts[i] = new IonCliReaderContext();
+        IONREPORT(ion_cli_open_reader(&common_args->input_files.at(i), catalog, reader_contexts[i], streams[i],
                                       result));
-        IONREPORT(ion_event_stream_read_all(reader_contexts[i].reader, catalog, streams[i], result));
+        IONREPORT(ion_event_stream_read_all(reader_contexts[i]->reader, catalog, streams[i], result));
     }
 
     for (size_t i = 0; i < num_inputs; i++) {
@@ -432,6 +436,9 @@ cleanup:
         free(streams);
     }
     if (reader_contexts) {
+        for (size_t i = 0; i < num_inputs; i++) {
+            delete reader_contexts[i];
+        }
         free(reader_contexts);
     }
     iRETURN;

@@ -41,7 +41,7 @@ public:
     std::string contents;
 
     IonCliIO(){
-        memset(this, 0, sizeof(IonCliIO));
+        this->type = IO_TYPE_FILE;
     }
 
     IonCliIO(std::string contents, ION_CLI_IO_TYPE type=IO_TYPE_FILE) {
@@ -62,7 +62,7 @@ public:
     std::vector<IonCliIO> input_files;
 
     IonCliCommonArgs() {
-        memset(this, 0, sizeof(IonCliCommonArgs));
+        output_format = OUTPUT_TYPE_TEXT_PRETTY;
     }
 };
 
@@ -76,9 +76,7 @@ public:
     IonCliIO traverse;
     std::vector<IonCliIO> imports;
 
-    IonCliProcessArgs() {
-        memset(this, 0, sizeof(IonCliProcessArgs));
-    }
+    IonCliProcessArgs() {}
 };
 
 iERR ion_cli_command_compare(IonCliCommonArgs *common_args, ION_EVENT_COMPARISON_TYPE comparison_type,

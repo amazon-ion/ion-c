@@ -40,6 +40,7 @@
 #define IONC_FLOATING_POINT_UTIL_H
 
 #include <ion_platform_config.h>
+#include <limits>
 
 // This template class serves as a compile-time function from size to
 // type.  It maps a size in bytes to a primitive type with that
