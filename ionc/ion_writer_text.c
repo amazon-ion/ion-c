@@ -450,13 +450,12 @@ iERR _ion_writer_text_write_ion_int(ION_WRITER *pwriter, ION_INT *iint)
     IONCHECK(_ion_writer_text_start_value(pwriter));
 
     decimal_digits = _ion_int_get_char_len_helper(iint);
-    if (iint->_signum < 0) decimal_digits++; // TODO duplicated in previous call? Check
     if (decimal_digits < LOCAL_INT_CHAR_BUFFER_LENGTH) {
         end = &int_image_local_buffer[LOCAL_INT_CHAR_BUFFER_LENGTH];
     }
     else {
-        int_image = ion_xalloc(decimal_digits + 2);
-        end = int_image + decimal_digits + 1;
+        int_image = ion_xalloc(decimal_digits + 1);
+        end = int_image + decimal_digits;
     }
 
     // we'll be writing the digits backwards, so we first null

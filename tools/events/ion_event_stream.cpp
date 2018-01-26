@@ -773,20 +773,21 @@ iERR ion_event_copy(IonEvent **dst, IonEvent *src, ION_EVENT_COMMON_PARAMS) {
     cRETURN;
 }
 
-iERR ion_event_stream_get_consensus_value(ION_CATALOG *catalog, std::string value_text, BYTE *value_binary,
-                                          size_t value_binary_len, void **consensus_value, ION_EVENT_COMMON_PARAMS) {
+iERR ion_event_stream_get_consensus_value(ION_CATALOG *catalog, std::string *value_text, std::vector<BYTE> *value_binary, void **consensus_value, ION_EVENT_COMMON_PARAMS) {
     iENTER;
     ION_SET_ERROR_CONTEXT(ION_LOCATION_ARG, NULL);
     ASSERT(ION_LOCATION_ARG);
     IonEventStream binary_stream(*ION_LOCATION_ARG + " binary scalar"), text_stream(*ION_LOCATION_ARG + " text scalar");
     ASSERT(consensus_value);
+    ASSERT(value_binary);
+    ASSERT(value_text);
 
-    if (value_binary && value_binary_len > 0) {
-        IONREPORT(ion_event_stream_read_all_from_bytes(value_binary, (SIZE) value_binary_len, catalog, &binary_stream,
+    if (!value_binary->empty()) {
+        IONREPORT(ion_event_stream_read_all_from_bytes(&(*value_binary)[0], (SIZE)value_binary->size(), catalog, &binary_stream,
                                                        ION_RESULT_ARG));
     }
-    if (!value_text.empty()) {
-        IONREPORT(ion_event_stream_read_all_from_bytes((BYTE *) value_text.c_str(), (SIZE) value_text.length(), catalog,
+    if (!value_text->empty()) {
+        IONREPORT(ion_event_stream_read_all_from_bytes((BYTE *)value_text->c_str(), (SIZE)value_text->length(), catalog,
                                                        &text_stream, ION_RESULT_ARG));
     }
 
@@ -808,7 +809,7 @@ iERR ion_event_stream_get_consensus_value(ION_CATALOG *catalog, std::string valu
     else {
         std::string message;
         if (result->has_comparison_result) {
-            IONREPORT(ion_event_stream_write_scalar_value_comparison_result(&message, catalog, &value_text, result));
+            IONREPORT(ion_event_stream_write_scalar_value_comparison_result(&message, catalog, value_text, result));
         }
         IONFAILSTATE(IERR_INVALID_ARG, "Invalid event; text and binary scalar representations are not equal. "
                                        + message);
@@ -981,8 +982,8 @@ iERR ion_event_stream_read_event(hREADER reader, ION_EVENT_READ_PARAMS) {
         FAILWITHMSG(IERR_INVALID_ARG, "Invalid event: value_text and value_binary must both be set.");
     }
     if (value_event_type == SCALAR) {
-        IONREPORT(ion_event_stream_get_consensus_value(ION_CATALOG_ARG, value_text, &value_binary[0],
-                                                       value_binary.size(), &consensus_value, ION_EVENT_COMMON_ARGS));
+        IONREPORT(ion_event_stream_get_consensus_value(ION_CATALOG_ARG, &value_text, &value_binary,
+                                                       &consensus_value, ION_EVENT_COMMON_ARGS));
     }
     else {
         if (!value_text.empty()) {

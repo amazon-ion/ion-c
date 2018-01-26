@@ -24,3 +24,8 @@ tools/cli/libion_cli.dylib
 tools/cli/ion
 tools/events/libion_events.dylib
 tools/events/libion_events_gtest.dylib
+**/*vcxproj*
+*.sln
+**/*.dir/
+**/Debug/
+x64/

@@ -740,12 +740,10 @@ iERR _ion_int_from_decimal_number(ION_INT *iint, const decNumber *p_value, decCo
 iERR ion_int_char_length(ION_INT *iint, SIZE *p_len)
 {
     iENTER;
-    SIZE len;
 
     IONCHECK(_ion_int_validate_non_null_arg_with_ptr(iint, p_len));
 
-    len = _ion_int_get_char_len_helper(iint);
-    *p_len = len;
+    *p_len = _ion_int_get_char_len_helper(iint);
 
     iRETURN;
 }
@@ -781,7 +779,7 @@ iERR ion_int_to_string(ION_INT *iint, hOWNER owner, iSTRING p_str)
     IONCHECK(_ion_int_validate_non_null_arg_with_ptr(iint, p_str));
 
     // calculate how many character we'll need from the number of bits needed
-    decimal_digits = _ion_int_get_char_len_helper(iint) + 1;
+    decimal_digits = _ion_int_get_char_len_helper(iint);
     
     p_str->value = (BYTE *)_ion_int_realloc_helper(p_str->value, p_str->length, owner, decimal_digits);
     p_str->length = decimal_digits;
@@ -1366,7 +1364,7 @@ SIZE _ion_int_get_char_len_helper(const ION_INT *iint)
     if (iint->_signum < 0) {
         decimal_digits++; // room for minus sign
     }
-    // no: decimal_digits++; // room for (uncounted) null terminator
+    decimal_digits++; // room for null terminator
 
     return decimal_digits;
 }
