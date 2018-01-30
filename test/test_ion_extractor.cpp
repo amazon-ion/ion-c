@@ -215,6 +215,17 @@ void assertMatchesTextDEForInt123(hREADER reader, ION_EXTRACTOR_PATH_DESCRIPTOR 
     }
 }
 
+void assertMatchesStructOrTextDEForInt123(hREADER reader, ION_EXTRACTOR_PATH_DESCRIPTOR *matched_path,
+                                          ION_EXTRACTOR_PATH_DESCRIPTOR *original_path,
+                                          ION_EXTRACTOR_CONTROL *control) {
+    ION_TYPE type;
+    ASSERT_TRUE(matched_path == original_path);
+    ION_ASSERT_OK(ion_reader_get_type(reader, &type));
+    if (tid_STRUCT != type) {
+        assertMatchesTextDEForInt123(reader, matched_path, original_path, control);
+    }
+}
+
 void assertPathNeverMatches(hREADER reader, ION_EXTRACTOR_PATH_DESCRIPTOR *matched_path,
                             ION_EXTRACTOR_PATH_DESCRIPTOR *original_path, ION_EXTRACTOR_CONTROL *control) {
     ASSERT_FALSE(TRUE) << "Path with ID " << matched_path->_path_id << " matched when it should not have.";
@@ -644,6 +655,70 @@ TEST(IonExtractorSucceedsWhen, NumPathsAtMaximum) {
     ION_EXTRACTOR_TEST_ASSERT_MATCHED(ION_EXTRACTOR_MAX_NUM_PATHS - 1, 1);
 }
 
+TEST(IonExtractorSucceedsWhen, TopLevelWildcardIsRegistered) {
+    ION_EXTRACTOR_TEST_INIT;
+    const char *ion_text = "def 123";
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("()", &assertMatchesTextDEForInt123);
+    ION_EXTRACTOR_TEST_MATCH;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 2);
+}
+
+TEST(IonExtractorSucceedsWhen, TopLevelWildcardHasZeroMatches) {
+    ION_EXTRACTOR_TEST_INIT;
+    const char *ion_text = "";
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("()", &assertPathNeverMatches);
+    ION_EXTRACTOR_TEST_MATCH;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 0);
+}
+
+TEST(IonExtractorSucceedsWhen, DepthOneWildcardIsRegistered) {
+    ION_EXTRACTOR_OPTIONS options;
+    options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH;
+    options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS;
+    options.match_relative_paths = true;
+    ION_TYPE type;
+    ION_EXTRACTOR_TEST_INIT_OPTIONS(options);
+    const char *ion_text = "(def 123)";
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_EXTRACTOR_TEST_PATH_START(0, &assertMatchesTextDEForInt123);
+    ION_EXTRACTOR_TEST_PATH_END;
+    ION_EXTRACTOR_TEST_MATCH_READER(reader);
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 2);
+}
+
+TEST(IonExtractorSucceedsWhen, DepthTwoWildcardIsRegisteredTwice) {
+    ION_EXTRACTOR_OPTIONS options;
+    options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH;
+    options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS;
+    options.match_relative_paths = true;
+    ION_TYPE type;
+    ION_EXTRACTOR_TEST_INIT_OPTIONS(options);
+    const char *ion_text = "({abc:def, ghi:123})";
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_EXTRACTOR_TEST_PATH_START(0, &assertMatchesTextDEForInt123);
+    ION_EXTRACTOR_TEST_PATH_END;
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("()", &assertMatchesTextDEForInt123);
+    ION_EXTRACTOR_TEST_MATCH_READER(reader);
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 2);
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(1, 2);
+}
+
+TEST(IonExtractorSucceedsWhen, BothTopLevelWildcardAndLengthOnePathAreRegistered) {
+    ION_EXTRACTOR_TEST_INIT;
+    const char *ion_text = "def {abc: 3} 123";
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(abc)", &assertMatchesInt3);
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("()", &assertMatchesStructOrTextDEForInt123);
+    ION_EXTRACTOR_TEST_MATCH;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 1);
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(1, 3);
+}
+
 /* -----------------------
  * Failure tests
  */
@@ -678,14 +753,6 @@ TEST(IonExtractorFailsWhen, MaxNumPathsIsBelowMinimum) {
     options.max_path_length = ION_EXTRACTOR_MAX_PATH_LENGTH;
     options.max_num_paths = 0;
     ION_ASSERT_FAIL(ion_extractor_open(&extractor, &options));
-}
-
-TEST(IonExtractorFailsWhen, PathLengthIsZero) {
-    hEXTRACTOR extractor;
-    hPATH path;
-    ION_ASSERT_OK(ion_extractor_open(&extractor, NULL));
-    ION_ASSERT_FAIL(ion_extractor_path_create(extractor, 0, &testCallbackNeverInvoked, NULL, &path));
-    ION_ASSERT_OK(ion_extractor_close(extractor));
 }
 
 TEST(IonExtractorFailsWhen, PathExceedsDeclaredLength) {
@@ -751,15 +818,6 @@ TEST(IonExtractorFailsWhen, PathIsCreatedFromIonWithMoreThanOneTopLevelValue) {
     hEXTRACTOR extractor;
     hPATH path;
     const char *data = "(foo) 123";
-    ION_ASSERT_OK(ion_extractor_open(&extractor, NULL));
-    ION_ASSERT_FAIL(ion_extractor_path_create_from_ion(extractor, &testCallbackNeverInvoked, NULL, (BYTE *)data, strlen(data), &path));
-    ION_ASSERT_OK(ion_extractor_close(extractor));
-}
-
-TEST(IonExtractorFailsWhen, PathIsCreatedFromIonWithZeroPathComponents) {
-    hEXTRACTOR extractor;
-    hPATH path;
-    const char *data = "()";
     ION_ASSERT_OK(ion_extractor_open(&extractor, NULL));
     ION_ASSERT_FAIL(ion_extractor_path_create_from_ion(extractor, &testCallbackNeverInvoked, NULL, (BYTE *)data, strlen(data), &path));
     ION_ASSERT_OK(ion_extractor_close(extractor));

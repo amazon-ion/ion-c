@@ -249,7 +249,8 @@ ION_API_EXPORT iERR ion_extractor_open(hEXTRACTOR *extractor, ION_EXTRACTOR_OPTI
 /**
  * Registers the given callback and user context to a new empty path. To finish constructing the path, the user
  * must append exactly `path_length` components to the resulting path before calling `ion_extractor_match` on this
- * extractor.
+ * extractor. A zero-length path will match every value at the extractor's initial depth (which must be zero unless
+ * `extractor.options.match_relative_paths` is true).
  *
  * NOTE: registering a sub-path of another registered path is not supported. For example, if the path `(foo bar)` is
  * registered to a given extractor, the path `(foo bar 2)` should not be registered to the same extractor.
@@ -304,11 +305,16 @@ ION_API_EXPORT iERR ion_extractor_path_append_wildcard(hPATH path);
 /**
  * Registers a path from text or binary Ion data. The data must contain exactly one top-level value: an ordered sequence
  * (list or sexp) containing a number of elements less than or equal to the extractor's `max_path_length`. The elements
- * must be either text types (string or symbol), representing fields or wildcards, or integers, representing ordinals.
- * In order for a text value to represent a wildcard, it must be equivalent to one of the supported wildcards (currently
- * only `*`). Field elements with the same text as a wildcard must be annotated with the special annotation
+ * (if any) must be either text types (string or symbol), representing fields or wildcards, or integers, representing
+ * ordinals. In order for a text value to represent a wildcard, it must be equivalent to one of the supported wildcards
+ * (currently only `*`). Field elements with the same text as a wildcard must be annotated with the special annotation
  * `$ion_extractor_field` as its first annotation.
  * For example,
+ *  <pre>
+ *    ()
+ *  </pre>
+ * represents a path of length zero, which will match all top-level values when the extractor's initial depth is zero,
+ * while
  *  <pre>
  *    (abc * 2 $ion_extractor_field::*)
  *  </pre>

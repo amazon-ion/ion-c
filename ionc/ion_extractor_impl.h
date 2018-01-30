@@ -160,18 +160,18 @@ struct _ion_extractor {
     ION_EXTRACTOR_OPTIONS _options;
 
     /**
-     * The initial depth at which the extractor begins matching. This extractor will finish matching once it has
-     * processed all siblings of the first value encountered at this depth. NOTE: if `options.match_relative_paths` is
-     * `true`, this MUST be zero.
-     */
-    SIZE _initial_depth;
-
-    /**
      * Nonzero if the user has started, but not finished, a path. When nonzero, the user cannot start matching.
      * When bit i is set, the path with _path_id=i is in progress, meaning that its actual length does not match its
      * declared length.
      */
     ION_EXTRACTOR_ACTIVE_PATH_MAP _path_in_progress;
+
+    /**
+     * When bit i is set, the path with _path_id=i has zero length, meaning that it matches every value that is
+     * considered depth zero by the extractor. If `_options.match_relative_paths=false` this must be absolute depth
+     * zero; otherwise, this is the depth at which the reader is positioned at the start of matching.
+     */
+    ION_EXTRACTOR_ACTIVE_PATH_MAP _depth_zero_active_paths;
 
     /**
      * Path components from all registered paths organized by depth. Components at depth 1 begin at index 0, components
