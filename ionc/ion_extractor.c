@@ -30,12 +30,12 @@
     #define ION_EXTRACTOR_PATH_MAP_ZERO 0
 #endif
 
-#define ION_EXTRACTOR_ACTIVATE_PATH(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) |= (1 << path_index)
-#define ION_EXTRACTOR_DEACTIVATE_PATH(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) &= ~(1 << path_index)
-#define ION_EXTRACTOR_IS_PATH_ACTIVE(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) & (1 << path_index)
+#define ION_EXTRACTOR_ACTIVATE_PATH(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) |= (1 << (path_index))
+#define ION_EXTRACTOR_DEACTIVATE_PATH(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) &= ~(1 << (path_index))
+#define ION_EXTRACTOR_IS_PATH_ACTIVE(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) & (1 << (path_index))
 
 #define ION_EXTRACTOR_GET_COMPONENT(extractor, path_depth, path_index) \
-    &extractor->_path_components[(path_depth - extractor->_initial_depth) * extractor->_options.max_num_paths + path_index]
+    &(extractor)->_path_components[(path_depth) * (extractor)->_options.max_num_paths + (path_index)]
 
 #define ION_EXTRACTOR_FIELD_ANNOTATION "$ion_extractor_field"
 #define ION_EXTRACTOR_WILDCARD "*"
@@ -91,7 +91,7 @@ iERR ion_extractor_path_create(ION_EXTRACTOR *extractor, ION_EXTRACTOR_SIZE path
     if (extractor->_matchers_length >= extractor->_options.max_num_paths) {
         FAILWITHMSG(IERR_INVALID_STATE, "Too many registered paths.");
     }
-    if (path_length > extractor->_options.max_path_length || path_length <= 0) {
+    if (path_length > extractor->_options.max_path_length || path_length < 0) {
         FAILWITHMSG(IERR_INVALID_ARG, "Illegal number of path components.");
     }
     // This will be freed by ion_free_owner during ion_extractor_close.
@@ -101,7 +101,12 @@ iERR ion_extractor_path_create(ION_EXTRACTOR *extractor, ION_EXTRACTOR_SIZE path
     }
     path->_path_length = path_length;
     path->_path_id = extractor->_matchers_length++;
-    ION_EXTRACTOR_ACTIVATE_PATH(extractor->_path_in_progress, path->_path_id);
+    if (path_length > 0) {
+        ION_EXTRACTOR_ACTIVATE_PATH(extractor->_path_in_progress, path->_path_id);
+    }
+    else {
+        ION_EXTRACTOR_ACTIVATE_PATH(extractor->_depth_zero_active_paths, path->_path_id);
+    }
     path->_extractor = extractor;
     path->_current_length = 0;
     matcher = &extractor->_matchers[path->_path_id];
@@ -307,16 +312,17 @@ iERR _ion_extractor_evaluate_predicate(ION_READER *reader, ION_EXTRACTOR_PATH_CO
     iRETURN;
 }
 
-iERR _ion_extractor_dispatch_match(ION_EXTRACTOR *extractor, ION_READER *reader, SIZE depth,
-                                   ION_EXTRACTOR_SIZE matcher_index, ION_EXTRACTOR_CONTROL *control) {
+iERR _ion_extractor_dispatch_match(ION_EXTRACTOR *extractor, ION_READER *reader, ION_EXTRACTOR_SIZE matcher_index,
+                                   ION_EXTRACTOR_CONTROL *control) {
     iENTER;
     ION_EXTRACTOR_MATCHER *matcher;
-    SIZE new_depth;
+    SIZE old_depth, new_depth;
 
     matcher = &extractor->_matchers[matcher_index];
+    IONCHECK(ion_reader_get_depth(reader, &old_depth));
     IONCHECK(matcher->_callback(reader, matcher->_path, matcher->_user_context, control));
     IONCHECK(ion_reader_get_depth(reader, &new_depth));
-    if (depth != new_depth) {
+    if (old_depth != new_depth) {
         FAILWITHMSG(IERR_INVALID_STATE, "Reader must be positioned at same depth after callback returns.");
     }
 
@@ -330,12 +336,11 @@ iERR _ion_extractor_evaluate_predicates(ION_EXTRACTOR *extractor, ION_READER *re
     iENTER;
     ION_EXTRACTOR_SIZE i;
     bool matches;
-    ION_EXTRACTOR_PATH_COMPONENT *path_component;
-
+    ION_EXTRACTOR_PATH_COMPONENT *path_component = NULL;
     ASSERT(current_depth_actives);
+    ASSERT(depth >= 0);
     // This depth should not have been stepped into if nothing matched at the previous depth.
-    ASSERT(previous_depth_actives != 0);
-    ASSERT(depth > 0);
+    ASSERT(depth > 0 ? previous_depth_actives != 0 : TRUE);
     // NOTE: The following is not a user error because reaching this point requires an active path at this depth and
     // depths above the max path length are rejected at construction.
     ASSERT(depth <= extractor->_options.max_path_length);
@@ -343,13 +348,23 @@ iERR _ion_extractor_evaluate_predicates(ION_EXTRACTOR *extractor, ION_READER *re
     *control = ion_extractor_control_next();
     for (i = 0; i < extractor->_matchers_length; i++) {
         if (ION_EXTRACTOR_IS_PATH_ACTIVE(previous_depth_actives, i)) {
-            path_component = ION_EXTRACTOR_GET_COMPONENT(extractor, depth - 1, i);
-            IONCHECK(_ion_extractor_evaluate_predicate(reader, path_component, ordinal, &matches));
+            if (depth == 0) {
+                matches = true;
+            }
+            else {
+                path_component = ION_EXTRACTOR_GET_COMPONENT(extractor, depth - 1, i);
+                ASSERT(path_component);
+                IONCHECK(_ion_extractor_evaluate_predicate(reader, path_component, ordinal, &matches));
+            }
             if (matches) {
-                if (path_component->_is_terminal) {
-                    IONCHECK(_ion_extractor_dispatch_match(extractor, reader, depth, i, control));
+                if (!path_component || path_component->_is_terminal) {
+                    // Matches at depth == 0 require a length-zero path. This is treated as a special case to keep the
+                    // extractor's path components array as dense as possible -- length zero paths are not stored, and
+                    // are instead treated as NULL here.
+                    ASSERT((!path_component) ? depth == 0 : TRUE);
+                    IONCHECK(_ion_extractor_dispatch_match(extractor, reader, i, control));
                     if (*control) {
-                        if (*control > (depth - extractor->_initial_depth)) {
+                        if (*control > depth) {
                             FAILWITHMSG(IERR_INVALID_STATE, "Received a control instruction to step out past current depth.")
                         }
                         SUCCEED();
@@ -378,18 +393,15 @@ iERR _ion_extractor_match_helper(hEXTRACTOR extractor, ION_READER *reader, SIZE 
         }
         // Each value at depth N can match any active partial path from depth N - 1.
         ION_EXTRACTOR_DEACTIVATE_ALL_PATHS(current_depth_actives);
-        if (depth - extractor->_initial_depth > 0) {
-            IONCHECK(_ion_extractor_evaluate_predicates(extractor, reader, depth, ordinal, control,
-                                                        previous_depth_actives, &current_depth_actives));
-            if (*control) {
-                *control -= 1;
-                SUCCEED();
-            }
-        }
-        else {
-            ASSERT(depth - extractor->_initial_depth == 0);
+        if (depth == 0) {
             // Everything matches at depth 0.
             ION_EXTRACTOR_ACTIVATE_ALL_PATHS(current_depth_actives);
+        }
+        IONCHECK(_ion_extractor_evaluate_predicates(extractor, reader, depth, ordinal, control,
+                                                    previous_depth_actives, &current_depth_actives));
+        if (*control) {
+            *control -= 1;
+            SUCCEED();
         }
         ordinal++;
         switch(ION_TYPE_INT(t)) {
@@ -441,9 +453,8 @@ iERR ion_extractor_match(ION_EXTRACTOR *extractor, ION_READER *reader) {
     if (!extractor->_options.match_relative_paths && depth != 0) {
         FAILWITHMSG(IERR_INVALID_STATE, "Reader must be at depth 0 to start matching.");
     }
-    extractor->_initial_depth = depth;
     if (extractor->_matchers_length) {
-        IONCHECK(_ion_extractor_match_helper(extractor, reader, depth, ION_EXTRACTOR_PATH_MAP_ZERO, &control));
+        IONCHECK(_ion_extractor_match_helper(extractor, reader, 0, extractor->_depth_zero_active_paths, &control));
     }
     iRETURN;
 }
