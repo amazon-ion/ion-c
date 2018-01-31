@@ -155,6 +155,13 @@ typedef struct _ion_extractor_options {
      */
     bool match_relative_paths;
 
+    /**
+     * If `true`, the extractor will treat paths as case-insensitive.
+     *
+     * Defaults to `false`.
+     */
+    bool match_case_insensitive;
+
 } ION_EXTRACTOR_OPTIONS;
 
 /**

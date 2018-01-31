@@ -47,6 +47,7 @@
     options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH; \
     options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS; \
     options.match_relative_paths = false; \
+    options.match_case_insensitive = false; \
     ION_EXTRACTOR_TEST_INIT_OPTIONS(options);
 
 /**
@@ -717,6 +718,27 @@ TEST(IonExtractorSucceedsWhen, BothTopLevelWildcardAndLengthOnePathAreRegistered
     ION_EXTRACTOR_TEST_MATCH;
     ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 1);
     ION_EXTRACTOR_TEST_ASSERT_MATCHED(1, 3);
+}
+
+TEST(IonExtractorSucceedsWhen, CaseInsensitiveMatches) {
+    ION_EXTRACTOR_OPTIONS options;
+    options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH;
+    options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS;
+    options.match_case_insensitive = true;
+    const char *ion_text = "{abc:def, AbC: 123}";
+    ION_EXTRACTOR_TEST_INIT_OPTIONS(options);
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(ABC)", &assertMatchesTextDEForInt123);
+    ION_EXTRACTOR_TEST_MATCH;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 2);
+}
+
+
+TEST(IonExtractorSucceedsWhen, CaseSensitiveDoesNotMatch) {
+    ION_EXTRACTOR_TEST_INIT;
+    const char *ion_text = "{abc:def, AbC: 123}";
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(ABC)", &assertPathNeverMatches);
+    ION_EXTRACTOR_TEST_MATCH;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 0);
 }
 
 /* -----------------------

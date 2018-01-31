@@ -65,6 +65,7 @@ iERR ion_extractor_open(hEXTRACTOR *extractor, ION_EXTRACTOR_OPTIONS *options) {
     pextractor->_options.max_num_paths = (options) ? options->max_num_paths : (ION_EXTRACTOR_SIZE)ION_EXTRACTOR_MAX_NUM_PATHS;
     pextractor->_options.max_path_length = (options) ? options->max_path_length : (ION_EXTRACTOR_SIZE)ION_EXTRACTOR_MAX_PATH_LENGTH;
     pextractor->_options.match_relative_paths = (options) ? options->match_relative_paths : false;
+    pextractor->_options.match_case_insensitive = (options) ? options->match_case_insensitive : false;
 
     iRETURN;
 }
@@ -275,18 +276,40 @@ iERR ion_extractor_path_create_from_ion(ION_EXTRACTOR *extractor, ION_EXTRACTOR_
     iRETURN;
 }
 
-iERR _ion_extractor_evaluate_field_predicate(ION_READER *reader, ION_EXTRACTOR_PATH_COMPONENT *path_component, bool *matches) {
+bool _ion_extractor_string_equals_nocase(ION_STRING *lhs, ION_STRING *rhs) {
+    if (lhs == rhs) {
+        return true;
+    }
+    if (lhs->length != rhs->length) {
+        return false;
+    }
+    for (size_t i = 0; i < lhs->length; i++) {
+        if (tolower((char)lhs->value[i]) != tolower((char)rhs->value[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+iERR _ion_extractor_evaluate_field_predicate(ION_READER *reader, ION_EXTRACTOR_PATH_COMPONENT *path_component,
+                                             bool is_case_insensitive, bool *matches) {
     iENTER;
     ION_STRING field_name;
 
     ASSERT(path_component->_type == FIELD);
 
     IONCHECK(ion_reader_get_field_name(reader, &field_name));
-    *matches = ION_STRING_EQUALS(&field_name, &path_component->_value.text);
+    if (is_case_insensitive) {
+        *matches = _ion_extractor_string_equals_nocase(&field_name, &path_component->_value.text);
+    }
+    else {
+        *matches = ION_STRING_EQUALS(&field_name, &path_component->_value.text);
+    }
     iRETURN;
 }
 
-iERR _ion_extractor_evaluate_predicate(ION_READER *reader, ION_EXTRACTOR_PATH_COMPONENT *path_component, POSITION ordinal, bool *matches) {
+iERR _ion_extractor_evaluate_predicate(ION_READER *reader, ION_EXTRACTOR_PATH_COMPONENT *path_component,
+                                       POSITION ordinal, bool is_case_insensitive, bool *matches) {
     iENTER;
 
     ASSERT(reader);
@@ -297,7 +320,7 @@ iERR _ion_extractor_evaluate_predicate(ION_READER *reader, ION_EXTRACTOR_PATH_CO
 
     switch (path_component->_type) {
         case FIELD:
-            IONCHECK(_ion_extractor_evaluate_field_predicate(reader, path_component, matches));
+            IONCHECK(_ion_extractor_evaluate_field_predicate(reader, path_component, is_case_insensitive, matches));
             break;
         case ORDINAL:
             *matches = ordinal == path_component->_value.ordinal;
@@ -354,7 +377,8 @@ iERR _ion_extractor_evaluate_predicates(ION_EXTRACTOR *extractor, ION_READER *re
             else {
                 path_component = ION_EXTRACTOR_GET_COMPONENT(extractor, depth - 1, i);
                 ASSERT(path_component);
-                IONCHECK(_ion_extractor_evaluate_predicate(reader, path_component, ordinal, &matches));
+                IONCHECK(_ion_extractor_evaluate_predicate(reader, path_component, ordinal,
+                                                           extractor->_options.match_case_insensitive, &matches));
             }
             if (matches) {
                 if (!path_component || path_component->_is_terminal) {
