@@ -2,6 +2,7 @@ add_library(decNumber
   decContext.c
   decimal128.c
   decimal64.c
+  decimal32.c
   decNumber.c
   decPacked.c
   decQuad.c
