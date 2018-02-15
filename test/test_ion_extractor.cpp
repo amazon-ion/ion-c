@@ -741,6 +741,14 @@ TEST(IonExtractorSucceedsWhen, CaseSensitiveDoesNotMatch) {
     ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 0);
 }
 
+TEST(IonExtractorSucceedsWhen, PathContainsSpace) {
+    ION_EXTRACTOR_TEST_INIT;
+    const char *ion_text = "{\"foo bar\": 3}";
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(\"foo bar\")", &assertMatchesInt3);
+    ION_EXTRACTOR_TEST_MATCH;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 1);
+}
+
 /* -----------------------
  * Failure tests
  */
@@ -956,4 +964,52 @@ TEST(IonExtractorFailsWhen, ControlStepsOutBeyondRelativePathDepth) {
     ION_EXTRACTOR_TEST_MATCH_READER_EXPECT_FAILURE(reader);
     ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 1);
     ION_EXTRACTOR_TEST_ASSERT_MATCHED(1, 0);
+}
+
+TEST(IonExtractorFailsWhen, DataContainsUnexpectedEOFBeforeValue) {
+    ION_EXTRACTOR_TEST_INIT;
+    const char *ion_text = "{abc: ";
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(abc)", &assertPathNeverMatches);
+
+    ION_EXTRACTOR_TEST_MATCH_EXPECT_FAILURE;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 0);
+}
+
+TEST(IonExtractorFailsWhen, DataContainsUnexpectedEOFAfterValue) {
+    ION_EXTRACTOR_TEST_INIT;
+    const char *ion_text = "{abc: def";
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(abc)", &assertMatchesTextDEF);
+
+    ION_EXTRACTOR_TEST_MATCH_EXPECT_FAILURE;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 1);
+}
+
+iERR ion_extractor_eof_callback(hREADER reader, ION_EXTRACTOR_PATH_DESCRIPTOR *matched_path,
+                                void *user_context, ION_EXTRACTOR_CONTROL *control) {
+    iENTER;
+    ION_STRING value;
+    IONCHECK(ion_reader_read_string(reader, &value));
+    if (strncmp("bar", (char *)value.value, (size_t)value.length) != 0) {
+        FAILWITH(IERR_INVALID_STATE);
+    }
+    iRETURN;
+}
+
+TEST(IonExtractorFailsWhen, DataContainsUnexpectedEOF) {
+    ION_EXTRACTOR_OPTIONS options;
+    memset(&options, 0, sizeof(ION_EXTRACTOR_OPTIONS));
+    options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH;
+    options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS;
+    hREADER reader;
+    hEXTRACTOR extractor;
+    hPATH path;
+    const char *ion_text = "{ \"foo\" : \"bar\"";
+    const char *path_text = "()";
+    ION_ASSERT_OK(ion_extractor_open(&extractor, &options));
+    ION_ASSERT_OK(ion_extractor_path_create_from_ion(extractor, &ion_extractor_eof_callback, NULL, (BYTE *)path_text,
+                                                     (SIZE)strlen(path_text), &path));
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_FAIL(ion_extractor_match(extractor, reader));
+    ION_ASSERT_OK(ion_extractor_close(extractor));
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
