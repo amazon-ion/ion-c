@@ -183,7 +183,6 @@ iERR ion_event_writer_close(IonEventWriterContext *writer_context, IonEventResul
         writer_context->has_imports = FALSE;
     }
     if (writer_context->ion_stream) {
-        ASSERT(!writer_context->file_stream);
         if (in_memory) {
             ASSERT(bytes);
             SIZE bytes_read;
