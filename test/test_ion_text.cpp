@@ -561,3 +561,17 @@ TEST(IonTextSymbol, ReaderReadsLocalSymbolsFromIdentifiers) {
 
     ION_ASSERT_OK(ion_reader_close(reader));
 }
+
+TEST(IonTextDecimal, FailsEarlyOnInvalidDecimal) {
+    // If text parsing of Ion decimals is delegated to the decNumber library and the decContext's status flags aren't
+    // checked thoroughly, the failure can occur silently and result in a 'NaN' ION_DECIMAL, which is illegal.
+    const char *invalid_text = "0d.6";
+    hREADER reader;
+    ION_TYPE type;
+    ION_DECIMAL decimal;
+    ION_ASSERT_OK(ion_test_new_text_reader(invalid_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_DECIMAL, type);
+    ION_ASSERT_FAIL(ion_reader_read_ion_decimal(reader, &decimal));
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
