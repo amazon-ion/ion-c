@@ -714,6 +714,10 @@ iERR ion_event_copy_value(IonEvent *event, void **value, ION_EVENT_COMMON_PARAMS
     if (event->event_type != SCALAR) {
         IONFAILSTATE(IERR_INVALID_ARG, "Illegal state: cannot copy the value of a non-SCALAR event.");
     }
+    if (event->value == NULL) {
+        *value = NULL;
+        IONCLEANEXIT;
+    }
     switch (ION_TID_INT(event->ion_type)) {
         case TID_NULL:
             break;
@@ -725,7 +729,7 @@ iERR ion_event_copy_value(IonEvent *event, void **value, ION_EVENT_COMMON_PARAMS
         case TID_POS_INT:
         case TID_NEG_INT:
             // NOTE: owner must be NULL; otherwise, this may be unexpectedly freed.
-        IONCSTATE(ion_int_alloc(NULL, &int_val), "Failed to allocate a new ION_INT.");
+            IONCSTATE(ion_int_alloc(NULL, &int_val), "Failed to allocate a new ION_INT.");
             *value = int_val;
             IONCSTATE(ion_int_copy(int_val, (ION_INT *)event->value, int_val->_owner), "Failed to copy int value.");
             break;
@@ -755,7 +759,7 @@ iERR ion_event_copy_value(IonEvent *event, void **value, ION_EVENT_COMMON_PARAMS
             *value = ion_copy_string((ION_STRING *) event->value);
             break;
         default:
-        IONFAILSTATE(IERR_INVALID_ARG, "Illegal state: unknown Ion type in event.");
+            IONFAILSTATE(IERR_INVALID_ARG, "Illegal state: unknown Ion type in event.");
     }
     cRETURN;
 }
