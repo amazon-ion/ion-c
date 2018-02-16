@@ -464,3 +464,35 @@ TEST(IonCli, EventWithDuplicateFieldFails) {
     test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_STATE, IERR_INVALID_ARG, data);
     free(command_output.value);
 }
+
+TEST(IonCli, FirstValueHasError) {
+    const char *data = "+";
+    IonEventReport report1, report2;
+    ION_STRING command_output;
+    ION_STRING_INIT(&command_output);
+    test_ion_cli_process(data, IO_TYPE_MEMORY, &command_output, &report1, OUTPUT_TYPE_EVENTS);
+    ASSERT_FALSE(report1.hasComparisonFailures());
+    ASSERT_TRUE(report1.hasErrors());
+    char *events = ion_string_strdup(&command_output);
+    test_ion_cli_process(events, IO_TYPE_MEMORY, &command_output, &report2);
+    ASSERT_FALSE(report2.hasComparisonFailures());
+    ASSERT_FALSE(report2.hasErrors());
+    ASSERT_EQ(0, command_output.length);
+    free(events);
+}
+
+TEST(IonCli, ParsingFailureDoesNotYieldEvent) {
+    IonEventReport report1, report2;
+    ION_STRING command_output;
+    ION_STRING_INIT(&command_output);
+    std::string filepath = join_path(full_bad_path, "dateWithZ.ion");
+    test_ion_cli_process(filepath.c_str(), IO_TYPE_FILE, &command_output, &report1, OUTPUT_TYPE_EVENTS);
+    ASSERT_FALSE(report1.hasComparisonFailures());
+    ASSERT_TRUE(report1.hasErrors());
+    char *events = ion_string_strdup(&command_output);
+    test_ion_cli_process(events, IO_TYPE_MEMORY, &command_output, &report2);
+    ASSERT_FALSE(report2.hasComparisonFailures());
+    ASSERT_FALSE(report2.hasErrors());
+    ASSERT_EQ(0, command_output.length);
+    free(events);
+}

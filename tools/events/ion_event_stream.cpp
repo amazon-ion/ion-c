@@ -316,7 +316,8 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
     ION_SYMBOL *annotations = NULL;
     BYTE *lob_tmp = NULL;
     IonEvent *event = NULL;
-    ION_EVENT_TYPE event_type = SCALAR;
+    void *value = NULL;
+    BOOL is_scalar = TRUE;
     int ion_type = ION_TID_INT(t);
 
     if (in_struct) {
@@ -339,22 +340,13 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
     }
     else if (is_null) {
         IONCREAD(ion_reader_read_null(hreader, &t));
-        event_type = SCALAR;
-    }
-    else if (ion_type == TID_STRUCT || ion_type == TID_LIST || ion_type == TID_SEXP) {
-        event_type = CONTAINER_START;
-    }
-    event = stream->appendNew(event_type, t, field_name, annotations, annotation_count, depth);
-
-    if (is_null) {
+        stream->appendNew(SCALAR, t, field_name, annotations, annotation_count, depth);
         IONCLEANEXIT;
     }
     switch (ion_type) {
-        case TID_EOF:
-            IONCLEANEXIT;
         case TID_BOOL:
-            event->value = (BOOL *)malloc(sizeof(BOOL));
-            IONCREAD(ion_reader_read_bool(hreader, (BOOL *)event->value));
+            value = (BOOL *)malloc(sizeof(BOOL));
+            IONCREAD(ion_reader_read_bool(hreader, (BOOL *)value));
             break;
         case TID_POS_INT:
         case TID_NEG_INT:
@@ -362,36 +354,36 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
             ION_INT *ion_int_value = NULL;
             // NOTE: owner must be NULL; otherwise, this may be unexpectedly freed.
             IONCREAD(ion_int_alloc(NULL, &ion_int_value));
-            event->value = ion_int_value;
-            IONCREAD(ion_reader_read_ion_int(hreader, (ION_INT *)event->value));
+            value = ion_int_value;
+            IONCREAD(ion_reader_read_ion_int(hreader, (ION_INT *)value));
             break;
         }
         case TID_FLOAT:
-            event->value = (double *)malloc(sizeof(double));
-            IONCREAD(ion_reader_read_double(hreader, (double *)event->value));
+            value = (double *)malloc(sizeof(double));
+            IONCREAD(ion_reader_read_double(hreader, (double *)value));
             break;
         case TID_DECIMAL:
-            event->value = (ION_DECIMAL *)malloc(sizeof(ION_DECIMAL));
-            IONCREAD(ion_reader_read_ion_decimal(hreader, (ION_DECIMAL *)event->value));
-            IONCREAD(ion_decimal_claim((ION_DECIMAL *)event->value));
+            value = (ION_DECIMAL *)malloc(sizeof(ION_DECIMAL));
+            IONCREAD(ion_reader_read_ion_decimal(hreader, (ION_DECIMAL *)value));
+            IONCREAD(ion_decimal_claim((ION_DECIMAL *)value));
             break;
         case TID_TIMESTAMP:
-            event->value = (ION_TIMESTAMP *)malloc(sizeof(ION_TIMESTAMP));
-            IONCREAD(ion_reader_read_timestamp(hreader, (ION_TIMESTAMP *)event->value));
+            value = (ION_TIMESTAMP *)malloc(sizeof(ION_TIMESTAMP));
+            IONCREAD(ion_reader_read_timestamp(hreader, (ION_TIMESTAMP *)value));
             break;
         case TID_SYMBOL:
         {
             ION_SYMBOL tmp, *symbol_value;
             IONCREAD(ion_reader_read_ion_symbol(hreader, &tmp));
             ion_copy_symbol(&symbol_value, &tmp);
-            event->value = symbol_value;
+            value = symbol_value;
             break;
         }
         case TID_STRING:
         {
             ION_STRING string_value;
             IONCREAD(ion_reader_read_string(hreader, &string_value));
-            event->value = ion_copy_string(&string_value);
+            value = ion_copy_string(&string_value);
             break;
         }
         case TID_CLOB: // intentional fall-through
@@ -410,7 +402,7 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
             lob_value->value = lob_tmp;
             lob_tmp = NULL; // This is now owned by the value, and will be freed by the IonEventStream destructor.
             lob_value->length = length;
-            event->value = lob_value;
+            value = lob_value;
             break;
         }
         case TID_SEXP: // intentional fall-through
@@ -420,6 +412,8 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
                                                           &annotations[0].value);
             // intentional fall-through
         case TID_STRUCT:
+            is_scalar = FALSE;
+            stream->appendNew(CONTAINER_START, t, field_name, annotations, annotation_count, depth);
             IONCREAD(ion_reader_step_in(hreader));
             IONREPORT(_ion_event_stream_read_all_recursive(hreader, stream, t == tid_STRUCT, depth + 1,
                                                            is_embedded_stream_set, ION_RESULT_ARG));
@@ -427,8 +421,15 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
             stream->appendNew(CONTAINER_END, t, /*field_name=*/NULL, /*annotations=*/NULL, /*num_annotations=*/0,
                               depth);
             break;
-        case TID_DATAGRAM:
         default: IONFAILSTATE(IERR_INVALID_STATE, "Unknown Ion type.");
+    }
+    if (is_scalar) {
+        event = stream->appendNew(SCALAR, t, field_name, annotations, annotation_count, depth);
+        event->value = value;
+        value = NULL;
+    }
+    else {
+        ASSERT(value == NULL);
     }
 cleanup:
     if (annotations) {
@@ -436,6 +437,9 @@ cleanup:
     }
     if (lob_tmp) {
         free(lob_tmp);
+    }
+    if (value) {
+        ion_free_event_value(value, t, SCALAR);
     }
     iRETURN;
 }
