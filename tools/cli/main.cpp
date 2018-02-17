@@ -62,7 +62,7 @@ Options:
     -t, --traverse <file>           Location of a file containing a stream of ReadInstructions to use when reading the input stream(s) instead of performing a full traversal.
     -n, --symtab-name <name>        Name of the shared symbol table to be extracted.
     -v, --symtab-version <version>  Version of the shared symbol table to be extracted.
-    -y, --comparison-type <type>    Comparison semantics to be used with the compare command, from the set (basic | equivs | nonequivs). Any embedded streams in the inputs are compared for EventStream equality. 'basic' performs a standard data-model comparison between the corresponding events (or embedded streams) in the inputs. 'equivs' verifies that each value (or embedded stream) in a top-level sequence is equivalent to every other value (or embedded stream) in that sequence. 'nonequivs' does the same, but verifies that the values (or embedded streams) are not equivalent. 'equiv-timeline' is the same as 'equivs', except that when top-level sequences contain timestamp values, they are considered equivalent if they represent the same instant regardless of whether they are considered equivalent by the Ion data model. [default: basic]
+    -y, --comparison-type <type>    Comparison semantics to be used with the compare command, from the set (basic | equivs | non-equivs | equiv-timeline). Any embedded streams in the inputs are compared for EventStream equality. 'basic' performs a standard data-model comparison between the corresponding events (or embedded streams) in the inputs. 'equivs' verifies that each value (or embedded stream) in a top-level sequence is equivalent to every other value (or embedded stream) in that sequence. 'non-equivs' does the same, but verifies that the values (or embedded streams) are not equivalent. 'equiv-timeline' is the same as 'equivs', except that when top-level sequences contain timestamp values, they are considered equivalent if they represent the same instant regardless of whether they are considered equivalent by the Ion data model. [default: basic]
     -h, --help                      Synonym for the help command.
     --version                       Synonym for the version command.
 
@@ -187,8 +187,11 @@ ION_EVENT_COMPARISON_TYPE ion_cli_comparison_type_from_string(const std::string 
     if ("equivs" == type_str) {
         return COMPARISON_TYPE_EQUIVS;
     }
-    if ("nonequivs" == type_str) {
+    if ("non-equivs" == type_str) {
         return COMPARISON_TYPE_NONEQUIVS;
+    }
+    if ("equiv-timeline" == type_str) {
+        return COMPARISON_TYPE_EQUIVTIMELINE;
     }
     return COMPARISON_TYPE_UNKNOWN;
 }

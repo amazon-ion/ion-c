@@ -23,16 +23,9 @@ typedef enum _ion_event_comparison_type {
     COMPARISON_TYPE_EQUIVS = 0,
     COMPARISON_TYPE_NONEQUIVS,
     COMPARISON_TYPE_BASIC,
+    COMPARISON_TYPE_EQUIVTIMELINE,
     COMPARISON_TYPE_UNKNOWN
 } ION_EVENT_COMPARISON_TYPE;
-
-typedef iERR (*TIMESTAMP_COMPARISON_FN)(const ION_TIMESTAMP *ptime1, const ION_TIMESTAMP *ptime2, BOOL *is_equal, decContext *pcontext);
-
-/**
- * Global variable that determines which timestamp comparison semantics should be used
- * (data model equivalence vs instant equivalence).
- */
-extern TIMESTAMP_COMPARISON_FN g_TimestampEquals;
 
 /**
  * Tests the given IonEventStreams for equivalence, meaning that the corresponding values in each stream
@@ -76,9 +69,15 @@ BOOL ion_equals_float(double *expected, double *actual, std::string *failure_mes
                       IonEventResult *result = NULL);
 
 /**
- * Uses g_TimestampEquals as the comparison method.
+ * Uses ion_timestamp_equals as the comparison method.
  */
 BOOL ion_equals_timestamp(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message = NULL,
                           IonEventResult *result = NULL);
+
+/**
+ * Uses ion_timestamp_instant_equals as the comparison method.
+ */
+BOOL ion_equals_timestamp_instant(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message,
+                                  IonEventResult *ION_RESULT_ARG);
 
 #endif //IONC_ION_EVENT_EQUIVALENCE_H

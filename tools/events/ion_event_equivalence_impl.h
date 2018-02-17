@@ -81,7 +81,13 @@
 #define ION_EXPECT_SYMBOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_symbol)
 #define ION_EXPECT_INT_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_int)
 #define ION_EXPECT_DECIMAL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_decimal)
-#define ION_EXPECT_TIMESTAMP_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_timestamp)
+#define ION_EXPECT_TIMESTAMP_EQ(x, y) \
+    if (ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_EQUIVTIMELINE) { \
+        _ION_IS_VALUE_EQ(x, y, ion_equals_timestamp_instant); \
+    } \
+    else { \
+        _ION_IS_VALUE_EQ(x, y, ion_equals_timestamp); \
+    }
 
 #define ION_EVENT_EQUIVALENCE_PARAMS \
 IonEventStream *ION_STREAM_EXPECTED_ARG, size_t ION_INDEX_EXPECTED_ARG, IonEventStream *ION_STREAM_ACTUAL_ARG, \

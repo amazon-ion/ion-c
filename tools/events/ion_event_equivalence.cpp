@@ -23,8 +23,6 @@
 #include <ion_internal.h>
 #include "floating_point_util.h"
 
-TIMESTAMP_COMPARISON_FN g_TimestampEquals = ion_timestamp_equals;
-
 BOOL ion_compare_events(ION_EVENT_EQUIVALENCE_PARAMS);
 
 void _ion_event_set_comparison_result(IonEventResult *result, ION_EVENT_COMPARISON_TYPE comparison_type, IonEvent *lhs,
@@ -279,8 +277,10 @@ BOOL ion_compare_sets_nonequivs(ION_EVENT_EQUIVALENCE_PARAMS) {
  */
 BOOL ion_compare_sets_standard(ION_EVENT_EQUIVALENCE_PARAMS) {
     ION_ENTER_ASSERTIONS;
-    COMPARISON_FN comparison_fn = (ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_EQUIVS) ? ion_compare_sets_equivs
-                                                                                      : ion_compare_sets_nonequivs;
+    COMPARISON_FN comparison_fn = (ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_EQUIVS
+                                   || ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_EQUIVTIMELINE)
+                                  ? ion_compare_sets_equivs
+                                  : ion_compare_sets_nonequivs;
     const size_t index_actual_initial = ION_INDEX_ACTUAL_ARG;
     while (TRUE) {
         if (ION_GET_ACTUAL->event_type == CONTAINER_END && ION_GET_ACTUAL->depth == 0) {
@@ -528,10 +528,15 @@ BOOL ion_equals_decimal(ION_DECIMAL *expected, ION_DECIMAL *actual, std::string 
     return FALSE;
 }
 
-BOOL ion_equals_timestamp(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message,
-                          IonEventResult *ION_RESULT_ARG) {
+BOOL _ion_equals_timestamp_common(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message,
+                                  IonEventResult *ION_RESULT_ARG, BOOL is_instant_equality) {
     BOOL timestamps_equal;
-    ION_EXPECT_OK(g_TimestampEquals(expected, actual, &timestamps_equal, &g_IonEventDecimalContext));
+    if (is_instant_equality) {
+        ION_EXPECT_OK(ion_timestamp_instant_equals(expected, actual, &timestamps_equal, &g_IonEventDecimalContext));
+    }
+    else {
+        ION_EXPECT_OK(ion_timestamp_equals(expected, actual, &timestamps_equal, &g_IonEventDecimalContext));
+    }
     if (timestamps_equal) {
         return TRUE;
     }
@@ -549,6 +554,16 @@ BOOL ion_equals_timestamp(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::s
                 + std::string(actual_str, (size_t) actual_str_len);
     }
     return FALSE;
+}
+
+BOOL ion_equals_timestamp(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message,
+                          IonEventResult *ION_RESULT_ARG) {
+    return _ion_equals_timestamp_common(expected, actual, failure_message, ION_RESULT_ARG, FALSE);
+}
+
+BOOL ion_equals_timestamp_instant(ION_TIMESTAMP *expected, ION_TIMESTAMP *actual, std::string *failure_message,
+                                  IonEventResult *ION_RESULT_ARG) {
+    return _ion_equals_timestamp_common(expected, actual, failure_message, ION_RESULT_ARG, TRUE);
 }
 
 BOOL ion_equals_float(double *expected, double *actual, std::string *failure_message, IonEventResult *ION_RESULT_ARG) {

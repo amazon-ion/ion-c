@@ -45,7 +45,6 @@
 }
 
 #define ION_TEST_VECTOR_INIT() { \
-    g_TimestampEquals = ion_timestamp_equals; \
     initial_stream = new IonEventStream(filename); \
     roundtrip_stream = NULL; \
     catalog = NULL; \
@@ -420,13 +419,14 @@ INSTANTIATE_TEST_CASE_P(
  */
 TEST_P(GoodTimestampEquivTimelineVector, GoodTimestampEquivTimeline) {
     ION_TEST_VECTOR_START;
-    g_TimestampEquals = ion_timestamp_instant_equals;
     IONREPORT(read_value_stream(initial_stream, input_type, filename, catalog, result));
-    IONREPORT(ion_compare_sets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVS) ? IERR_OK : IERR_INVALID_STATE);
+    IONREPORT(ion_compare_sets(initial_stream, initial_stream, COMPARISON_TYPE_EQUIVTIMELINE)
+              ? IERR_OK : IERR_INVALID_STATE);
     if (test_type > READ) {
         IONREPORT(ionTestRoundtrip(initial_stream, &roundtrip_stream, catalog, test_name, filename, input_type,
                                   test_type, result));
-        IONREPORT(ion_compare_sets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVS) ? IERR_OK : IERR_INVALID_STATE);
+        IONREPORT(ion_compare_sets(roundtrip_stream, roundtrip_stream, COMPARISON_TYPE_EQUIVTIMELINE)
+                  ? IERR_OK : IERR_INVALID_STATE);
     }
     ION_TEST_VECTOR_COMPLETE;
 }
