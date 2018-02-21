@@ -520,3 +520,18 @@ TEST(IonCli, ComparingBadFileFromEventStreamSucceeds) {
     ASSERT_FALSE(report2.hasErrors());
     free(events);
 }
+
+TEST(IonCli, ComparingSymbolZeroFromEventStreamSucceeds) {
+    IonEventReport report1, report2;
+    ION_STRING command_output;
+    ION_STRING_INIT(&command_output);
+    std::string filepath = join_path(full_good_path, "symbolZero.ion");
+    test_ion_cli_process(filepath.c_str(), IO_TYPE_FILE, &command_output, &report1, OUTPUT_TYPE_EVENTS);
+    ASSERT_FALSE(report1.hasComparisonFailures());
+    ASSERT_FALSE(report1.hasErrors());
+    char *events = ion_string_strdup(&command_output);
+    test_ion_cli_compare(events, IO_TYPE_MEMORY, &command_output, &report2, COMPARISON_TYPE_BASIC);
+    ASSERT_FALSE(report2.hasComparisonFailures());
+    ASSERT_FALSE(report2.hasErrors());
+    free(events);
+}

@@ -540,10 +540,8 @@ iERR ion_event_stream_read_symbol_token(hREADER reader, ION_SYMBOL *symbol, ION_
     uint8_t visited_fields = 0;
     ASSERT(symbol);
 
+    ION_SYMBOL_INIT(symbol);
     symbol->add_count = 0;
-    symbol->sid = UNKNOWN_SID;
-    ION_STRING_INIT(&symbol->value);
-    ION_STRING_INIT(&symbol->import_location.name);
     symbol->import_location.location = UNKNOWN_SID;
 
     for (;;) {
@@ -578,7 +576,7 @@ iERR ion_event_stream_read_symbol_token(hREADER reader, ION_SYMBOL *symbol, ION_
         // Open content is ignored.
     }
 
-    if (ION_STRING_IS_NULL(&symbol->value) && ION_STRING_IS_NULL(&symbol->import_location.name)) {
+    if (ION_STRING_IS_NULL(&symbol->value) && ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol)) {
         symbol->sid = 0;
     }
     cRETURN;
@@ -1318,12 +1316,20 @@ iERR ion_event_stream_write_symbol_token(hWRITER writer, ION_SYMBOL *symbol, ION
     else {
         IONCWRITE(ion_writer_write_null(writer));
         IONCWRITE(ion_writer_write_field_name(writer, &ion_event_import_location_field));
-        IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
-        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_import_name_field));
-        IONCWRITE(ion_writer_write_string(writer, &symbol->import_location.name));
-        IONCWRITE(ion_writer_write_field_name(writer, &ion_event_import_sid_field));
-        IONCWRITE(ion_writer_write_int(writer, symbol->import_location.location));
-        IONCWRITE(ion_writer_finish_container(writer));
+        if (ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol)) {
+            if (symbol->sid != 0) {
+                IONFAILSTATE(IERR_INVALID_SYMBOL, "Non-zero symbol with unknown text must include an import location.");
+            }
+            IONCWRITE(ion_writer_write_null(writer));
+        }
+        else {
+            IONCWRITE(ion_writer_start_container(writer, tid_STRUCT));
+            IONCWRITE(ion_writer_write_field_name(writer, &ion_event_import_name_field));
+            IONCWRITE(ion_writer_write_string(writer, &symbol->import_location.name));
+            IONCWRITE(ion_writer_write_field_name(writer, &ion_event_import_sid_field));
+            IONCWRITE(ion_writer_write_int(writer, symbol->import_location.location));
+            IONCWRITE(ion_writer_finish_container(writer));
+        }
     }
     IONCWRITE(ion_writer_finish_container(writer));
     cRETURN;
