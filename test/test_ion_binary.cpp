@@ -341,8 +341,53 @@ TEST(IonBinarySymbol, ReaderReadsNullSymbol) {
     hREADER reader;
     BYTE *data = (BYTE *) "\xE0\x01\x00\xEA\x7F";
     BOOL is_null;
+    ION_TYPE type;
 
     ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, 5, NULL));
-    ASSERT_TRUE(ion_reader_is_null(reader, &is_null));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_is_null(reader, &is_null));
+    ASSERT_TRUE(is_null);
     ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+void test_ion_binary_reader_rejects_negative_zero_int64(BYTE *data, size_t len) {
+    hREADER reader;
+    ION_TYPE type;
+    int64_t value;
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, len, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(type, tid_INT);
+    ION_ASSERT_FAIL(ion_reader_read_int64(reader, &value));
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonBinaryInt, ReaderRejectsNegativeZeroInt64OneByte) {
+    test_ion_binary_reader_rejects_negative_zero_int64((BYTE *)"\xE0\x01\x00\xEA\x30", 5);
+}
+
+TEST(IonBinaryInt, ReaderRejectsNegativeZeroInt64TwoByte) {
+    test_ion_binary_reader_rejects_negative_zero_int64((BYTE *)"\xE0\x01\x00\xEA\x31\x00", 6);
+}
+
+void test_ion_binary_write_from_reader_rejects_negative_zero_int(BYTE *data, size_t len) {
+    hREADER reader;
+    hWRITER writer;
+    ION_STREAM *stream;
+    ION_TYPE type;
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, len, NULL));
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, FALSE));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(type, tid_INT);
+    ION_ASSERT_FAIL(ion_writer_write_one_value(writer, reader));
+    ION_ASSERT_OK(ion_writer_close(writer));
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonBinaryInt, ReaderRejectsNegativeZeroMixedIntOneByte) {
+    test_ion_binary_write_from_reader_rejects_negative_zero_int((BYTE *)"\xE0\x01\x00\xEA\x30", 5);
+}
+
+TEST(IonBinaryInt, ReaderRejectsNegativeZeroMixedIntTwoByte) {
+    test_ion_binary_write_from_reader_rejects_negative_zero_int((BYTE *)"\xE0\x01\x00\xEA\x31\x00", 6);
 }

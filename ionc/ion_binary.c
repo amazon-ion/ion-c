@@ -267,14 +267,20 @@ iERR ion_binary_read_ion_int(ION_STREAM *pstream, int32_t len, BOOL is_negative,
 {
     iENTER;
     int b;
+    BOOL is_zero;
 
     if (len < 1) {
 		IONCHECK(_ion_int_zero(p_value));
-		SUCCEED();
 	}
-	else {
+    else {
         ION_GET(pstream, b);
         IONCHECK(_ion_binary_read_ion_int_helper(pstream, len, is_negative, p_value, b));
+    }
+    if (is_negative) {
+        IONCHECK(ion_int_is_zero(p_value, &is_zero));
+        if (is_zero) {
+            FAILWITH(IERR_INVALID_BINARY);
+        }
     }
     iRETURN;
 }
