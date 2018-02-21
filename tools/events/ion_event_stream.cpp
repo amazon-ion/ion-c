@@ -972,7 +972,7 @@ iERR ion_event_stream_read_event(hREADER reader, ION_EVENT_READ_PARAMS) {
                 IONCREAD(ion_reader_step_out(reader));
             }
             IONCREAD(ion_reader_step_out(reader));
-            p_value_annotations = &value_annotations[0];
+            p_value_annotations = !value_annotations.empty() ? &value_annotations[0] : NULL;
         }
         // NOTE: there is no need to fail in the else{} case. Open content is ignored.
     }
@@ -1369,18 +1369,21 @@ iERR ion_event_stream_write_scalar_value(ION_EVENT_OUTPUT_TYPE output_type, IonE
     if (event->ion_type == tid_SYMBOL) {
         ION_SYMBOL *symbol = (ION_SYMBOL *)event->value;
         if (!ION_SYMBOL_IS_NULL(symbol) && ION_STRING_IS_NULL(&symbol->value)) {
-            ASSERT(!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol));
-            // This is a symbol with unknown text. Its shared symbol table must be included.
-            imports = (ION_COLLECTION *)ion_alloc_owner(sizeof(ION_COLLECTION));
-            _ion_collection_initialize(imports, imports, sizeof(ION_SYMBOL_TABLE_IMPORT));
-            ION_SYMBOL_TABLE_IMPORT *import = (ION_SYMBOL_TABLE_IMPORT *)_ion_collection_append(imports);
-            ION_STRING_ASSIGN(&import->descriptor.name, &symbol->import_location.name);
-            import->descriptor.max_id = symbol->import_location.location + 1;
-            import->descriptor.version = -1; // The highest version that matches the given name will be selected.
-            import->shared_symbol_table = NULL;
-            IONREPORT(ion_event_in_memory_writer_open(&writer_context, output_type, imports, ION_EVENT_WRITER_ARGS));
-            IONREPORT(ion_event_stream_write_scalar(writer_context.writer, event, ION_EVENT_INDEX_ARGS));
-            IONCLEANEXIT;
+            if(!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol)) {
+                // This is a symbol with unknown text. Its shared symbol table must be included.
+                imports = (ION_COLLECTION *) ion_alloc_owner(sizeof(ION_COLLECTION));
+                _ion_collection_initialize(imports, imports, sizeof(ION_SYMBOL_TABLE_IMPORT));
+                ION_SYMBOL_TABLE_IMPORT *import = (ION_SYMBOL_TABLE_IMPORT *) _ion_collection_append(imports);
+                ION_STRING_ASSIGN(&import->descriptor.name, &symbol->import_location.name);
+                import->descriptor.max_id = symbol->import_location.location + 1;
+                import->descriptor.version = -1; // The highest version that matches the given name will be selected.
+                import->shared_symbol_table = NULL;
+                IONREPORT(
+                        ion_event_in_memory_writer_open(&writer_context, output_type, imports, ION_EVENT_WRITER_ARGS));
+                IONREPORT(ion_event_stream_write_scalar(writer_context.writer, event, ION_EVENT_INDEX_ARGS));
+                IONCLEANEXIT;
+            }
+            ASSERT(symbol->sid == 0);
         }
     }
     IONREPORT(ion_event_in_memory_writer_open(&writer_context, output_type, /*imports=*/NULL, /*catalog=*/NULL,

@@ -172,6 +172,13 @@ BOOL ion_compare_sequences(ION_EVENT_EQUIVALENCE_PARAMS) {
             break;
         }
         ION_NEXT_VALUE_INDICES;
+        if (ION_STREAM_EXPECTED_ARG->size() == ION_INDEX_EXPECTED_ARG) {
+            if (ION_STREAM_ACTUAL_ARG->size() != ION_INDEX_ACTUAL_ARG) {
+                ION_EXPECT_TRUE(FALSE, "Streams have different lengths");
+            }
+            // The streams are incomplete, but they are the same length and all their values are equivalent.
+            break;
+        }
     }
     ION_EXIT_ASSERTIONS;
 }

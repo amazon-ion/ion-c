@@ -80,6 +80,15 @@ void test_ion_cli_process(const char *input, ION_CLI_IO_TYPE input_type, ION_STR
     ion_cli_command_process(&common_args, &process_args, command_output, report);
 }
 
+void test_ion_cli_compare(const char *input, ION_CLI_IO_TYPE input_type, ION_STRING *command_output,
+                          IonEventReport *report, ION_EVENT_COMPARISON_TYPE comparison_type,
+                          ION_EVENT_OUTPUT_TYPE output_format=OUTPUT_TYPE_TEXT_UGLY) {
+    IonCliCommonArgs common_args;
+    test_ion_cli_init_common_args(&common_args, output_format);
+    test_ion_cli_add_input(input, input_type, &common_args);
+    ion_cli_command_compare(&common_args, comparison_type, command_output, report);
+}
+
 void test_ion_cli_read_stream_successfully(BYTE *data, size_t data_len, IonEventStream *stream) {
     hREADER reader;
     IonEventResult result;
@@ -494,5 +503,20 @@ TEST(IonCli, ParsingFailureDoesNotYieldEvent) {
     ASSERT_FALSE(report2.hasComparisonFailures());
     ASSERT_FALSE(report2.hasErrors());
     ASSERT_EQ(0, command_output.length);
+    free(events);
+}
+
+TEST(IonCli, ComparingBadFileFromEventStreamSucceeds) {
+    IonEventReport report1, report2;
+    ION_STRING command_output;
+    ION_STRING_INIT(&command_output);
+    std::string filepath = join_path(full_bad_path, "annotationWithoutValue.ion");
+    test_ion_cli_process(filepath.c_str(), IO_TYPE_FILE, &command_output, &report1, OUTPUT_TYPE_EVENTS);
+    ASSERT_FALSE(report1.hasComparisonFailures());
+    ASSERT_TRUE(report1.hasErrors());
+    char *events = ion_string_strdup(&command_output);
+    test_ion_cli_compare(events, IO_TYPE_MEMORY, &command_output, &report2, COMPARISON_TYPE_BASIC);
+    ASSERT_FALSE(report2.hasComparisonFailures());
+    ASSERT_FALSE(report2.hasErrors());
     free(events);
 }
