@@ -1706,6 +1706,80 @@ iERR _ion_symbol_table_close_helper(ION_SYMBOL_TABLE *symtab)
     iRETURN;
 }
 
+BOOL _ion_symbol_table_sid_is_IVM(SID sid) {
+    // If more IVMs are added to support future versions of Ion, they need to be added here.
+    return sid == ION_SYS_SID_IVM;
+}
+
+enum version_marker_state { START, MAJOR_VERSION, UNDERSCORE, MINOR_VERSION };
+
+static inline int add_digit(int i, char digit) {
+    return 10 * i + (digit - '0');
+}
+
+BOOL _ion_symbol_table_parse_version_marker(ION_STRING *version_marker, int *major_version, int *minor_version)
+{
+    char* prefix = "$ion_";
+    size_t prefix_length = strlen(prefix);
+    if (version_marker->length <= prefix_length) {
+        return FALSE;
+    }
+    if (0 != strncmp(prefix, (char *)version_marker->value, prefix_length)) {
+        return FALSE;
+    }
+
+    enum version_marker_state state = START;
+    char c;
+    int major_version_so_far = 0;
+    int minor_version_so_far = 0;
+
+    for (int i = prefix_length; i < version_marker->length; i++) {
+        c = version_marker->value[i];
+        switch (state) {
+            case START:
+                if (isdigit(c)) {
+                    major_version_so_far = add_digit(major_version_so_far, c);
+                    state = MAJOR_VERSION;
+                } else {
+                    return FALSE;
+                }
+                break;
+            case MAJOR_VERSION:
+                if (c == '_') {
+                    state = UNDERSCORE;
+                } else if (isdigit(c)) {
+                    major_version_so_far = add_digit(major_version_so_far, c);
+                } else {
+                    return FALSE;
+                }
+                break;
+            case UNDERSCORE:
+                if (isdigit(c)) {
+                    minor_version_so_far = add_digit(minor_version_so_far, c);
+                    state = MINOR_VERSION;
+                } else {
+                    return FALSE;
+                }
+                break;
+            case MINOR_VERSION:
+                if (isdigit(c)) {
+                    minor_version_so_far = add_digit(minor_version_so_far, c);
+                } else {
+                    return FALSE;
+                }
+                break;
+        }
+    }
+
+    if (state != MINOR_VERSION) {
+        return FALSE;
+    }
+
+    if (major_version) *major_version = major_version_so_far;
+    if (minor_version) *minor_version = minor_version_so_far;
+    return TRUE;
+}
+
 //
 // these are helpers for validating symbols for a variety of purposes
 // especially to handle cstr vs ion_string at the user boundary

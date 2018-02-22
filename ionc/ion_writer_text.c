@@ -659,9 +659,8 @@ iERR _ion_writer_text_write_symbol_from_string(ION_WRITER *pwriter, ION_STRING *
     SIZE written;
 
     if (pwriter->depth == 0 && pwriter->annotation_count == 0 && pstr->value[0] == '$'
-        && pstr->length == ION_SYS_STRLEN_IVM
-        && memcmp(pstr->value, ION_SYS_SYMBOL_IVM, ION_SYS_STRLEN_IVM) == 0) {
-        // The text $ion_1_0 is reserved for the IVM. This is a no-op.
+        && _ion_symbol_table_parse_version_marker(pstr, NULL, NULL)) {
+        // The text $ion_<int>_<int> is reserved for the IVMs. This is a no-op.
         SUCCEED();
     }
     else {

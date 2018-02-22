@@ -802,14 +802,17 @@ iERR ion_event_stream_get_consensus_value(ION_CATALOG *catalog, std::string *val
         // NOTE: an IonEvent's value is freed during destruction of the event's IonEventStream. Since these event
         // streams are temporary, the value needs to be copied out.
         if (binary_stream.size() > 1) {
-            IONREPORT(ion_event_copy_value(binary_stream.at(binary_stream.size() - 2), consensus_value,
-                                           ION_EVENT_COMMON_ARGS));
+            IonEvent *consensus_event = binary_stream.at(binary_stream.size() - 2);
+            if (consensus_event->event_type != SCALAR || consensus_event->depth != 0 ||
+                    (consensus_event->num_annotations > 0
+                     && !ION_STRING_EQUALS(&ion_event_user_value_annotation, &consensus_event->annotations[0].value))) {
+                IONFAILSTATE(IERR_INVALID_ARG,
+                             "Invalid event; scalar representations must be unannotated top-level scalar values.")
+            }
+            IONREPORT(ion_event_copy_value(consensus_event, consensus_value, ION_EVENT_COMMON_ARGS));
         }
         else {
-            ASSERT(binary_stream.size() == 0 || binary_stream.at(0)->event_type == STREAM_END);
-            ASSERT(text_stream.size() == 0 || text_stream.at(0)->event_type == STREAM_END);
-            // NOTE: the only value that can produce an empty value_binary and value_text is the IVM symbol.
-            *consensus_value = ion_event_stream_new_ivm_symbol();
+            IONFAILSTATE(IERR_INVALID_ARG, "Invalid event; scalar representations must contain exactly one value.");
         }
     }
     else {
@@ -1359,6 +1362,22 @@ iERR ion_event_stream_write_symbol_table_imports(hWRITER writer, ION_COLLECTION 
     cRETURN;
 }
 
+BOOL _ion_event_stream_symbol_value_resembles_IVM(ION_SYMBOL *symbol) {
+    if (!ION_STRING_IS_NULL(&symbol->value) && _ion_symbol_table_parse_version_marker(&symbol->value, NULL, NULL)) {
+        return TRUE;
+    }
+    if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol)) {
+        if (ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &symbol->import_location.name)
+            && _ion_symbol_table_sid_is_IVM(symbol->import_location.location)) {
+            return TRUE;
+        }
+    }
+    else if (_ion_symbol_table_sid_is_IVM(symbol->sid)) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
 iERR ion_event_stream_write_scalar_value(ION_EVENT_OUTPUT_TYPE output_type, IonEvent *event, BYTE **value, SIZE *len,
                                          ION_EVENT_WRITER_INDEX_PARAMS) {
     iENTER;
@@ -1369,27 +1388,39 @@ iERR ion_event_stream_write_scalar_value(ION_EVENT_OUTPUT_TYPE output_type, IonE
     ION_SET_ERROR_CONTEXT(ION_LOCATION_ARG, ION_INDEX_ARG);
     IonEventWriterContext writer_context;
     ION_COLLECTION *imports = NULL;
+    IonEvent *copied_event = NULL;
     ASSERT(value);
     ASSERT(len);
 
     if (event->ion_type == tid_SYMBOL) {
         ION_SYMBOL *symbol = (ION_SYMBOL *)event->value;
-        if (!ION_SYMBOL_IS_NULL(symbol) && ION_STRING_IS_NULL(&symbol->value)) {
-            if(!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol)) {
-                // This is a symbol with unknown text. Its shared symbol table must be included.
-                imports = (ION_COLLECTION *) ion_alloc_owner(sizeof(ION_COLLECTION));
-                _ion_collection_initialize(imports, imports, sizeof(ION_SYMBOL_TABLE_IMPORT));
-                ION_SYMBOL_TABLE_IMPORT *import = (ION_SYMBOL_TABLE_IMPORT *) _ion_collection_append(imports);
-                ION_STRING_ASSIGN(&import->descriptor.name, &symbol->import_location.name);
-                import->descriptor.max_id = symbol->import_location.location + 1;
-                import->descriptor.version = -1; // The highest version that matches the given name will be selected.
-                import->shared_symbol_table = NULL;
-                IONREPORT(
-                        ion_event_in_memory_writer_open(&writer_context, output_type, imports, ION_EVENT_WRITER_ARGS));
+        if (!ION_SYMBOL_IS_NULL(symbol)) {
+            if (_ion_event_stream_symbol_value_resembles_IVM(symbol)) {
+                // This is a user value that resembles an IVM. In order to prevent a no-op write, a dummy annotation
+                // is used. This annotation will be ignored on the read side.
+                IONREPORT(ion_event_in_memory_writer_open(&writer_context, output_type, /*imports=*/NULL,
+                                                          /*catalog=*/NULL, ION_EVENT_COMMON_ARGS));
+                IONREPORT(ion_writer_add_annotation(writer_context.writer, &ion_event_user_value_annotation));
                 IONREPORT(ion_event_stream_write_scalar(writer_context.writer, event, ION_EVENT_INDEX_ARGS));
                 IONCLEANEXIT;
             }
-            ASSERT(symbol->sid == 0);
+            else if (ION_STRING_IS_NULL(&symbol->value)) {
+                if (!ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol)) {
+                    // This is a symbol with unknown text. Its shared symbol table must be included.
+                    imports = (ION_COLLECTION *) ion_alloc_owner(sizeof(ION_COLLECTION));
+                    _ion_collection_initialize(imports, imports, sizeof(ION_SYMBOL_TABLE_IMPORT));
+                    ION_SYMBOL_TABLE_IMPORT *import = (ION_SYMBOL_TABLE_IMPORT *) _ion_collection_append(imports);
+                    ION_STRING_ASSIGN(&import->descriptor.name, &symbol->import_location.name);
+                    import->descriptor.max_id = symbol->import_location.location + 1;
+                    import->descriptor.version = -1; // The highest version that matches the given name will be selected.
+                    import->shared_symbol_table = NULL;
+                    IONREPORT(ion_event_in_memory_writer_open(&writer_context, output_type, imports,
+                                                              ION_EVENT_WRITER_ARGS));
+                    IONREPORT(ion_event_stream_write_scalar(writer_context.writer, event, ION_EVENT_INDEX_ARGS));
+                    IONCLEANEXIT;
+                }
+                ASSERT(symbol->sid == 0);
+            }
         }
     }
     IONREPORT(ion_event_in_memory_writer_open(&writer_context, output_type, /*imports=*/NULL, /*catalog=*/NULL,
@@ -1400,6 +1431,7 @@ cleanup:
     if (imports) {
         ion_free_owner(imports);
     }
+    delete copied_event;
     iRETURN;
 }
 

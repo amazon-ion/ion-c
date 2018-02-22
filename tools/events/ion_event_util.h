@@ -42,6 +42,9 @@ extern decContext g_IonEventDecimalContext;
 // Event stream marker
 static ION_STRING ion_event_stream_marker = {17, (BYTE *)"$ion_event_stream"};
 
+// User value marker, used when writing IVM-like user values as IonEvent scalars.
+static ION_STRING ion_event_user_value_annotation = {15, (BYTE *)"$ion_user_value"};
+
 // Embedded stream marker // TODO transition this to $ion_embedded_streams (so that it's a reserved symbol)
 static ION_STRING ion_event_embedded_streams_annotation = {18, (BYTE *)"embedded_documents"};
 
