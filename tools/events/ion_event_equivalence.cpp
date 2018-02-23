@@ -151,9 +151,18 @@ BOOL ion_compare_structs(ION_EVENT_EQUIVALENCE_PARAMS) {
 BOOL ion_compare_sequences(ION_EVENT_EQUIVALENCE_PARAMS) {
     ION_ENTER_ASSERTIONS;
     const int target_depth = ION_GET_EXPECTED->depth;
+    ION_PREPARE_COMPARISON;
     ION_NEXT_INDICES; // Move past the CONTAINER_START events
     while (TRUE) {
-        ION_PREPARE_COMPARISON;
+        if (ION_STREAM_EXPECTED_ARG->size() == ION_INDEX_EXPECTED_ARG) {
+            if (ION_STREAM_ACTUAL_ARG->size() != ION_INDEX_ACTUAL_ARG) {
+                ION_EXPECT_TRUE(FALSE, "Streams have different lengths");
+            }
+            // The streams are incomplete, but they are the same length and all their values are equivalent.
+            break;
+        }
+        ION_EXPECTED_ARG = ION_GET_EXPECTED;
+        ION_ACTUAL_ARG = ION_GET_ACTUAL;
         // NOTE: symbol tables are only allowed within embedded stream sequences. Logic could be added to verify this.
         if (ION_EXPECTED_ARG->event_type == SYMBOL_TABLE) {
             ION_NEXT_EXPECTED_INDEX;
@@ -172,13 +181,6 @@ BOOL ion_compare_sequences(ION_EVENT_EQUIVALENCE_PARAMS) {
             break;
         }
         ION_NEXT_VALUE_INDICES;
-        if (ION_STREAM_EXPECTED_ARG->size() == ION_INDEX_EXPECTED_ARG) {
-            if (ION_STREAM_ACTUAL_ARG->size() != ION_INDEX_ACTUAL_ARG) {
-                ION_EXPECT_TRUE(FALSE, "Streams have different lengths");
-            }
-            // The streams are incomplete, but they are the same length and all their values are equivalent.
-            break;
-        }
     }
     ION_EXIT_ASSERTIONS;
 }
