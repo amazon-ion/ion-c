@@ -98,7 +98,7 @@ public:
     ION_EVENT_ERROR_TYPE error_type;
     std::string message;
     std::string location;
-    ssize_t event_index;
+    int32_t event_index;
     bool has_location;
     bool has_event_index;
 
