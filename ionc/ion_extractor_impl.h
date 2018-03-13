@@ -28,7 +28,7 @@ extern "C" {
 
 /**
  * Threshold over which more than one unit is required to compose the registered paths bitmap. Registered paths are
- * assigned a bit index in a bitmap of length >= 64.
+ * assigned a bit index in a bitmap.
  * NOTE: this is a constant that may not be redefined by the user.
  */
 #define ION_EXTRACTOR_MAX_NUM_PATHS_THRESHOLD 64
@@ -42,6 +42,7 @@ extern "C" {
     #define ION_EXTRACTOR_PATH_BITMAP_SIZE \
         ((ION_EXTRACTOR_MAX_NUM_PATHS / ION_EXTRACTOR_MAX_NUM_PATHS_THRESHOLD) \
             + (ION_EXTRACTOR_MAX_NUM_PATHS % ION_EXTRACTOR_MAX_NUM_PATHS_THRESHOLD != 0 ? 1 : 0))
+    #define ION_EXTRACTOR_PATH_BITMAP_BYTE_SIZE (ION_EXTRACTOR_PATH_BITMAP_SIZE * sizeof(uint_fast64_t))
     typedef uint_fast64_t ION_EXTRACTOR_ACTIVE_PATH_MAP[ION_EXTRACTOR_PATH_BITMAP_SIZE];
 #else
     typedef uint_fast64_t ION_EXTRACTOR_ACTIVE_PATH_MAP;
