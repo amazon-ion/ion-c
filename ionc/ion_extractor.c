@@ -16,23 +16,25 @@
 #include "ion_extractor_impl.h"
 
 #if ION_EXTRACTOR_MAX_NUM_PATHS > ION_EXTRACTOR_MAX_NUM_PATHS_THRESHOLD
-    #define ION_EXTRACTOR_ACTIVATE_ALL_PATHS(map) memset(map, 0xFF, sizeof(map))
-    #define ION_EXTRACTOR_DEACTIVATE_ALL_PATHS(map) memset(map, 0, sizeof(map))
-    #define ION_EXTRACTOR_INDEX_PATH(map, path_index) map[path_index / ION_EXTRACTOR_MAX_NUM_PATHS_THRESHOLD]
+    #define ION_EXTRACTOR_ACTIVATE_ALL_PATHS(map) memset(map, 0xFF, ION_EXTRACTOR_PATH_BITMAP_BYTE_SIZE)
+    #define ION_EXTRACTOR_DEACTIVATE_ALL_PATHS(map) memset(map, 0, ION_EXTRACTOR_PATH_BITMAP_BYTE_SIZE)
+    #define ION_EXTRACTOR_INDEX_PATH(map, path_index) (map)[(path_index) / ION_EXTRACTOR_MAX_NUM_PATHS_THRESHOLD]
     static ION_EXTRACTOR_ACTIVE_PATH_MAP _ION_EXTRACTOR_PATH_MAP_ZERO;
-    #define ION_EXTRACTOR_ANY_PATHS_ACTIVE(map) memcmp(map, _ION_EXTRACTOR_PATH_MAP_ZERO, sizeof(map))
+    #define ION_EXTRACTOR_ANY_PATHS_ACTIVE(map) memcmp(map, _ION_EXTRACTOR_PATH_MAP_ZERO, ION_EXTRACTOR_PATH_BITMAP_BYTE_SIZE)
     #define ION_EXTRACTOR_PATH_MAP_ZERO _ION_EXTRACTOR_PATH_MAP_ZERO
+    #define ION_EXTRACTOR_PATH_BIT_SHIFT(path_index) (1L << ((path_index) % ION_EXTRACTOR_MAX_NUM_PATHS_THRESHOLD))
 #else
     #define ION_EXTRACTOR_ACTIVATE_ALL_PATHS(map) map = (ION_EXTRACTOR_ACTIVE_PATH_MAP)0xFFFFFFFFFFFFFFFF
     #define ION_EXTRACTOR_DEACTIVATE_ALL_PATHS(map) map = (ION_EXTRACTOR_ACTIVE_PATH_MAP)0
     #define ION_EXTRACTOR_INDEX_PATH(map, path_index) map
     #define ION_EXTRACTOR_ANY_PATHS_ACTIVE(map) map != 0
     #define ION_EXTRACTOR_PATH_MAP_ZERO 0
+    #define ION_EXTRACTOR_PATH_BIT_SHIFT(path_index) (1L << (path_index))
 #endif
 
-#define ION_EXTRACTOR_ACTIVATE_PATH(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) |= (1 << (path_index))
-#define ION_EXTRACTOR_DEACTIVATE_PATH(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) &= ~(1 << (path_index))
-#define ION_EXTRACTOR_IS_PATH_ACTIVE(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) & (1 << (path_index))
+#define ION_EXTRACTOR_ACTIVATE_PATH(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) |= ION_EXTRACTOR_PATH_BIT_SHIFT(path_index)
+#define ION_EXTRACTOR_DEACTIVATE_PATH(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) &= ~ION_EXTRACTOR_PATH_BIT_SHIFT(path_index)
+#define ION_EXTRACTOR_IS_PATH_ACTIVE(map, path_index) ION_EXTRACTOR_INDEX_PATH(map, path_index) & ION_EXTRACTOR_PATH_BIT_SHIFT(path_index)
 
 #define ION_EXTRACTOR_GET_COMPONENT(extractor, path_depth, path_index) \
     &(extractor)->_path_components[(path_depth) * (extractor)->_options.max_num_paths + (path_index)]
