@@ -15,11 +15,9 @@
 #ifndef IONC_ION_EVENT_EQUIVALENCE_IMPL_H
 #define IONC_ION_EVENT_EQUIVALENCE_IMPL_H
 
-#define ION_ENTER_ASSERTIONS
+#define ION_PASS_ASSERTIONS return TRUE
 
-#define ION_EXIT_ASSERTIONS return TRUE
-
-#define ION_ACCUMULATE_ASSERTION(x) if (!(x)) return FALSE;
+#define ION_CHECK_ASSERTION(x) if (!(x)) return FALSE;
 
 #define ION_STREAM_EXPECTED_ARG stream_expected
 #define ION_INDEX_EXPECTED_ARG index_expected

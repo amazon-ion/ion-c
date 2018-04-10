@@ -52,7 +52,6 @@ void _ion_event_set_comparison_result(IonEventResult *result, ION_EVENT_COMPARIS
 }
 
 BOOL ion_compare_scalars(ION_EVENT_EQUIVALENCE_PARAMS) {
-    ION_ENTER_ASSERTIONS;
     ION_PREPARE_COMPARISON;
     void *expected_value = ION_EXPECTED_ARG->value;
     void *actual_value = ION_ACTUAL_ARG->value;
@@ -90,14 +89,13 @@ BOOL ion_compare_scalars(ION_EVENT_EQUIVALENCE_PARAMS) {
         default:
             ION_ASSERT(FALSE, "Illegal state: unknown ion type.");
     }
-    ION_EXIT_ASSERTIONS;
+    ION_PASS_ASSERTIONS;
 }
 
 /**
  * Asserts that the struct starting at index_expected is a subset of the struct starting at index_actual.
  */
 BOOL ion_compare_struct_subset(ION_EVENT_EQUIVALENCE_PARAMS) {
-    ION_ENTER_ASSERTIONS;
     const int target_depth = ION_GET_EXPECTED->depth;
     ION_NEXT_INDICES; // Move past the CONTAINER_START events
     const size_t index_actual_start = ION_INDEX_ACTUAL_ARG;
@@ -133,23 +131,21 @@ BOOL ion_compare_struct_subset(ION_EVENT_EQUIVALENCE_PARAMS) {
         }
         ION_NEXT_EXPECTED_VALUE_INDEX;
     }
-    ION_EXIT_ASSERTIONS;
+    ION_PASS_ASSERTIONS;
 }
 
 BOOL ion_compare_structs(ION_EVENT_EQUIVALENCE_PARAMS) {
-    ION_ENTER_ASSERTIONS;
     // By asserting that 'expected' and 'actual' are bidirectional subsets, we are asserting they are equivalent.
-    ION_ACCUMULATE_ASSERTION(
+    ION_CHECK_ASSERTION(
             ion_compare_struct_subset(ION_STREAM_EXPECTED_ARG, ION_INDEX_EXPECTED_ARG, ION_STREAM_ACTUAL_ARG,
                                       ION_INDEX_ACTUAL_ARG, ION_COMPARISON_TYPE_ARG, ION_RESULT_ARG));
-    ION_ACCUMULATE_ASSERTION(
+    ION_CHECK_ASSERTION(
             ion_compare_struct_subset(ION_STREAM_ACTUAL_ARG, ION_INDEX_ACTUAL_ARG, ION_STREAM_EXPECTED_ARG,
                                       ION_INDEX_EXPECTED_ARG, ION_COMPARISON_TYPE_ARG, ION_RESULT_ARG));
-    ION_EXIT_ASSERTIONS;
+    ION_PASS_ASSERTIONS;
 }
 
 BOOL ion_compare_sequences(ION_EVENT_EQUIVALENCE_PARAMS) {
-    ION_ENTER_ASSERTIONS;
     const int target_depth = ION_GET_EXPECTED->depth;
     ION_PREPARE_COMPARISON;
     ION_NEXT_INDICES; // Move past the CONTAINER_START events
@@ -172,7 +168,7 @@ BOOL ion_compare_sequences(ION_EVENT_EQUIVALENCE_PARAMS) {
             ION_NEXT_ACTUAL_INDEX;
             continue;
         }
-        ION_ACCUMULATE_ASSERTION(ion_compare_events(ION_EVENT_EQUIVALENCE_ARGS));
+        ION_CHECK_ASSERTION(ion_compare_events(ION_EVENT_EQUIVALENCE_ARGS));
         BOOL sequence_end = ION_EXPECTED_ARG->event_type == CONTAINER_END && ION_EXPECTED_ARG->depth == target_depth;
         if (sequence_end ^ (ION_ACTUAL_ARG->event_type == CONTAINER_END && ION_ACTUAL_ARG->depth == target_depth)) {
             ION_EXPECT_TRUE(FALSE, "Sequences have different lengths.");
@@ -182,7 +178,7 @@ BOOL ion_compare_sequences(ION_EVENT_EQUIVALENCE_PARAMS) {
         }
         ION_NEXT_VALUE_INDICES;
     }
-    ION_EXIT_ASSERTIONS;
+    ION_PASS_ASSERTIONS;
 }
 
 /**
@@ -191,7 +187,6 @@ BOOL ion_compare_sequences(ION_EVENT_EQUIVALENCE_PARAMS) {
  * the containers' children.
  */
 BOOL ion_compare_events(ION_EVENT_EQUIVALENCE_PARAMS) {
-    ION_ENTER_ASSERTIONS;
     ION_PREPARE_COMPARISON;
     int tid = ION_TID_INT(ION_EXPECTED_ARG->ion_type);
     ION_EXPECT_EVENT_TYPE_EQ(ION_EXPECTED_ARG->event_type, ION_ACTUAL_ARG->event_type);
@@ -210,27 +205,26 @@ BOOL ion_compare_events(ION_EVENT_EQUIVALENCE_PARAMS) {
         case CONTAINER_START:
             switch (tid) {
                 case TID_STRUCT:
-                    ION_ACCUMULATE_ASSERTION(ion_compare_structs(ION_EVENT_EQUIVALENCE_ARGS));
+                    ION_CHECK_ASSERTION(ion_compare_structs(ION_EVENT_EQUIVALENCE_ARGS));
                     break;
                 case TID_SEXP: // intentional fall-through
                 case TID_LIST:
-                    ION_ACCUMULATE_ASSERTION(ion_compare_sequences(ION_EVENT_EQUIVALENCE_ARGS));
+                    ION_CHECK_ASSERTION(ion_compare_sequences(ION_EVENT_EQUIVALENCE_ARGS));
                     break;
                 default:
                     ION_ASSERT(FALSE, "Illegal state: container start event with non-container type.");
             }
             break;
         case SCALAR:
-            ION_ACCUMULATE_ASSERTION(ion_compare_scalars(ION_EVENT_EQUIVALENCE_ARGS));
+            ION_CHECK_ASSERTION(ion_compare_scalars(ION_EVENT_EQUIVALENCE_ARGS));
             break;
         default:
             ION_ASSERT(FALSE, "Illegal state: unknown event type.");
     }
-    ION_EXIT_ASSERTIONS;
+    ION_PASS_ASSERTIONS;
 }
 
 BOOL ion_compare_substreams(ION_EVENT_EQUIVALENCE_PARAMS, size_t expected_end, size_t actual_end) {
-    ION_ENTER_ASSERTIONS;
     ASSERT(ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_BASIC);
     while (ION_INDEX_EXPECTED_ARG < expected_end && ION_INDEX_ACTUAL_ARG < actual_end) {
         ION_PREPARE_COMPARISON;
@@ -242,33 +236,30 @@ BOOL ion_compare_substreams(ION_EVENT_EQUIVALENCE_PARAMS, size_t expected_end, s
             ION_NEXT_ACTUAL_INDEX;
             continue;
         }
-        ION_ACCUMULATE_ASSERTION(ion_compare_events(ION_EVENT_EQUIVALENCE_ARGS));
+        ION_CHECK_ASSERTION(ion_compare_events(ION_EVENT_EQUIVALENCE_ARGS));
         ION_NEXT_VALUE_INDICES;
     }
-    ION_EXIT_ASSERTIONS;
+    ION_PASS_ASSERTIONS;
 }
 
 BOOL ion_compare_streams(IonEventStream *stream_expected, IonEventStream *stream_actual,
                          IonEventResult *ION_RESULT_ARG) {
-    ION_ENTER_ASSERTIONS;
     size_t ION_INDEX_EXPECTED_ARG = 0;
     size_t ION_INDEX_ACTUAL_ARG = 0;
     ION_EVENT_COMPARISON_TYPE ION_COMPARISON_TYPE_ARG = COMPARISON_TYPE_BASIC;
-    ION_ACCUMULATE_ASSERTION(
+    ION_CHECK_ASSERTION(
             ion_compare_substreams(ION_EVENT_EQUIVALENCE_ARGS, stream_expected->size(), stream_actual->size()));
-    ION_EXIT_ASSERTIONS;
+    ION_PASS_ASSERTIONS;
 }
 
 typedef BOOL (*COMPARISON_FN)(ION_EVENT_EQUIVALENCE_PARAMS);
 
 BOOL ion_compare_sets_equivs(ION_EVENT_EQUIVALENCE_PARAMS) {
-    ION_ENTER_ASSERTIONS;
-    ION_ACCUMULATE_ASSERTION(ion_compare_events(ION_EVENT_EQUIVALENCE_ARGS));
-    ION_EXIT_ASSERTIONS;
+    ION_CHECK_ASSERTION(ion_compare_events(ION_EVENT_EQUIVALENCE_ARGS));
+    ION_PASS_ASSERTIONS;
 }
 
 BOOL ion_compare_sets_nonequivs(ION_EVENT_EQUIVALENCE_PARAMS) {
-    ION_ENTER_ASSERTIONS;
     // The corresponding indices are assumed to be equivalent.
     if (ION_INDEX_EXPECTED_ARG != ION_INDEX_ACTUAL_ARG) {
         ION_PREPARE_COMPARISON;
@@ -277,7 +268,7 @@ BOOL ion_compare_sets_nonequivs(ION_EVENT_EQUIVALENCE_PARAMS) {
         ION_RESULT_ARG = NULL;
         ION_EXPECT_FALSE(ion_compare_events(ION_EVENT_EQUIVALENCE_ARGS), "Equivalent values in a non-equivs set.");
     }
-    ION_EXIT_ASSERTIONS;
+    ION_PASS_ASSERTIONS;
 }
 
 /**
@@ -285,7 +276,6 @@ BOOL ion_compare_sets_nonequivs(ION_EVENT_EQUIVALENCE_PARAMS) {
  * to the starting index of the first element in the container.
  */
 BOOL ion_compare_sets_standard(ION_EVENT_EQUIVALENCE_PARAMS) {
-    ION_ENTER_ASSERTIONS;
     COMPARISON_FN comparison_fn = (ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_EQUIVS
                                    || ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_EQUIVTIMELINE)
                                   ? ion_compare_sets_equivs
@@ -299,11 +289,11 @@ BOOL ion_compare_sets_standard(ION_EVENT_EQUIVALENCE_PARAMS) {
             }
             ION_INDEX_ACTUAL_ARG = index_actual_initial;
         } else {
-            ION_ACCUMULATE_ASSERTION((*comparison_fn)(ION_EVENT_EQUIVALENCE_ARGS));
+            ION_CHECK_ASSERTION((*comparison_fn)(ION_EVENT_EQUIVALENCE_ARGS));
             ION_NEXT_ACTUAL_VALUE_INDEX;
         }
     }
-    ION_EXIT_ASSERTIONS;
+    ION_PASS_ASSERTIONS;
 }
 
 /**
@@ -311,7 +301,6 @@ BOOL ion_compare_sets_standard(ION_EVENT_EQUIVALENCE_PARAMS) {
  * in string values. These embedded streams are parsed and their resulting IonEventStreams compared.
  */
 BOOL ion_compare_sets_embedded(ION_EVENT_EQUIVALENCE_PARAMS, size_t *expected_len, size_t *actual_len) {
-    ION_ENTER_ASSERTIONS;
     size_t expected_stream_count = 0;
     size_t actual_stream_count = 0;
     const size_t index_expected_initial = ION_INDEX_EXPECTED_ARG;
@@ -340,7 +329,7 @@ BOOL ion_compare_sets_embedded(ION_EVENT_EQUIVALENCE_PARAMS, size_t *expected_le
                                         "Only one embedded stream represents an empty stream.");
                     }
                     else if (step_expected > 1 && step_actual > 1) {
-                        ION_ACCUMULATE_ASSERTION(
+                        ION_CHECK_ASSERTION(
                                 ion_compare_substreams(ION_STREAM_EXPECTED_ARG, ION_INDEX_EXPECTED_ARG,
                                                        ION_STREAM_ACTUAL_ARG, ION_INDEX_ACTUAL_ARG,
                                                        COMPARISON_TYPE_BASIC, ION_RESULT_ARG,
@@ -373,7 +362,7 @@ BOOL ion_compare_sets_embedded(ION_EVENT_EQUIVALENCE_PARAMS, size_t *expected_le
     }
     *expected_len = ION_INDEX_EXPECTED_ARG - index_expected_initial;
     *actual_len = ION_INDEX_ACTUAL_ARG - index_actual_initial;
-    ION_EXIT_ASSERTIONS;
+    ION_PASS_ASSERTIONS;
 }
 
 /**
@@ -382,11 +371,10 @@ BOOL ion_compare_sets_embedded(ION_EVENT_EQUIVALENCE_PARAMS, size_t *expected_le
  */
 BOOL ion_compare_sets(IonEventStream *ION_STREAM_EXPECTED_ARG, IonEventStream *ION_STREAM_ACTUAL_ARG,
                       ION_EVENT_COMPARISON_TYPE ION_COMPARISON_TYPE_ARG, IonEventResult *ION_RESULT_ARG) {
-    ION_ENTER_ASSERTIONS;
     size_t ION_INDEX_EXPECTED_ARG = 0, ION_INDEX_ACTUAL_ARG = 0;
     ION_PREPARE_COMPARISON;
     ION_EXPECT_TRUE(!(ION_STREAM_EXPECTED_ARG->size() == 0 ^ ION_STREAM_ACTUAL_ARG->size()== 0),
-                    "Only one of the streams was empty.");
+                    "The input streams had a different number of comparison sets.");
     if (ION_STREAM_EXPECTED_ARG->size() == 0) return TRUE;
     while (TRUE) {
         if (ION_INDEX_EXPECTED_ARG == ION_STREAM_EXPECTED_ARG->size() - 1) {
@@ -394,14 +382,14 @@ BOOL ion_compare_sets(IonEventStream *ION_STREAM_EXPECTED_ARG, IonEventStream *I
             // end of each stream at the same time as long as the streams have the same number of sets. And if they
             // don't have the same number of sets, an error is raised.
             ION_EXPECT_EQ(ION_STREAM_ACTUAL_ARG->size() - 1, ION_INDEX_ACTUAL_ARG,
-                          "Only one of the streams reached its end.");
+                          "The input streams had a different number of comparison sets.");
             ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, ION_EXPECTED_ARG->event_type);
             ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, ION_ACTUAL_ARG->event_type);
             break;
         }
         else if (ION_INDEX_ACTUAL_ARG == ION_STREAM_ACTUAL_ARG->size() - 1) {
             ION_EXPECT_EQ(ION_STREAM_EXPECTED_ARG->size() - 1, ION_INDEX_EXPECTED_ARG,
-                          "Only one of the streams reached its end.");
+                          "The input streams had a different number of comparison sets.");
             ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, ION_ACTUAL_ARG->event_type);
             ION_EXPECT_EVENT_TYPE_EQ(STREAM_END, ION_EXPECTED_ARG->event_type);
             break;
@@ -426,14 +414,14 @@ BOOL ion_compare_sets(IonEventStream *ION_STREAM_EXPECTED_ARG, IonEventStream *I
                            "Embedded streams set expected.");
                 // Skip past the CONTAINER_START events.
                 ION_NEXT_INDICES;
-                ION_ACCUMULATE_ASSERTION(ion_compare_sets_embedded(ION_EVENT_EQUIVALENCE_ARGS, &step_lhs, &step_rhs));
+                ION_CHECK_ASSERTION(ion_compare_sets_embedded(ION_EVENT_EQUIVALENCE_ARGS, &step_lhs, &step_rhs));
             } else {
                 ION_ASSERT(!(rhs_annotation
                              && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation, rhs_annotation)),
                            "Embedded streams set not expected.");
                 step_lhs = ION_EXPECTED_VALUE_LENGTH;
                 step_rhs = ION_ACTUAL_VALUE_LENGTH;
-                ION_ACCUMULATE_ASSERTION(ion_compare_sets_standard(ION_STREAM_EXPECTED_ARG, ION_INDEX_EXPECTED_ARG + 1,
+                ION_CHECK_ASSERTION(ion_compare_sets_standard(ION_STREAM_EXPECTED_ARG, ION_INDEX_EXPECTED_ARG + 1,
                                                                    ION_STREAM_ACTUAL_ARG, ION_INDEX_ACTUAL_ARG + 1,
                                                                    ION_COMPARISON_TYPE_ARG, ION_RESULT_ARG));
             }
@@ -443,7 +431,7 @@ BOOL ion_compare_sets(IonEventStream *ION_STREAM_EXPECTED_ARG, IonEventStream *I
             ION_ACTUAL_ARG = ION_GET_ACTUAL;
         }
     }
-    ION_EXIT_ASSERTIONS;
+    ION_PASS_ASSERTIONS;
 }
 
 BOOL ion_equals_bool(BOOL *expected, BOOL *actual, std::string *failure_message, IonEventResult *ION_RESULT_ARG) {

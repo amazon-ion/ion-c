@@ -157,7 +157,6 @@ iERR ion_event_in_memory_writer_open(IonEventWriterContext *writer_context, ION_
     iENTER;
     ION_SET_ERROR_CONTEXT(ION_LOCATION_ARG, NULL);
     IONCWRITE(ion_stream_open_memory_only(&writer_context->ion_stream));
-    ion_event_initialize_writer_options(&writer_context->options);
     writer_context->options.output_as_binary = (output_type == OUTPUT_TYPE_BINARY);
     writer_context->options.pretty_print = output_type == OUTPUT_TYPE_TEXT_PRETTY || output_type == OUTPUT_TYPE_EVENTS;
     writer_context->options.pcatalog = ION_CATALOG_ARG;

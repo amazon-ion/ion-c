@@ -1719,8 +1719,8 @@ static inline int add_digit(int i, char digit) {
 
 BOOL _ion_symbol_table_parse_version_marker(ION_STRING *version_marker, int *major_version, int *minor_version)
 {
-    char* prefix = "$ion_";
-    size_t prefix_length = strlen(prefix);
+    const char* prefix = "$ion_";
+    const size_t prefix_length = 5;
     if (version_marker->length <= prefix_length) {
         return FALSE;
     }
@@ -1733,7 +1733,7 @@ BOOL _ion_symbol_table_parse_version_marker(ION_STRING *version_marker, int *maj
     int major_version_so_far = 0;
     int minor_version_so_far = 0;
 
-    for (int i = prefix_length; i < version_marker->length; i++) {
+    for (size_t i = prefix_length; i < version_marker->length; i++) {
         c = version_marker->value[i];
         switch (state) {
             case START:

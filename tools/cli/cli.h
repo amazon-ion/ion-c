@@ -87,4 +87,12 @@ iERR ion_cli_command_process(IonCliCommonArgs *common_args, IonCliProcessArgs *p
 
 iERR ion_cli_write_error_report(IonEventReport *report, IonCliCommonArgs *common_args);
 
+/**
+ * Accepts the `output` parameter to an `ion_cli_command_*` function
+ * and frees any memory allocated during that function. NOTE: if
+ * `output` itself was dynamically allocated, it remains the caller's
+ * responsibility to free it.
+ */
+void ion_cli_free_command_output(ION_STRING *output);
+
 #endif //IONC_CLI_H

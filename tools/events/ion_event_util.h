@@ -121,6 +121,12 @@ static ION_STRING ion_event_comparison_result_type_not_equal = {9, (BYTE *)"NOT_
 static ION_STRING ion_event_comparison_result_type_error = {5, (BYTE *)"ERROR"};
 
 /**
+ * Initializes the given writer options using arbitrarily high limits.
+ * @param options - the options to initialize.
+ */
+void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options);
+
+/**
  * Stores the resources required by an ION_WRITER.
  */
 class IonEventWriterContext {
@@ -133,7 +139,7 @@ public:
     bool has_imports;
 
     IonEventWriterContext() {
-        memset(&options, 0, sizeof(ION_WRITER_OPTIONS));
+        ion_event_initialize_writer_options(&options);
         writer = NULL;
         file_stream = NULL;
         ion_stream = NULL;
@@ -153,12 +159,6 @@ ION_STRING *ion_event_comparison_result_type_to_string(ION_EVENT_COMPARISON_RESU
  * @param options - the options to initialize.
  */
 void ion_event_initialize_reader_options(ION_READER_OPTIONS *options);
-
-/**
- * Initializes the given writer options using arbitrarily high limits.
- * @param options - the options to initialize.
- */
-void ion_event_initialize_writer_options(ION_WRITER_OPTIONS *options);
 
 /**
  * Opens a new in-memory writer. Must be closed using `ion_event_writer_close` with in_memory=true.

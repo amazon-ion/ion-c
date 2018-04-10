@@ -35,7 +35,7 @@ public:
     ION_STREAM *ion_stream;
 
     IonCliReaderContext() {
-        memset(&options, 0, sizeof(ION_READER_OPTIONS));
+        ion_event_initialize_reader_options(&options);
         reader = NULL;
         file_stream = NULL;
         ion_stream = NULL;
@@ -138,7 +138,6 @@ iERR ion_cli_open_reader_basic(IonCliReaderContext *reader_context, IonCliIO *in
 iERR ion_cli_open_reader(IonCliIO *input, ION_CATALOG *catalog,
                          IonCliReaderContext *reader_context, IonEventStream *event_stream, IonEventResult *result) {
     iENTER;
-    ion_event_initialize_reader_options(&reader_context->options);
     reader_context->options.pcatalog = catalog;
     ion_event_register_symbol_table_callback(&reader_context->options, event_stream);
 
@@ -221,7 +220,6 @@ iERR ion_cli_open_writer(IonCliCommonArgs *common_args, ION_CATALOG *catalog, IO
                          IonEventWriterContext *writer_context, IonEventResult *result) {
     iENTER;
     ION_SET_ERROR_CONTEXT(&common_args->output.contents, NULL);
-    ion_event_initialize_writer_options(&writer_context->options);
     writer_context->options.pcatalog = catalog;
     if (imports && !ION_COLLECTION_IS_EMPTY(imports)) {
         IONCWRITE(ion_writer_options_initialize_shared_imports(&writer_context->options));
@@ -470,5 +468,13 @@ cleanup:
     }
     report->addResult(result);
     iRETURN;
+}
+
+void ion_cli_free_command_output(ION_STRING *output) {
+    if (!output) return;
+    if (output->value) {
+        free(output->value);
+    }
+    output->value = NULL;
 }
 
