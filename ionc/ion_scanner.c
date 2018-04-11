@@ -1351,6 +1351,21 @@ just_another_char: // yes this is evil
                 // do nothing, we've just finished an empty struct
             }
             else {
+                if (c == '"') {
+                    IONCHECK(_ion_scanner_skip_plain_string(scanner))
+                }
+                else if (c == '\'') {
+                    IONCHECK(_ion_scanner_read_char(scanner, &c));
+                    if (c == '\'') {
+                        IONCHECK(_ion_scanner_read_char(scanner, &c));
+                        if (c == '\'') {
+                            IONCHECK(_ion_scanner_skip_one_long_string(scanner));
+                        }
+                    }
+                    else {
+                        IONCHECK(_ion_scanner_skip_single_quoted_string(scanner));
+                    }
+                }
                 IONCHECK(_ion_scanner_skip_container(scanner, '}'));
             }
             break;

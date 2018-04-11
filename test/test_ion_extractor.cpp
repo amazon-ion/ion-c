@@ -745,8 +745,43 @@ TEST(IonExtractorSucceedsWhen, PathContainsSpace) {
     ION_EXTRACTOR_TEST_INIT;
     const char *ion_text = "{\"foo bar\": 3}";
     ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(\"foo bar\")", &assertMatchesInt3);
+
+
     ION_EXTRACTOR_TEST_MATCH;
     ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 1);
+}
+
+TEST(IonExtractorSucceedsWhen, SkippingNestedStructs) {
+    // The extractor makes use of skipping, which currently is not well-exercised in other tests. This test was added
+    // to exercise skipping in nested structs, and was added after discovery of a bug involving skipping nested structs
+    // with quoted field names without whitespace between the { and the open-quote.
+    ION_EXTRACTOR_TEST_INIT;
+    const char *ion_text = "{ \"abc\": [ { \"foo\": \"bar\", \"baz\": 1},{\"foo\": \"bar\",\"baz\": 2}, {'''foo''':1, '''bar''':2}, {'':1}, {'foo':1, 'bar': 2}]}";
+
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(Abc Def)", &assertPathNeverMatches);
+
+    ION_EXTRACTOR_TEST_MATCH;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 0);
+}
+
+TEST(IonExtractorSucceedsWhen, SkippingNestedLists) {
+    ION_EXTRACTOR_TEST_INIT;
+    const char *ion_text = "{abc: [[[foo, [bar], {baz:zar}]]]}";
+
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(Abc Def)", &assertPathNeverMatches);
+
+    ION_EXTRACTOR_TEST_MATCH;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 0);
+}
+
+TEST(IonExtractorSucceedsWhen, SkippingNestedSexps) {
+    ION_EXTRACTOR_TEST_INIT;
+    const char *ion_text = "{abc: (((foo, (bar), {baz:zar})))}";
+
+    ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(Abc Def)", &assertPathNeverMatches);
+
+    ION_EXTRACTOR_TEST_MATCH;
+    ION_EXTRACTOR_TEST_ASSERT_MATCHED(0, 0);
 }
 
 /* -----------------------
