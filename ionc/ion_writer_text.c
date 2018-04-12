@@ -450,13 +450,12 @@ iERR _ion_writer_text_write_ion_int(ION_WRITER *pwriter, ION_INT *iint)
     IONCHECK(_ion_writer_text_start_value(pwriter));
 
     decimal_digits = _ion_int_get_char_len_helper(iint);
-    if (iint->_signum < 0) decimal_digits++; // TODO duplicated in previous call? Check
     if (decimal_digits < LOCAL_INT_CHAR_BUFFER_LENGTH) {
         end = &int_image_local_buffer[LOCAL_INT_CHAR_BUFFER_LENGTH];
     }
     else {
-        int_image = ion_xalloc(decimal_digits + 2);
-        end = int_image + decimal_digits + 1;
+        int_image = ion_xalloc(decimal_digits + 1);
+        end = int_image + decimal_digits;
     }
 
     // we'll be writing the digits backwards, so we first null
@@ -660,9 +659,8 @@ iERR _ion_writer_text_write_symbol_from_string(ION_WRITER *pwriter, ION_STRING *
     SIZE written;
 
     if (pwriter->depth == 0 && pwriter->annotation_count == 0 && pstr->value[0] == '$'
-        && pstr->length == ION_SYS_STRLEN_IVM
-        && memcmp(pstr->value, ION_SYS_SYMBOL_IVM, ION_SYS_STRLEN_IVM) == 0) {
-        // The text $ion_1_0 is reserved for the IVM. This is a no-op.
+        && _ion_symbol_table_parse_version_marker(pstr, NULL, NULL)) {
+        // The text $ion_<int>_<int> is reserved for the IVMs. This is a no-op.
         SUCCEED();
     }
     else {

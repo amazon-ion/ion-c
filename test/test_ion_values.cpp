@@ -14,6 +14,8 @@
 
 #include "ion_assert.h"
 #include "ion_helpers.h"
+#include "ion_test_util.h"
+#include "ion_event_equivalence.h"
 
 TEST(IonTimestamp, IgnoresSuperfluousOffset) {
     ION_TIMESTAMP expected1, expected2, actual;
@@ -34,8 +36,8 @@ TEST(IonTimestamp, IgnoresSuperfluousOffset) {
     ASSERT_FALSE(has_local_offset);
     ASSERT_EQ(0, actual.tz_offset);
     ASSERT_EQ(0, local_offset);
-    ASSERT_TRUE(assertIonTimestampEq(&expected1, &actual));
-    ASSERT_TRUE(assertIonTimestampEq(&expected2, &actual)); // Equivalence ignores the superfluous offset as well.
+    ASSERT_TRUE(ion_equals_timestamp(&expected1, &actual));
+    ASSERT_TRUE(ion_equals_timestamp(&expected2, &actual)); // Equivalence ignores the superfluous offset as well.
 }
 
 iERR test_stream_handler(struct _ion_user_stream *pstream) {

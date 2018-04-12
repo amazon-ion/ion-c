@@ -63,8 +63,6 @@ ION_API_EXPORT const char *ion_error_to_str(iERR err);
 char *_ion_itoa_10(int32_t val, char *dst, SIZE len);
 char *_ion_i64toa_10(int64_t val, char *dst, SIZE len);
 
-ION_API_EXPORT const char *ion_writer_output_type_to_str(ION_WRITER_OUTPUT_TYPE t);
-
 // utility for portable strnlen
 ION_API_EXPORT SIZE _ion_strnlen(const char *str, const SIZE maxlen);
 

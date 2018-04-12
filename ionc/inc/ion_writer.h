@@ -215,8 +215,8 @@ ION_API_EXPORT iERR ion_writer_write_field_name_symbol(hWRITER hwriter, ION_SYMB
 ION_API_EXPORT iERR ion_writer_clear_field_name     (hWRITER hwriter);
 ION_API_EXPORT iERR ion_writer_add_annotation       (hWRITER hwriter, iSTRING annotation);
 ION_API_EXPORT iERR ion_writer_add_annotation_symbol(hWRITER hwriter, ION_SYMBOL *annotation);
-ION_API_EXPORT iERR ion_writer_write_annotations    (hWRITER hwriter, iSTRING *p_annotations, SIZE count);
-ION_API_EXPORT iERR ion_writer_write_annotation_symbols(hWRITER hwriter, ION_SYMBOL **annotations, SIZE count);
+ION_API_EXPORT iERR ion_writer_write_annotations    (hWRITER hwriter, iSTRING p_annotations, SIZE count);
+ION_API_EXPORT iERR ion_writer_write_annotation_symbols(hWRITER hwriter, ION_SYMBOL *annotations, SIZE count);
 ION_API_EXPORT iERR ion_writer_clear_annotations    (hWRITER hwriter);
 
 ION_API_EXPORT iERR ion_writer_write_null           (hWRITER hwriter);

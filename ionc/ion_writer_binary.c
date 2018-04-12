@@ -1061,7 +1061,7 @@ iERR _ion_writer_binary_write_string(ION_WRITER *pwriter, ION_STRING *pstr )
 iERR _ion_writer_binary_write_symbol_id(ION_WRITER *pwriter, SID sid)
 {
     iENTER;
-    if (sid == ION_SYS_SID_IVM && pwriter->depth == 0 && pwriter->annotation_count == 0) {
+    if (pwriter->depth == 0 && pwriter->annotation_count == 0 && _ion_symbol_table_sid_is_IVM(sid)) {
         SUCCEED(); // At the top level, writing a symbol value that looks like the IVM is a no-op.
     }
     int  len = ion_binary_len_uint_64(sid);
@@ -1534,9 +1534,9 @@ int ion_writer_binary_serialize_import_struct_length(ION_SYMBOL_TABLE_IMPORT_DES
         len += ion_binary_len_var_uint_64(len);  // string has overflow length
     }
     len += 1 + ION_BINARY_TYPE_DESC_LENGTH; // field id (name)  + type desc
-    len += 1 + ION_BINARY_TYPE_DESC_LENGTH + ion_binary_len_uint_64(import->version); // field id(version) + type desc + int
+    len += 1 + ION_BINARY_TYPE_DESC_LENGTH + ion_binary_len_uint64_signed(import->version); // field id(version) + type desc + int
     if (import->max_id > ION_SYS_SYMBOL_MAX_ID_UNDEFINED) {
-        len += 1 + ION_BINARY_TYPE_DESC_LENGTH + ion_binary_len_uint_64(import->max_id); // field id(max_id) + type desc + int
+        len += 1 + ION_BINARY_TYPE_DESC_LENGTH + ion_binary_len_uint64_signed(import->max_id); // field id(max_id) + type desc + int
     }
 
     return len;

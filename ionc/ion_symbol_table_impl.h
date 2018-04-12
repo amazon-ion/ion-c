@@ -61,6 +61,10 @@ struct _ion_symbol_table_import
 
 // "locals" in ion_symbol_table.c
 iERR _ion_symbol_table_local_find_by_name(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym);
+// Returns TRUE if and only if the given SID matches a known IVM SID.
+BOOL _ion_symbol_table_sid_is_IVM(SID sid);
+// Attempts to parse an IVM. Returns TRUE if the given string is an IVM, and FALSE otherwise.
+BOOL _ion_symbol_table_parse_version_marker(ION_STRING *version_marker, int *major_version, int *minor_version);
 BOOL _ion_symbol_needs_quotes(ION_STRING *p_str, BOOL symbol_identifiers_need_quotes);
 
 // internal (pointer based helpers) functions for symbol tables (in ion_symbol_table.c)

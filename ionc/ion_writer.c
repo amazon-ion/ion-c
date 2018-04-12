@@ -1187,7 +1187,7 @@ iERR _ion_writer_add_annotation_symbol_helper(ION_WRITER *pwriter, ION_SYMBOL *a
     iRETURN;
 }
 
-iERR ion_writer_write_annotations(hWRITER hwriter, iSTRING *p_annotations, int32_t count)
+iERR ion_writer_write_annotations(hWRITER hwriter, iSTRING p_annotations, int32_t count)
 {
     iENTER;
     int32_t ii;
@@ -1203,7 +1203,7 @@ iERR ion_writer_write_annotations(hWRITER hwriter, iSTRING *p_annotations, int32
     // let's just make sure the caller is passing in strings
     // that at least have a chance of being valid annotations
     for (ii = 0; ii<count; ii++) {
-        pstr = p_annotations[ii];
+        pstr = &p_annotations[ii];
         if (!pstr) FAILWITH(IERR_INVALID_ARG);
         if (ION_STRING_IS_NULL(pstr)) FAILWITH(IERR_INVALID_ARG);
         if (pstr->length < 0) FAILWITH(IERR_INVALID_ARG);
@@ -1218,7 +1218,7 @@ iERR ion_writer_write_annotations(hWRITER hwriter, iSTRING *p_annotations, int32
     iRETURN;
 }
 
-iERR _ion_writer_write_annotations_helper(ION_WRITER *pwriter, ION_STRING **p_annotations, int32_t count)
+iERR _ion_writer_write_annotations_helper(ION_WRITER *pwriter, ION_STRING *p_annotations, int32_t count)
 {
     iENTER;
     int32_t ii;
@@ -1234,13 +1234,13 @@ iERR _ion_writer_write_annotations_helper(ION_WRITER *pwriter, ION_STRING **p_an
     // later (when we go to write out the annotations) we could save our temp array
     // and hang onto the users, but i'd rather be safer than faster in this case
     for (ii = 0; ii<count; ii++) {
-        IONCHECK(_ion_writer_add_annotation_helper(pwriter, p_annotations[ii]));
+        IONCHECK(_ion_writer_add_annotation_helper(pwriter, &p_annotations[ii]));
     }
 
     iRETURN;
 }
 
-iERR ion_writer_write_annotation_symbols(hWRITER hwriter, ION_SYMBOL **annotations, SIZE count)
+iERR ion_writer_write_annotation_symbols(hWRITER hwriter, ION_SYMBOL *annotations, SIZE count)
 {
     iENTER;
     ION_WRITER *pwriter;
@@ -1267,7 +1267,7 @@ iERR ion_writer_write_annotation_symbols(hWRITER hwriter, ION_SYMBOL **annotatio
     iRETURN;
 }
 
-iERR _ion_writer_write_annotation_symbols_helper(ION_WRITER *pwriter, ION_SYMBOL **annotations, SIZE count)
+iERR _ion_writer_write_annotation_symbols_helper(ION_WRITER *pwriter, ION_SYMBOL *annotations, SIZE count)
 {
     iENTER;
     int32_t ii;
@@ -1277,8 +1277,7 @@ iERR _ion_writer_write_annotation_symbols_helper(ION_WRITER *pwriter, ION_SYMBOL
     ASSERT(annotations);
 
     for (ii = 0; ii < count; ii++) {
-        if (annotations[ii] == NULL) FAILWITH(IERR_INVALID_ARG);
-        IONCHECK(_ion_writer_add_annotation_symbol_helper(pwriter, annotations[ii]));
+        IONCHECK(_ion_writer_add_annotation_symbol_helper(pwriter, &annotations[ii]));
     }
 
     iRETURN;

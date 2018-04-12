@@ -337,9 +337,6 @@ iERR _ion_reader_text_read_string_bytes         (ION_READER *preader, BOOL accep
 iERR _ion_reader_text_get_lob_size              (ION_READER *preader, SIZE *p_length);
 iERR _ion_reader_text_read_lob_bytes            (ION_READER *preader, BOOL accept_partial, BYTE *p_buf, SIZE buf_max, SIZE *p_length) ;
 
-enum version_marker_result { SUCCESS = 0, ERROR = 1 };
-enum version_marker_result _ion_reader_text_parse_version_marker(ION_STRING* version_marker, int* major_version, int* minor_version);
-
 #ifdef __cplusplus
 }
 #endif

@@ -123,8 +123,12 @@ iERR _ion_decimal_from_string_helper(const char *str, decContext *context, hOWNE
     // NOTE: decFloatFromString and decNumberFromString have been modified to accept both 'e' and 'd'. If the decNumber
     // implementation is updated or swapped out, arrangements need to be made here (or there) to ensure this function
     // can parse exponents denoted by either 'e' or 'd'.
-    ION_DECIMAL_SAVE_STATUS(saved_status, context, DEC_Inexact);
+    ION_DECIMAL_SAVE_STATUS(saved_status, context, DEC_Inexact | DEC_Conversion_syntax);
     decQuadFromString(p_quad, str, context);
+    if (decContextTestStatus(context, DEC_Conversion_syntax)) {
+        decContextRestoreStatus(context, saved_status, DEC_Conversion_syntax);
+        FAILWITH(IERR_INVALID_SYNTAX);
+    }
     if (decContextTestStatus(context, DEC_Inexact)) {
         if (p_num) {
             for (cp = str; *cp; cp++) {
@@ -141,15 +145,17 @@ iERR _ion_decimal_from_string_helper(const char *str, decContext *context, hOWNE
             if (decContextTestStatus(context, DEC_Inexact)) {
                 // The value is too large to fit in any decimal representation. Rather than silently losing precision,
                 // fail.
+                decContextRestoreStatus(context, saved_status, DEC_Inexact);
                 FAILWITH(IERR_NUMERIC_OVERFLOW);
             }
         }
         else {
             // The value is too large to fit in a decQuad. Rather than silently losing precision, fail.
+            decContextRestoreStatus(context, saved_status, DEC_Inexact);
             FAILWITH(IERR_NUMERIC_OVERFLOW);
         }
+        decContextRestoreStatus(context, saved_status, DEC_Inexact);
     }
-    decContextRestoreStatus(context, saved_status, DEC_Inexact);
 
     iRETURN;
 }

@@ -250,20 +250,6 @@ const char *ion_type_to_str(ION_TYPE t)
     return name;
 }
 
-
-const char *ion_writer_output_type_to_str(ION_WRITER_OUTPUT_TYPE t)
-{
-    switch (t) {
-    case iWOT_UNKNOWN:     return "iWOT_UNKNOWN";     // 0
-    case iWOT_UTF8:        return "iWOT_UTF8";        // 1
-    case iWOT_BINARY:      return "iWOT_BINARY";      // 2
-    case iWOT_PRETTY_UTF8: return "iWOT_PRETTY_UTF8"; // 3
-    default:
-        return _ion_hack_bad_value_to_str((intptr_t)t, "Bad ION_WRITER_OUTPUT_TYPE");
-    }
-}
-
-
 #define HACK_BUFFER_COUNT 10 /* one really isn't enough */
 static int  hack_buffer_next = 0;
 static char hack_buffer_return_message[HACK_BUFFER_COUNT][MAX_MESSAGE_LENGTH + 1];

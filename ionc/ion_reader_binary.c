@@ -974,6 +974,9 @@ iERR _ion_reader_binary_read_int64(ION_READER *preader, int64_t *p_value)
 
     is_negative = (tid == TID_NEG_INT)? TRUE: FALSE;
     IONCHECK(cast_to_int64(unsignedInt64, is_negative, p_value));
+    if (is_negative && *p_value == 0) {
+        FAILWITH(IERR_INVALID_BINARY);
+    }
     binary->_state = S_BEFORE_TID; // now we (should be) just in front of the next value
 
     iRETURN;
@@ -1049,6 +1052,9 @@ iERR _ion_binary_read_mixed_int_helper(ION_READER *preader)
         preader->_int_helper._is_ion_int = FALSE;
         IONCHECK(ion_binary_read_uint_64(preader->istream, len, &unsignedInt64));
         IONCHECK(cast_to_int64(unsignedInt64, is_negative, &(preader->_int_helper._as_int64)));
+        if (is_negative && preader->_int_helper._as_int64 == 0) {
+            FAILWITH(IERR_INVALID_BINARY);
+        }
     }
     else {
         preader->_int_helper._is_ion_int = TRUE;

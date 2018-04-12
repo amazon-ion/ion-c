@@ -45,6 +45,8 @@ typedef enum _ION_SYMBOL_TABLE_TYPE {
 } ION_SYMBOL_TABLE_TYPE;
 
 #define ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol) ION_STRING_IS_NULL(&(symbol)->import_location.name)
+#define ION_SYMBOL_IS_NULL(symbol) (symbol == NULL || (ION_STRING_IS_NULL(&(symbol)->value) && ION_SYMBOL_IMPORT_LOCATION_IS_NULL(symbol) && (symbol)->sid == UNKNOWN_SID))
+#define ION_SYMBOL_INIT(symbol) ION_STRING_INIT(&(symbol)->value); ION_STRING_INIT(&(symbol)->import_location.name); (symbol)->sid = UNKNOWN_SID
 
 #define UNKNOWN_SID -1 /* symbol id's presume not only is this unknown, but sid's must be positive */
 

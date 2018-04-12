@@ -16,7 +16,6 @@ endif()
 
 add_executable(all_tests
     gather_vectors.cpp
-    ion_event_stream.cpp
     ion_assert.cpp
     ion_test_util.cpp
     test_vectors.cpp
@@ -26,6 +25,7 @@ add_executable(all_tests
     test_ion_text.cpp
     test_ion_values.cpp
     test_ion_extractor.cpp
+    test_ion_cli.cpp
 )
 
 add_subdirectory(googletest)
@@ -33,7 +33,10 @@ add_subdirectory(googletest)
 include_directories(
     .
     googletest/googletest/include/gtest
+    ../tools/cli
+    ../tools/events
+    ../tools/events/inc
 )
 
 # Linking against gtest_main provides a basic main() method, which detects all tests, for free.
-target_link_libraries(all_tests ionc gtest_main)
+target_link_libraries(all_tests ionc ion_events ion_cli gtest_main)

@@ -554,7 +554,7 @@ iERR _ion_reader_text_check_for_system_values_to_skip_or_process(ION_READER *pre
             int major_version;
             int minor_version;
 
-            if (SUCCESS == _ion_reader_text_parse_version_marker(maybe_version_marker, &major_version, &minor_version)) {
+            if (_ion_symbol_table_parse_version_marker(maybe_version_marker, &major_version, &minor_version)) {
                 BOOL is_valid_version = (major_version == 1) && (minor_version == 0);
                 if (!is_valid_version) {
                     char error_message[ION_ERROR_MESSAGE_MAX_LENGTH];
@@ -576,76 +576,6 @@ iERR _ion_reader_text_check_for_system_values_to_skip_or_process(ION_READER *pre
 
     *p_is_system_value = is_system_value;
     iRETURN;
-}
-
-enum version_marker_state { START, MAJOR_VERSION, UNDERSCORE, MINOR_VERSION };
-
-static inline int add_digit(int i, char digit) {
-    return 10 * i + (digit - '0');
-}
-
-// Attempts to parse an IVM, returns TRUE if there was an error parsing or FALSE on success
-enum version_marker_result _ion_reader_text_parse_version_marker(ION_STRING* version_marker, int* major_version, int* minor_version)
-{
-    char* prefix = "$ion_";
-    size_t prefix_length = strlen(prefix);
-    if (version_marker->length <= prefix_length) {
-        return ERROR;
-    }
-    if (0 != strncmp(prefix, version_marker->value, prefix_length)) {
-        return ERROR;
-    }
-
-    enum version_marker_state state = START;
-    char c = '\0';
-    int major_version_so_far = 0;
-    int minor_version_so_far = 0;
-
-    for (int i = prefix_length; i < version_marker->length; i++) {
-        c = version_marker->value[i];
-        switch (state) {
-            case START:
-                if (isdigit(c)) {
-                    major_version_so_far = add_digit(major_version_so_far, c);
-                    state = MAJOR_VERSION;
-                } else {
-                    return ERROR;
-                }
-                break;
-            case MAJOR_VERSION:
-                if (c == '_') {
-                    state = UNDERSCORE;
-                } else if (isdigit(c)) {
-                    major_version_so_far = add_digit(major_version_so_far, c);
-                } else {
-                    return ERROR;
-                }
-                break;
-            case UNDERSCORE:
-                if (isdigit(c)) {
-                    minor_version_so_far = add_digit(minor_version_so_far, c);
-                    state = MINOR_VERSION;
-                } else {
-                    return ERROR;
-                }
-                break;
-            case MINOR_VERSION:
-                if (isdigit(c)) {
-                    minor_version_so_far = add_digit(minor_version_so_far, c);
-                } else {
-                    return ERROR;
-                }
-                break;
-        }
-    }
-
-    if (state != MINOR_VERSION) {
-        return ERROR;
-    }
-
-    *major_version = major_version_so_far;
-    *minor_version = minor_version_so_far;
-    return SUCCESS;
 }
 
 // checks to see what follows our just finished value. this is done as 

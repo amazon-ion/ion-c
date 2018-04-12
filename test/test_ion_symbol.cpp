@@ -15,6 +15,8 @@
 #include "ion_assert.h"
 #include "ion_helpers.h"
 #include "ion_test_util.h"
+#include "ion_event_util.h"
+#include "ion_event_equivalence.h"
 
 // Creates a BinaryAndTextTest fixture instantiation for IonSymbolTable tests. This allows tests to be declared with
 // the BinaryAndTextTest fixture and receive the is_binary flag with both the TRUE and FALSE values.
@@ -30,7 +32,7 @@ INSTANTIATE_TEST_CASE_BOOLEAN_PARAM(IonSymbolTable);
     BYTE *result; \
     ION_READER_OPTIONS reader_options; \
     retrieve_data; \
-    ion_test_initialize_reader_options(&reader_options); \
+    ion_event_initialize_reader_options(&reader_options); \
     reader_options.pcatalog = catalog; \
     ION_ASSERT_OK(ion_reader_open_buffer(&reader, result, bytes_flushed, &reader_options)); \
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream)); \
@@ -50,7 +52,7 @@ INSTANTIATE_TEST_CASE_BOOLEAN_PARAM(IonSymbolTable);
 
 #define _ION_SYMBOL_TEST_REWRITE_AND_ASSERT(retrieve_data, cleanup_data, as_binary, expected, expected_len) \
     ION_WRITER_OPTIONS writer_options; \
-    ion_test_initialize_writer_options(&writer_options); \
+    ion_event_initialize_writer_options(&writer_options); \
     ION_CATALOG *catalog = NULL; \
     _ION_SYMBOL_TEST_REWRITE_AND_ASSERT_WITH_CATALOG(retrieve_data, cleanup_data, as_binary, expected, expected_len);
 
@@ -106,7 +108,7 @@ INSTANTIATE_TEST_CASE_BOOLEAN_PARAM(IonSymbolTable);
 #define ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, imports, import_count) \
     ION_SYMBOL_TEST_DECLARE_WRITER; \
     ION_WRITER_OPTIONS writer_options; \
-    ion_test_initialize_writer_options(&writer_options); \
+    ion_event_initialize_writer_options(&writer_options); \
     ION_ASSERT_OK(ion_writer_options_initialize_shared_imports(&writer_options)); \
     ION_ASSERT_OK(ion_writer_options_add_shared_imports_symbol_tables(&writer_options, imports, import_count)); \
     writer_options.output_as_binary = is_binary; \
@@ -239,9 +241,9 @@ TEST(IonSymbolTable, SharedSymbolTableCanBelongToMultipleCatalogs) {
     ION_ASSERT_OK(ion_catalog_add_symbol_table(catalog_1, foo_table_shared));
     ION_ASSERT_OK(ion_catalog_add_symbol_table(catalog_2, foo_table_shared));
 
-    ion_test_initialize_reader_options(&reader_options_1);
+    ion_event_initialize_reader_options(&reader_options_1);
     reader_options_1.pcatalog = catalog_1;
-    ion_test_initialize_reader_options(&reader_options_2);
+    ion_event_initialize_reader_options(&reader_options_2);
     reader_options_2.pcatalog = catalog_2;
 
     ION_ASSERT_OK(ion_reader_open_buffer(&reader_1, (BYTE *)ion_text_1, (SIZE)strlen(ion_text_1), &reader_options_1));
@@ -259,11 +261,11 @@ TEST(IonSymbolTable, SharedSymbolTableCanBelongToMultipleCatalogs) {
     ION_ASSERT_OK(ion_reader_read_string(reader_1, &sid_11));
     ION_ASSERT_OK(ion_reader_read_string(reader_2, &sid_21));
 
-    ASSERT_TRUE(assertIonStringEq(&sid_10, &sid_20));
-    ASSERT_TRUE(assertIonStringEq(&sid_10, &abc));
+    ASSERT_TRUE(ion_equals_string(&sid_10, &sid_20));
+    ASSERT_TRUE(ion_equals_string(&sid_10, &abc));
 
-    ASSERT_TRUE(assertIonStringEq(&sid_11, &sid_21));
-    ASSERT_TRUE(assertIonStringEq(&sid_11, &def));
+    ASSERT_TRUE(ion_equals_string(&sid_11, &sid_21));
+    ASSERT_TRUE(ion_equals_string(&sid_11, &def));
 
     ION_ASSERT_OK(ion_reader_close(reader_1));
     ION_ASSERT_OK(ion_reader_close(reader_2));
@@ -308,7 +310,7 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsIsRecognize
     ION_SYMBOL_TEST_POPULATE_CATALOG; // Declares 'catalog' and initializes it with 'import1' and 'import2' with 3 symbols.
 
     ION_WRITER_OPTIONS writer_options;
-    ion_test_initialize_writer_options(&writer_options);
+    ion_event_initialize_writer_options(&writer_options);
     writer_options.pcatalog = catalog; // This contains 'import1' and 'import2'.
     writer_options.output_as_binary = is_binary;
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
@@ -352,7 +354,7 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsAndOpenCont
     ION_ASSERT_OK(ion_string_from_cstr("foo", &foo_name));
 
     ION_WRITER_OPTIONS writer_options;
-    ion_test_initialize_writer_options(&writer_options);
+    ion_event_initialize_writer_options(&writer_options);
     writer_options.pcatalog = catalog; // This contains 'import1' and 'import2'.
     writer_options.output_as_binary = is_binary;
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
@@ -415,7 +417,7 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsAndOpenCont
     ION_SYMBOL symbol;
 
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
-    ion_test_initialize_reader_options(&reader_options);
+    ion_event_initialize_reader_options(&reader_options);
     reader_options.pcatalog = catalog;
     ION_ASSERT_OK(ion_reader_open_buffer(&reader, result, bytes_flushed, &reader_options));
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
@@ -767,7 +769,6 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromImport) {
 
     ION_STRING foo;
     ION_SYMBOL sym1, sym2, sym3;
-    ION_SYMBOL *p_sym2 = &sym2;
     ION_ASSERT_OK(ion_string_from_cstr("foo", &foo));
     memset(&sym1, 0, sizeof(ION_SYMBOL));
     memset(&sym2, 0, sizeof(ION_SYMBOL));
@@ -788,7 +789,7 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromImport) {
 
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &sym1));
-    ION_ASSERT_OK(ion_writer_write_annotation_symbols(writer, &p_sym2, 1));
+    ION_ASSERT_OK(ion_writer_write_annotation_symbols(writer, &sym2, 1));
     ION_ASSERT_OK(ion_writer_write_ion_symbol(writer, &sym3));
 
     ION_ASSERT_OK(ion_writer_finish_container(writer));
@@ -811,14 +812,13 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromCatalog) {
     ION_SYMBOL_TEST_DECLARE_WRITER;
     BYTE *result;
     ION_WRITER_OPTIONS writer_options;
-    ion_test_initialize_writer_options(&writer_options);
+    ion_event_initialize_writer_options(&writer_options);
     writer_options.output_as_binary = is_binary;
     writer_options.pcatalog = catalog;
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
     ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
 
     ION_SYMBOL sym1_loc, sym2_loc, sym3_loc;
-    ION_SYMBOL *p_sym2_loc = &sym2_loc;
     memset(&sym1_loc, 0, sizeof(ION_SYMBOL));
     memset(&sym2_loc, 0, sizeof(ION_SYMBOL));
     memset(&sym3_loc, 0, sizeof(ION_SYMBOL));
@@ -831,7 +831,7 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromCatalog) {
 
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ION_ASSERT_OK(ion_writer_write_field_name_symbol(writer, &sym1_loc));
-    ION_ASSERT_OK(ion_writer_write_annotation_symbols(writer, &p_sym2_loc, 1));
+    ION_ASSERT_OK(ion_writer_write_annotation_symbols(writer, &sym2_loc, 1));
     ION_ASSERT_OK(ion_writer_write_ion_symbol(writer, &sym3_loc));
 
     ION_ASSERT_OK(ion_writer_finish_container(writer));
@@ -849,15 +849,15 @@ TEST_P(BinaryAndTextTest, WritingInvalidIonSymbolFails) {
     // Tests that an invalid ION_SYMBOL (undefined text, import location, and local SID) raises an error.
     ION_SYMBOL_TEST_DECLARE_WRITER;
     ION_WRITER_OPTIONS writer_options;
-    ION_SYMBOL symbol, *p_symbol = &symbol;
+    ION_SYMBOL symbol;
     memset(&symbol, 0, sizeof(ION_SYMBOL));
     symbol.sid = UNKNOWN_SID;
 
-    ion_test_initialize_writer_options(&writer_options);
+    ion_event_initialize_writer_options(&writer_options);
     writer_options.output_as_binary = is_binary;
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream));
     ION_ASSERT_OK(ion_writer_open(&writer, stream, &writer_options));
-    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_annotation_symbols(writer, &p_symbol, 1));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_annotation_symbols(writer, &symbol, 1));
     ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_ion_symbol(writer, &symbol));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_field_name_symbol(writer, &symbol));
@@ -876,7 +876,6 @@ TEST_P(BinaryAndTextTest, WritingIonSymbolWithUnknownTextNotFoundInImportsOrCata
 
     ION_STRING foo;
     ION_SYMBOL symbol;
-    ION_SYMBOL *p_symbol = &symbol;
     ION_ASSERT_OK(ion_string_from_cstr("foo", &foo));
     memset(&symbol, 0, sizeof(ION_SYMBOL));
     ION_STRING_ASSIGN(&symbol.import_location.name, &foo);
@@ -890,7 +889,7 @@ TEST_P(BinaryAndTextTest, WritingIonSymbolWithUnknownTextNotFoundInImportsOrCata
     ION_ASSERT_OK(ion_catalog_add_symbol_table(catalog, import)); // In the catalog, not in the writer's imports.
 
     ION_SYMBOL_TEST_OPEN_WRITER_WITH_IMPORTS(is_binary, writer_imports, 2);
-    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_annotation_symbols(writer, &p_symbol, 1));
+    ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_annotation_symbols(writer, &symbol, 1));
     ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_ion_symbol(writer, &symbol));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_field_name_symbol(writer, &symbol));
@@ -937,17 +936,14 @@ TEST_P(BinaryAndTextTest, WritingOutOfRangeSIDFails) {
     // on read.
     ION_SYMBOL_TEST_DECLARE_WRITER;
     ION_STRING sym1;
-    ION_SYMBOL *annotation_symbols[2];
-    ION_SYMBOL annotation_1, annotation_2;
+    ION_SYMBOL annotation_symbols[2];
 
     ION_ASSERT_OK(ion_string_from_cstr("sym1", &sym1));
-    memset(&annotation_1, 0, sizeof(ION_SYMBOL));
-    memset(&annotation_2, 0, sizeof(ION_SYMBOL));
-    annotation_1.sid = 4; // i.e. name
-    annotation_2.sid = 10; // out of range.
+    memset(&annotation_symbols[0], 0, sizeof(ION_SYMBOL));
+    memset(&annotation_symbols[1], 0, sizeof(ION_SYMBOL));
+    annotation_symbols[0].sid = 4; // i.e. name
+    annotation_symbols[1].sid = 10; // out of range.
 
-    annotation_symbols[0] = &annotation_1;
-    annotation_symbols[1] = &annotation_2;
 
     ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, is_binary));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
@@ -976,7 +972,7 @@ TEST(IonSymbolTable, SettingSharedSymbolTableMaxIdLargerThanLengthOfSymbolsExten
     hREADER reader;
     ION_READER_OPTIONS reader_options;
     ION_TYPE type;
-    ion_test_initialize_reader_options(&reader_options);
+    ion_event_initialize_reader_options(&reader_options);
     reader_options.pcatalog = catalog;
 
     ION_STRING sid_10, sid_11, sid_12, sid_13, sid_14;
@@ -1107,7 +1103,7 @@ TEST(IonSymbolTable, ReadThenWriteSymbolsWithUnknownText) {
     ION_ASSERT_OK(ion_reader_get_symbol_table(reader, &reader_symtab));
     ION_ASSERT_OK(ion_symbol_table_get_imports(reader_symtab, &imports));
 
-    ion_test_initialize_writer_options(&writer_options);
+    ion_event_initialize_writer_options(&writer_options);
     ION_ASSERT_OK(ion_writer_options_initialize_shared_imports(&writer_options));
     ION_ASSERT_OK(ion_writer_options_add_shared_imports(&writer_options, imports));
     writer_options.output_as_binary = FALSE;
@@ -1164,7 +1160,7 @@ TEST_P(BinaryAndTextTest, ReaderCorrectlySetsImportLocation) {
     ION_SYMBOL annotation[1], *field_name, value;
     SIZE annotation_count;
     ION_READER_OPTIONS reader_options;
-    ion_test_initialize_reader_options(&reader_options);
+    ion_event_initialize_reader_options(&reader_options);
     reader_options.pcatalog = catalog;
     ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, ion_data_len, &reader_options));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
@@ -1173,21 +1169,21 @@ TEST_P(BinaryAndTextTest, ReaderCorrectlySetsImportLocation) {
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ION_ASSERT_OK(ion_reader_get_annotation_symbols(reader, annotation, 1, &annotation_count));
     ASSERT_EQ(1, annotation_count);
-    ASSERT_TRUE(assertIonStringEq(&import2_name, &annotation[0].import_location.name));
+    ASSERT_TRUE(ion_equals_string(&import2_name, &annotation[0].import_location.name));
     ASSERT_EQ(1, annotation[0].import_location.location);
-    ASSERT_TRUE(assertIonStringEq(&sym2, &annotation[0].value));
+    ASSERT_TRUE(ion_equals_string(&sym2, &annotation[0].value));
     ASSERT_EQ(11, annotation[0].sid);
 
     ION_ASSERT_OK(ion_reader_get_field_name_symbol(reader, &field_name));
-    ASSERT_TRUE(assertIonStringEq(&import1_name, &field_name->import_location.name));
+    ASSERT_TRUE(ion_equals_string(&import1_name, &field_name->import_location.name));
     ASSERT_EQ(1, field_name->import_location.location);
-    ASSERT_TRUE(assertIonStringEq(&sym1, &field_name->value));
+    ASSERT_TRUE(ion_equals_string(&sym1, &field_name->value));
     ASSERT_EQ(10, field_name->sid);
 
     ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &value));
-    ASSERT_TRUE(assertIonStringEq(&import2_name, &value.import_location.name));
+    ASSERT_TRUE(ion_equals_string(&import2_name, &value.import_location.name));
     ASSERT_EQ(2, value.import_location.location);
-    ASSERT_TRUE(assertIonStringEq(&sym3, &value.value));
+    ASSERT_TRUE(ion_equals_string(&sym3, &value.value));
     ASSERT_EQ(12, value.sid);
 
     ION_ASSERT_OK(ion_reader_step_out(reader));
@@ -1225,18 +1221,18 @@ TEST_P(BinaryAndTextTest, LocalSymbolHasNoImportLocation) {
     ASSERT_EQ(tid_SYMBOL, type);
 
     ION_ASSERT_OK(ion_reader_get_field_name_symbol(reader, &field_name));
-    ASSERT_TRUE(assertIonStringEq(&zoo, &field_name->value));
+    ASSERT_TRUE(ion_equals_string(&zoo, &field_name->value));
     ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(field_name));
     ASSERT_EQ(is_binary ? 10 : UNKNOWN_SID, field_name->sid);
 
     ION_ASSERT_OK(ion_reader_get_annotation_symbols(reader, annotation, 1, &annotation_count));
     ASSERT_EQ(1, annotation_count);
-    ASSERT_TRUE(assertIonStringEq(&zar, &annotation[0].value));
+    ASSERT_TRUE(ion_equals_string(&zar, &annotation[0].value));
     ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(&annotation[0]));
     ASSERT_EQ(is_binary ? 11 : UNKNOWN_SID, annotation[0].sid);
 
     ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &value));
-    ASSERT_TRUE(assertIonStringEq(&zaz, &value.value));
+    ASSERT_TRUE(ion_equals_string(&zaz, &value.value));
     ASSERT_TRUE(ION_SYMBOL_IMPORT_LOCATION_IS_NULL(&value));
     ASSERT_EQ(is_binary ? 12 : UNKNOWN_SID, value.sid);
 
@@ -1353,7 +1349,7 @@ TEST(IonSymbolTable, ReaderNotifiesWhenSymbolTableContextChanges) {
     hREADER reader;
     ION_TYPE type;
     ION_READER_OPTIONS options;
-    ion_test_initialize_reader_options(&options);
+    ion_event_initialize_reader_options(&options);
     int changes = 0;
     options.context_change_notifier.context = &changes;
     options.context_change_notifier.notify = &_ion_symbol_test_notify_context_change;
@@ -1373,7 +1369,7 @@ TEST(IonSymbolTable, ReaderDoesNotNotifyWhenSymbolTableContextDoesNotChange) {
     hREADER reader;
     ION_TYPE type;
     ION_READER_OPTIONS options;
-    ion_test_initialize_reader_options(&options);
+    ion_event_initialize_reader_options(&options);
     int changes = 0;
     options.context_change_notifier.context = &changes;
     options.context_change_notifier.notify = &_ion_symbol_test_notify_context_change;
@@ -1637,8 +1633,8 @@ TEST_P(BinaryAndTextTest, LSTNullSlotsRoundtrippedAsSymbolZero) {
     ION_WRITER_OPTIONS writer_options;
     ION_READER_OPTIONS reader_options;
 
-    ion_test_initialize_reader_options(&reader_options);
-    ion_test_initialize_writer_options(&writer_options);
+    ion_event_initialize_reader_options(&reader_options);
+    ion_event_initialize_writer_options(&writer_options);
 
     ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *)ion_data, strlen(ion_data), &reader_options));
     ION_ASSERT_OK(ion_stream_open_memory_only(&stream));

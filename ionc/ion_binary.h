@@ -58,6 +58,10 @@ extern "C" {
  */
 ION_API_EXPORT int ion_binary_len_uint_64(uint64_t value);
 
+/**
+ * Calculate the length of a binary encoded uint from the absolute value of the given signed value.
+ */
+ION_API_EXPORT int ion_binary_len_uint64_signed(int64_t value);
 
 /** Write the content of the given byte array to stream, from startIndex to endIndex
  *
