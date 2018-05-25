@@ -67,7 +67,7 @@ static std::string *test_concat_filenames(std::string *dst, int num_components, 
     return dst;
 }
 
-inline std::string join_path(std::string prefix, std::string suffix) {
+std::string join_path(std::string prefix, std::string suffix) {
     std::string path;
     test_concat_filenames(&path, 2, prefix.c_str(), suffix.c_str());
     return path;
@@ -80,7 +80,7 @@ inline BOOL directory_exists(std::string path) {
     return (info.st_mode & S_IFDIR);
 }
 
-inline std::string find_ion_tests_path() {
+std::string find_ion_tests_path() {
     // IDEs typically perform in-source builds, in which case this will be executed directly from either the root or the
     // tests directory. Common out-of-source builds, including those performed by build-release.sh script, will be run
     // from build/release/test. This attempts to locate the ion-tests directory from those locations.

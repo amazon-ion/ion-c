@@ -33,6 +33,10 @@ matrix:
 before_install:
   - eval "${MATRIX_EVAL}"
 
-install: ./build-debug.sh
+install:
+  - ./build-debug.sh
+  - ./build-release.sh
 
-script: ./build/debug/test/all_tests
+script:
+  - ./build/debug/test/all_tests
+  - ./build/release/test/all_tests
