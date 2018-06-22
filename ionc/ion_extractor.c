@@ -204,6 +204,8 @@ iERR ion_extractor_path_create_from_ion(ION_EXTRACTOR *extractor, ION_EXTRACTOR_
     ASSERT(callback);
     ASSERT(ion_data_length > 0);
     ASSERT(p_path);
+    ASSERT(extractor->_options.max_path_length <= ION_EXTRACTOR_MAX_PATH_LENGTH);
+    ASSERT(extractor->_options.max_num_paths <= ION_EXTRACTOR_MAX_NUM_PATHS);
 
     field_annotation.value = (BYTE *)ION_EXTRACTOR_FIELD_ANNOTATION;
     field_annotation.length = (int32_t)strlen(ION_EXTRACTOR_FIELD_ANNOTATION);
@@ -220,6 +222,9 @@ iERR ion_extractor_path_create_from_ion(ION_EXTRACTOR *extractor, ION_EXTRACTOR_
     }
     IONCHECK(ion_reader_step_in(reader));
     for (;;) {
+        if (path_length >= extractor->_options.max_path_length) {
+            FAILWITHMSG(IERR_INVALID_ARG, "Exceeded maximum number of path components.");
+        }
         component = &components[path_length];
         IONCHECK(ion_reader_next(reader, &type));
         if (type == tid_EOF) {
