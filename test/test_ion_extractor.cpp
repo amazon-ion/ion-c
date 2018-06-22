@@ -841,6 +841,18 @@ TEST(IonExtractorFailsWhen, PathExceedsMaxLength) {
     ION_ASSERT_OK(ion_extractor_close(extractor));
 }
 
+TEST(IonExtractorFailsWhen, PathFromIonExceedsMaxLength) {
+    hEXTRACTOR extractor;
+    hPATH path;
+    ION_EXTRACTOR_OPTIONS options;
+    options.max_path_length = 1;
+    options.max_num_paths = ION_EXTRACTOR_MAX_NUM_PATHS;
+    const char *ion_text = "(foo bar)"; // Length: 2, max_length: 1.
+    ION_ASSERT_OK(ion_extractor_open(&extractor, &options));
+    ION_ASSERT_FAIL(ion_extractor_path_create_from_ion(extractor, &testCallbackBasic, NULL, (BYTE *)ion_text, (SIZE)strlen(ion_text), &path));
+    ION_ASSERT_OK(ion_extractor_close(extractor));
+}
+
 TEST(IonExtractorFailsWhen, PathIsIncomplete) {
     hEXTRACTOR extractor;
     hPATH path;
