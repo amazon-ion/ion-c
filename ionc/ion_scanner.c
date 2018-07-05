@@ -956,7 +956,8 @@ iERR _ion_scanner_peek_keyword(ION_SCANNER *scanner, char *tail, BOOL *p_is_matc
     // we're looking for an the "nf" following the "i" and the
     // sign we saw at the beginning of our token
 
-    while ((match_c = *cp++) != '\0') {
+    while ((match_c = *cp) != '\0') {
+        cp++;
         IONCHECK(_ion_scanner_read_char(scanner, &c));
         if (c != match_c) {
             cp--; // we didn't match this char, so we don't unread it (we unread c which we just read)
@@ -967,13 +968,12 @@ iERR _ion_scanner_peek_keyword(ION_SCANNER *scanner, char *tail, BOOL *p_is_matc
     // we may have a match (if we have a terminator next)
     // we'll peek ahead and see if we have that terminator
     IONCHECK(_ion_scanner_read_char(scanner, &c));
-    IONCHECK(_ion_scanner_unread_char(scanner, c));
     IONCHECK(_ion_scanner_is_value_terminator(scanner, c, &is_match));
 
 unread_tail:
+    IONCHECK(_ion_scanner_unread_char(scanner, c));
     if (!is_match) {
-        // no luck so we unread 
-        IONCHECK(_ion_scanner_unread_char(scanner, c));
+        // no luck so we unread
         while (cp > tail) {
             cp--;
             c = *cp;

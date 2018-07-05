@@ -575,3 +575,23 @@ TEST(IonTextDecimal, FailsEarlyOnInvalidDecimal) {
     ION_ASSERT_FAIL(ion_reader_read_ion_decimal(reader, &decimal));
     ION_ASSERT_OK(ion_reader_close(reader));
 }
+
+TEST(IonTextStruct, AcceptsFieldNameWithKeywordPrefix) {
+    const char *ion_text = "{falsehood: 123}";
+    hREADER  reader;
+    ION_TYPE type;
+    ION_STRING field_name;
+    int value;
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_STRUCT, type);
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_field_name(reader, &field_name));
+    assertStringsEqual("falsehood", (char *)field_name.value, field_name.length);
+    ION_ASSERT_OK(ion_reader_read_int(reader, &value));
+    ASSERT_EQ(123, value);
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
