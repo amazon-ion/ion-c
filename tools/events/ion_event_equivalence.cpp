@@ -55,35 +55,33 @@ BOOL ion_compare_scalars(ION_EVENT_EQUIVALENCE_PARAMS) {
     ION_PREPARE_COMPARISON;
     void *expected_value = ION_EXPECTED_ARG->value;
     void *actual_value = ION_ACTUAL_ARG->value;
-    int tid = ION_TID_INT(ION_EXPECTED_ARG->ion_type);
     ION_EXPECT_FALSE((expected_value == NULL) ^ (actual_value == NULL), "Only one value was null.");
     if (expected_value == NULL) {
         // Equivalence of ion types has already been tested.
         return TRUE;
     }
-    switch (tid) {
-        case TID_BOOL:
+    switch (ION_TYPE_INT(ION_EXPECTED_ARG->ion_type)) {
+        case tid_BOOL_INT:
             ION_EXPECT_BOOL_EQ((BOOL *)expected_value, (BOOL *)actual_value);
             break;
-        case TID_POS_INT:
-        case TID_NEG_INT:
+        case tid_INT_INT:
             ION_EXPECT_INT_EQ((ION_INT *)expected_value, (ION_INT *)actual_value);
             break;
-        case TID_FLOAT:
+        case tid_FLOAT_INT:
             ION_EXPECT_DOUBLE_EQ((double *)expected_value, (double *)actual_value);
             break;
-        case TID_DECIMAL:
+        case tid_DECIMAL_INT:
             ION_EXPECT_DECIMAL_EQ((ION_DECIMAL *)expected_value, (ION_DECIMAL *)actual_value);
             break;
-        case TID_TIMESTAMP:
+        case tid_TIMESTAMP_INT:
             ION_EXPECT_TIMESTAMP_EQ((ION_TIMESTAMP *)expected_value, (ION_TIMESTAMP *)actual_value);
             break;
-        case TID_SYMBOL:
+        case tid_SYMBOL_INT:
             ION_EXPECT_SYMBOL_EQ((ION_SYMBOL *)expected_value, (ION_SYMBOL *)actual_value);
             break;
-        case TID_STRING:
-        case TID_CLOB:
-        case TID_BLOB: // Clobs and blobs are stored in ION_STRINGs too...
+        case tid_STRING_INT:
+        case tid_BLOB_INT:
+        case tid_CLOB_INT: // Clobs and blobs are stored in ION_STRINGs too...
             ION_EXPECT_STRING_EQ((ION_STRING *)expected_value, (ION_STRING *)actual_value);
             break;
         default:
@@ -188,7 +186,6 @@ BOOL ion_compare_sequences(ION_EVENT_EQUIVALENCE_PARAMS) {
  */
 BOOL ion_compare_events(ION_EVENT_EQUIVALENCE_PARAMS) {
     ION_PREPARE_COMPARISON;
-    int tid = ION_TID_INT(ION_EXPECTED_ARG->ion_type);
     ION_EXPECT_EVENT_TYPE_EQ(ION_EXPECTED_ARG->event_type, ION_ACTUAL_ARG->event_type);
     ION_EXPECT_EQ(ION_EXPECTED_ARG->ion_type, ION_ACTUAL_ARG->ion_type, "Ion types did not match.");
     ION_EXPECT_EQ(ION_EXPECTED_ARG->depth, ION_ACTUAL_ARG->depth, "Depths did not match.");
@@ -203,12 +200,12 @@ BOOL ion_compare_events(ION_EVENT_EQUIVALENCE_PARAMS) {
         case CONTAINER_END:
             break;
         case CONTAINER_START:
-            switch (tid) {
-                case TID_STRUCT:
+            switch (ION_TYPE_INT(ION_EXPECTED_ARG->ion_type)) {
+                case tid_STRUCT_INT:
                     ION_CHECK_ASSERTION(ion_compare_structs(ION_EVENT_EQUIVALENCE_ARGS));
                     break;
-                case TID_SEXP: // intentional fall-through
-                case TID_LIST:
+                case tid_SEXP_INT: // intentional fall-through
+                case tid_LIST_INT:
                     ION_CHECK_ASSERTION(ion_compare_sequences(ION_EVENT_EQUIVALENCE_ARGS));
                     break;
                 default:

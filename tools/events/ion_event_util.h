@@ -18,11 +18,6 @@
 #include "ion.h"
 #include "ion_event_stream.h"
 
-/**
- * Converts an ION_TYPE to a switchable int representing the given type's ID.
- */
-#define ION_TID_INT(type) (int)(ION_TYPE_INT(type) >> 8)
-
 // The following limits are arbitrarily high.
 #define ION_EVENT_CONTAINER_DEPTH_MAX 100
 #define ION_EVENT_ANNOTATION_MAX 100
