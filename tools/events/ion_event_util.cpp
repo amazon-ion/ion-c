@@ -58,21 +58,20 @@ ION_EVENT_TYPE ion_event_type_from_string(ION_STRING *type_str) {
 }
 
 ION_STRING *ion_event_ion_type_to_string(ION_TYPE type) {
-    switch (ION_TID_INT(type)) {
-        case TID_NULL: return &ion_event_ion_type_null;
-        case TID_BOOL: return &ion_event_ion_type_bool;
-        case TID_POS_INT:
-        case TID_NEG_INT: return &ion_event_ion_type_int;
-        case TID_FLOAT: return &ion_event_ion_type_float;
-        case TID_DECIMAL: return &ion_event_ion_type_decimal;
-        case TID_TIMESTAMP: return &ion_event_ion_type_timestamp;
-        case TID_SYMBOL: return &ion_event_ion_type_symbol;
-        case TID_STRING: return &ion_event_ion_type_string;
-        case TID_BLOB: return &ion_event_ion_type_blob;
-        case TID_CLOB: return &ion_event_ion_type_clob;
-        case TID_LIST: return &ion_event_ion_type_list;
-        case TID_SEXP: return &ion_event_ion_type_sexp;
-        case TID_STRUCT: return &ion_event_ion_type_struct;
+    switch (ION_TYPE_INT(type)) {
+        case tid_NULL_INT: return &ion_event_ion_type_null;
+        case tid_BOOL_INT: return &ion_event_ion_type_bool;
+        case tid_INT_INT: return &ion_event_ion_type_int;
+        case tid_FLOAT_INT: return &ion_event_ion_type_float;
+        case tid_DECIMAL_INT: return &ion_event_ion_type_decimal;
+        case tid_TIMESTAMP_INT: return &ion_event_ion_type_timestamp;
+        case tid_SYMBOL_INT: return &ion_event_ion_type_symbol;
+        case tid_STRING_INT: return &ion_event_ion_type_string;
+        case tid_BLOB_INT: return &ion_event_ion_type_blob;
+        case tid_CLOB_INT: return &ion_event_ion_type_clob;
+        case tid_LIST_INT: return &ion_event_ion_type_list;
+        case tid_SEXP_INT: return &ion_event_ion_type_sexp;
+        case tid_STRUCT_INT: return &ion_event_ion_type_struct;
         default: return NULL;
     }
 }

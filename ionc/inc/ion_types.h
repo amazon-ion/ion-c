@@ -70,44 +70,44 @@ typedef struct ion_type    *ION_TYPE;
 /** Current value type not known (has not been checked)
  *
  */
-#define tid_none      ((ION_TYPE)(-0x200))
+#define tid_none      ((ION_TYPE)(tid_none_INT))
 
 /** Stands for both End of File and End of Container, unfortunately.
  */
-#define tid_EOF       ((ION_TYPE)(-0x100))
+#define tid_EOF       ((ION_TYPE)(tid_EOF_INT))
 
 /** Ion Value Type NULL.*/
-#define tid_NULL         ((ION_TYPE) 0x000)
-#define tid_BOOL         ((ION_TYPE) 0x100)
-#define tid_INT          ((ION_TYPE) 0x200)
-#define tid_FLOAT        ((ION_TYPE) 0x400)
-#define tid_DECIMAL      ((ION_TYPE) 0x500)
-#define tid_TIMESTAMP    ((ION_TYPE) 0x600)
-#define tid_SYMBOL       ((ION_TYPE) 0x700)
-#define tid_STRING       ((ION_TYPE) 0x800)
-#define tid_CLOB         ((ION_TYPE) 0x900)
-#define tid_BLOB         ((ION_TYPE) 0xA00)
-#define tid_LIST         ((ION_TYPE) 0xB00)
-#define tid_SEXP         ((ION_TYPE) 0xC00)
-#define tid_STRUCT       ((ION_TYPE) 0xD00)
-#define tid_DATAGRAM     ((ION_TYPE) 0xF00)
+#define tid_NULL         ((ION_TYPE) tid_NULL_INT)
+#define tid_BOOL         ((ION_TYPE) tid_BOOL_INT)
+#define tid_INT          ((ION_TYPE) tid_INT_INT)
+#define tid_FLOAT        ((ION_TYPE) tid_FLOAT_INT)
+#define tid_DECIMAL      ((ION_TYPE) tid_DECIMAL_INT)
+#define tid_TIMESTAMP    ((ION_TYPE) tid_TIMESTAMP_INT)
+#define tid_SYMBOL       ((ION_TYPE) tid_SYMBOL_INT)
+#define tid_STRING       ((ION_TYPE) tid_STRING_INT)
+#define tid_CLOB         ((ION_TYPE) tid_CLOB_INT)
+#define tid_BLOB         ((ION_TYPE) tid_BLOB_INT)
+#define tid_LIST         ((ION_TYPE) tid_LIST_INT)
+#define tid_SEXP         ((ION_TYPE) tid_SEXP_INT)
+#define tid_STRUCT       ((ION_TYPE) tid_STRUCT_INT)
+#define tid_DATAGRAM     ((ION_TYPE) tid_DATAGRAM_INT)
 
-#define tid_none_INT       ION_TYPE_INT(tid_none)
-#define tid_EOF_INT        ION_TYPE_INT(tid_EOF)
-#define tid_NULL_INT       ION_TYPE_INT(tid_NULL)
-#define tid_BOOL_INT       ION_TYPE_INT(tid_BOOL)
-#define tid_INT_INT        ION_TYPE_INT( tid_INT)
-#define tid_FLOAT_INT      ION_TYPE_INT(tid_FLOAT)
-#define tid_DECIMAL_INT    ION_TYPE_INT(tid_DECIMAL)
-#define tid_TIMESTAMP_INT  ION_TYPE_INT(tid_TIMESTAMP)
-#define tid_SYMBOL_INT     ION_TYPE_INT(tid_SYMBOL)
-#define tid_STRING_INT     ION_TYPE_INT(tid_STRING)
-#define tid_CLOB_INT       ION_TYPE_INT(tid_CLOB)
-#define tid_BLOB_INT       ION_TYPE_INT(tid_BLOB)
-#define tid_STRUCT_INT     ION_TYPE_INT(tid_STRUCT)
-#define tid_LIST_INT       ION_TYPE_INT(tid_LIST)
-#define tid_SEXP_INT       ION_TYPE_INT(tid_SEXP)
-#define tid_DATAGRAM_INT   ION_TYPE_INT(tid_DATAGRAM)
+#define tid_none_INT       -0x200
+#define tid_EOF_INT        -0x100
+#define tid_NULL_INT       0x000
+#define tid_BOOL_INT       0x100
+#define tid_INT_INT        0x200
+#define tid_FLOAT_INT      0x400
+#define tid_DECIMAL_INT    0x500
+#define tid_TIMESTAMP_INT  0x600
+#define tid_SYMBOL_INT     0x700
+#define tid_STRING_INT     0x800
+#define tid_CLOB_INT       0x900
+#define tid_BLOB_INT       0xA00
+#define tid_LIST_INT       0xB00
+#define tid_SEXP_INT       0xC00
+#define tid_STRUCT_INT     0xD00
+#define tid_DATAGRAM_INT   0xF00
 
 typedef int32_t             SID;
 typedef int32_t             SIZE;

@@ -60,21 +60,20 @@ void ion_free_event_value(void *value, ION_TYPE ion_type, ION_EVENT_TYPE event_t
         ion_free_owner(value);
     }
     else if (value) {
-        switch (ION_TID_INT(ion_type)) {
-            case TID_POS_INT:
-            case TID_NEG_INT:
+        switch (ION_TYPE_INT(ion_type)) {
+            case tid_INT_INT:
                 ion_int_free((ION_INT *)value);
                 break;
-            case TID_DECIMAL:
+            case tid_DECIMAL_INT:
                 ion_decimal_free((ION_DECIMAL *) value);
                 free(value);
                 break;
-            case TID_SYMBOL:
+            case tid_SYMBOL_INT:
                 ion_free_symbol((ION_SYMBOL *) value);
                 break;
-            case TID_STRING:
-            case TID_CLOB:
-            case TID_BLOB:
+            case tid_STRING_INT:
+            case tid_CLOB_INT:
+            case tid_BLOB_INT:
                 ion_free_string((ION_STRING *) value);
                 break;
             default:
@@ -318,7 +317,6 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
     IonEvent *event = NULL;
     void *value = NULL;
     BOOL is_scalar = TRUE;
-    int ion_type = ION_TID_INT(t);
 
     if (in_struct) {
         IONCREAD(ion_reader_get_field_name_symbol(hreader, &field_name));
@@ -332,7 +330,7 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
 
     IONCREAD(ion_reader_is_null(hreader, &is_null));
     if (is_embedded_stream_set) {
-        if (ion_type != TID_STRING) {
+        if (t != tid_STRING) {
             IONFAILSTATE(IERR_INVALID_ARG, "Elements of embedded streams sets must be strings.");
         }
         IONREPORT(ion_event_stream_read_embedded_stream(hreader, stream, ION_RESULT_ARG));
@@ -343,13 +341,12 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
         stream->appendNew(SCALAR, t, field_name, annotations, annotation_count, depth);
         IONCLEANEXIT;
     }
-    switch (ion_type) {
-        case TID_BOOL:
+    switch (ION_TYPE_INT(t)) {
+        case tid_BOOL_INT:
             value = (BOOL *)malloc(sizeof(BOOL));
             IONCREAD(ion_reader_read_bool(hreader, (BOOL *)value));
             break;
-        case TID_POS_INT:
-        case TID_NEG_INT:
+        case tid_INT_INT:
         {
             ION_INT *ion_int_value = NULL;
             // NOTE: owner must be NULL; otherwise, this may be unexpectedly freed.
@@ -358,20 +355,20 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
             IONCREAD(ion_reader_read_ion_int(hreader, (ION_INT *)value));
             break;
         }
-        case TID_FLOAT:
+        case tid_FLOAT_INT:
             value = (double *)malloc(sizeof(double));
             IONCREAD(ion_reader_read_double(hreader, (double *)value));
             break;
-        case TID_DECIMAL:
+        case tid_DECIMAL_INT:
             value = (ION_DECIMAL *)malloc(sizeof(ION_DECIMAL));
             IONCREAD(ion_reader_read_ion_decimal(hreader, (ION_DECIMAL *)value));
             IONCREAD(ion_decimal_claim((ION_DECIMAL *)value));
             break;
-        case TID_TIMESTAMP:
+        case tid_TIMESTAMP_INT:
             value = (ION_TIMESTAMP *)malloc(sizeof(ION_TIMESTAMP));
             IONCREAD(ion_reader_read_timestamp(hreader, (ION_TIMESTAMP *)value));
             break;
-        case TID_SYMBOL:
+        case tid_SYMBOL_INT:
         {
             ION_SYMBOL tmp, *symbol_value;
             IONCREAD(ion_reader_read_ion_symbol(hreader, &tmp));
@@ -379,15 +376,15 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
             value = symbol_value;
             break;
         }
-        case TID_STRING:
+        case tid_STRING_INT:
         {
             ION_STRING string_value;
             IONCREAD(ion_reader_read_string(hreader, &string_value));
             value = ion_copy_string(&string_value);
             break;
         }
-        case TID_CLOB: // intentional fall-through
-        case TID_BLOB:
+        case tid_CLOB_INT: // intentional fall-through
+        case tid_BLOB_INT:
         {
             SIZE length, bytes_read;
             IONCREAD(ion_reader_get_lob_size(hreader, &length));
@@ -405,13 +402,13 @@ iERR ion_event_stream_read(hREADER hreader, IonEventStream *stream, ION_TYPE t, 
             value = lob_value;
             break;
         }
-        case TID_SEXP: // intentional fall-through
-        case TID_LIST:
+        case tid_SEXP_INT: // intentional fall-through
+        case tid_LIST_INT:
             is_embedded_stream_set = depth == 0 && annotation_count > 0
                                      && ION_STRING_EQUALS(&ion_event_embedded_streams_annotation,
                                                           &annotations[0].value);
             // intentional fall-through
-        case TID_STRUCT:
+        case tid_STRUCT_INT:
             is_scalar = FALSE;
             stream->appendNew(CONTAINER_START, t, field_name, annotations, annotation_count, depth);
             IONCREAD(ion_reader_step_in(hreader));
@@ -716,44 +713,43 @@ iERR ion_event_copy_value(IonEvent *event, void **value, ION_EVENT_COMMON_PARAMS
         *value = NULL;
         IONCLEANEXIT;
     }
-    switch (ION_TID_INT(event->ion_type)) {
-        case TID_NULL:
+    switch (ION_TYPE_INT(event->ion_type)) {
+        case tid_NULL_INT:
             break;
-        case TID_BOOL:
+        case tid_BOOL_INT:
             bool_val = (BOOL *)malloc(sizeof(BOOL));
             *bool_val = *(BOOL *)event->value;
             *value = bool_val;
             break;
-        case TID_POS_INT:
-        case TID_NEG_INT:
+        case tid_INT_INT:
             // NOTE: owner must be NULL; otherwise, this may be unexpectedly freed.
             IONCSTATE(ion_int_alloc(NULL, &int_val), "Failed to allocate a new ION_INT.");
             *value = int_val;
             IONCSTATE(ion_int_copy(int_val, (ION_INT *)event->value, int_val->_owner), "Failed to copy int value.");
             break;
-        case TID_FLOAT:
+        case tid_FLOAT_INT:
             float_val = (double *)malloc(sizeof(double));
             *float_val = *(double *)event->value;
             *value = float_val;
             break;
-        case TID_DECIMAL:
+        case tid_DECIMAL_INT:
             decimal = (ION_DECIMAL *)calloc(1, sizeof(ION_DECIMAL));
             *value = decimal;
             IONCSTATE(ion_decimal_copy(decimal, (ION_DECIMAL *)event->value), "Failed to copy decimal value.");
             break;
-        case TID_TIMESTAMP:
+        case tid_TIMESTAMP_INT:
             timestamp = (ION_TIMESTAMP *)malloc(sizeof(ION_TIMESTAMP));
             // NOTE: this will not be this simple if ION_TIMESTAMP's fraction field is upgraded to use ION_DECIMAL.
             memcpy(timestamp, (ION_TIMESTAMP *)event->value, sizeof(ION_TIMESTAMP));
             *value = timestamp;
             break;
-        case TID_SYMBOL:
+        case tid_SYMBOL_INT:
             ion_copy_symbol(&symbol, (ION_SYMBOL *) event->value);
             *value = symbol;
             break;
-        case TID_STRING:
-        case TID_CLOB:
-        case TID_BLOB:
+        case tid_STRING_INT:
+        case tid_CLOB_INT:
+        case tid_BLOB_INT:
             *value = ion_copy_string((ION_STRING *) event->value);
             break;
         default:
@@ -1130,43 +1126,41 @@ cleanup:
 iERR ion_event_stream_write_scalar(hWRITER writer, IonEvent *event, ION_EVENT_INDEX_PARAMS) {
     iENTER;
     ION_SET_ERROR_CONTEXT(ION_LOCATION_ARG, ION_INDEX_ARG);
-    int tid = ION_TID_INT(event->ion_type);
     if (!event->value) {
         IONCWRITE(ion_writer_write_typed_null(writer, event->ion_type));
         IONCLEANEXIT;
     }
-    switch (tid) {
-        case TID_BOOL:
+    switch (ION_TYPE_INT(event->ion_type)) {
+        case tid_BOOL_INT:
             IONCWRITE(ion_writer_write_bool(writer, *(BOOL *)event->value));
             break;
-        case TID_POS_INT:
-        case TID_NEG_INT:
+        case tid_INT_INT:
             IONCWRITE(ion_writer_write_ion_int(writer, (ION_INT *)event->value));
             break;
-        case TID_FLOAT:
+        case tid_FLOAT_INT:
             IONCWRITE(ion_writer_write_double(writer, *(double *)event->value));
             break;
-        case TID_DECIMAL:
+        case tid_DECIMAL_INT:
             IONCWRITE(ion_writer_write_ion_decimal(writer, (ION_DECIMAL *)event->value));
             break;
-        case TID_TIMESTAMP:
+        case tid_TIMESTAMP_INT:
             IONCWRITE(ion_writer_write_timestamp(writer, (ION_TIMESTAMP *)event->value));
             break;
-        case TID_SYMBOL:
+        case tid_SYMBOL_INT:
             IONCWRITE(ion_writer_write_ion_symbol(writer, (ION_SYMBOL *)event->value));
             break;
-        case TID_STRING:
+        case tid_STRING_INT:
             IONCWRITE(ion_writer_write_string(writer, (ION_STRING *)event->value));
             break;
-        case TID_CLOB:
+        case tid_CLOB_INT:
             IONCWRITE(ion_writer_write_clob(writer, ((ION_STRING *)event->value)->value,
                                             ((ION_STRING *)event->value)->length));
             break;
-        case TID_BLOB:
+        case tid_BLOB_INT:
             IONCWRITE(ion_writer_write_blob(writer, ((ION_STRING *)event->value)->value,
                                             ((ION_STRING *)event->value)->length));
             break;
-        case TID_NULL: // NOTE: null events can only have NULL values; this is handled before the switch.
+        case tid_NULL_INT: // NOTE: null events can only have NULL values; this is handled before the switch.
         default:
             IONFAILSTATE(IERR_INVALID_ARG, "Invalid ion_type");
     }
