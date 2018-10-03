@@ -2,6 +2,7 @@
 A C implementation of the [Ion data notation](http://amzn.github.io/ion-docs).
 
 [![Build Status](https://travis-ci.org/amzn/ion-c.svg?branch=master)](https://travis-ci.org/amzn/ion-c)
+[![Build status](https://ci.appveyor.com/api/projects/status/x6xfom3x3hs3y945/branch/master?svg=true)](https://ci.appveyor.com/project/tgregg/ion-c-3akm7/branch/master)
 
 ## Setup
 This repository contains a [git submodule](https://git-scm.com/docs/git-submodule)
