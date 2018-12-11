@@ -12,6 +12,8 @@
  * language governing permissions and limitations under the License.
  */
 
+/**@file */
+
 #ifndef ION_COLLECTION_H_
 #define ION_COLLECTION_H_
 

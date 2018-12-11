@@ -12,6 +12,8 @@
  * language governing permissions and limitations under the License.
  */
 
+/**@file */
+
 /**
  * A path extractor that operates on top of the ION_READER interface.
  */

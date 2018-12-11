@@ -12,6 +12,9 @@
  * language governing permissions and limitations under the License.
  */
 
+/**@file */
+
+
 #ifdef ERROR_CODE
 
 /*  IERR_EOF is the short form of IERR_EOF */

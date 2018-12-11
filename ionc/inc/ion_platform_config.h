@@ -12,6 +12,8 @@
  * language governing permissions and limitations under the License.
  */
 
+/**@file */
+
 //
 // Ion internal header for platform configurations
 //

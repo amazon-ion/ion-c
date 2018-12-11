@@ -12,11 +12,13 @@
  * language governing permissions and limitations under the License.
  */
 
-//
-// public shared types for Ion implementation.
-// this includes typedef's for various platforms and int sizes
-// and other associated configuration
-//
+/** @file */
+
+/**
+ * Public shared types for Ion implementation.
+ * This includes typedef's for various platforms and int sizes
+ * and other associated configuration
+ */
 
 #ifndef ION_TYPES_H_
 #define ION_TYPES_H_
@@ -63,20 +65,23 @@ extern "C" {
 #define HIGH_BIT_INT64 (((uint64_t)(1)) << 63)
 #endif
 
-/** strong typed enum over pointer type. */
+/** Strong typed enum over pointer type. */
 typedef struct ion_type    *ION_TYPE;
 #define ION_TYPE_INT(x) ((intptr_t) (x))
 
-/** Current value type not known (has not been checked)
- *
+/**
+ * Current value type not known (has not been checked)
  */
 #define tid_none      ((ION_TYPE)(tid_none_INT))
 
-/** Stands for both End of File and End of Container, unfortunately.
+/**
+ * Stands for both End of File and End of Container, unfortunately.
  */
 #define tid_EOF       ((ION_TYPE)(tid_EOF_INT))
 
-/** Ion Value Type NULL.*/
+/**
+ * Ion Value Type NULL.
+ */
 #define tid_NULL         ((ION_TYPE) tid_NULL_INT)
 #define tid_BOOL         ((ION_TYPE) tid_BOOL_INT)
 #define tid_INT          ((ION_TYPE) tid_INT_INT)
@@ -114,12 +119,18 @@ typedef int32_t             SIZE;
 typedef uint8_t             BYTE;
 typedef int                 BOOL;
 #define MAX_SIZE            INT32_MAX
+
 //
 // forward references of pointers for linked lists
 //
 typedef struct _ion_symbol_table        ION_SYMBOL_TABLE;
 typedef struct _ion_catalog             ION_CATALOG;
 
+/**
+ * An Ion String.
+ *
+ * @see _ion_string
+ */
 typedef struct _ion_string              ION_STRING;
 typedef struct _ion_symbol              ION_SYMBOL;
 

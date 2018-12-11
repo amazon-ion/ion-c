@@ -31,6 +31,8 @@
  * they are overwritten by non-in-place operations.
  */
 
+/**@file */
+
 #ifndef ION_DECIMAL_H_
 #define ION_DECIMAL_H_
 

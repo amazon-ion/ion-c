@@ -12,6 +12,8 @@
  * language governing permissions and limitations under the License.
  */
 
+/**@file */
+
 //
 // defines for the readers, common, text and binary
 //

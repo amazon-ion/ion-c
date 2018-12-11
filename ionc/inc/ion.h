@@ -12,14 +12,16 @@
  * language governing permissions and limitations under the License.
  */
 
-//
-// public interfaces and definitions
-//
+/**@file */
+
+/**
+ * Public interfaces and definitions
+ */
 
 #ifndef ION_H_
 #define ION_H_
 
-#include "ion_types.h"  // ion_types.h includes ion_errors.h
+#include "ion_types.h"  /// ion_types.h includes ion_errors.h
 #include "ion_string.h"
 #include "ion_timestamp.h"
 #include "ion_decimal.h"

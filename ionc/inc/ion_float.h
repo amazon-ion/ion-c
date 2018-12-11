@@ -12,6 +12,8 @@
  * language governing permissions and limitations under the License.
  */
 
+/**@file */
+
 #ifndef IONC_ION_FLOAT_H
 #define IONC_ION_FLOAT_H
 
