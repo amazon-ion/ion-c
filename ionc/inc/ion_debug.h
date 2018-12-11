@@ -12,6 +12,8 @@
  * language governing permissions and limitations under the License.
  */
 
+/**@file */
+
 #ifndef ION_DEBUG_H_
 #define ION_DEBUG_H_
 

@@ -12,6 +12,8 @@
  * language governing permissions and limitations under the License.
  */
 
+/**@file */
+
 #ifndef ION_ERRORS_
 #define ION_ERRORS_
 

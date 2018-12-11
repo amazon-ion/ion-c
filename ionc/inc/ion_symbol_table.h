@@ -12,6 +12,8 @@
  * language governing permissions and limitations under the License.
  */
 
+/**@file */
+
 #ifndef ION_SYMBOL_TABLE_H_
 #define ION_SYMBOL_TABLE_H_
 

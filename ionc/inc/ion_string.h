@@ -12,14 +12,18 @@
  * language governing permissions and limitations under the License.
  */
 
-/*
- * ion strings are length prefixed value encoded using UTF8
- * this struct provides an independant lifetime for these
+/**@file */
+
+/**
+ * Ion strings are length prefixed value encoded using UTF8
+ * this struct provides an independent lifetime for these
  * where references into the current buffer or references to
  * external strings are unified as a single representation
  *
  * a length == 0 and value == NULL is a null string
  */
+
+
 
 #ifndef ION_STRING_H_
 #define ION_STRING_H_
@@ -34,14 +38,14 @@ extern "C" {
 
 struct _ion_string
 {
-    /** The number of bytes in the value array. */
-    int32_t length;
 
-    /** UTF-8 encoded text, not null-terminated. */
-    BYTE  *value;
+    int32_t length; /**< The number of bytes in the value array. */
+
+
+    BYTE  *value; /**< UTF-8 encoded text, not null-terminated. */
 };
 
-#define DEFAULT_STRING_LENGTH       8 /* default for minimum alloc, 8 is average from IBM study */
+#define DEFAULT_STRING_LENGTH       8 /**< default for minimum alloc, 8 is average from IBM study */
 // WAS: #define INIT_ION_STRING(x)  memset((x), 0, sizeof(*(x)))
 // WAS: #define ION_STRING_INIT(x)  memset((x), 0, sizeof(*(x)))
 #define ION_STRING_INIT(x)          (x)->length = 0; (x)->value = NULL

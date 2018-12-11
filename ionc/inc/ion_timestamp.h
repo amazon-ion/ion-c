@@ -12,6 +12,8 @@
  * language governing permissions and limitations under the License.
  */
 
+/**@file */
+
 //
 // ion timestamp support routines
 // includes toString and Parse (in Java terms)
