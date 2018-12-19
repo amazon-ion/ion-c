@@ -10,8 +10,9 @@ matrix:
           packages:
             - gcc-4.9
             - g++-4.9 # docopt uses <regex>, which requires 4.9+
+            - doxygen
       env:
-         - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
+         - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9" DOCS="true"
     - os: linux
       addons:
         apt:
@@ -40,3 +41,18 @@ install:
 script:
   - ./build/debug/test/all_tests
   - ./build/release/test/all_tests
+
+after_success: |   
+    if [ "$DOCS" = "true" ] && [ "$TRAVIS_BRANCH" = "master" ]; then
+      doxygen ./Doxyfile
+    fi 
+
+deploy: 
+  provider: pages
+  local-dir: "./docs/html/"
+  skip-cleanup: true
+  github-token: "$GITHUB_TOKEN"
+  keep-history: true # keeps commit history of gh-pages branch
+  on:
+     branch: master
+     condition: $DOCS = true
