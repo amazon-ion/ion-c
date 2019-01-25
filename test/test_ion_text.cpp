@@ -595,3 +595,26 @@ TEST(IonTextStruct, AcceptsFieldNameWithKeywordPrefix) {
     ION_ASSERT_OK(ion_reader_step_out(reader));
     ION_ASSERT_OK(ion_reader_close(reader));
 }
+
+TEST(IonTextStruct, FailsOnFieldNameWithNoValueAtStructEnd) {
+    const char *ion_text = "{a: }";
+    hREADER  reader;
+    ION_TYPE type;
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_STRUCT, type);
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ASSERT_EQ(IERR_INVALID_SYNTAX, ion_reader_next(reader, &type));
+}
+
+TEST(IonTextStruct, FailsOnFieldNameWithNoValueInMiddle) {
+    const char *ion_text = "{a: 123, b:, c:456}";
+    hREADER  reader;
+    ION_TYPE type;
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_STRUCT, type);
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(IERR_INVALID_SYNTAX, ion_reader_next(reader, &type));
+}
