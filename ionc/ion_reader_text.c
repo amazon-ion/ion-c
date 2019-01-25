@@ -255,6 +255,15 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
         text->_state = IPS_ERROR;
         FAILWITH(IERR_INVALID_STATE);
     }
+
+    if (text->_state == IPS_BEFORE_FIELDNAME
+        && ist == IST_CLOSE_SINGLE_BRACE
+        && !ION_SYMBOL_IS_NULL(&text->_field_name)
+        && ION_STRING_IS_NULL(&text->_scanner._value_image)
+    ) {
+        // There is a field name with no associated value.
+        FAILWITH(IERR_INVALID_SYNTAX);
+    }
     
     // we're after the uta's and have recognized the value
     // it's ready for the caller - save off the state we'll
