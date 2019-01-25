@@ -1144,6 +1144,23 @@ is_false:
     iRETURN;
 }
 
+iERR _ion_timestamp_require_fraction_less_than_one(ION_TIMESTAMP *ptime, decContext *context) {
+    iENTER;
+    decQuad one, comparison, predicate;
+    decQuadFromInt32(&one, 1);
+    decQuadCompare(&comparison, &ptime->fraction, &one, context);
+    if (decQuadIsZero(&comparison)) {
+        // This means the fraction is equivalent to 1.
+        FAILWITH(IERR_INVALID_BINARY);
+    }
+    decQuadCompare(&predicate, &comparison, &one, context);
+    if (decQuadIsZero(&predicate)) {
+        // This means the fraction is greater than 1.
+        FAILWITH(IERR_INVALID_BINARY);
+    }
+    iRETURN;
+}
+
 /*
 the binary serialization is:
 
@@ -1305,6 +1322,7 @@ iERR ion_timestamp_binary_read(ION_STREAM *stream, int32_t len, decContext *cont
         if (decQuadIsZero(&ptime->fraction)) goto timestamp_is_finished; // Fraction with zero coefficient and >= zero exponent is ignored.
         FAILWITH(IERR_INVALID_BINARY);
     }
+    IONCHECK(_ion_timestamp_require_fraction_less_than_one(ptime, context));
     SET_FLAG_ON(ptime->precision, ION_TT_BIT_FRAC);
     goto timestamp_is_finished;
 
