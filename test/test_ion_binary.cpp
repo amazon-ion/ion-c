@@ -391,3 +391,23 @@ TEST(IonBinaryInt, ReaderRejectsNegativeZeroMixedIntOneByte) {
 TEST(IonBinaryInt, ReaderRejectsNegativeZeroMixedIntTwoByte) {
     test_ion_binary_write_from_reader_rejects_negative_zero_int((BYTE *)"\xE0\x01\x00\xEA\x31\x00", 6);
 }
+
+void test_ion_binary_reader_requires_timestamp_fraction_less_than_one(BYTE *data, size_t len) {
+    hREADER reader;
+    ION_TYPE type;
+    ION_TIMESTAMP ts;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, len, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_TIMESTAMP, type);
+    ASSERT_EQ(IERR_INVALID_BINARY, ion_reader_read_timestamp(reader, &ts));
+}
+
+TEST(IonBinaryTimestamp, ReaderRequiresTimestampFractionLessThanOne) {
+    // 0001-01-01T00:00:00.<1d0>Z
+    test_ion_binary_reader_requires_timestamp_fraction_less_than_one((BYTE *) "\xE0\x01\x00\xEA\x69\x80\x81\x81\x81\x80\x80\x80\x80\x01", 14);
+    // 0001-01-01T00:00:00.<10d-1>Z
+    test_ion_binary_reader_requires_timestamp_fraction_less_than_one((BYTE *) "\xE0\x01\x00\xEA\x69\x80\x81\x81\x81\x80\x80\x80\xC1\x0A", 14);
+    // 0001-01-01T00:00:00.<11d-1>Z
+    test_ion_binary_reader_requires_timestamp_fraction_less_than_one((BYTE *) "\xE0\x01\x00\xEA\x69\x80\x81\x81\x81\x80\x80\x80\xC1\x0B", 14);
+}
