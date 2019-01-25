@@ -325,7 +325,7 @@ iERR ion_binary_read_int_64_and_sign(ION_STREAM *pstream, int32_t len, uint64_t 
 {
     iENTER;
     uint64_t unsignedValue = 0;
-    uint64_t      b;
+    uint64_t b = 0;
 
     ASSERT(p_value);
     ASSERT(isNegative != NULL);
