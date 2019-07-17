@@ -38,9 +38,9 @@
   #define DECSINGLE_Ehigh (DECSINGLE_Emax + DECSINGLE_Bias - (DECSINGLE_Pmax-1))
 
   /* Required includes                                                */
-  #include "include/decNumber/decContext.h"
-  #include "include/decNumber/decQuad.h"
-  #include "include/decNumber/decDouble.h"
+  #include "decNumber/decContext.h"
+  #include "decNumber/decQuad.h"
+  #include "decNumber/decDouble.h"
 
   /* The decSingle decimal 32-bit type, accessible by all sizes */
   typedef union {
