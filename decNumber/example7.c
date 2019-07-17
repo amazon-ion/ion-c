@@ -9,7 +9,7 @@
 
 // compile: example7.c decContext.c decQuad.c
 
-#include "decQuad.h"               // decQuad library
+#include "decNumber/decQuad.h"               // decQuad library
 #include <stdio.h>                 // for printf
 
 int main(int argc, char *argv[]) {

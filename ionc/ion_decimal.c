@@ -12,10 +12,10 @@
  * language governing permissions and limitations under the License.
  */
 
-#include "ion.h"
+#include <ionc/ion.h>
 #include "ion_helpers.h"
 #include "ion_decimal_impl.h"
-#include "decimal128.h"
+#include <decNumber/decimal128.h>
 
 /* Internal-only API building blocks */
 

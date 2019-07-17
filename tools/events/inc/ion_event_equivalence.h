@@ -16,7 +16,7 @@
 #define IONC_ION_EVENT_EQUIVALENCE_H
 
 #include <cmath>
-#include "ion.h"
+#include <ionc/ion.h>
 #include "ion_event_stream.h"
 
 typedef enum _ion_event_comparison_type {

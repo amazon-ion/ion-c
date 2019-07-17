@@ -30,8 +30,8 @@ extern "C" {
 #endif
 
 #include <stdint.h>
-#include <decQuad.h>
-#include <decNumber.h>
+#include <decNumber/decQuad.h>
+#include <decNumber/decNumber.h>
 
 #ifdef ION_INIT
   #define GLOBAL    ION_API_EXPORT

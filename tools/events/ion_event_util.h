@@ -15,7 +15,7 @@
 #ifndef IONC_ION_EVENT_UTIL_H
 #define IONC_ION_EVENT_UTIL_H
 
-#include "ion.h"
+#include <ionc/ion.h>
 #include "ion_event_stream.h"
 
 // The following limits are arbitrarily high.

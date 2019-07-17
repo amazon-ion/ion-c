@@ -28,15 +28,15 @@ extern "C" {
 #include <ctype.h>
 #include <memory.h>
 
-#include "ion_platform_config.h"
+#include <ionc/ion_platform_config.h>
 
-#include "ion.h"
+#include <ionc/ion.h>
 #include "ion_const.h"
 #include "ion_index.h"
-#include "ion_stream.h"
-#include "ion_int.h"
+#include <ionc/ion_stream.h>
+#include <ionc/ion_int.h>
 #include "ion_binary.h"
-#include "ion_catalog.h"
+#include <ionc/ion_catalog.h>
 
 
 // ion_alloc uses the size of the object type enum

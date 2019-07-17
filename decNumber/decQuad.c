@@ -127,9 +127,9 @@
 #define decFloatVersion            decQuadVersion
 
 /* And now the code itself */
-#include "decContext.h"       // public includes
-#include "decQuad.h"          // ..
-#include "decNumberLocal.h"   // local includes (need DECPMAX)
+#include "decNumber/decContext.h"       // public includes
+#include "decNumber/decQuad.h"          // ..
+#include "decNumber/decNumberLocal.h"   // local includes (need DECPMAX)
 #include "decCommon.c"        // non-arithmetic decFloat routines
 #include "decBasic.c"         // basic formats routines
 

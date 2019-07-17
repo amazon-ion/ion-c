@@ -16,7 +16,7 @@
 #define ION_EXTRACTOR_IMPL_H
 
 #include "ion_internal.h"
-#include "ion_extractor.h"
+#include <ionc/ion_extractor.h>
 
 #ifdef __cplusplus
 extern "C" {

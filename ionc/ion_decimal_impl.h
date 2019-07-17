@@ -15,7 +15,7 @@
 #ifndef IONC_ION_DECIMAL_IMPL_H
 #define IONC_ION_DECIMAL_IMPL_H
 
-#include "ion_types.h"
+#include <ionc/ion_types.h>
 
 #define ION_DECNUMBER_UNITS_SIZE(decimal_digits) \
     (sizeof(decNumberUnit) * ((((decimal_digits) / DECDPUN) + (((decimal_digits) % DECDPUN) ? 1 : 0))))

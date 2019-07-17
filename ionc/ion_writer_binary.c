@@ -64,7 +64,7 @@
 //      while (next patch || next_value_buffer) 
 //  
 
-#include <decNumber.h>
+#include <decNumber/decNumber.h>
 #include "ion_internal.h"
 #include "ion_writer_impl.h"
 

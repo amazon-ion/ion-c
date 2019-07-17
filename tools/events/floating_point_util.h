@@ -39,7 +39,7 @@
 #ifndef IONC_FLOATING_POINT_UTIL_H
 #define IONC_FLOATING_POINT_UTIL_H
 
-#include <ion_platform_config.h>
+#include <ionc/ion_platform_config.h>
 #include <limits>
 
 // This template class serves as a compile-time function from size to

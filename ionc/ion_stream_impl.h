@@ -113,7 +113,7 @@
 #ifndef ION_STREAM_IMPL_H_
 #define ION_STREAM_IMPL_H_
 
-#include "ion_types.h"
+#include <ionc/ion_types.h>
 
 #ifdef __cplusplus
 extern "C" {

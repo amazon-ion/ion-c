@@ -198,7 +198,7 @@ base64char         [a-z,A-Z,0-9,'\','+']
 #ifndef ION_READER_TEXT_H_
 #define ION_READER_TEXT_H_
 
-#include <decNumber.h>
+#include <decNumber/decNumber.h>
 
 #ifdef __cplusplus
 extern "C" {

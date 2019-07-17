@@ -38,7 +38,7 @@
 #define ION_INT_INITTO(x) =(x)
 #define ION_INT_GLOBAL /* static */
 
-#include <decNumber.h>
+#include <decNumber/decNumber.h>
 #include "ion_internal.h"
 
 iERR ion_int_alloc(void *owner, ION_INT **piint)

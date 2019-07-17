@@ -35,10 +35,10 @@
 //       it seems like the alternative would be a better choice
 //
 
-#include "ion_collection.h"
+#include <ionc/ion_collection.h>
 #include "ion_internal.h"
-#include "ion_stream.h"
-#include "ion_types.h"
+#include <ionc/ion_stream.h>
+#include <ionc/ion_types.h>
 
 #ifdef __cplusplus
 extern "C" {

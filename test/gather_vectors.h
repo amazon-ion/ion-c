@@ -21,7 +21,7 @@
 #include <iostream>
 #include <vector>
 
-#include <ion.h>
+#include <ionc/ion.h>
 
 #ifdef ION_PLATFORM_WINDOWS
 #define ION_TEST_PATH_SEPARATOR_CHAR '\\'

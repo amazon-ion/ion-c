@@ -16,7 +16,7 @@
 #define IONC_ION_TEST_UTIL_H
 
 #include <gtest/gtest.h>
-#include "ion.h"
+#include <ionc/ion.h>
 
 #define ION_ASSERT_OK(x) ASSERT_EQ(IERR_OK, x)
 #define ION_ASSERT_FAIL(x) ASSERT_FALSE(IERR_OK == (x))

@@ -16,8 +16,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <ion.h>
-#include <ion_helpers.h>
+#include <ionc/ion.h>
+#include "ion_helpers.h"
 
 #ifdef IZ_INITIALIZE
 #define IZ_GLOBAL 

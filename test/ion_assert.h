@@ -15,7 +15,7 @@
 #ifndef IONC_ION_ASSERT_H
 #define IONC_ION_ASSERT_H
 
-#include "ion.h"
+#include <ionc/ion.h>
 #include <gtest/gtest.h>
 
 /**

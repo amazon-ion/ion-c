@@ -27,9 +27,9 @@
 /* ------------------------------------------------------------------ */
 
 #include <string.h>           // for NULL
-#include "decNumber.h"        // base number library
-#include "decPacked.h"        // packed decimal
-#include "decNumberLocal.h"   // decNumber local types, etc.
+#include "decNumber/decNumber.h"        // base number library
+#include "decNumber/decPacked.h"        // packed decimal
+#include "decNumber/decNumberLocal.h"   // decNumber local types, etc.
 
 /* ------------------------------------------------------------------ */
 /* decPackedFromNumber -- convert decNumber to BCD Packed Decimal     */

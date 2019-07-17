@@ -16,7 +16,7 @@
 // ion library debug facilities
 //
 
-#include "ion_debug.h"
+#include <ionc/ion_debug.h>
 
 BOOL ion_debug_has_tracing()
 {

@@ -168,7 +168,7 @@ const uInt DECCOMBFROM[48]={
 #define DEC_DPD2BIN  1        // DPD -> 0-999
 #define DEC_DPD2BINK 1        // DPD -> 0-999000
 #define DEC_DPD2BINM 1        // DPD -> 0-999000000
-#include "decDPD.h"           // source of the lookup tables
+#include "decNumber/decDPD.h"           // source of the lookup tables
 
 #endif
 

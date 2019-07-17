@@ -28,9 +28,9 @@
 #include <stdio.h>            // [for printf]
 
 #define  DECNUMDIGITS 34      // make decNumbers with space for 34
-#include "decNumber.h"        // base number library
-#include "decNumberLocal.h"   // decNumber local types, etc.
-#include "decimal128.h"       // our primary include
+#include "decNumber/decNumber.h"        // base number library
+#include "decNumber/decNumberLocal.h"   // decNumber local types, etc.
+#include "decNumber/decimal128.h"       // our primary include
 
 /* Utility routines and tables [in decimal64.c] */
 // DPD2BIN and the reverse are renamed to prevent link-time conflict

@@ -22,8 +22,8 @@
 
 #include <string.h>           // for strcmp
 #include <stdio.h>            // for printf if DECCHECK
-#include "decContext.h"       // context and base types
-#include "decNumberLocal.h"   // decNumber local types, etc.
+#include "decNumber/decContext.h"       // context and base types
+#include "decNumber/decNumberLocal.h"   // decNumber local types, etc.
 
 /* compile-time endian tester [assumes sizeof(Int)>1] */
 static  const  Int mfcone=1;                       // constant 1

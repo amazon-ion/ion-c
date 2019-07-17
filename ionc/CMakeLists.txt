@@ -1,4 +1,6 @@
-add_library(ionc
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
+
+set(libsrc
         decQuadHelpers.c
         ion_allocation.c
         ion_binary.c
@@ -23,15 +25,28 @@ add_library(ionc
         ion_writer_text.c
         ion_decimal.c
         ion_float.c
-        ion_extractor.c
-        )
+        ion_extractor.c)
 
-set_property(TARGET ionc
+
+# this is the "object library" target: compiles the sources only once
+add_library(objlib OBJECT ${libsrc})
+
+# shared libraries need PIC
+set_property(TARGET objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
+set_property(TARGET objlib
              PROPERTY C_STANDARD 99)
 
-target_include_directories(ionc PUBLIC
-  .
-  inc/
+add_library(ionc SHARED $<TARGET_OBJECTS:objlib>)
+add_library(ionc_static STATIC $<TARGET_OBJECTS:objlib>)
+
+target_include_directories(objlib
+        PUBLIC
+            $<INSTALL_INTERFACE:include>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../decNumber/include>
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+
 )
 
 if (MSVC)
@@ -41,9 +56,11 @@ else()
     target_link_libraries(ionc decNumber m)
 endif()
 
+
+
 install(TARGETS ionc
         DESTINATION lib)
 
-install(DIRECTORY inc/
+install(DIRECTORY include/ionc
         DESTINATION include/ionc
         FILES_MATCHING PATTERN "*.h")

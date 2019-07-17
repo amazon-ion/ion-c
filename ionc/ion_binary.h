@@ -30,7 +30,7 @@
 #ifndef ION_BINARY_H_INCLUDED
 #define ION_BINARY_H_INCLUDED
 
-#include "ion_platform_config.h"
+#include <ionc/ion_platform_config.h>
 
 #ifdef __cplusplus
 extern "C" {
