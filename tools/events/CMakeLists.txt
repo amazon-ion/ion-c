@@ -6,7 +6,7 @@ add_library(ion_events
 
 target_include_directories(ion_events
         PUBLIC
-            ${CMAKE_CURRENT_SOURCE_DIR}/inc
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc
