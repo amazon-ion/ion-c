@@ -51,16 +51,55 @@ target_include_directories(objlib
 
 if (MSVC)
     target_link_libraries(ionc decNumber)
+    target_link_libraries(ionc_static decNumber_static)
 else()
     # Unix requires linking against lib m explicitly.
     target_link_libraries(ionc decNumber m)
+    target_link_libraries(ionc_static decNumber_static m)
 endif()
 
 
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/IonC)
 
-install(TARGETS ionc
-        DESTINATION lib)
+install(TARGETS
+            ionc
+            ionc_static
+            decNumber
+            decNumber_static
+        EXPORT
+            IonCTargets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+install(EXPORT IonCTargets
+        FILE IonCTargets.cmake
+        NAMESPACE IonC::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/IonC)
 
 install(DIRECTORY include/ionc
-        DESTINATION include/ionc
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         FILES_MATCHING PATTERN "*.h")
+
+####
+## CMake packaging. Allows other CMake projects to detect and use IonC.
+####
+include(CMakePackageConfigHelpers)
+
+
+configure_package_config_file(
+  ${CMAKE_SOURCE_DIR}/cmake/IonCConfig.cmake.in
+  ${CMAKE_BINARY_DIR}/cmake/IonCConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/IonC)
+
+
+write_basic_package_version_file(
+        ${CMAKE_BINARY_DIR}/cmake/IonCConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion)
+
+install(
+        FILES
+        ${CMAKE_BINARY_DIR}/cmake/IonCConfig.cmake
+        ${CMAKE_BINARY_DIR}/cmake/IonCConfigVersion.cmake
+        DESTINATION
+        ${CMAKE_INSTALL_LIBDIR}/cmake/IonC)

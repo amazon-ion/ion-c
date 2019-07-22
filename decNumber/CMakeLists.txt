@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
-add_library(decNumber
+set(declibsrc
         decContext.c
         decimal128.c
         decimal64.c
@@ -10,21 +10,26 @@ add_library(decNumber
         decQuad.c
         )
 
-target_include_directories(decNumber
+# this is the "object library" target: compiles the sources only once
+add_library(decobjlib OBJECT ${declibsrc})
+
+# shared libraries need PIC
+set_property(TARGET decobjlib PROPERTY POSITION_INDEPENDENT_CODE 1)
+
+add_library(decNumber SHARED $<TARGET_OBJECTS:decobjlib>)
+add_library(decNumber_static STATIC $<TARGET_OBJECTS:decobjlib>)
+
+target_include_directories(decobjlib
         PUBLIC
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
-install(TARGETS decNumber
-        DESTINATION lib)
+install(TARGETS
+            decNumber
+            decNumber_static
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-install(FILES include/decNumber/decContext.h
-        include/decNumber/decDouble.h
-        include/decNumber/decimal32.h
-        include/decNumber/decimal64.h
-        include/decNumber/decimal128.h
-        include/decNumber/decNumber.h
-        include/decNumber/decPacked.h
-        include/decNumber/decQuad.h
-        include/decNumber/decSingle.h
-        DESTINATION include/decNumber)
+install(DIRECTORY include/decNumber
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h")

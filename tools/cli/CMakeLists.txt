@@ -22,7 +22,13 @@ target_include_directories(ion
             ../../ionc/include
             docopt)
 
-target_link_libraries(ion ionc ion_events docopt)
+target_link_libraries(ion -static ionc_static ion_events_static docopt_s)
+
+
+install(TARGETS
+        ion
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 
 # A library for testing.
 add_library(ion_cli cli.cpp)
@@ -33,4 +39,5 @@ target_include_directories(ion_cli
         ../../ionc
         ../../ionc/include
         ../events/inc)
+
 target_link_libraries(ion_cli ionc ion_events)

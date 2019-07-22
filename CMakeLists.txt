@@ -17,6 +17,8 @@ else()
     add_compile_options("$<$<CONFIG:DEBUG>:-O0;-g3;-ggdb3;-Wall>")
 endif()
 
+include(GNUInstallDirs)
+
 # NOTE: DECNUMDIGITS must be set across all compilation units to at least DECQUAD_Pmax (34), so that the value is
 # guaranteed to be consistent between ionc and decNumber. This is required for conversions between decQuad and
 # decNumber. This is NOT the limit on decimal precision; ION_DECIMAL can handle arbitrarily large precision.
@@ -29,3 +31,5 @@ add_subdirectory(test)
 add_subdirectory(tools)
 
 export(PACKAGE IonC)
+
+include(CMakeCPack.cmake)
