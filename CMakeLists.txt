@@ -33,3 +33,20 @@ add_subdirectory(tools)
 export(PACKAGE IonC)
 
 include(CMakeCPack.cmake)
+
+####
+##   Create an uninstall target
+####
+
+#  First, create the cmake script that will do the actual uninstall.
+
+configure_file( "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+                "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake" @ONLY )
+
+#  Now simply define an uninstall target that will run the above script.
+
+add_custom_target( uninstall
+                   COMMAND ${CMAKE_COMMAND} -P
+                   "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake" )
+
+

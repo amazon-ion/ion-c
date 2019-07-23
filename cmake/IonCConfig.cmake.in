@@ -1,7 +1,5 @@
 @PACKAGE_INIT@
 
-## not sure about this since it is included with IonC for now.
-# find_package(decNumber REQUIRED)
 
 if(NOT TARGET IonC::ionc)
     include(${CMAKE_CURRENT_LIST_DIR}/IonCTargets.cmake)
