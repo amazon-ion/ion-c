@@ -9,9 +9,10 @@ add_executable(ionizer
 set_property(TARGET ionizer PROPERTY C_STANDARD 99)
 target_include_directories(ionizer
         PRIVATE
-            .
-            ../../ionc
-            ../../ionc/include
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../decNumber/include
 )
 
 if (MSVC)

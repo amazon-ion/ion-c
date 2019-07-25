@@ -6,11 +6,14 @@ add_executable(ionsymbols
   options.c
 )
 set_property(TARGET ionsymbols PROPERTY C_STANDARD 99)
+
 target_include_directories(ionsymbols
         PRIVATE
-            .
-            ../../ionc
-            ../../ionc/include
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../decNumber/include
 )
+
 target_link_libraries(ionsymbols ionc)
 

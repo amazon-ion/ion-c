@@ -15,12 +15,14 @@ add_executable(ion main.cpp cli.cpp)
 
 target_include_directories(ion
         PRIVATE
-            ./
-            ../events
-            ../events/inc
-            ../../ionc
-            ../../ionc/include
-            docopt)
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/docopt
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../events
+        ${CMAKE_CURRENT_SOURCE_DIR}/../events/inc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../decNumber/include
+        )
 
 target_link_libraries(ion -static ionc_static ion_events_static docopt_s)
 
@@ -34,10 +36,13 @@ install(TARGETS
 add_library(ion_cli cli.cpp)
 target_include_directories(ion_cli
         PRIVATE
-        ./
-        ../events
-        ../../ionc
-        ../../ionc/include
-        ../events/inc)
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/docopt
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../events
+        ${CMAKE_CURRENT_SOURCE_DIR}/../events/inc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../decNumber/include
+        )
 
 target_link_libraries(ion_cli ionc ion_events)

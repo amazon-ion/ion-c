@@ -36,7 +36,23 @@ set_property(TARGET objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
 set_property(TARGET objlib
              PROPERTY C_STANDARD 99)
 
+
+
 add_library(ionc SHARED $<TARGET_OBJECTS:objlib>)
+set_target_properties(ionc
+        PROPERTIES
+            VERSION ${PROJECT_VERSION}
+            SOVERSION ${PROJECT_VERSION}
+            CXX_VISIBILITY_PRESET hidden
+            VISIBILITY_INLINES_HIDDEN 1)
+
+
+
+include(GenerateExportHeader)
+# Generate our EXPORT and NO_EXPORT macros in roukavici_exported.h
+generate_export_header(ionc
+        BASE_NAME theo)
+
 add_library(ionc_static STATIC $<TARGET_OBJECTS:objlib>)
 
 target_include_directories(objlib

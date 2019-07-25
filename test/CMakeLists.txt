@@ -32,13 +32,14 @@ add_subdirectory(googletest)
 
 target_include_directories(all_tests
         PRIVATE
-            .
-            googletest/googletest/include/gtest
-            ../tools/cli
-            ../tools/events
-            ../tools/events/inc
-            ../ionc/
-            ../ionc/include
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/googletest/googletest/include/gtest
+        ${CMAKE_CURRENT_SOURCE_DIR}/../ionc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../ionc/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tools/events
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tools/events/inc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tools/cli
+        ${CMAKE_CURRENT_SOURCE_DIR}/../decNumber/include
 )
 
 # Linking against gtest_main provides a basic main() method, which detects all tests, for free.

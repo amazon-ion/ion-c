@@ -21,6 +21,7 @@ target_include_directories(eventsobjlib
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc
             ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../decNumber/include
 )
 
 
