@@ -4,7 +4,6 @@ project(IonC
         VERSION 1.0.3
         LANGUAGES CXX C)
 
-
 # we default to 'Release' build type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -21,7 +20,7 @@ endif()
 # guaranteed to be consistent between ionc and decNumber. This is required for conversions between decQuad and
 # decNumber. This is NOT the limit on decimal precision; ION_DECIMAL can handle arbitrarily large precision.
 add_definitions(-DDECNUMDIGITS=34)
-
+message(STATUS "Setting DECNUMBER max digits to 34")
 
 add_subdirectory(decNumber)
 add_subdirectory(ionc)
