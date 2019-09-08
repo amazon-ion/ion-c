@@ -36,8 +36,8 @@ set_property(TARGET objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
 set_property(TARGET objlib
              PROPERTY C_STANDARD 99)
 
-add_library(ionc SHARED $<TARGET_OBJECTS:objlib>)
-add_library(ionc_static STATIC $<TARGET_OBJECTS:objlib>)
+add_library(ionc $<TARGET_OBJECTS:objlib>)
+#add_library(ionc_static STATIC $<TARGET_OBJECTS:objlib>)
 
 target_include_directories(objlib
         PUBLIC

@@ -5,6 +5,22 @@ project(IonC
         LANGUAGES CXX C)
 
 
+# Windows  
+# if (MSVC)
+# 	if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+# 	  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
+# 	endif()
+# 	if(NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+# 	 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+# 	endif()
+# 	if(NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+# 	 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+# 	endif()
+# endif()
+
+
+
+
 # we default to 'Release' build type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
