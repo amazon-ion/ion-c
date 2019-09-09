@@ -27,7 +27,7 @@ const char *ion_error_to_str(iERR err)
     #define ERROR_CODE( name, val ) case name: s = #name; break;
     #include "ionc/ion_error_codes.h"
 
-        default:
+    default:
         return _ion_hack_bad_value_to_str((intptr_t)err, "Unknown error code");
     }
     return s;
