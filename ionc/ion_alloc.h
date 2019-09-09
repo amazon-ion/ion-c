@@ -15,8 +15,8 @@
 #ifndef ION_ALLOC_H_
 #define ION_ALLOC_H_
 
-#include "ion_types.h"
-#include "ion_platform_config.h"
+#include <ionc/ion_types.h>
+#include <ionc/ion_platform_config.h>
 
 #ifdef __cplusplus
 extern "C" {

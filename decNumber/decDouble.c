@@ -19,8 +19,8 @@
 /* This module comprises decDouble operations (including conversions) */
 /* ------------------------------------------------------------------ */
 
-#include "decContext.h"       // public includes
-#include "decDouble.h"        // ..
+#include "decNumber/decContext.h"       // public includes
+#include "decNumber/decDouble.h"        // ..
 
 /* Constant mappings for shared code */
 #define DECPMAX     DECDOUBLE_Pmax
@@ -134,7 +134,7 @@
 #define decFloatSameQuantum        decDoubleSameQuantum
 #define decFloatVersion            decDoubleVersion
 
-#include "decNumberLocal.h"   // local includes (need DECPMAX)
+#include "decNumber/decNumberLocal.h"   // local includes (need DECPMAX)
 #include "decCommon.c"        // non-arithmetic decFloat routines
 #include "decBasic.c"         // basic formats routines
 

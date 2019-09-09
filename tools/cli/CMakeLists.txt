@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
+
 add_subdirectory(docopt)
 
 # C++ standard
@@ -10,10 +12,25 @@ endif()
 
 # The public executable.
 add_executable(ion main.cpp cli.cpp)
-target_include_directories(ion PRIVATE ./ ../events ../events/inc docopt)
+
+target_include_directories(ion
+        PRIVATE
+            ./
+            ../events
+            ../events/inc
+            ../../ionc
+            ../../ionc/include
+            docopt)
+
 target_link_libraries(ion ionc ion_events docopt)
 
 # A library for testing.
 add_library(ion_cli cli.cpp)
-target_include_directories(ion_cli PRIVATE ./ ../events ../events/inc)
+target_include_directories(ion_cli
+        PRIVATE
+        ./
+        ../events
+        ../../ionc
+        ../../ionc/include
+        ../events/inc)
 target_link_libraries(ion_cli ionc ion_events)

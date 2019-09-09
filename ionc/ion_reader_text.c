@@ -15,7 +15,7 @@
 /**
  * Code for the Ion text parser.  This is the 2nd version of the C parser.
  */
-#include "ion.h"
+#include <ionc/ion.h>
 #include "ion_internal.h"
 #include <stdlib.h>
 #include <errno.h>

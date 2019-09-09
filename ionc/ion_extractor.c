@@ -12,7 +12,7 @@
  * language governing permissions and limitations under the License.
  */
 
-#include <inc/ion_extractor.h>
+#include <ionc/ion_extractor.h>
 #include "ion_extractor_impl.h"
 
 #if ION_EXTRACTOR_MAX_NUM_PATHS > ION_EXTRACTOR_MAX_NUM_PATHS_THRESHOLD

@@ -15,12 +15,12 @@
 #include <string>
 #include <sstream>
 #include <iostream>
-#include <inc/ion_errors.h>
-#include <inc/ion.h>
-#include <ion_helpers.h>
-#include <ion_event_util.h>
-#include <ion_event_stream_impl.h>
-#include <ion_event_equivalence.h>
+#include <ionc/ion_errors.h>
+#include <ionc/ion.h>
+#include "ion_helpers.h"
+#include "ion_event_util.h"
+#include "ion_event_stream_impl.h"
+#include "ion_event_equivalence.h"
 #include "cli.h"
 
 /**

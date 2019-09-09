@@ -166,8 +166,8 @@
 #include <stdio.h>                 // for printf [if needed]
 #include <string.h>                // for strcpy
 #include <ctype.h>                 // for lower
-#include "decNumber.h"             // base number library
-#include "decNumberLocal.h"        // decNumber local types, etc.
+#include "decNumber/decNumber.h"             // base number library
+#include "decNumber/decNumberLocal.h"        // decNumber local types, etc.
 
 /* Constants */
 // Public lookup table used by the D2U macro

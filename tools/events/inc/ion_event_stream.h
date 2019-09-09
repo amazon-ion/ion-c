@@ -17,7 +17,7 @@
 
 #include <vector>
 #include <string>
-#include "ion.h"
+#include <ionc/ion.h>
 
 typedef enum _ion_event_type {
     SCALAR = 0,

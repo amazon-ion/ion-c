@@ -21,7 +21,7 @@
  *  together ... at some point.
  */
 
-#include "ion.h"
+#include <ionc/ion.h>
 #include "ion_internal.h"
 
 // this macro is just to keep the lines of code shorter, the do-while 

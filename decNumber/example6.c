@@ -8,7 +8,7 @@
 // example6.c -- calculate compound interest, using Packed Decimal
 // Values are investment, rate (%), and years
 
-#include "decPacked.h"             // base number library
+#include "decNumber/decPacked.h"             // base number library
 #include <stdio.h>                 // for printf
 
 int main(int argc, char *argv[]) {

@@ -12,7 +12,7 @@
  * language governing permissions and limitations under the License.
  */
 
-#include "ion.h"
+#include <ionc/ion.h>
 #include <math.h>
 
 BOOL ion_float_is_negative_zero(double value) {

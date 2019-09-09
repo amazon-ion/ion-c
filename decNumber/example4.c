@@ -9,7 +9,7 @@
 // Arguments are two numbers
 
 #define  DECNUMDIGITS 38           // work with up to 38 digits
-#include "decNumber.h"             // base number library
+#include "decNumber/decNumber.h"             // base number library
 #include <stdio.h>                 // for printf
 
 // [snip...

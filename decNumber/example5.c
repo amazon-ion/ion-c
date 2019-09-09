@@ -7,7 +7,7 @@
 
 // example5.c -- decimal64 conversions
 
-#include "decimal64.h"             // decimal64 and decNumber library
+#include "decNumber/decimal64.h"             // decimal64 and decNumber library
 #include <stdio.h>                 // for (s)printf
 
 int main(int argc, char *argv[]) {

@@ -12,9 +12,9 @@
  * language governing permissions and limitations under the License.
  */
 
-#include <ion_helpers.h>
-#include <ion_event_util.h>
-#include "ion_platform_config.h"
+#include "ion_helpers.h"
+#include "ion_event_util.h"
+#include <ionc/ion_platform_config.h>
 #include "gather_vectors.h"
 #include "ion_event_stream.h"
 #include "ion_event_stream_impl.h"

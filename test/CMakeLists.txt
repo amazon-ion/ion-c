@@ -1,3 +1,4 @@
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
 # Avoid macro definition collisions between ionc and googletest.
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DGTEST_DONT_DEFINE_SUCCEED=1 -DGTEST_DONT_DEFINE_FAIL=1")
@@ -9,9 +10,6 @@ if (MSVC)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     # Prevent deprecation errors for std::tr1 in googletest
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING")
-else()
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -Wall")
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0 -Wall")
 endif()
 
 add_executable(all_tests
@@ -31,12 +29,16 @@ add_executable(all_tests
 
 add_subdirectory(googletest)
 
-include_directories(
-    .
-    googletest/googletest/include/gtest
-    ../tools/cli
-    ../tools/events
-    ../tools/events/inc
+
+target_include_directories(all_tests
+        PRIVATE
+            .
+            googletest/googletest/include/gtest
+            ../tools/cli
+            ../tools/events
+            ../tools/events/inc
+            ../ionc/
+            ../ionc/include
 )
 
 # Linking against gtest_main provides a basic main() method, which detects all tests, for free.

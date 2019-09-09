@@ -10,8 +10,8 @@
 // compile: example8.c decContext.c decQuad.c
 //     and: decNumber.c decimal128.c decimal64.c
 
-#include "decQuad.h"               // decQuad library
-#include "decimal128.h"            // interface to decNumber
+#include "decNumber/decQuad.h"               // decQuad library
+#include "decNumber/decimal128.h"            // interface to decNumber
 #include <stdio.h>                 // for printf
 
 int main(int argc, char *argv[]) {

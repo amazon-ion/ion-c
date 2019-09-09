@@ -19,8 +19,8 @@
 /* This module comprises decSingle operations (including conversions) */
 /* ------------------------------------------------------------------ */
 
-#include "decContext.h"       // public includes
-#include "decSingle.h"        // public includes
+#include "decNumber/decContext.h"       // public includes
+#include "decNumber/decSingle.h"        // public includes
 
 /* Constant mappings for shared code */
 #define DECPMAX     DECSINGLE_Pmax
@@ -65,7 +65,7 @@
 #define decFloatRadix              decSingleRadix
 #define decFloatVersion            decSingleVersion
 
-#include "decNumberLocal.h"   // local includes (need DECPMAX)
+#include "decNumber/decNumberLocal.h"   // local includes (need DECPMAX)
 #include "decCommon.c"        // non-basic decFloat routines
 // [Do not include decBasic.c for decimal32]
 

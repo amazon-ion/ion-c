@@ -9,7 +9,7 @@
 // add them together, and display the result
 
 #define  DECNUMDIGITS 34           // work with up to 34 digits
-#include "decNumber.h"             // base number library
+#include "decNumber/decNumber.h"             // base number library
 #include <stdio.h>                 // for printf
 
 int main(int argc, char *argv[]) {

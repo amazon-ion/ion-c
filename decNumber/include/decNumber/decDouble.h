@@ -38,7 +38,7 @@
   #define DECDOUBLE_Ehigh (DECDOUBLE_Emax + DECDOUBLE_Bias - (DECDOUBLE_Pmax-1))
 
   /* Required includes                                                */
-  #include "decContext.h"
+  #include "decNumber/decContext.h"
   #include "decQuad.h"
 
   /* The decDouble decimal 64-bit type, accessible by all sizes */

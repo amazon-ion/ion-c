@@ -23,7 +23,7 @@
 #include "ionsymbols.h"
 
 #include <assert.h>
-#include <ion_helpers.h>
+#include "ion_helpers.h"
 #ifdef WIN
 #include "io.h"
 #endif

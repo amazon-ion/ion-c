@@ -13,13 +13,13 @@
  */
 
 #include <gtest/gtest.h>
-#include <ion_event_util.h>
-#include "ion_types.h"
-#include "ion_stream.h"
-#include "ion_collection.h"
+#include "ion_event_util.h"
+#include <ionc/ion_types.h>
+#include <ionc/ion_stream.h>
+#include <ionc/ion_collection.h>
 #include "ion_index.h"
 #include "ion_stream_impl.h"
-#include "ion.h"
+#include <ionc/ion.h>
 #include "ion_helpers.h"
 #include "ion_test_util.h"
 

@@ -15,8 +15,8 @@
 #ifndef DECQUADHELPERS_H_
 #define DECQUADHELPERS_H_
 
-#include "ion_types.h"
-#include "ion_platform_config.h"
+#include <ionc/ion_types.h>
+#include <ionc/ion_platform_config.h>
 
 #ifdef __cplusplus
 extern "C" {

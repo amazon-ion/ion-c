@@ -12,7 +12,7 @@
  * language governing permissions and limitations under the License.
  */
 
-#include "ion_errors.h"
+#include <ionc/ion_errors.h>
 #include "ion_helpers.h"
 
 const char *ion_error_to_str(iERR err)
@@ -25,7 +25,7 @@ const char *ion_error_to_str(iERR err)
         break;
 
     #define ERROR_CODE( name, val ) case name: s = #name; break;
-    #include "ion_error_codes.h"
+    #include "ionc/ion_error_codes.h"
 
     default:
         return _ion_hack_bad_value_to_str((intptr_t)err, "Unknown error code");
