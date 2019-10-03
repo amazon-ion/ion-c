@@ -65,7 +65,7 @@ TEST_F(WriterTest, BinaryWriterCloseMustFlushStream) {
     ASSERT_EQ(file_size, 4 + 1);
 }
 
-TEST_F(WriterTest, TextWriterCloseMustTextStream) {
+TEST_F(WriterTest, TextWriterCloseMustFlushStream) {
     hWRITER writer = NULL;
 
     long file_size;
