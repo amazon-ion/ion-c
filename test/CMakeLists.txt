@@ -18,6 +18,7 @@ add_executable(all_tests
     ion_test_util.cpp
     test_vectors.cpp
     test_ion_binary.cpp
+    test_ion_writer.cpp
     test_ion_decimal.cpp
     test_ion_symbol.cpp
     test_ion_text.cpp
