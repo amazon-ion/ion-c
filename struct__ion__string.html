@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.11"/>
-<title>Ion C: Main Page</title>
+<title>Ion C: _ion_string Struct Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -52,9 +52,9 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </script>
   <div id="navrow1" class="tabs">
     <ul class="tablist">
-      <li class="current"><a href="index.html"><span>Main&#160;Page</span></a></li>
+      <li><a href="index.html"><span>Main&#160;Page</span></a></li>
       <li><a href="pages.html"><span>Related&#160;Pages</span></a></li>
-      <li><a href="annotated.html"><span>Data&#160;Structures</span></a></li>
+      <li class="current"><a href="annotated.html"><span>Data&#160;Structures</span></a></li>
       <li><a href="files.html"><span>Files</span></a></li>
       <li>
         <div id="MSearchBox" class="MSearchBoxInactive">
@@ -74,6 +74,13 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
       </li>
     </ul>
   </div>
+  <div id="navrow2" class="tabs2">
+    <ul class="tablist">
+      <li><a href="annotated.html"><span>Data&#160;Structures</span></a></li>
+      <li><a href="classes.html"><span>Data&#160;Structure&#160;Index</span></a></li>
+      <li><a href="functions.html"><span>Data&#160;Fields</span></a></li>
+    </ul>
+  </div>
 </div><!-- top -->
 <div id="side-nav" class="ui-resizable side-nav-resizable">
   <div id="nav-tree">
@@ -86,7 +93,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
   </div>
 </div>
 <script type="text/javascript">
-$(document).ready(function(){initNavTree('index.html','');});
+$(document).ready(function(){initNavTree('struct__ion__string.html','');});
 </script>
 <div id="doc-content">
 <!-- window showing the filter options -->
@@ -104,15 +111,61 @@ $(document).ready(function(){initNavTree('index.html','');});
 </div>
 
 <div class="header">
+  <div class="summary">
+<a href="#pub-attribs">Data Fields</a>  </div>
   <div class="headertitle">
-<div class="title">Ion C Documentation</div>  </div>
+<div class="title">_ion_string Struct Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
+
+<p><code>#include &lt;<a class="el" href="ion__string_8h_source.html">ion_string.h</a>&gt;</code></p>
+<table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-attribs"></a>
+Data Fields</h2></td></tr>
+<tr class="memitem:a2a6a050275dbb04ffb8448e02d08d4cc"><td class="memItemLeft" align="right" valign="top">int32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="struct__ion__string.html#a2a6a050275dbb04ffb8448e02d08d4cc">length</a></td></tr>
+<tr class="separator:a2a6a050275dbb04ffb8448e02d08d4cc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4fad66ce785bcb13de0bebcfe8fb0033"><td class="memItemLeft" align="right" valign="top">BYTE *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="struct__ion__string.html#a4fad66ce785bcb13de0bebcfe8fb0033">value</a></td></tr>
+<tr class="separator:a4fad66ce785bcb13de0bebcfe8fb0033"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Ion strings are length prefixed value encoded using UTF8 this struct provides an independent lifetime for these where references into the current buffer or references to external strings are unified as a single representation</p>
+<p>a length == 0 and value == NULL is a null string </p>
+</div><h2 class="groupheader">Field Documentation</h2>
+<a class="anchor" id="a2a6a050275dbb04ffb8448e02d08d4cc"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int32_t _ion_string::length</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>The number of bytes in the value array. </p>
+
+</div>
+</div>
+<a class="anchor" id="a4fad66ce785bcb13de0bebcfe8fb0033"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">BYTE* _ion_string::value</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>UTF-8 encoded text, not null-terminated. </p>
+
+</div>
+</div>
+<hr/>The documentation for this struct was generated from the following file:<ul>
+<li>ionc/include/ionc/<a class="el" href="ion__string_8h_source.html">ion_string.h</a></li>
+</ul>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
+    <li class="navelem"><a class="el" href="struct__ion__string.html">_ion_string</a></li>
     <li class="footer">Generated by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.11 </li>
