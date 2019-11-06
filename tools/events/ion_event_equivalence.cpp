@@ -29,8 +29,12 @@ void _ion_event_set_comparison_result(IonEventResult *result, ION_EVENT_COMPARIS
                                       IonEvent *rhs, size_t lhs_index, size_t rhs_index, std::string lhs_location,
                                       std::string rhs_location, std::string message) {
     if (result != NULL) {
+        if (result->comparison_result.lhs.event != NULL) {
+            // A pair of offending events has already been specified in the result. Only set the first pair.
+            return;
+        }
         if (ion_event_copy(&result->comparison_result.lhs.event, lhs, &lhs_location, result)
-            || ion_event_copy(&result->comparison_result.rhs.event, rhs, &lhs_location, result)) {
+            || ion_event_copy(&result->comparison_result.rhs.event, rhs, &rhs_location, result)) {
             return;
         }
         result->comparison_result.lhs.event_index = lhs_index;
@@ -260,9 +264,6 @@ BOOL ion_compare_sets_nonequivs(ION_EVENT_EQUIVALENCE_PARAMS) {
     // The corresponding indices are assumed to be equivalent.
     if (ION_INDEX_EXPECTED_ARG != ION_INDEX_ACTUAL_ARG) {
         ION_PREPARE_COMPARISON;
-        // Since inequality is expected here, passing a NULL result here prevents the comparison report from being
-        // polluted. If the events are equal, a comparison result stating such will be added to the report.
-        ION_RESULT_ARG = NULL;
         ION_EXPECT_FALSE(ion_compare_events(ION_EVENT_EQUIVALENCE_ARGS), "Equivalent values in a non-equivs set.");
     }
     ION_PASS_ASSERTIONS;
