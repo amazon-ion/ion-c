@@ -169,12 +169,36 @@ TEST(IonCli, CompareListsEquivs) {
     ASSERT_FALSE(report.hasComparisonFailures());
 }
 
+TEST(IonCli, CompareNonEquivalentIntsAsEquivs) {
+    std::string test_file = join_path(full_good_nonequivs_path, "ints.ion");
+    IonEventReport report;
+    test_ion_cli_assert_comparison(&test_file, 1, COMPARISON_TYPE_EQUIVS, &report);
+    ASSERT_FALSE(report.hasErrors());
+    ASSERT_TRUE(report.hasComparisonFailures());
+    std::vector<IonEventComparisonResult> *comparison_results = report.getComparisonResults();
+    ASSERT_EQ(1, comparison_results->size());
+    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(0), COMPARISON_RESULT_NOT_EQUAL, test_file,
+                                                 test_file, 1, 2);
+}
+
 TEST(IonCli, CompareSexpsNonequivs) {
     std::string test_file = join_path(full_good_nonequivs_path, "sexps.ion");
     IonEventReport report;
     test_ion_cli_assert_comparison(&test_file, 1, COMPARISON_TYPE_NONEQUIVS, &report);
     ASSERT_FALSE(report.hasErrors());
     ASSERT_FALSE(report.hasComparisonFailures());
+}
+
+TEST(IonCli, CompareEquivalentIntsAsNonequivs) {
+    std::string test_file = join_path(full_good_equivs_path, "ints.ion");
+    IonEventReport report;
+    test_ion_cli_assert_comparison(&test_file, 1, COMPARISON_TYPE_NONEQUIVS, &report);
+    ASSERT_FALSE(report.hasErrors());
+    ASSERT_TRUE(report.hasComparisonFailures());
+    std::vector<IonEventComparisonResult> *comparison_results = report.getComparisonResults();
+    ASSERT_EQ(1, comparison_results->size());
+    test_ion_cli_assert_comparison_result_equals(&comparison_results->at(0), COMPARISON_RESULT_EQUAL, test_file,
+                                                 test_file, 1, 2);
 }
 
 TEST(IonCli, CompareAnnotatedIvmsEmbeddedNonequivs) {
