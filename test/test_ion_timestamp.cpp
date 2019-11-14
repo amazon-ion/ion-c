@@ -13,7 +13,6 @@
  * permissions and limitations under the License.
  */
 
-#include <err.h>
 #include "ion_assert.h"
 #include "ion_helpers.h"
 #include "ion_event_util.h"
