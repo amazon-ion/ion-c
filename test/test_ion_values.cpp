@@ -17,29 +17,6 @@
 #include "ion_test_util.h"
 #include "ion_event_equivalence.h"
 
-TEST(IonTimestamp, IgnoresSuperfluousOffset) {
-    ION_TIMESTAMP expected1, expected2, actual;
-    BOOL has_local_offset;
-    int local_offset;
-
-    ION_ASSERT_OK(ion_timestamp_for_year(&expected1, 1));
-
-    ION_ASSERT_OK(ion_timestamp_for_year(&expected2, 1));
-    SET_FLAG_ON(expected2.precision, ION_TT_BIT_TZ);
-    expected2.tz_offset = 1;
-
-    ION_ASSERT_OK(ion_timestamp_for_year(&actual, 1));
-    ION_ASSERT_OK(ion_timestamp_set_local_offset(&actual, 1));
-    ION_ASSERT_OK(ion_timestamp_has_local_offset(&actual, &has_local_offset));
-    ION_ASSERT_OK(ion_timestamp_get_local_offset(&actual, &local_offset));
-
-    ASSERT_FALSE(has_local_offset);
-    ASSERT_EQ(0, actual.tz_offset);
-    ASSERT_EQ(0, local_offset);
-    ASSERT_TRUE(ion_equals_timestamp(&expected1, &actual));
-    ASSERT_TRUE(ion_equals_timestamp(&expected2, &actual)); // Equivalence ignores the superfluous offset as well.
-}
-
 iERR test_stream_handler(struct _ion_user_stream *pstream) {
     iENTER;
     _ion_user_stream *next_stream = (_ion_user_stream *)pstream->handler_state;

@@ -96,7 +96,7 @@ iERR ion_timestamp_to_time_t(const ION_TIMESTAMP *ptime, time_t *time)
 #endif
 
     if (HAS_TZ_OFFSET(ptime)) {
-        tm.tm_min += (ptime->tz_offset);
+        tm.tm_min -= (ptime->tz_offset);
     }
 
 #ifndef ION_PLATFORM_WINDOWS

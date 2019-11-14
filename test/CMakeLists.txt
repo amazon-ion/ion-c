@@ -22,6 +22,7 @@ add_executable(all_tests
     test_ion_decimal.cpp
     test_ion_symbol.cpp
     test_ion_text.cpp
+    test_ion_timestamp.cpp
     test_ion_values.cpp
     test_ion_extractor.cpp
     test_ion_cli.cpp
