@@ -33,29 +33,13 @@ public:
         time = testing::get<2>(GetParam());
         str_unknown_offset = testing::get<3>(GetParam());
     }
-
-    struct PrintToStringParamName
-    {
-        template <class ParamType>
-        std::string operator()( const testing::TestParamInfo<ParamType>& info ) const
-        {
-            testing::tuple<std::string, int, time_t, std::string> test
-                    = static_cast< testing::tuple<std::string, int, time_t, std::string> >(info.param);
-            std::string s = testing::get<0>(test);
-            std::replace(s.begin(), s.end(), '-', '_');
-            std::replace(s.begin(), s.end(), ':', '_');
-            std::replace(s.begin(), s.end(), '+', 'p');
-            return s;
-        }
-    };
 };
 
 INSTANTIATE_TEST_CASE_P(IonTimestampParameterized, IonTimestamp, testing::Values(
         std::tr1::make_tuple(std::string("2020-07-01T14:24:57-01:00"), -60, 1593617097, std::string("2020-07-01T15:24:57-00:00")),
         std::tr1::make_tuple(std::string("2020-07-01T14:24:57+00:00"),   0, 1593613497, std::string("2020-07-01T14:24:57-00:00")),
-        std::tr1::make_tuple(std::string("2020-07-01T14:24:57+01:00"),  60, 1593609897, std::string("2020-07-01T13:24:57-00:00"))),
-    IonTimestamp::PrintToStringParamName()
-);
+        std::tr1::make_tuple(std::string("2020-07-01T14:24:57+01:00"),  60, 1593609897, std::string("2020-07-01T13:24:57-00:00"))
+));
 
 // regression for https://github.com/amzn/ion-c/issues/144
 TEST_P(IonTimestamp, ion_timestamp_to_time_t) {
