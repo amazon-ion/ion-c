@@ -1652,3 +1652,64 @@ TEST_P(BinaryAndTextTest, LSTNullSlotsRoundtrippedAsSymbolZero) {
     }
     free(result);
 }
+
+TEST_P(BinaryAndTextTest, ReaderSkipsOverSymbol) {
+    hWRITER writer = NULL;
+    hREADER reader = NULL;
+    ION_TYPE type;
+    ION_STREAM *ion_stream = NULL;
+    ION_STRING abc_written, def_written, def_read;
+    BYTE *data;
+    SIZE data_length;
+
+    ion_string_from_cstr("abc", &abc_written);
+    ion_string_from_cstr("def", &def_written);
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, is_binary));
+    ION_ASSERT_OK(ion_writer_write_int32(writer, 123));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &abc_written));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &def_written));
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &data, &data_length));
+
+    ION_ASSERT_OK(ion_test_new_reader(data, data_length, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &def_read));
+    assertStringsEqual((char *)def_written.value, (char *)def_read.value, def_written.length);
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_EOF, type);
+}
+
+TEST_P(BinaryAndTextTest, ReaderSkipsOverIVMBoundary) {
+    hWRITER writer = NULL;
+    hREADER reader = NULL;
+    ION_TYPE type;
+    ION_STREAM *ion_stream = NULL;
+    ION_STRING abc_written, def_written, def_read;
+    BYTE *data;
+    SIZE data_length;
+
+    ion_string_from_cstr("abc", &abc_written);
+    ion_string_from_cstr("def", &def_written);
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, is_binary));
+    ION_ASSERT_OK(ion_writer_write_int32(writer, 123));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &abc_written));
+    // Forces an IVM and symbol table boundary.
+    ION_ASSERT_OK(ion_writer_finish(writer, NULL));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &def_written));
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &data, &data_length));
+
+    ION_ASSERT_OK(ion_test_new_reader(data, data_length, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    // This crosses over the boundary.
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_read_string(reader, &def_read));
+    assertStringsEqual((char *)def_written.value, (char *)def_read.value, def_written.length);
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_EOF, type);
+}
