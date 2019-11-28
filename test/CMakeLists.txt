@@ -26,6 +26,7 @@ add_executable(all_tests
     test_ion_extractor.cpp
     test_ion_cli.cpp
     test_ion_stream.cpp
+    test_ion_reader_seek.cpp
 )
 
 add_subdirectory(googletest)

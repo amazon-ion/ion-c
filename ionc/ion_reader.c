@@ -111,7 +111,7 @@ iERR ion_reader_reset_stream_with_length(hREADER   *p_hreader
             IONCHECK(_ion_reader_text_open(*p_hreader));
             break;
         case ion_type_binary_reader:
-            IONCHECK(_ion_reader_binary_reset((*p_hreader), TID_DATAGRAM, local_end));
+            IONCHECK(_ion_reader_binary_reset((*p_hreader), tid_DATAGRAM, 0, local_end));
             break;
         case ion_type_unknown_reader:
         default:
@@ -2020,7 +2020,8 @@ iERR ion_reader_seek(hREADER hreader, POSITION offset, SIZE length)
         local_end = offset + length;
     }
     else {
-        local_end = -1;
+        // This causes the reader to return EOF only when the stream runs out of data.
+        local_end = ION_STREAM_MAX_LENGTH;
     }
 
     // here we reset what little state the reader need to address directly
@@ -2034,7 +2035,7 @@ iERR ion_reader_seek(hREADER hreader, POSITION offset, SIZE length)
         IONCHECK(_ion_reader_text_reset(preader, tid_DATAGRAM, local_end));
         break;
     case ion_type_binary_reader:
-        IONCHECK(_ion_reader_text_reset(preader, tid_DATAGRAM, local_end));
+        IONCHECK(_ion_reader_binary_reset(preader, tid_DATAGRAM, offset, local_end));
         break;
     case ion_type_unknown_reader:
     default:

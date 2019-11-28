@@ -54,13 +54,13 @@ iERR _ion_reader_binary_open(ION_READER *preader)
     iRETURN;
 }
 
-iERR _ion_reader_binary_reset(ION_READER *preader, int parent_tid, POSITION local_end)
+iERR _ion_reader_binary_reset(ION_READER *preader, ION_TYPE parent_tid, POSITION value_start, POSITION local_end)
 {
     iENTER;
     ION_BINARY_READER *binary;
 
     ASSERT(preader);
-    ASSERT(parent_tid == TID_DATAGRAM); // TODO: support values other than DATAGRAM
+    ASSERT(parent_tid == tid_DATAGRAM); // TODO: support values other than DATAGRAM
 
     binary = &preader->typed_reader.binary;
 
@@ -73,10 +73,19 @@ iERR _ion_reader_binary_reset(ION_READER *preader, int parent_tid, POSITION loca
     // over an internal buffer so the parent might be different, this
     // reader could be adapted fairly easily to do this, but not until
     // there's an actual use case
-    binary->_parent_tid = parent_tid;
+    binary->_parent_tid = ION_TYPE_INT(parent_tid);
 
     binary->_local_end = local_end;
     binary->_value_symbol_id = UNKNOWN_SID;
+
+    binary->_in_struct = FALSE;
+    binary->_annotation_start = -1;
+    binary->_value_field_id = UNKNOWN_SID;
+    binary->_value_len = -1;
+    binary->_value_type = tid_none;
+    binary->_value_tid = tid_none_INT;
+    binary->_value_start = value_start;
+
 
     SUCCEED();
 
@@ -95,6 +104,7 @@ iERR _ion_reader_binary_next(ION_READER *preader, ION_TYPE *p_value_type)
     SID               *psid;
     BOOL               is_system_value = FALSE;
     POSITION           annotation_content_start, value_content_start;
+    BINARY_STATE       next_state = S_BEFORE_CONTENTS;
 begin:
 
     ASSERT(preader && preader->type == ion_type_binary_reader);
@@ -200,6 +210,9 @@ begin:
 
             if (ion_type_id == TID_SYMBOL) {
                 IONCHECK(_ion_reader_binary_read_symbol_sid_helper(preader, binary, &binary->_value_symbol_id));
+                // The state must indicate that the value has already been read to avoid skipping too many bytes
+                // in the event that the user never consumes this value.
+                next_state = S_BEFORE_TID;
             }
 
             POSITION expected_end = annotation_content_start + length;
@@ -216,7 +229,11 @@ begin:
                 // (user type annotation) will be handled during "next()".
                 preader->typed_reader.binary._state = S_BEFORE_CONTENTS;
                 IONCHECK(_ion_reader_process_possible_symbol_table(preader, &is_system_value));
-                if (is_system_value) continue;
+                if (is_system_value) {
+                    // Another value will be consumed; set the next_state back to the default.
+                    next_state = S_BEFORE_CONTENTS;
+                    continue;
+                }
             }
         }
         else {
@@ -227,6 +244,9 @@ begin:
                 // A non-null symbol at the top-level, not in an annotation wrapper, with SID 2 is a faux IVM (a no-op).
                 if (getLowNibble(type_desc_byte) != ION_lnIsNull) {
                     IONCHECK(_ion_reader_binary_read_symbol_sid_helper(preader, binary, &binary->_value_symbol_id));
+                    // The state must indicate that the value has already been read to avoid skipping too many bytes
+                    // in the event that the user never consumes this value.
+                    next_state = S_BEFORE_TID;
                     if (preader->_depth == 0 && binary->_value_symbol_id == ION_SYS_SID_IVM) {
                         binary->_value_symbol_id = UNKNOWN_SID; // Go around again, skipping this value.
                         continue;
@@ -248,7 +268,7 @@ begin:
     }
 
     // set the state forward
-    binary->_state       = S_BEFORE_CONTENTS;
+    binary->_state       = next_state;
     binary->_value_start = value_start;
     binary->_value_type  = ion_helper_get_iontype_from_tid(ion_type_id);
     *p_value_type        = binary->_value_type;
@@ -462,7 +482,12 @@ iERR _ion_reader_binary_get_type(ION_READER *preader, ION_TYPE *p_value_type)
 
     if (!(preader->_eof) && binary->_state == S_BEFORE_TID)
     {
-        FAILWITH(IERR_INVALID_STATE);
+        // Non-null symbols are read up front, so a reader positioned on a symbol may be positioned before the TID of
+        // the next value. All other values must be positioned before the contents of the current value.
+        if (binary->_value_type != tid_SYMBOL)
+        {
+            FAILWITH(IERR_INVALID_STATE);
+        }
     }
 
     *p_value_type = binary->_value_type;
@@ -809,11 +834,17 @@ iERR _ion_reader_binary_is_null(ION_READER *preader, BOOL *p_is_null)
 
     binary = &preader->typed_reader.binary;
 
-    if (binary->_state != S_BEFORE_CONTENTS) {
+    tid = getTypeCode(binary->_value_tid);
+    if (tid == TID_SYMBOL) {
+        // Non-null symbols are read up front, so a reader positioned on a symbol may be positioned before the TID of
+        // the next value. All other values must be positioned before the contents of the current value.
+        if (binary->_state != S_BEFORE_TID && binary->_state != S_BEFORE_CONTENTS) {
+            FAILWITH(IERR_INVALID_STATE);
+        }
+    }
+    else if (binary->_state != S_BEFORE_CONTENTS){
         FAILWITH(IERR_INVALID_STATE);
     }
-
-    tid = getTypeCode(binary->_value_tid);
     if (tid == TID_NULL) {
         is_null = TRUE;
     }
@@ -1200,7 +1231,9 @@ iERR _ion_reader_binary_read_symbol_sid(ION_READER *preader, SID *p_value)
 
     binary = &preader->typed_reader.binary;
 
-    if (binary->_state != S_BEFORE_CONTENTS) {
+    // Non-null symbols are read up front, so a reader positioned on a symbol may be positioned before the TID of
+    // the next value.
+    if (binary->_state != S_BEFORE_TID && binary->_state != S_BEFORE_CONTENTS) {
         FAILWITH(IERR_INVALID_STATE);
     }
 
@@ -1289,12 +1322,21 @@ iERR _ion_reader_binary_read_string(ION_READER *preader, ION_STRING *p_str)
     ASSERT(p_str != NULL);
 
     binary = &preader->typed_reader.binary;
-    if (binary->_state != S_BEFORE_CONTENTS) {
-        FAILWITH(IERR_INVALID_STATE);
-    }
-
     tid = getTypeCode(binary->_value_tid);
-    if (tid != TID_STRING && tid != TID_SYMBOL) {
+
+    if (tid == TID_STRING) {
+        if (binary->_state != S_BEFORE_CONTENTS) {
+            FAILWITH(IERR_INVALID_STATE);
+        }
+    }
+    else if (tid == TID_SYMBOL) {
+        // Symbols are always peeked during next() to check for IVM-like no-op values. S_BEFORE_TID indicates
+        // that the stream is positioned in front of the TID of the following value.
+        if (binary->_state != S_BEFORE_TID) {
+            FAILWITH(IERR_INVALID_STATE);
+        }
+    }
+    else {
         FAILWITH(IERR_INVALID_STATE);
     }
 
@@ -1317,14 +1359,11 @@ iERR _ion_reader_binary_read_string(ION_READER *preader, ION_STRING *p_str)
                 FAILWITH(IERR_NULL_VALUE);
             }
         }
-        else if (tid == TID_SYMBOL) {
+        else {
             IONCHECK(_ion_reader_binary_read_symbol_sid(preader, &sid));
             if (sid <= UNKNOWN_SID) FAILWITH(IERR_INVALID_SYMBOL);
             IONCHECK(_ion_symbol_table_find_by_sid_helper(preader->_current_symtab, sid, &pstr));
             IONCHECK(_ion_reader_binary_string_copy_or_null(preader, p_str, pstr));
-        }
-        else {
-            FAILWITH(IERR_INVALID_STATE);
         }
     }
 

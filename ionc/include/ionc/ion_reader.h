@@ -274,12 +274,12 @@ ION_API_EXPORT iERR ion_reader_get_catalog             (hREADER hreader, hCATALO
 
 /** moves the stream position to the specified offset. Resets the 
  *  the state of the reader to be at the top level. As long as the
- *  specified position is at the first byte of a value (just before 
- *  the type description byte) this will work neatly. If the seek
- *  is into the middle of a value (including a collection) the
+ *  specified position is at the first byte of a top-level value
+ *  (just before the type description byte) this will work neatly.
+ *  Do not attempt to seek to a value below the top level, as the
  *  view of the data is likely to be invalid.
  *
- *  if a length is specified (default is -1 or no limit) eof will
+ *  If a length is specified (default is -1 or no limit) eof will
  *  be returned when length bytes are consumed.
  *
  *  A common pattern when using this interface would be to open
@@ -310,7 +310,14 @@ ION_API_EXPORT iERR ion_reader_get_value_offset    (hREADER   hreader
  *  positioned on.  This length is appropriate to use later
  *  when calling ion_reader_seek to limit "over-reading" in
  *  the underlying stream which could result in errors that
- *  are not really of intereest.
+ *  are not really of interest. NOTE: readers of text data
+ *  will always set *p_length to -1 because text Ion data is
+ *  not length-prefixed. When the reader may be reading text
+ *  Ion data, the correct way to calculate a value's length
+ *  is by subtracting the current value's offset (see
+ *  `ion_reader_get_value_offset`) from the next value's
+ *  offset. This technique will work for both binary and text
+ *  Ion data.
  */
 ION_API_EXPORT iERR ion_reader_get_value_length    (hREADER  hreader
                                                    ,SIZE   *p_length);

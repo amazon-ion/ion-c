@@ -141,6 +141,7 @@ iERR _ion_reader_text_reset(ION_READER *preader, ION_TYPE parent_tid, POSITION l
         FAILWITH(IERR_PARSER_INTERNAL);
     }
     text->_current_container = parent_tid;
+    text->_value_end = local_end;
 
     _ion_collection_reset(&(text->_container_state_stack));
 
@@ -159,7 +160,6 @@ iERR _ion_reader_text_reset_value(ION_READER *preader)
     ASSERT(preader);
 
     text->_value_start              = -1;
-    text->_value_end                = -1;
     text->_annotation_start         = -1;
     text->_annotation_count         =  0;
     text->_annotation_value_next    =  text->_annotation_value_buffer;
@@ -188,6 +188,7 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
     iENTER;
     ION_TEXT_READER *text = &preader->typed_reader.text;
     ION_SUB_TYPE     ist = IST_NONE;
+    POSITION value_start;
 
     ASSERT(preader);
 
@@ -217,6 +218,14 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
     //      struct:   a "," or a ']'
     if (text->_state == IPS_AFTER_VALUE) {
         IONCHECK(_ion_reader_text_check_follow_token(preader));
+    }
+
+    // Save the value start position, as it is reset during `_ion_reader_text_reset_value`.
+    value_start = text->_scanner._value_start;
+
+    if (text->_value_end > -1 && ion_stream_get_position(text->_scanner._stream) >= text->_value_end) {
+        // In a previous seek, the user limited the length of the stream, and that limit has now been reached.
+        text->_state = IPS_EOF;
     }
 
     // this reset the various value states, like the annotation list
@@ -268,7 +277,13 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
     // we're after the uta's and have recognized the value
     // it's ready for the caller - save off the state we'll
     // need for later processing
-    text->_value_start    = text->_scanner._value_start;
+    if (value_start < 0) {
+        // The start position of the value was not known at the start of this function. At this point it must be known.
+        text->_value_start = text->_scanner._value_start;
+    }
+    else {
+        text->_value_start = value_start;
+    }
     text->_value_sub_type = ist;
     text->_value_type     = IST_BASE_TYPE( ist );
     text->_state          = IST_FOLLOW_STATE( ist );
