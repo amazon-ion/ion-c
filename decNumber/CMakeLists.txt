@@ -22,15 +22,9 @@ set(DEC_PUB_HEADERS
     include/decNumber/decQuad.h
     include/decNumber/decSingle.h)
 
-#add_library(declibobj OBJECT ${declibsrc})
-
-#set_property(TARGET declibobj PROPERTY POSITION_INDEPENDENT_CODE 1)
-
-#add_library(decNumber $<TARGET_OBJECTS:declibobj>)
 add_library(decNumber ${declibsrc})
 set_property(TARGET decNumber PROPERTY POSITION_INDEPENDENT_CODE 1)
 
-#target_include_directories(declibobj
 target_include_directories(decNumber
         PUBLIC
         $<INSTALL_INTERFACE:include>
@@ -38,10 +32,6 @@ target_include_directories(decNumber
 
 set_target_properties(decNumber
     PROPERTIES
-    #VERSION ${PROJECT_VERSION}
-    #SOVERSION ${PROJECT_VERSION}
-        #CXX_VISIBILITY_PRESET hidden
-        #VISIBILITY_INLINES_HIDDEN 1
         PUBLIC_HEADER "${DEC_PUB_HEADERS}")
 
 

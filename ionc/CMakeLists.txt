@@ -53,9 +53,10 @@ set(LIB_PUB_HEADERS
 add_library(objlib OBJECT ${libsrc})
 
 # shared libraries need PIC
-set_property(TARGET objlib PROPERTY POSITION_INDEPENDENT_CODE 1)
-set_property(TARGET objlib
-             PROPERTY C_STANDARD 99)
+set_target_properties(objlib
+        PROPERTIES
+            POSITION_INDEPENDENT_CODE 1
+            C_STANDARD 99)
 
 target_include_directories(objlib
         PUBLIC
@@ -86,8 +87,6 @@ else()
         PROPERTIES
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION}
-        #CXX_VISIBILITY_PRESET hidden
-        #VISIBILITY_INLINES_HIDDEN 1
         PUBLIC_HEADER "${LIB_PUB_HEADERS}")
 endif()
 

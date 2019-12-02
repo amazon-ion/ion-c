@@ -41,6 +41,5 @@ include(cmake/CMakeCPack.cmake)
 add_custom_target(release 
   COMMENT "Build and install the library"
   COMMENT "Binary Dir : ${CMAKE_BINARY_DIR}" 
-  #COMMAND "${CMAKE_COMMAND}" -E chdir "${CMAKE_BINARY_DIR}" --output-on-failure
   COMMAND "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}" --target install
   USES_TERMINAL)
