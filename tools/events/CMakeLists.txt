@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 add_library(ion_events
         ion_event_util.cpp
         ion_event_stream.cpp
