@@ -435,7 +435,7 @@ ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_re
         </tr>
       </table>
 </div><div class="memdoc">
-<p>returns the length of the value the reader is currently positioned on. This length is appropriate to use later when calling ion_reader_seek to limit "over-reading" in the underlying stream which could result in errors that are not really of intereest. </p>
+<p>returns the length of the value the reader is currently positioned on. This length is appropriate to use later when calling ion_reader_seek to limit "over-reading" in the underlying stream which could result in errors that are not really of interest. NOTE: readers of text data will always set *p_length to -1 because text Ion data is not length-prefixed. When the reader may be reading text Ion data, the correct way to calculate a value's length is by subtracting the current value's offset (see <code>ion_reader_get_value_offset</code>) from the next value's offset. This technique will work for both binary and text Ion data. </p>
 
 </div>
 </div>
@@ -965,8 +965,8 @@ ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_re
         </tr>
       </table>
 </div><div class="memdoc">
-<p>moves the stream position to the specified offset. Resets the the state of the reader to be at the top level. As long as the specified position is at the first byte of a value (just before the type description byte) this will work neatly. If the seek is into the middle of a value (including a collection) the view of the data is likely to be invalid.</p>
-<p>if a length is specified (default is -1 or no limit) eof will be returned when length bytes are consumed.</p>
+<p>moves the stream position to the specified offset. Resets the the state of the reader to be at the top level. As long as the specified position is at the first byte of a top-level value (just before the type description byte) this will work neatly. Do not attempt to seek to a value below the top level, as the view of the data is likely to be invalid.</p>
+<p>If a length is specified (default is -1 or no limit) eof will be returned when length bytes are consumed.</p>
 <p>A common pattern when using this interface would be to open the reader from an in memory buffer stream or a seek-able file handle. Then call ion_reader_next which will read the ion version marker and the initial local symbol table (if one is present). At that point the symbol table will be current and later seek's will have an appropriate symbol table to use. </p>
 
 </div>
