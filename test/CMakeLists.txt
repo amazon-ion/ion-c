@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
 # Avoid macro definition collisions between ionc and googletest.
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DGTEST_DONT_DEFINE_SUCCEED=1 -DGTEST_DONT_DEFINE_FAIL=1")
