@@ -1463,7 +1463,7 @@ iERR _ion_scanner_read_as_string(ION_SCANNER *scanner
                 break;
             }
             // for a triple quoted string there might be another segment waiting
-            IONCHECK(_ion_scanner_peek_for_next_triple_quote(scanner, &triple_quote_found));
+            IONCHECK(_ion_scanner_peek_for_next_triple_quote(scanner, ist->base_type == tid_CLOB, &triple_quote_found));
             if (!triple_quote_found) {
                 // we'll only loop around again to read another triple quoted string
                 // if we actually find another one
@@ -1925,7 +1925,7 @@ iERR _ion_scanner_read_hex_escape_value(ION_SCANNER *scanner, int hex_len, int *
     iRETURN;
 }
 
-iERR _ion_scanner_peek_for_next_triple_quote(ION_SCANNER *scanner, BOOL *p_triple_quote_found)
+iERR _ion_scanner_peek_for_next_triple_quote(ION_SCANNER *scanner, BOOL is_clob, BOOL *p_triple_quote_found)
 {
     iENTER;
     ION_STREAM *stream = scanner->_stream;
@@ -1934,8 +1934,12 @@ iERR _ion_scanner_peek_for_next_triple_quote(ION_SCANNER *scanner, BOOL *p_tripl
     ASSERT(scanner);
     ASSERT(stream);
 
-    // we use lob rules for skipping whitespace after the value
-    IONCHECK(_ion_scanner_read_past_lob_whitespace(scanner, &c));
+    // skip whitespace and comments (if allowed) after the value
+    if (is_clob) {
+        IONCHECK(_ion_scanner_read_past_lob_whitespace(scanner, &c));
+    } else {
+        IONCHECK(_ion_scanner_read_past_whitespace(scanner, &c));
+    }
     if (c == '\'') {
         // and we expect to find two more of them right next to one another
         IONCHECK(_ion_scanner_read_char(scanner, &c));

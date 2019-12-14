@@ -449,7 +449,7 @@ iERR _ion_scanner_encode_utf8_char                  (ION_SCANNER *scanner, int c
 
 iERR _ion_scanner_read_escaped_char                 (ION_SCANNER *scanner, ION_SUB_TYPE ist, int *p_char);
 iERR _ion_scanner_read_hex_escape_value             (ION_SCANNER *scanner, int hex_len, int *p_hexchar);
-iERR _ion_scanner_peek_for_next_triple_quote        (ION_SCANNER *scanner, BOOL *p_triple_quote_found);
+iERR _ion_scanner_peek_for_next_triple_quote        (ION_SCANNER *scanner, BOOL is_clob, BOOL *p_triple_quote_found);
 iERR _ion_scanner_read_lob_closing_braces           (ION_SCANNER *scanner);
 
 iERR _ion_scanner_read_as_base64                    (ION_SCANNER *scanner, BYTE *buf, SIZE len, SIZE *p_bytes_written, BOOL *p_eos_encountered);
