@@ -411,3 +411,48 @@ TEST(IonBinaryTimestamp, ReaderRequiresTimestampFractionLessThanOne) {
     // 0001-01-01T00:00:00.<11d-1>Z
     test_ion_binary_reader_requires_timestamp_fraction_less_than_one((BYTE *) "\xE0\x01\x00\xEA\x69\x80\x81\x81\x81\x80\x80\x80\xC1\x0B", 14);
 }
+
+void test_ion_binary_reader_supports_32_bit_floats(BYTE *data, size_t len, float expected) {
+    hREADER reader;
+    ION_TYPE type;
+    double actual;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, len, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_FLOAT, type);
+    ION_ASSERT_OK(ion_reader_read_double(reader, &actual));
+    ASSERT_FLOAT_EQ(expected, (float) actual);
+}
+
+TEST(IonBinaryFloat, ReaderSupports32BitFloats) {
+    int neg_inf_bits = 0xFF800000;
+    float neg_inf = *((float *)&neg_inf_bits);
+    int pos_inf_bits = 0x7F800000;
+    float pos_inf = *((float *)&pos_inf_bits);
+
+    test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x44\x00\x00\x00\x00", 9, 0.);
+    test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x44\x80\x00\x00\x00", 9, -0.);
+    test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x44\x40\x86\x66\x66", 9, 4.2);
+    test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x44\xC0\x86\x66\x66", 9, -4.2);
+    test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x44\xFF\x80\x00\x00", 9, neg_inf);
+    test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x44\x7F\x80\x00\x00", 9, pos_inf);
+    // minimum 32-bit float
+    test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x44\xFF\x7F\xFF\xFF", 9, -3.4028235E38);
+    // maximum 32-bit float
+    test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x44\x7F\x7F\xFF\xFF", 9, 3.4028235E38);
+}
+
+TEST(IonBinaryFloat, ReaderSupports32BitFloatNan) {
+    hREADER reader;
+    ION_TYPE type;
+    int nan_bits = 0x7FFFFFFF;
+    float nan = *((float *)&nan_bits);
+    double actual;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE *) "\xE0\x01\x00\xEA\x44\x7F\xFF\xFF\xFF", 9, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_FLOAT, type);
+    ION_ASSERT_OK(ion_reader_read_double(reader, &actual));
+    ASSERT_TRUE(isnan(nan));
+    ASSERT_TRUE(isnan(actual));
+}
