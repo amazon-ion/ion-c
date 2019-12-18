@@ -1624,6 +1624,11 @@ iERR _ion_scanner_read_as_string_to_quote(ION_SCANNER *scanner, BYTE *buf, SIZE 
             if (c > 0xFF) {
                 FAILWITHMSG(IERR_INVALID_TOKEN_CHAR, "Illegal character in clob.");
             }
+            if (c == NEW_LINE_1) {
+                // Note: all newlines were previously normalized to NEW_LINE_1. However, NEW_LINE_1 is a sentinel
+                // value; the LF character is what actually needs to be pushed.
+                c = '\n';
+            }
             PUSH_VALUE_BYTE(c);
         }
         else {
