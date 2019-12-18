@@ -43,3 +43,18 @@ add_custom_target(release
   COMMENT "Binary Dir : ${CMAKE_BINARY_DIR}" 
   COMMAND "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}" --target install
   USES_TERMINAL)
+
+####
+## Create cmake uninstall target
+####
+
+#  First, create the cmake script that will do the actual uninstall.
+
+configure_file( "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"
+                "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake" @ONLY )
+
+#  Define an uninstall target that will run the above script.
+
+add_custom_target(uninstall
+                  COMMAND ${CMAKE_COMMAND} -P
+                  "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake" )
