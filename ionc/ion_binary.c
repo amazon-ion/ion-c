@@ -371,12 +371,24 @@ iERR ion_binary_read_int_64(ION_STREAM *pstream, int32_t len, int64_t *p_value, 
     iRETURN;
 }
 
+iERR _ion_binary_read_float_bits(ION_STREAM *pstream, uint8_t float_byte_len, uint64_t *p_value)
+{
+    iENTER;
+    int b;
+
+    while (float_byte_len > 0) {
+        ION_GET(pstream, b);
+        *p_value = (*p_value << 8) | b;
+        float_byte_len--;
+    }
+    if (b < 0) FAILWITH(IERR_UNEXPECTED_EOF); // ION_GET will return EOF so we can just test the last byte read
+    iRETURN;
+}
 
 iERR ion_binary_read_double(ION_STREAM *pstream, int32_t len, double *p_value)
 {
     iENTER;
     uint64_t intvalue = 0;
-    int      b;
 
     ASSERT(pstream != NULL);
     ASSERT(p_value != NULL);
@@ -385,20 +397,17 @@ iERR ion_binary_read_double(ION_STREAM *pstream, int32_t len, double *p_value)
         *p_value = 0;
         SUCCEED();
     }
-    if (len != sizeof(double)) {
-        FAILWITHMSG(IERR_INVALID_BINARY, "Invalid binary size for double typed variable");
+    if (len == sizeof(double)) {
+        IONCHECK(_ion_binary_read_float_bits(pstream, len, &intvalue));
+        *p_value = *((double *)&intvalue);
     }
-
-    while (len > 0) {
-        ION_GET(pstream, b);
-        intvalue = (intvalue << 8) | b;
-        len--;
+    else if (len == sizeof(float)) {
+        IONCHECK(_ion_binary_read_float_bits(pstream, len, &intvalue));
+        *p_value = *((float *)&intvalue);
     }
-    if (b < 0) FAILWITH(IERR_UNEXPECTED_EOF); // ION_GET will return EOF's so we can just test the last byte read
-
-    // int will fix any endian issues since (as far as I can find) the
-    // endianness of int and floating point are the same
-    *p_value = *((double *)&intvalue);
+    else {
+        FAILWITHMSG(IERR_INVALID_BINARY, "Invalid binary size for float.");
+    }
 
     iRETURN;
 }
