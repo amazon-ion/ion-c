@@ -101,6 +101,15 @@ iERR ion_timestamp_instant_equals(const ION_TIMESTAMP *ptime1, const ION_TIMESTA
  */
 iERR _ion_timestamp_to_utc(const ION_TIMESTAMP *ptime, ION_TIMESTAMP *pout);
 
+/**
+ * Validates that the given fraction is at least zero is less than one.
+ * @param p_fraction the fraction to validate.
+ * @param pcontext the decContext to use for the comparison.
+ * @param error_code the error code to return if validation fails.
+ * @return IERR_OK, unless p_fraction is out of range.
+ */
+iERR _ion_timestamp_validate_fraction(decQuad *p_fraction, decContext *pcontext, iERR error_code);
+
 #ifdef __cplusplus
 }
 #endif

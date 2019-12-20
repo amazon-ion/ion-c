@@ -134,13 +134,86 @@ iERR _ion_timestamp_initialize(ION_TIMESTAMP *ptime)
     iRETURN;
 }
 
+/**
+ * Writes the given string containing a fraction expressed in scientific notation in expanded form. For example,
+ * the string "1E-8" will be written as ".00000001".
+ * @param scientific_fraction a string representing a number in the range [0, 1).
+ * @param exponent the exponent of the number denoted by `scientific_fraction`.
+ * @param buffer the destination for the expanded fraction.
+ * @param end_of_buffer the end of `buffer`.
+ * @param p_copied the number of bytes copied to `buffer`.
+ * @return IERR_INVALID_TIMESTAMP if the given string is not in the range [0, 1), or IERR_BUFFER_TOO_SMALL if
+ *   `end_of_buffer` is reached before the entire fraction is copied; otherwise, returns IERR_OK.
+ */
+iERR _ion_timestamp_scientific_notation_fraction_to_string(char *scientific_fraction, int32_t exponent, char *buffer, char *end_of_buffer, int *p_copied)
+{
+    iENTER;
+    int coefficient_digits = 0, leading_zeroes = 0, i, count;
+    const char *end_of_scientific_fraction = scientific_fraction + strlen(scientific_fraction);
+    char *index;
+    char *dst = buffer;
+    char *decimal_point_index = NULL;
+
+    // Count the number of coefficient digits and mark the location of the decimal point (if any).
+    for (index = scientific_fraction; index != end_of_scientific_fraction; index++) {
+        if (*index == 'E' || *index == 'e') {
+            break;
+        }
+        if (*index == '.') {
+            decimal_point_index = index;
+            continue;
+        }
+        coefficient_digits++;
+    }
+
+    // NOTE: decQuad uses a consistent canonical representation, so fractions created from, e.g., 123E-10 and 1.23E-8
+    // will both have the same exponent (-10). This allows for the following consistent formula for calculating the
+    // number of leading zeroes.
+    leading_zeroes = -exponent - coefficient_digits;
+    if (leading_zeroes <= 0) {
+        // This can only happen if the fraction is not in the range [0, 1). This is not possible for timestamps
+        // constructed via functions declared in ion_timestamp.h.
+        FAILWITHMSG(IERR_INVALID_TIMESTAMP, "Invalid fraction value.");
+    }
+
+    // First, write the decimal point.
+    IONCHECK(_ion_timestamp_copy_to_buf(dst, ".", end_of_buffer, &count));
+    dst += count;
+    if (dst >= end_of_buffer) FAILWITH(IERR_BUFFER_TOO_SMALL);
+
+    // Write the leading zeroes.
+    for (i = 0; i < leading_zeroes; i++) {
+        IONCHECK(_ion_timestamp_copy_to_buf(dst, "0", end_of_buffer, &count));
+        dst += count;
+        if (dst >= end_of_buffer) FAILWITH(IERR_BUFFER_TOO_SMALL);
+    }
+
+    // Calculate the end of the coefficient (i.e. everything before the 'E').
+    end_of_scientific_fraction = scientific_fraction + coefficient_digits;
+    if (decimal_point_index != NULL) {
+        end_of_scientific_fraction++;
+    }
+
+    // Write the coefficient, skipping the decimal point if present.
+    for (index = scientific_fraction; index != end_of_scientific_fraction; index++) {
+        if (index == decimal_point_index) {
+            continue;
+        }
+        *dst = *index;
+        dst += 1;
+        if (dst >= end_of_buffer) FAILWITH(IERR_BUFFER_TOO_SMALL);
+    }
+    *p_copied = dst - buffer;
+    iRETURN;
+}
+
 iERR ion_timestamp_to_string(ION_TIMESTAMP *ptime, char *buffer, SIZE buf_length, SIZE *p_length_written, decContext *pcontext)
 {
     iENTER;
     char   *pos = buffer;
     char   *end_of_buffer = pos + buf_length;
     char    temp[DECQUAD_String], *cp;
-    int     offset, offset_hours, offset_mins, count, i;
+    int     offset, offset_hours, offset_mins, count;
 
     if (!buffer)         FAILWITH(IERR_INVALID_ARG);
     if ( buf_length < 1) FAILWITH(IERR_BUFFER_TOO_SMALL);
@@ -231,32 +304,25 @@ iERR ion_timestamp_to_string(ION_TIMESTAMP *ptime, char *buffer, SIZE buf_length
             }
             else {
                 // Any other negative besides negative-zero is an error.
-                FAILWITH(IERR_INVALID_BINARY);
+                FAILWITH(IERR_INVALID_TIMESTAMP);
             }
         }
-        while (*cp == '0') cp++;  /* there should only be one '0' */
+        count = 0;
+        while (*cp == '0') cp++;  /* Because the result of decQuadToString is normalized, there will only be one '0'. */
         if ((*cp) == '.') {
+            // This is the common case: the result of decQuadToString is already in expanded form and may be copied
+            // verbatim.
             IONCHECK(_ion_timestamp_copy_to_buf(pos, cp, end_of_buffer, &count));
-        }
-        else if ((*cp) == 'E' || (*cp) == 'e') {
-            // This fraction is of the form 0E-N
-            IONCHECK(_ion_timestamp_copy_to_buf(pos, ".", end_of_buffer, &count));
-            pos += count;
-            if (pos >= end_of_buffer) FAILWITH(IERR_BUFFER_TOO_SMALL);
-            for (i = 0; i < -decQuadGetExponent(&ptime->fraction); i++) {
-                IONCHECK(_ion_timestamp_copy_to_buf(pos, "0", end_of_buffer, &count));
-                pos += count;
-                if (pos >= end_of_buffer) FAILWITH(IERR_BUFFER_TOO_SMALL);
-            }
-            count = 0;
         }
         else if (decQuadGetExponent(&ptime->fraction) >= 0) {
             if (!decQuadIsZero(&ptime->fraction)) FAILWITH(IERR_INVALID_TIMESTAMP);
             // Fractions with zero coefficient and >= 0 exponent are ignored.
-            count = 0;
         }
         else {
-            FAILWITHMSG(IERR_INVALID_TIMESTAMP, "Invalid fraction value");
+            // The fraction may still be [0, 1), but if it is, the result of decQuadToString must be in scientific
+            // notation. Because decQuadToString does not offer an option to avoid scientific notation, the expanded
+            // string representation must be generated manually here.
+            IONCHECK(_ion_timestamp_scientific_notation_fraction_to_string(temp, decQuadGetExponent(&ptime->fraction), pos, end_of_buffer, &count));
         }
         pos += count;
     }
@@ -773,31 +839,38 @@ iERR ion_timestamp_for_second(ION_TIMESTAMP *ptime,
     iRETURN;
 }
 
+iERR _ion_timestamp_validate_fraction(decQuad *p_fraction, decContext *pcontext, iERR error_code) {
+    iENTER;
+    decQuad decResult, decQuad_1;
+
+    if (decQuadIsSigned(p_fraction))  FAILWITHMSG(error_code, "fractional seconds can't be negative");
+
+    decQuadFromInt32(&decQuad_1, 1);
+
+    // Numeric value comparison: 1.0 == 1
+    decQuadCompare(&decResult, p_fraction, &decQuad_1, pcontext);
+    // Make sure fraction is < 1
+    if (!decQuadIsSigned(&decResult)) {
+        FAILWITHMSG(error_code, "fraction seconds can't be greater than 1");
+    }
+
+    // Make sure fraction is not true zero
+    if (decQuadIsZero(p_fraction) && decQuadGetExponent(p_fraction) > -1) {
+        FAILWITHMSG(error_code, "fraction seconds must have significant digit. 0 or 0. is not valid.");
+    }
+    iRETURN;
+}
+
 iERR ion_timestamp_for_fraction(ION_TIMESTAMP *ptime,
         int year, int month, int day, int hours, int minutes, int seconds,
         decQuad *p_fraction, decContext *pcontext)
 {
     iENTER;
-    decQuad decResult, decQuad_1;
 
     IONCHECK(ion_timestamp_for_second(ptime, year, month, day, hours, minutes, seconds));
 
     if (p_fraction != NULL) {
-        if (decQuadIsSigned(p_fraction))  FAILWITHMSG(IERR_INVALID_ARG, "fractional seconds can't be negative");
-
-        decQuadFromInt32(&decQuad_1, 1);
-
-        // Numeric value comparison: 1.0 == 1
-        decQuadCompare(&decResult, p_fraction, &decQuad_1, pcontext);
-        // Make sure fraction is < 1
-        if (!decQuadIsSigned(&decResult)) {
-            FAILWITHMSG(IERR_INVALID_ARG, "fraction seconds can't be greater than 1");
-        }
-
-        // Make sure fraction is not true zero
-        if (decQuadIsZero(p_fraction) && decQuadGetExponent(p_fraction) > -1) {
-            FAILWITHMSG(IERR_INVALID_ARG, "fraction seconds must have significant digit. 0 or 0. is not valid.");
-        }
+        IONCHECK(_ion_timestamp_validate_fraction(p_fraction, pcontext, IERR_INVALID_TIMESTAMP));
         decQuadCopy(&ptime->fraction, p_fraction);
         SET_FLAG_ON(ptime->precision, ION_TS_FRAC);
     }
