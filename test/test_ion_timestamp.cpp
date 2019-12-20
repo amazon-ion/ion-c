@@ -100,3 +100,86 @@ TEST(IonTimestamp, IgnoresSuperfluousOffset) {
     ASSERT_TRUE(ion_equals_timestamp(&expected2, &actual)); // Equivalence ignores the superfluous offset as well.
 }
 
+class IonTimestampHighPrecision : public testing::TestWithParam< testing::tuple<std::string, std::string> > {
+public:
+    std::string scientific_notation;
+    std::string expected_expanded_notation;
+
+    virtual void SetUp() {
+        scientific_notation = testing::get<0>(GetParam());
+        expected_expanded_notation = testing::get<1>(GetParam());
+    }
+};
+
+INSTANTIATE_TEST_CASE_P(IonTimestampHighPrecisionParameterized, IonTimestampHighPrecision, testing::Values(
+        std::tr1::make_tuple(std::string("123E-10"), std::string(".0000000123")),
+        std::tr1::make_tuple(std::string("12.3E-9"), std::string(".0000000123")),
+        std::tr1::make_tuple(std::string("1.23E-8"), std::string(".0000000123")),
+        std::tr1::make_tuple(std::string("0.123E-7"), std::string(".0000000123")),
+        std::tr1::make_tuple(std::string("1E-8"), std::string(".00000001")),
+        std::tr1::make_tuple(std::string("0.1E-7"), std::string(".00000001")),
+        std::tr1::make_tuple(std::string("0E-10"), std::string(".0000000000")),
+        std::tr1::make_tuple(std::string("0.0E-9"), std::string(".0000000000")),
+        std::tr1::make_tuple(std::string("0.00000000000E1"), std::string(".0000000000")),
+        std::tr1::make_tuple(std::string("999999999999999999999999E-24"), std::string(".999999999999999999999999"))
+));
+
+TEST_P(IonTimestampHighPrecision, TextWriterCanWriteHighPrecisionFraction) {
+    ION_TIMESTAMP timestamp;
+    decQuad fraction;
+    SIZE chars_used;
+
+    decQuadFromString(&fraction, scientific_notation.c_str(), &g_IonEventDecimalContext);
+    ION_ASSERT_OK(ion_timestamp_for_fraction(&timestamp, 2007, 1, 1, 12, 59, 59, &fraction, &g_IonEventDecimalContext));
+
+    char to_string[ION_TIMESTAMP_STRING_LENGTH + 1];
+    ION_ASSERT_OK(ion_timestamp_to_string(&timestamp, (char *)to_string, (SIZE)sizeof(to_string), &chars_used, &g_IonEventDecimalContext));
+    to_string[chars_used] = '\0';
+
+    char expected[ION_TIMESTAMP_STRING_LENGTH + 1];
+    chars_used = sprintf(expected, "2007-01-01T12:59:59%s-00:00", expected_expanded_notation.c_str());
+    expected[chars_used] = '\0';
+
+    ASSERT_STREQ(expected, to_string);
+}
+
+class IonTimestampOutOfRangeFraction : public testing::TestWithParam< std::string > {
+public:
+    std::string out_of_range_fraction;
+
+    virtual void SetUp() {
+        out_of_range_fraction = GetParam();
+    }
+};
+
+INSTANTIATE_TEST_CASE_P(IonTimestampOutOfRangeFractionParameterized, IonTimestampOutOfRangeFraction, testing::Values(
+        "1E10",
+        "10000000000E-1",
+        "-1E-10",
+        "-1E10",
+        "1",
+        "10E-1",
+        "1.0"
+));
+
+TEST_P(IonTimestampOutOfRangeFraction, WriterFailsOnOutOfRangeFraction) {
+    ION_TIMESTAMP timestamp;
+    decQuad fraction;
+    SIZE chars_used;
+    hWRITER writer;
+    ION_STREAM *stream;
+
+    decQuadFromString(&fraction, out_of_range_fraction.c_str(), &g_IonEventDecimalContext);
+    ION_ASSERT_OK(ion_timestamp_for_second(&timestamp, 2007, 1, 1, 12, 59, 59));
+    // Bypass the supported timestamp-with-fraction creation function (ion_timestamp_for_fraction) which rejects
+    // out-of-range fractions.
+    decQuadCopy(&timestamp.fraction, &fraction);
+    SET_FLAG_ON(timestamp.precision, ION_TS_FRAC);
+
+    char to_string[ION_TIMESTAMP_STRING_LENGTH + 1];
+    ASSERT_EQ(IERR_INVALID_TIMESTAMP, ion_timestamp_to_string(&timestamp, (char *)to_string, (SIZE)sizeof(to_string), &chars_used, &g_IonEventDecimalContext));
+
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, true));
+    ASSERT_EQ(IERR_INVALID_TIMESTAMP, ion_writer_write_timestamp(writer, &timestamp));
+
+}

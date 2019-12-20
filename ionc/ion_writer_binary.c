@@ -976,10 +976,20 @@ iERR _ion_writer_binary_write_timestamp_with_fraction( ION_WRITER *pwriter, ION_
     decQuad big_mantissa;
     int32_t exponent;
     BOOL is_negative, overflow;
+    decContext context = {
+            DECQUAD_Pmax,         // max digits
+            DEC_MAX_MATH,         // max exponent
+            -DEC_MAX_MATH,        // min exponent
+            DEC_ROUND_HALF_EVEN,  // rounding mode
+            DEC_Errors,           // trap conditions
+            0,                    // status flags
+            0                     // apply exponent clamp?
+    };
 
     ASSERT(pwriter != NULL);
     ASSERT(IS_FLAG_ON(ptime->precision, ION_TT_BIT_FRAC));
 
+    IONCHECK(_ion_timestamp_validate_fraction(&ptime->fraction, &context, IERR_INVALID_TIMESTAMP));
     IONCHECK(_ion_writer_binary_decimal_quad_components(&ptime->fraction, &pwriter->deccontext, &small_mantissa,
                                                         &big_mantissa, &exponent, &is_negative, &overflow));
 
