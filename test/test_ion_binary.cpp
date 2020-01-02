@@ -453,6 +453,6 @@ TEST(IonBinaryFloat, ReaderSupports32BitFloatNan) {
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_FLOAT, type);
     ION_ASSERT_OK(ion_reader_read_double(reader, &actual));
-    ASSERT_TRUE(isnan(nan));
-    ASSERT_TRUE(isnan(actual));
+    ASSERT_TRUE(std::isnan(nan));
+    ASSERT_TRUE(std::isnan(actual));
 }
