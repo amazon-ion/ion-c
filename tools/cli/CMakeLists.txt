@@ -23,6 +23,22 @@ target_include_directories(ion
 
 target_link_libraries(ion ionc ion_events docopt)
 
+## Argtable implementation of CLI
+
+add_executable(ion-argtable main-argtable.cpp argtable/argtable3.c cli.cpp)
+
+target_include_directories(ion-argtable
+        PRIVATE
+        ./
+        ../events
+        ../events/inc
+        ../../ionc
+        ../../ionc/include
+        argtable)
+
+target_link_libraries(ion-argtable ionc ion_events)
+
+
 # A library for testing.
 add_library(ion_cli cli.cpp)
 target_include_directories(ion_cli

@@ -30,7 +30,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 add_subdirectory(decNumber)
 add_subdirectory(ionc)
-add_subdirectory(test)
+# add_subdirectory(test)
 add_subdirectory(tools)
 
 export(PACKAGE IonC)
