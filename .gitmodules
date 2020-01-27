@@ -5,7 +5,3 @@
 	path = test/googletest
 	url = https://github.com/google/googletest.git
 	ignore = untracked
-[submodule "docopt"]
-	path = tools/cli/docopt
-	url = https://github.com/docopt/docopt.cpp.git
-	ignore = untracked
