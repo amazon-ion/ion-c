@@ -1,5 +1,0 @@
-{
-  error_type:STATE,
-  message:"/home/therapon/Github/therapon-org-ionc/tools/cli/cli.cpp:90 : IERR_CANT_FIND_FILE: one.c",
-  location:"one.c"
-}
