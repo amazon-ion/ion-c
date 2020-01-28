@@ -51,16 +51,16 @@
     iREPORT_EXIT(code) \
 
 #define PRINT_ION_COMMAND printf("\t%s", ION_CLI_PNAME)
-#define PRINT_HEADER_OPTIONS std::cout << "Options: " << std::endl << std::endl
-#define PRINT_HEADER_GLOSSARY std::cout << std::endl << "Glossary: " << std::endl << std::endl
+#define PRINT_HEADER_USAGE std::cout << "Usage: " << std::endl << std::endl
+#define PRINT_HEADER_OPTIONS std::cout << std::endl << "Options: " << std::endl << std::endl
 #define PRINT_HEADER_EXAMPLES std::cout << "Examples: " << std::endl << std::endl
 #define PRINT_HEADER_COMMANDS std::cout << "Commands: " << std::endl << std::endl
 
 #define PRINT_SUBCOMMAND_HELP_ON_ERROR(tablename) \
-    PRINT_HEADER_OPTIONS; \
+    PRINT_HEADER_USAGE; \
     PRINT_ION_COMMAND; \
     arg_print_syntaxv(stdout, tablename, "\n"); \
-    PRINT_HEADER_GLOSSARY; \
+    PRINT_HEADER_OPTIONS; \
     arg_print_glossary_gnu(stdout, tablename); \
     PRINT_HEADER_EXAMPLES;\
 
@@ -90,20 +90,20 @@ static const int MAX_NO_INPUTS = 24;
 static const char *const OUTPUT_SHORT_OPT = "o";
 static const char *const OUTPUT_LONG_OPT = "output";
 static const char *const FILE_DATATYPE = "<file>";
-static const char *const OUTPUT_FILE_GLOSSARY = "Output file (default: stdout).";
+static const char *const OUTPUT_FILE_GLOSSARY = "Output file [default: stdout].";
 
 static const char *const ERR_SHORT_OPT = "e";
 static const char *const ERR_LONG_OPT = "error-report";
-static const char *const ERR_GLOSSARY = "Error report file (default: stderr).";
+static const char *const ERR_GLOSSARY = "Error report file [default: stderr].";
 
 static const char *const OUT_TYPE_SHORT_OPT = "f";
 static const char *const OUT_TYPE_LONG_OPT = "output-format";
 static const char *const TYPE_DATATYPE = "<type>";
-static const char *const OUT_TYPE_GLOSSARY1 = "Output format, from the set (text | pretty | binary | events | none).'events' is only available with the 'process' command, and outputs a serialized EventStream representing the input Ion stream(s).[default: pretty]";
+static const char *const OUT_TYPE_GLOSSARY = "Output format, from the set (text | pretty | binary | events | none). 'events' is only available with the 'process' command, and outputs a serialized EventStream representing the input Ion stream(s). [default: pretty]";
 
 static const char *const CATALOG_SHORT_OPT = "c";
 static const char *const CATALOG_LONG_OPT = "catalog";
-static const char *const CATALOG_GLOSSARY1 = "Location(s) of files containing Ion streams of shared symbol tables from which to populate a catalog. This catalog will be used by all readers and writers when encountering shared symbol table import descriptors.";
+static const char *const CATALOG_GLOSSARY = "Location(s) of files containing Ion streams of shared symbol tables from which to populate a catalog. This catalog will be used by all readers and writers when encountering shared symbol table import descriptors.";
 
 static const char *const INPUT_GLOSSARY = "Input file(s).";
 
@@ -112,7 +112,7 @@ static const char *const PROCESS_COMMAND_NAME = "process";
 
 static const char *const IMPORTS_SHORT_OPT = "i";
 static const char *const IMPORTS_LONG_OPT = "imports";
-static const char *const IMPORT_GLOSSARY1 = "Location(s) of files containing list(s) of shared symbol table import descriptors. These imports will be used by writers during serialization. If a catalog is available (see: --catalog), the writer will attempt to match those import descriptors to actual shared symbol tables using the catalog.";
+static const char *const IMPORT_GLOSSARY = "Location(s) of files containing list(s) of shared symbol table import descriptors. These imports will be used by writers during serialization. If a catalog is available (see: --catalog), the writer will attempt to match those import descriptors to actual shared symbol tables using the catalog.";
 
 static const char *const PERF_SHORT_OPT = "p";
 static const char *const PERF_LONG_OPT = "perf-report";
@@ -125,14 +125,14 @@ static const char *const FILTER_GLOSSARY = "JQ-style filter to perform on the in
 
 static const char *const TRAVERSE_SHORT_OPT = "t";
 static const char *const TRAVERSE_LONG_OPT = "traverse";
-static const char *const TRAVERSE_GLOSSARY1 = "Location of a file containing a stream of ReadInstructions to use when reading the input stream(s) instead of performing a full traversal.";
+static const char *const TRAVERSE_GLOSSARY = "Location of a file containing a stream of ReadInstructions to use when reading the input stream(s) instead of performing a full traversal.";
 
 // subcommand: compare
 static const char *const COMPARE_COMMAND_NAME = "compare";
 
 static const char *const COMPARE_TYPE_SHORT_OPT = "y";
 static const char *const COMPARE_TYPE_LONG_OPT = "comparison-type";
-static const char *const COMPARE_TYPE_GLOSSARY1 = "Comparison semantics to be used with the compare command, from the set (basic | equivs | non-equivs | equiv-timeline). Any embedded streams in the inputs are compared for EventStream equality. 'basic' performs a standard data-model comparison between the corresponding events (or embedded streams) in the inputs.'equivs' verifies that each value (or embedded stream) in a top-level sequence is equivalent to every other value (or embedded stream) in that sequence. 'non-equivs' does the same, but verifies that the values (or embedded streams) are not equivalent. 'equiv-timeline' is the same as 'equivs', except that when top-level sequences contain timestamp values, they are considered equivalent if they represent the same instant regardless of whether they are considered equivalent by the Ion data model.[default: basic]";
+static const char *const COMPARE_TYPE_GLOSSARY = "Comparison semantics to be used with the compare command, from the set (basic | equivs | non-equivs | equiv-timeline). Any embedded streams in the inputs are compared for EventStream equality. 'basic' performs a standard data-model comparison between the corresponding events (or embedded streams) in the inputs. 'equivs' verifies that each value (or embedded stream) in a top-level sequence is equivalent to every other value (or embedded stream) in that sequence. 'non-equivs' does the same, but verifies that the values (or embedded streams) are not equivalent. 'equiv-timeline' is the same as 'equivs', except that when top-level sequences contain timestamp values, they are considered equivalent if they represent the same instant regardless of whether they are considered equivalent by the Ion data model. [default: basic]";
 
 // subcommand: extract
 static const char *const EXTRACT_COMMAND_NAME = "extract";
@@ -218,14 +218,14 @@ static struct arg_file *proc_err_f = arg_file0(ERR_SHORT_OPT, ERR_LONG_OPT, FILE
 static struct arg_str *proc_output_type = arg_str0(OUT_TYPE_SHORT_OPT,
                                                    OUT_TYPE_LONG_OPT,
                                                    TYPE_DATATYPE,
-                                                   OUT_TYPE_GLOSSARY1);
+                                                   OUT_TYPE_GLOSSARY);
 
 static struct arg_file *proc_catalog_fs = arg_filen(CATALOG_SHORT_OPT,
                                                     CATALOG_LONG_OPT,
                                                     FILE_DATATYPE,
                                                     0,
                                                     MAX_NO_INPUTS,
-                                                    CATALOG_GLOSSARY1);
+                                                    CATALOG_GLOSSARY);
 
 
 static struct arg_file *proc_import_fs = arg_filen(IMPORTS_SHORT_OPT,
@@ -233,7 +233,7 @@ static struct arg_file *proc_import_fs = arg_filen(IMPORTS_SHORT_OPT,
                                                    FILE_DATATYPE,
                                                    0,
                                                    MAX_NO_INPUTS,
-                                                   IMPORT_GLOSSARY1);
+                                                   IMPORT_GLOSSARY);
 
 
 static struct arg_file *proc_perf_f = arg_file0(PERF_SHORT_OPT,
@@ -248,7 +248,7 @@ static struct arg_str *proc_filter = arg_str0(FILTER_SHORT_OPT,
 static struct arg_file *proc_traverse = arg_file0(TRAVERSE_SHORT_OPT,
                                                   TRAVERSE_LONG_OPT,
                                                   FILE_DATATYPE,
-                                                  TRAVERSE_GLOSSARY1);
+                                                  TRAVERSE_GLOSSARY);
 static struct arg_file *proc_input_fs = arg_filen(NULL, NULL, FILE_DATATYPE, 1, MAX_NO_INPUTS, INPUT_GLOSSARY);
 static struct arg_end *proc_end = arg_end(ARG_MAX_ERRORS);
 static void *proc_argtable[] =
@@ -276,19 +276,19 @@ static struct arg_file *comp_err_f = arg_file0(ERR_SHORT_OPT, ERR_LONG_OPT,
 static struct arg_str *comp_output_type = arg_str0(OUT_TYPE_SHORT_OPT,
                                                    OUT_TYPE_LONG_OPT,
                                                    TYPE_DATATYPE,
-                                                   OUT_TYPE_GLOSSARY1);
+                                                   OUT_TYPE_GLOSSARY);
 
 static struct arg_file *comp_catalog_fs = arg_filen(CATALOG_SHORT_OPT,
                                                     CATALOG_LONG_OPT,
                                                     FILE_DATATYPE,
                                                     0,
                                                     MAX_NO_INPUTS,
-                                                    CATALOG_GLOSSARY1);
+                                                    CATALOG_GLOSSARY);
 
 static struct arg_str *comp_comparison_type = arg_str0(COMPARE_TYPE_SHORT_OPT,
                                                        COMPARE_TYPE_LONG_OPT,
                                                        TYPE_DATATYPE,
-                                                       COMPARE_TYPE_GLOSSARY1);
+                                                       COMPARE_TYPE_GLOSSARY);
 
 
 static struct arg_file *comp_input_fs = arg_filen(NULL, NULL, FILE_DATATYPE, 0, MAX_NO_INPUTS, INPUT_GLOSSARY);
@@ -309,49 +309,49 @@ static int comp_nerrors;
 //    (--symtab-version <version>)
 //    ( - | <input_file>...)
 
-static struct arg_rex *xtract = arg_rex1(NULL, NULL, EXTRACT_COMMAND_NAME, NULL, REG_ICASE, NULL);
+static struct arg_rex *extract = arg_rex1(NULL, NULL, EXTRACT_COMMAND_NAME, NULL, REG_ICASE, NULL);
 
-static struct arg_file *xtract_out_f = arg_file0(OUTPUT_SHORT_OPT,
-                                                 OUTPUT_LONG_OPT, FILE_DATATYPE, OUTPUT_FILE_GLOSSARY);
+static struct arg_file *extract_out_f = arg_file0(OUTPUT_SHORT_OPT,
+                                                  OUTPUT_LONG_OPT, FILE_DATATYPE, OUTPUT_FILE_GLOSSARY);
 
-static struct arg_file *xtract_err_f = arg_file0(ERR_SHORT_OPT, ERR_LONG_OPT,
-                                                 FILE_DATATYPE, ERR_GLOSSARY);
+static struct arg_file *extract_err_f = arg_file0(ERR_SHORT_OPT, ERR_LONG_OPT,
+                                                  FILE_DATATYPE, ERR_GLOSSARY);
 
-static struct arg_str *xtract_output_type = arg_str0(OUT_TYPE_SHORT_OPT,
-                                                     OUT_TYPE_LONG_OPT,
-                                                     TYPE_DATATYPE,
-                                                     OUT_TYPE_GLOSSARY1);
+static struct arg_str *extract_output_type = arg_str0(OUT_TYPE_SHORT_OPT,
+                                                      OUT_TYPE_LONG_OPT,
+                                                      TYPE_DATATYPE,
+                                                      OUT_TYPE_GLOSSARY);
 
 
-static struct arg_file *xtract_catalog_fs = arg_filen(CATALOG_SHORT_OPT,
-                                                      CATALOG_LONG_OPT,
-                                                      FILE_DATATYPE,
-                                                      0,
-                                                      MAX_NO_INPUTS,
-                                                      CATALOG_GLOSSARY1);
+static struct arg_file *extract_catalog_fs = arg_filen(CATALOG_SHORT_OPT,
+                                                       CATALOG_LONG_OPT,
+                                                       FILE_DATATYPE,
+                                                       0,
+                                                       MAX_NO_INPUTS,
+                                                       CATALOG_GLOSSARY);
 
-static struct arg_str *xtract_symtable_name = arg_str1(SYM_TABLE_NAME_SHORT_OPT,
-                                                       SYM_TABLE_NAME_LONG_OPT,
-                                                       NAME_DATATYPE,
-                                                       SYM_TABLE_NAME_GLOSSARY);
+static struct arg_str *extract_symtable_name = arg_str1(SYM_TABLE_NAME_SHORT_OPT,
+                                                        SYM_TABLE_NAME_LONG_OPT,
+                                                        NAME_DATATYPE,
+                                                        SYM_TABLE_NAME_GLOSSARY);
 
-static struct arg_str *xtract_symtable_version = arg_str1(SYM_TABLE_VERSION_SHORT_OPT,
-                                                          SYM_TABLE_VERSION_LONG_OPT,
-                                                          VERSION_DATATYPE,
-                                                          SYM_TABLE_VERSION_GLOSSARY);
+static struct arg_str *extract_symtable_version = arg_str1(SYM_TABLE_VERSION_SHORT_OPT,
+                                                           SYM_TABLE_VERSION_LONG_OPT,
+                                                           VERSION_DATATYPE,
+                                                           SYM_TABLE_VERSION_GLOSSARY);
 
-static struct arg_file *xtract_input_fs = arg_filen(NULL, NULL, FILE_DATATYPE, 0, MAX_NO_INPUTS, INPUT_GLOSSARY);
+static struct arg_file *extract_input_fs = arg_filen(NULL, NULL, FILE_DATATYPE, 0, MAX_NO_INPUTS, INPUT_GLOSSARY);
 
-static struct arg_end *xtract_end = arg_end(20);
+static struct arg_end *extract_end = arg_end(20);
 
-static void *xtract_argtable[] =
-        {xtract, xtract_out_f, xtract_err_f, xtract_output_type, xtract_catalog_fs, xtract_symtable_name,
-         xtract_symtable_version, xtract_input_fs, xtract_end};
+static void *extract_argtable[] =
+        {extract, extract_out_f, extract_err_f, extract_output_type, extract_catalog_fs, extract_symtable_name,
+         extract_symtable_version, extract_input_fs, extract_end};
 
-static int xtract_nerrors;
+static int extract_nerrors;
 
-static void **all_arg_tables[] = {argtable, proc_argtable, comp_argtable, xtract_argtable, help_argtable,
-                                 version_argtable};
+static void **all_arg_tables[] = {argtable, proc_argtable, comp_argtable, extract_argtable, help_argtable,
+                                  version_argtable};
 static int all_arg_tables_size = sizeof(all_arg_tables) / sizeof(all_arg_tables[0]);
 
 //
@@ -363,19 +363,19 @@ void ion_print_process_examples() {
             //--------------------------------------------------------------------------------
             //<-                                80 chars                                    ->
             //--------------------------------------------------------------------------------
-            "Read input.10n and pretty-print it to stdout.\n"
-            "\t $ ion process input.10n\n\n"
+            "Read input.10n and pretty-print it to stdout:\n"
+            "\t$ ion process input.10n\n\n"
 
-            "Read input.ion (using a catalog comprised of the shared symbol tables contained \n"
-            "in catalog.10n) without re-writing, and write a performance report.\n"
-            "\t$ ion process --output-format none --catalog catalog.10n --perf-report report -- input.10n\n\n"
+            "Read input.10n (using a catalog comprised of the shared symbol tables contained \n"
+            "in catalog.10n) without re-writing, and write a performance report:\n"
+            "\t$ ion process --output-format none --catalog catalog.10n --perf-report report input.10n\n\n"
 
             "Read input.10n according to the ReadInstructions specified by instructions.ion \n"
-            "and write the resulting Events to output.ion.\n"
+            "and write the resulting Events to output.ion:\n"
             "\t$ ion process -o output.ion -f events -t instructions.ion input.10n\n\n"
 
             "Read input1.ion and input2.10n and output to stdout any values in the streams \n"
-            "that match the filter .foo.\n"
+            "that match the filter .foo:\n"
             "\t$ ion process --filter .foo input1.ion input2.10n\n\n";
 
     std::cout << s << std::endl;
@@ -388,8 +388,7 @@ void ion_print_compare_examples() {
             //<-                                80 chars                                    ->
             //--------------------------------------------------------------------------------
             "Compare each stream in read_events.ion, input1.ion, and input2.10n against all \n"
-            "other streams in the set and output a ComparisonReport to \n"
-            "comparison_report.ion.\n"
+            "other streams in the set and output a ComparisonReport to comparison_report.ion:\n"
             "\t$ ion compare -o comparison_report.ion read_events.ion input1.ion input2.10n\n\n";
     std::cout << s << std::endl;
 }
@@ -401,7 +400,7 @@ void ion_print_extract_examples() {
             //--------------------------------------------------------------------------------
 
             "Extract a shared symbol table with name \"foo_table\" and version 1 from the \n"
-            "piped Ion stream and write it in binary format to foo_table.10n.\n"
+            "piped Ion stream and write it in binary format to foo_table.10n:\n"
             "\t$ echo 'foo' | ion extract -n 'foo_table' -V 1 -o foo_table.10n -f binary -\n\n";
     std::cout << s << std::endl;
 }
@@ -421,11 +420,11 @@ void ion_print_subcommand_help() {
             "           against all other inputs using the Ion data model's definition of \n"
             "           equality. Write a ComparisonReport to the output.\n\n"
 
-            "process    Read the input file(s) (optionally, specifying ReadInstructions or a \n"
+            "process    Read the input file(s) (optionally specifying ReadInstructions or a \n"
             "           filter) and re-write in the format specified by --output.\n\n"
 
             "help       Prints this general help. If provided a command, prints help specific\n"
-            "            to that command.\n\n"
+            "           to that command.\n\n"
 
             "version    Prints version information about this tool.\n\n";
 
@@ -440,7 +439,7 @@ void ion_print_command_options() {
 }
 
 void ion_print_command_options_glossary() {
-    PRINT_HEADER_OPTIONS;
+    PRINT_HEADER_USAGE;
     for (int i = 0; i < all_arg_tables_size; i++) {
         arg_print_glossary_gnu(stdout, all_arg_tables[i]);
     }
@@ -544,19 +543,23 @@ std::vector<IonCliIO> ion_cli_arg_names_to_io(int count, const char **fnames) {
     return acc;
 }
 
+bool is_hyphen(const std::string &input) {
+    return std::string("-") == input;
+}
+
 
 /**
  * Given the number of file name and the file names as strings check if they contain the special
- * string "-" that denotes STDIN. If so return false, esle true.
+ * string "-" that denotes STDIN. If so return false, else true.
  *
  * @param count number of file names
  * @param in_fnames file names as strings
- * @return true if "-" is in `in_fnames`, false otherwise
+ * @return false if "-" is in `in_fnames`, true otherwise
  */
 bool ion_cli_input_names_clean(int count, const char **in_fnames) {
     for (int i = 0; i < count; i++) {
         const char *tmp = in_fnames[i];
-        if (std::string("-") == std::string(tmp)) return false;
+        if (is_hyphen(std::string(tmp))) return false;
     }
     return true;
 }
@@ -618,9 +621,6 @@ ION_EVENT_COMPARISON_TYPE ion_cli_comparison_type_from_input(const std::string &
 }
 
 
-bool is_hyphen(const std::string &input) {
-    return std::string("-") == input;
-}
 
 /**
  * Process command line arguments that are common for all subcommands and update `report` and `common_args`
@@ -701,7 +701,7 @@ iERR ion_help_subcommand(int sub_command, const char **sub_cmd_name) {
             SUCCEED()
         }
         if (sname == "extract") {
-            PRINT_SUBCOMMAND_HELP_ON_ERROR(xtract_argtable)
+            PRINT_SUBCOMMAND_HELP_ON_ERROR(extract_argtable)
             ion_print_extract_examples();
             SUCCEED()
         }
@@ -724,7 +724,7 @@ void print_usage_for_subcommand(struct arg_end *table_end, void **args_table) {
 /**
  * Check that each argtable instance was created and initialized.
  */
-bool arg_tables_initalized() {
+bool arg_tables_not_initalized() {
     bool result = false;
     for (int i = 0; i < all_arg_tables_size; i++) {
         result = result || arg_nullcheck(all_arg_tables[i]) != 0;
@@ -738,7 +738,7 @@ int main(int argc, char **argv) {
     IonEventReport report;
     IonCliCommonArgs common_args;
 
-    if (arg_tables_initalized()) {
+    if (arg_tables_not_initalized()) {
         std::cerr << "Unable to allocate memory for argument parsing." << std::endl;
         EXIT(IERR_NO_MEMORY)
     }
@@ -747,7 +747,7 @@ int main(int argc, char **argv) {
     help_nerrors = arg_parse(argc, argv, help_argtable);
     proc_nerrors = arg_parse(argc, argv, proc_argtable);
     comp_nerrors = arg_parse(argc, argv, comp_argtable);
-    xtract_nerrors = arg_parse(argc, argv, xtract_argtable);
+    extract_nerrors = arg_parse(argc, argv, extract_argtable);
     nerrors = arg_parse(argc, argv, argtable);
 
     if (nerrors == 0) {
@@ -808,7 +808,7 @@ int main(int argc, char **argv) {
             comp_type = ion_cli_comparison_type_from_input(std::string(comp_comparison_type->sval[0]));
         }
         iREPORT_EXIT(ion_cli_command_compare(&common_args, comp_type, NULL, &report))
-    } else if (xtract_nerrors == 0) {
+    } else if (extract_nerrors == 0) {
         std::cout << "Extract command not implemented yet." << std::endl;
     } else {
         if (version_cmd->count > 0) {
@@ -831,9 +831,9 @@ int main(int argc, char **argv) {
             print_usage_for_subcommand(comp_end, comp_argtable);
             EXIT(IERR_INVALID_ARG)
         }
-        if (xtract->count > 0) {
+        if (extract->count > 0) {
             std::cout << "Invalid input provided to ion extract" << std::endl;
-            print_usage_for_subcommand(xtract_end, xtract_argtable);
+            print_usage_for_subcommand(extract_end, extract_argtable);
             EXIT(IERR_INVALID_ARG)
         } else {
             std::cout << "Invalid input provided to ion" << std::endl;
@@ -853,18 +853,10 @@ int main(int argc, char **argv) {
     }
 
     exit:
-    // deallocate each non-null entry in each argtableoe
+    // deallocate each non-null entry in each argtable
     for (int i = 0; i < all_arg_tables_size; i++){
         arg_free(all_arg_tables[i]);
     }
 
     iRETURN;
 }
-
-
-
-
-
-
-
-
