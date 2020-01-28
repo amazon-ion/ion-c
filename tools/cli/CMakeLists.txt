@@ -1,6 +1,4 @@
 
-add_subdirectory(docopt)
-
 # C++ standard
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -10,7 +8,7 @@ endif()
 
 
 # The public executable.
-add_executable(ion main.cpp cli.cpp)
+add_executable(ion main.cpp argtable/argtable3.c cli.cpp)
 
 target_include_directories(ion
         PRIVATE
@@ -19,9 +17,9 @@ target_include_directories(ion
             ../events/inc
             ../../ionc
             ../../ionc/include
-            docopt)
+            argtable)
 
-target_link_libraries(ion ionc ion_events docopt)
+target_link_libraries(ion ionc ion_events)
 
 # A library for testing.
 add_library(ion_cli cli.cpp)

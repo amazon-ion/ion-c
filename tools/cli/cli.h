@@ -25,6 +25,7 @@
 #include "ion_catalog_impl.h"
 
 #define ION_CLI_VERSION "1.0"
+#define ION_CLI_PNAME "ion"
 
 typedef enum _ion_cli_input_format {
     IO_TYPE_FILE = 0,
