@@ -453,11 +453,10 @@ void ion_print_examples() {
 }
 
 void ion_print_full_help_message() {
-    std::cout << "Usage: " << std::endl;
-    ion_print_command_options();
+    PRINT_HEADER_USAGE;
+    PRINT_ION_COMMAND;
+    arg_print_syntaxv(stdout, help_argtable, "\n\n");
     ion_print_subcommand_help();
-    ion_print_command_options_glossary();
-    ion_print_examples();
 }
 
 iERR ion_print_help_or_version(int help_count, int version_count) {
@@ -619,7 +618,6 @@ ION_EVENT_COMPARISON_TYPE ion_cli_comparison_type_from_input(const std::string &
     }
     return COMPARISON_TYPE_UNKNOWN;
 }
-
 
 
 /**
@@ -854,7 +852,7 @@ int main(int argc, char **argv) {
 
     exit:
     // deallocate each non-null entry in each argtable
-    for (int i = 0; i < all_arg_tables_size; i++){
+    for (int i = 0; i < all_arg_tables_size; i++) {
         arg_free(all_arg_tables[i]);
     }
 
