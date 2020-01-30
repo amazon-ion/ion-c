@@ -125,6 +125,10 @@ std::vector<std::string> *skip_list() {
         add_to_skip(good_path, "utf32.ion");
 
         add_to_skip(good_path, "subfieldVarUInt32bit.ion"); // NOTE: the implementation caps SIDs at 32 bits. This contains a SID that overflows.
+
+        add_to_skip(good_path, join_path("typecodes", "T6-large.10n")); // https://github.com/amzn/ion-c/issues/165
+        add_to_skip(good_path, join_path("typecodes", "T7-large.10n")); // https://github.com/amzn/ion-c/issues/166
+        add_to_skip(bad_path, join_path("typecodes", "type_6_length_0.10n")); // https://github.com/amzn/ion-c/issues/167
     }
     return &_skip_list;
 }
