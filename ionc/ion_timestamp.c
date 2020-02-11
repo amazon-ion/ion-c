@@ -105,7 +105,7 @@ iERR ion_timestamp_to_time_t(const ION_TIMESTAMP *ptime, time_t *time)
     // See http://www.kernel.org/doc/man-pages/online/pages/man3/timegm.3.html
     *time = timegm(&tm);
 #else
-    *time = _mktime64(&tm);
+    *time = _mkgmtime64(&tm);
 #endif
     if (*time == -1) {
         FAILWITH(IERR_INVALID_TIMESTAMP);
