@@ -853,7 +853,8 @@ int main(int argc, char **argv) {
     exit:
     // deallocate each non-null entry in each argtable
     for (int i = 0; i < all_arg_tables_size; i++) {
-        arg_free(all_arg_tables[i]);
+        void **current_arg_table = all_arg_tables[i];
+        arg_freetable(current_arg_table, sizeof(current_arg_table) / sizeof(current_arg_table[0]));
     }
 
     iRETURN;
