@@ -287,6 +287,9 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
         IONCHECK(_ion_writer_get_field_name_as_string_helper(pwriter, &str, NULL));
         IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii, !ION_STRING_IS_NULL(&pwriter->field_name.value)));
         ION_TEXT_WRITER_APPEND_CHAR(':');
+        if (ION_TEXT_WRITER_IS_PRETTY()) {
+            ION_TEXT_WRITER_APPEND_CHAR(' ');
+        }
         IONCHECK(_ion_writer_clear_field_name_helper(pwriter));
     }
 
