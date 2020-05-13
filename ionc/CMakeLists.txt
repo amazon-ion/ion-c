@@ -64,47 +64,66 @@ target_include_directories(objlib
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../decNumber/include>
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}
-
 )
 
 
 if (MSVC)
   add_library(ionc $<TARGET_OBJECTS:objlib>) 
+  target_link_libraries(ionc decNumber)
 else()
-  add_library(ionc SHARED $<TARGET_OBJECTS:objlib>)
-  target_include_directories(ionc
-      PUBLIC
-            $<INSTALL_INTERFACE:include>
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../decNumber/include>
-      PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}
+    if(BUILD_SHARED_LIBS)
+        message(STATUS "Building shared libs")
+        add_library(ionc SHARED $<TARGET_OBJECTS:objlib>)
+        target_include_directories(ionc
+                PUBLIC
+                    $<INSTALL_INTERFACE:include>
+                    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../decNumber/include>
+                PRIVATE
+                    ${CMAKE_CURRENT_SOURCE_DIR}
+                )
 
-)
-  add_library(ionc_static STATIC $<TARGET_OBJECTS:objlib>)
-  set_target_properties(ionc
-        PROPERTIES
-        VERSION ${PROJECT_VERSION}
-        SOVERSION ${PROJECT_VERSION}
-        PUBLIC_HEADER "${LIB_PUB_HEADERS}")
+        set_target_properties(ionc
+                PROPERTIES
+                VERSION ${PROJECT_VERSION}
+                SOVERSION ${PROJECT_VERSION}
+                PUBLIC_HEADER "${LIB_PUB_HEADERS}")
+
+        # Unix requires linking against lib m explicitly.
+        target_link_libraries(ionc PUBLIC decNumber m)
+
+        install(TARGETS ionc
+                EXPORT IonCTargets
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ionc)
+
+    endif()
+    if(BUILD_STATIC_LIBS)
+        message(STATUS "Building static libs")
+        add_library(ionc_static STATIC $<TARGET_OBJECTS:objlib>)
+
+        target_include_directories(ionc_static
+                PUBLIC
+                    $<INSTALL_INTERFACE:include>
+                    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../decNumber/include>
+                PRIVATE
+                    ${CMAKE_CURRENT_SOURCE_DIR}
+                )
+
+        install(TARGETS ionc_static
+                EXPORT IonCTargets
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ionc)
+    endif()
 endif()
 
-
-if (MSVC)
-    target_link_libraries(ionc decNumber)
-else()
-    # Unix requires linking against lib m explicitly.
-    target_link_libraries(ionc PUBLIC decNumber m)
-endif()
 
 set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/IonC)
-
-install(TARGETS ionc
-        EXPORT IonCTargets
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ionc)
 
 install(EXPORT IonCTargets
         FILE IonCTargets.cmake

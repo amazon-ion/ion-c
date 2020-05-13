@@ -21,25 +21,50 @@ set(DEC_PUB_HEADERS
     include/decNumber/decQuad.h
     include/decNumber/decSingle.h)
 
-add_library(decNumber ${declibsrc})
-set_property(TARGET decNumber PROPERTY POSITION_INDEPENDENT_CODE 1)
+if(MSVC)
+    add_library(decNumber ${declibsrc})
+else()
+    if (BUILD_SHARED_LIBS)
+        add_library(decNumber SHARED ${declibsrc})
+        set_property(TARGET decNumber PROPERTY POSITION_INDEPENDENT_CODE 1)
 
-target_include_directories(decNumber
-        PUBLIC
-        $<INSTALL_INTERFACE:include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+        target_include_directories(decNumber
+                PUBLIC
+                    $<INSTALL_INTERFACE:include>
+                    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
-set_target_properties(decNumber
-    PROPERTIES
-        PUBLIC_HEADER "${DEC_PUB_HEADERS}")
+        set_target_properties(decNumber
+                PROPERTIES
+                PUBLIC_HEADER "${DEC_PUB_HEADERS}")
 
+        install(TARGETS decNumber
+                EXPORT IonCTargets
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/decNumber)
+    endif()
 
-install(TARGETS decNumber
-        EXPORT IonCTargets
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/decNumber)
+    if (BUILD_STATIC_LIBS)
+        add_library(decNumber_static STATIC ${declibsrc})
+
+        target_include_directories(decNumber_static
+                PUBLIC
+                    $<INSTALL_INTERFACE:include>
+                    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+
+        set_target_properties(decNumber_static
+                PROPERTIES
+                PUBLIC_HEADER "${DEC_PUB_HEADERS}")
+
+        install(TARGETS decNumber_static
+                EXPORT IonCTargets
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/decNumber)
+    endif()
+endif()
 
 
 install(DIRECTORY include/decNumber

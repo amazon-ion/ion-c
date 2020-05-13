@@ -4,6 +4,15 @@ project(IonC
         VERSION 1.0.3
         LANGUAGES CXX C)
 
+## Option for building static libs
+## use --DBUILD_STATIC_LIBS=ON or --DBUILD_STATIC_LIBS=OFF
+## Default: ON
+option(BUILD_STATIC_LIBS "Build static library" ON)
+
+## Option for building shared libs
+## use --DBUILD_SHARED_LIBS=ON or --DBUILD_SHARED_LIBS=OFF
+## Default: ON
+option(BUILD_SHARED_LIBS "Build shared library" ON)
 
 # we default to 'Release' build type
 if(NOT CMAKE_BUILD_TYPE)
@@ -13,7 +22,6 @@ message(STATUS "Build type set to ${CMAKE_BUILD_TYPE}")
 
 if (MSVC)
 else()
-    set(BUILD_SHARED_LIBS ON)
     add_compile_options("$<$<CONFIG:DEBUG>:-O0;-g3;-ggdb3;-Wall>")
 endif()
 
