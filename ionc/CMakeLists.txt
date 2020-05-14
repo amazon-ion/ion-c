@@ -70,6 +70,20 @@ target_include_directories(objlib
 if (MSVC)
   add_library(ionc $<TARGET_OBJECTS:objlib>) 
   target_link_libraries(ionc decNumber)
+  target_include_directories(ionc
+          PUBLIC
+          $<INSTALL_INTERFACE:include>
+          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../decNumber/include>
+          PRIVATE
+          ${CMAKE_CURRENT_SOURCE_DIR}
+          )
+  set_target_properties(ionc
+          PROPERTIES
+          VERSION ${PROJECT_VERSION}
+          SOVERSION ${PROJECT_VERSION}
+          PUBLIC_HEADER "${LIB_PUB_HEADERS}")
+
 else()
     if(BUILD_SHARED_LIBS)
         message(STATUS "Building shared libs")
