@@ -23,6 +23,23 @@ set(DEC_PUB_HEADERS
 
 if(MSVC)
     add_library(decNumber ${declibsrc})
+    set_property(TARGET decNumber PROPERTY POSITION_INDEPENDENT_CODE 1)
+
+    target_include_directories(decNumber
+            PUBLIC
+            $<INSTALL_INTERFACE:include>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+
+    set_target_properties(decNumber
+            PROPERTIES
+            PUBLIC_HEADER "${DEC_PUB_HEADERS}")
+
+    install(TARGETS decNumber
+            EXPORT IonCTargets
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/decNumber)
 else()
     if (BUILD_SHARED_LIBS)
         add_library(decNumber SHARED ${declibsrc})
