@@ -33,6 +33,21 @@ set_target_properties(decNumber
     PROPERTIES
         PUBLIC_HEADER "${DEC_PUB_HEADERS}")
 
+# ---
+
+add_library(decNumberStatic STATIC ${declibsrc})
+set_property(TARGET decNumberStatic PROPERTY POSITION_INDEPENDENT_CODE 1)
+
+target_include_directories(decNumberStatic
+        PUBLIC
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+
+set_target_properties(decNumberStatic
+    PROPERTIES
+        PUBLIC_HEADER "${DEC_PUB_HEADERS}")
+
+# ---
 
 install(TARGETS decNumber
         EXPORT IonCTargets

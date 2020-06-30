@@ -21,6 +21,21 @@ target_include_directories(ion
 
 target_link_libraries(ion ionc ion_events)
 
+# A static library version of `ion` that does not include a main()
+# function, allowing other programs to wrap it.
+add_library(ion_cli_main STATIC main.cpp argtable/argtable3.c cli.cpp)
+target_compile_definitions(ion_cli_main PUBLIC EXTERNAL_DRIVER)
+target_include_directories(ion_cli_main
+        PRIVATE
+            ./
+            ../events
+            ../events/inc
+            ../../ionc
+            ../../ionc/include
+            argtable)
+target_link_libraries(ion_cli_main ionc ion_events)
+
+
 # A library for testing.
 add_library(ion_cli cli.cpp)
 target_include_directories(ion_cli

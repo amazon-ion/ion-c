@@ -1,4 +1,4 @@
-add_library(ion_events
+add_library(ion_events STATIC
         ion_event_util.cpp
         ion_event_stream.cpp
         ion_event_equivalence.cpp)
@@ -11,7 +11,5 @@ target_include_directories(ion_events
             ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc
             ${CMAKE_CURRENT_SOURCE_DIR}/../../ionc/include
 )
-
-
 
 target_link_libraries(ion_events ionc)
