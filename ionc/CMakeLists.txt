@@ -81,13 +81,14 @@ else()
             ${CMAKE_CURRENT_SOURCE_DIR}
 
 )
-  add_library(ionc_static STATIC $<TARGET_OBJECTS:objlib>)
   set_target_properties(ionc
         PROPERTIES
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION}
         PUBLIC_HEADER "${LIB_PUB_HEADERS}")
 endif()
+
+add_library(ionc_static STATIC $<TARGET_OBJECTS:objlib>)
 
 
 if (MSVC)
@@ -99,7 +100,7 @@ endif()
 
 set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/IonC)
 
-install(TARGETS ionc
+install(TARGETS ionc ionc_static
         EXPORT IonCTargets
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
