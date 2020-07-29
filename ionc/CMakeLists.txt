@@ -99,7 +99,7 @@ endif()
 
 set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/IonC)
 
-install(TARGETS ionc
+install(TARGETS ionc ionc_static
         EXPORT IonCTargets
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
