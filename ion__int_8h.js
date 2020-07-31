@@ -96,10 +96,10 @@ var ion__int_8h =
     [ "ion_int_to_int32", "ion__int_8h.html#a030f013ca085f730543d1ab01e3035cb", null ],
     [ "ion_int_to_int64", "ion__int_8h.html#a1574dbfe0bf86feae141efe6e3966539", null ],
     [ "ion_int_to_string", "ion__int_8h.html#a2dcb1a8de691888f1e0ed19c3e1e36b5", null ],
-    [ "g_digit_base_number", "ion__int_8h.html#a3ab7a7d4f5b2f4b5308989fd3b948de3", null ],
-    [ "g_digit_base_quad", "ion__int_8h.html#ae44b50aa2f042c37bcbcfd16ae122ec2", null ],
+    [ "g_digit_base_number", "ion__int_8h.html#a8b0b69b82435c084bf44b6c41a5a3d70", null ],
+    [ "g_digit_base_quad", "ion__int_8h.html#af01377d59371c5d4ce110bc9e4cf38e0", null ],
     [ "g_Int_Null", "ion__int_8h.html#a33efe7c6e6ae924b6ace553e507710fc", null ],
     [ "g_Int_Zero", "ion__int_8h.html#a7ef2be9c9c0a8a5ddf0ad2c4f2ab642a", null ],
     [ "g_int_zero_bytes", "ion__int_8h.html#a2617323b79c65ba217099344a79c83a6", null ],
-    [ "g_ion_int_globals_initialized", "ion__int_8h.html#ac7e600707caf84b6e50b6c2f9b7d963e", null ]
+    [ "g_ion_int_globals_initialized", "ion__int_8h.html#a756240f1bb98bfffa7e40f9b6b8b0f54", null ]
 ];
