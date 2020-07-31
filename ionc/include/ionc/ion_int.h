@@ -128,9 +128,9 @@ ION_INT_GLOBAL ION_INT         g_Int_Null
 #endif
 ;
 
-ION_INT_GLOBAL BOOL            g_ion_int_globals_initialized; // NOTE: this is initialized to 0 according to C standard.
-ION_INT_GLOBAL decQuad         g_digit_base_quad;
-ION_INT_GLOBAL decNumber       g_digit_base_number;
+THREAD_LOCAL_STORAGE ION_INT_GLOBAL BOOL            g_ion_int_globals_initialized; // NOTE: this is initialized to 0 according to C standard.
+THREAD_LOCAL_STORAGE ION_INT_GLOBAL decQuad         g_digit_base_quad;
+THREAD_LOCAL_STORAGE ION_INT_GLOBAL decNumber       g_digit_base_number;
 
 
 //////////////////////////////////////////////////////////////

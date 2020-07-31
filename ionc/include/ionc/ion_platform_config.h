@@ -45,4 +45,15 @@
 #define ION_API_EXPORT
 #endif
 
+// Support for thread local storage across compilers
+#ifdef __STDC_VERSION__ >= 201112L
+#define THREAD_LOCAL_STORAGE _Thread_local
+#elif __GNUC__
+#define THREAD_LOCAL_STORAGE __thread
+#elif defined(_MSC_VER)
+#define THREAD_LOCAL_STORAGE __declspec(thread)
+#else
+#error "Compiler does not support thread local storage"
+#endif
+
 #endif
