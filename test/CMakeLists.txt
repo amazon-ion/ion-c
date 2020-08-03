@@ -29,7 +29,7 @@ add_executable(all_tests
     test_ion_reader_seek.cpp
 )
 
-add_subdirectory(googletest)
+add_subdirectory(googletest EXCLUDE_FROM_ALL)
 
 
 target_include_directories(all_tests
