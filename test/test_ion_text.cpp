@@ -652,7 +652,7 @@ TEST(IonTextClob, CanFullyReadClobUsingPartialReadsAfterReadingSize) {
 }
  
 // regression test for https://github.com/amzn/ion-c/issues/188
-TEST(IonTextblob, CanFullyReadblobUsingPartialReadsAfterReadingSize) {
+TEST(IonTextblob, CanFullyReadBlobUsingPartialReadsAfterReadingSize) {
     hREADER reader;
     const SIZE EXPECTED_SIZE = 23;
     open_reader_read_lob_size("{{ VGhpcyBpcyBhIEJMT0Igb2YgdGV4dC4= }}", tid_BLOB, EXPECTED_SIZE, reader);
