@@ -456,3 +456,84 @@ TEST(IonBinaryFloat, ReaderSupports32BitFloatNan) {
     ASSERT_TRUE(std::isnan(nan));
     ASSERT_TRUE(std::isnan(actual));
 }
+
+/**
+ * Creates a new reader which reads ion_text and asserts that the next value is of expected_type and of expected_lob_size
+ */
+void open_binary_reader_read_lob_size(const char *ion_text, SIZE buff_size, ION_TYPE expected_type, SIZE expected_lob_size, hREADER &reader) {
+    ION_TYPE type;
+    SIZE lob_size;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE*)ion_text, buff_size, NULL));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(expected_type, type);
+
+    ION_ASSERT_OK(ion_reader_get_lob_size(reader, &lob_size));
+    ASSERT_EQ(expected_lob_size, lob_size);
+}
+
+/** Tests the ability to read a CLOB or a BLOB using ion_reader_read_lob_bytes. */
+void test_full_binary_lob_read(const char *ion_text, SIZE buff_size, ION_TYPE expected_tid, SIZE expected_size, const char *expected_value) {
+    hREADER reader;
+    open_binary_reader_read_lob_size(ion_text, buff_size, expected_tid, expected_size, reader);
+
+    BYTE *bytes = (BYTE*)calloc(1, expected_size + 1);
+
+    SIZE bytes_read;
+    ION_ASSERT_OK(ion_reader_read_lob_bytes(reader, bytes, expected_size, &bytes_read));
+    ASSERT_EQ(expected_size, bytes_read);
+
+    ASSERT_EQ(strcmp(expected_value, (char*)bytes), 0);
+
+    free(bytes);
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonBinaryClob, CanReadClob) {
+    test_full_binary_lob_read(
+            "\xE0\x01\x00\xEA\x9E\x97\x54\x68\x69\x73\x20\x69\x73\x20\x61\x20\x43\x4C\x4F\x42\x20\x6F\x66\x20\x74\x65\x78\x74\x2E",
+            29, tid_CLOB, 23, "This is a CLOB of text.");
+}
+
+TEST(IonBinaryBlob, CanReadBlob) {
+    test_full_binary_lob_read(
+            "\xE0\x01\x00\xEA\xAE\x97\x54\x68\x69\x73\x20\x69\x73\x20\x61\x20\x42\x4C\x4F\x42\x20\x6F\x66\x20\x74\x65\x78\x74\x2E",
+            29, tid_BLOB, 23, "This is a BLOB of text.");
+}
+
+/** Tests the ability to read BLOB or CLOB using multiple calls to ion_reader_read_lob_partial_bytes. */
+void test_partial_binary_lob_read(const char *ion_text, SIZE buff_size, ION_TYPE expected_tid, SIZE expected_size, const char *expected_value) {
+    hREADER reader;
+    open_binary_reader_read_lob_size(ion_text, buff_size, expected_tid, expected_size, reader);
+
+    BYTE* bytes = (BYTE*)calloc(1, expected_size + 1);
+    SIZE bytes_read, total_bytes_read = 0;
+
+    const size_t READ_SIZE = 5;
+    do
+    {
+        ION_ASSERT_OK(ion_reader_read_lob_partial_bytes(reader, &bytes[total_bytes_read], READ_SIZE, &bytes_read));
+        total_bytes_read += bytes_read;
+    } while (bytes_read > 0);
+
+    ASSERT_EQ(expected_size, total_bytes_read);
+    char* lob_text = (char*)bytes;
+    ASSERT_EQ(strcmp(expected_value, lob_text), 0);
+
+    free(bytes);
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonBinaryClob, CanFullyReadClobUsingPartialReads) {
+    test_partial_binary_lob_read(
+            "\xE0\x01\x00\xEA\x9E\x97\x54\x68\x69\x73\x20\x69\x73\x20\x61\x20\x43\x4C\x4F\x42\x20\x6F\x66\x20\x74\x65\x78\x74\x2E",
+            29, tid_CLOB, 23, "This is a CLOB of text.");
+}
+
+TEST(IonBinaryBlob, CanFullyReadBlobUsingPartialReads) {
+    test_partial_binary_lob_read(
+            "\xE0\x01\x00\xEA\xAE\x97\x54\x68\x69\x73\x20\x69\x73\x20\x61\x20\x42\x4C\x4F\x42\x20\x6F\x66\x20\x74\x65\x78\x74\x2E",
+            29, tid_BLOB, 23, "This is a BLOB of text.");
+}
+

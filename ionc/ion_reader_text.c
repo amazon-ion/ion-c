@@ -1863,7 +1863,7 @@ iERR _ion_reader_text_read_lob_bytes(ION_READER *preader, BOOL accept_partial, B
 {
     iENTER;
     ION_TEXT_READER  *text = &preader->typed_reader.text;
-    SIZE              written, remaining;
+    SIZE              written;
     BOOL              eos_encountered = FALSE;
 
     ASSERT(preader);
@@ -1920,9 +1920,8 @@ iERR _ion_reader_text_read_lob_bytes(ION_READER *preader, BOOL accept_partial, B
         memcpy(p_buf, text->_scanner._value_image.value, written);
 
         if (written < text->_scanner._value_image.length) {
-            remaining = text->_scanner._value_image.length - written;
             text->_scanner._value_image.value += written;
-            text->_scanner._value_image.length -= remaining;
+            text->_scanner._value_image.length -= written;
         }
         else {
             // this case occurs when the value has been consumed and the user asks for more
