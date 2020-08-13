@@ -594,46 +594,39 @@ void open_reader_read_lob_size(const char *ion_text, ION_TYPE expected_type, SIZ
     ASSERT_EQ(expected_lob_size, lob_size);
 }
 
-TEST(IonTextClob, CanReadClob) {
+/** Tests the ability to read a CLOB or a BLOB using ion_reader_read_lob_bytes. */
+void test_full_lob_read(const char *ion_text, ION_TYPE expected_tid, SIZE expected_size, const char *expected_value) {
     hREADER reader;
-    const SIZE EXPECTED_SIZE = 23;
-    open_reader_read_lob_size("{{ \"This is a CLOB of text.\" }}", tid_CLOB, EXPECTED_SIZE, reader);
+    open_reader_read_lob_size(ion_text, expected_tid, expected_size, reader);
 
-    BYTE *bytes = (BYTE*)calloc(1, EXPECTED_SIZE + 1);
+    BYTE *bytes = (BYTE*)calloc(1, expected_size + 1);
 
     SIZE bytes_read;
-    ION_ASSERT_OK(ion_reader_read_lob_bytes(reader, bytes, EXPECTED_SIZE, &bytes_read));
-    ASSERT_EQ(EXPECTED_SIZE, bytes_read);
+    ION_ASSERT_OK(ion_reader_read_lob_bytes(reader, bytes, expected_size, &bytes_read));
+    ASSERT_EQ(expected_size, bytes_read);
 
-    ASSERT_EQ(strcmp("This is a CLOB of text.", (char*)bytes), 0);
+    ASSERT_EQ(strcmp(expected_value, (char*)bytes), 0);
 
     free(bytes);
     ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonTextClob, CanReadClob) {
+    test_full_lob_read("{{ \"This is a CLOB of text.\" }}",
+                       tid_CLOB, 23, "This is a CLOB of text.");
 }
 
 TEST(IonTextBlob, CanReadBlob) {
-    hREADER reader;
-    const SIZE EXPECTED_SIZE = 23;
-    open_reader_read_lob_size("{{ VGhpcyBpcyBhIEJMT0Igb2YgdGV4dC4= }}", tid_BLOB, EXPECTED_SIZE, reader);
-
-    BYTE *bytes = (BYTE*)calloc(1, EXPECTED_SIZE + 1);
-
-    SIZE bytes_read;
-    ION_ASSERT_OK(ion_reader_read_lob_bytes(reader, bytes, EXPECTED_SIZE, &bytes_read));
-    ASSERT_EQ(EXPECTED_SIZE, bytes_read);
-    ASSERT_EQ(strcmp("This is a BLOB of text.", (char*)bytes), 0);
-
-    free(bytes);
-    ION_ASSERT_OK(ion_reader_close(reader));
+    test_full_lob_read("{{ VGhpcyBpcyBhIEJMT0Igb2YgdGV4dC4= }}",
+                       tid_BLOB, 23, "This is a BLOB of text.");
 }
 
-// regression test for https://github.com/amzn/ion-c/issues/188
-TEST(IonTextClob, CanFullyReadClobUsingPartialReadsAfterReadingSize) {
+/** Tests the ability to read BLOB or CLOB using multiple calls to ion_reader_read_lob_partial_bytes. */
+void test_partial_lob_read(const char *ion_text, ION_TYPE expected_tid, SIZE expected_size, const char *expected_value) {
     hREADER reader;
-    const SIZE EXPECTED_SIZE = 23;
-    open_reader_read_lob_size("{{ \"This is a CLOB of text.\" }}", tid_CLOB, EXPECTED_SIZE, reader);
+    open_reader_read_lob_size(ion_text, expected_tid, expected_size, reader);
 
-    BYTE* bytes = (BYTE*)calloc(1, EXPECTED_SIZE + 1);
+    BYTE* bytes = (BYTE*)calloc(1, expected_size + 1);
     SIZE bytes_read, total_bytes_read = 0;
 
     const size_t READ_SIZE = 5;
@@ -643,36 +636,24 @@ TEST(IonTextClob, CanFullyReadClobUsingPartialReadsAfterReadingSize) {
         total_bytes_read += bytes_read;
     } while (bytes_read > 0);
 
-    ASSERT_EQ(EXPECTED_SIZE, total_bytes_read);
+    ASSERT_EQ(expected_size, total_bytes_read);
     char* lob_text = (char*)bytes;
-    ASSERT_EQ(strcmp("This is a CLOB of text.", lob_text), 0);
+    ASSERT_EQ(strcmp(expected_value, lob_text), 0);
 
     free(bytes);
     ION_ASSERT_OK(ion_reader_close(reader));
 }
- 
+
 // regression test for https://github.com/amzn/ion-c/issues/188
-TEST(IonTextblob, CanFullyReadBlobUsingPartialReadsAfterReadingSize) {
-    hREADER reader;
-    const SIZE EXPECTED_SIZE = 23;
-    open_reader_read_lob_size("{{ VGhpcyBpcyBhIEJMT0Igb2YgdGV4dC4= }}", tid_BLOB, EXPECTED_SIZE, reader);
+TEST(IonTextClob, CanFullyReadClobUsingPartialReads) {
+    test_partial_lob_read("{{ \"This is a CLOB of text.\" }}",
+                       tid_CLOB, 23, "This is a CLOB of text.");
+}
 
-    BYTE* bytes = (BYTE*)calloc(1, EXPECTED_SIZE + 1);
-    SIZE bytes_read, total_bytes_read = 0;
-
-    const size_t READ_SIZE = 5;
-    do
-    {
-        ION_ASSERT_OK(ion_reader_read_lob_partial_bytes(reader, &bytes[total_bytes_read], READ_SIZE, &bytes_read));
-        total_bytes_read += bytes_read;
-    } while (bytes_read > 0);
-
-    ASSERT_EQ(EXPECTED_SIZE, total_bytes_read);
-    char* lob_text = (char*)bytes;
-    ASSERT_EQ(strcmp("This is a BLOB of text.", lob_text), 0);
-
-    free(bytes);
-    ION_ASSERT_OK(ion_reader_close(reader));
+// regression test for https://github.com/amzn/ion-c/issues/188
+TEST(IonTextblob, CanFullyReadBlobUsingPartialReads) {
+    test_partial_lob_read("{{ VGhpcyBpcyBhIEJMT0Igb2YgdGV4dC4= }}",
+                       tid_BLOB, 23, "This is a BLOB of text.");
 }
 
 TEST(IonTextStruct, AcceptsFieldNameWithKeywordPrefix) {
