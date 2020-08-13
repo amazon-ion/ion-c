@@ -651,7 +651,7 @@ TEST(IonTextClob, CanFullyReadClobUsingPartialReads) {
 }
 
 // regression test for https://github.com/amzn/ion-c/issues/188
-TEST(IonTextblob, CanFullyReadBlobUsingPartialReads) {
+TEST(IonTextBlob, CanFullyReadBlobUsingPartialReads) {
     test_partial_lob_read("{{ VGhpcyBpcyBhIEJMT0Igb2YgdGV4dC4= }}",
                        tid_BLOB, 23, "This is a BLOB of text.");
 }
