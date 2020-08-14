@@ -24,6 +24,7 @@ set(libsrc
         ion_writer_text.c
         ion_decimal.c
         ion_float.c
+        ion_double.c
         ion_extractor.c)
 
 set(LIB_PUB_HEADERS 
@@ -35,6 +36,7 @@ set(LIB_PUB_HEADERS
     include/ionc/ion_errors.h
     include/ionc/ion_extractor.h
     include/ionc/ion_float.h
+    include/ionc/ion_double.h
     include/ionc/ion.h
     include/ionc/ion_int.h
     include/ionc/ion_platform_config.h

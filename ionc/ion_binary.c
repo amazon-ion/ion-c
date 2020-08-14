@@ -91,14 +91,25 @@ int ion_binary_len_var_int_64( int64_t value )
     return len;
 }
 
-int ion_binary_len_ion_float( double value )
+int ion_binary_len_ion_double( double value )
+{
+    int len = 0;
+    if (value == 0 && !ion_double_is_negative_zero(value)) {
+        len = 0;
+    }
+    else {
+        len = sizeof(value); // doubles are IEEE 754 64 bit binary floating point
+    }
+   
+
+int ion_binary_len_ion_float( float value )
 {
     int len = 0;
     if (value == 0 && !ion_float_is_negative_zero(value)) {
         len = 0;
     }
     else {
-        len = sizeof(value); // doubles are IEEE 754 64 bit binary floating point
+        len = sizeof(value); // floats are IEEE 754 32 bit binary floating point
     }
     return len;
 }
@@ -531,6 +542,39 @@ iERR ion_binary_write_float_value( ION_STREAM  *pstream, double value )
     ASSERT((pb + 1) == image);
 
     IONCHECK(ion_binary_write_byte_array(pstream, image, 0, UINT_64_IMAGE_LENGTH));
+
+    iRETURN;
+}
+
+iERR ion_binary_write_float_value( ION_STREAM  *pstream, float value )
+{
+    iENTER;
+    uint32_t intvalue = 0;
+    BYTE     image[ UINT_32_IMAGE_LENGTH ];
+    BYTE    *pb = &image[UINT_32_IMAGE_LENGTH - 1];
+    int      len;
+
+    ASSERT( UINT_32_IMAGE_LENGTH == 8 );                // we do depend on this here
+    ASSERT( UINT_32_IMAGE_LENGTH == sizeof(value) );    // we also depend on this here
+    ASSERT( pstream != NULL );
+
+    // this copy allows us to make endian issues just int issues
+    intvalue = *((uint32_t *)&value);
+
+    // write 8 bits at a time into the temp buffer
+    // from least to most significant, backwards
+    // that is starting from the back of the temp
+    // buffer (image) - and here we always write all 4 bytes
+    for (len = 4; len; len--) {
+        *pb-- = (BYTE)(intvalue & 0xff);
+        intvalue >>= 8;
+    }
+
+    // now write the bytes out from most to least significant
+    // to the output stream
+    ASSERT((pb + 1) == image);
+
+    IONCHECK(ion_binary_write_byte_array(pstream, image, 0, UINT_32_IMAGE_LENGTH));
 
     iRETURN;
 }

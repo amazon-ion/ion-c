@@ -555,12 +555,32 @@ iERR _ion_writer_binary_write_double(ION_WRITER *pwriter, double value)
     iENTER;
     int len;
 
-    len = ion_binary_len_ion_float(value);
+    len = ion_binary_len_ion_double(value);
 
     IONCHECK( _ion_writer_binary_start_value( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
     ION_PUT( pwriter->_typed_writer.binary._value_stream, makeTypeDescriptor(TID_FLOAT, len) );
     if (len > 0) {
-        IONCHECK( ion_binary_write_float_value( pwriter->_typed_writer.binary._value_stream, value ));
+        IONCHECK( ion_binary_write_double_value( pwriter->_typed_writer.binary._value_stream, value ));
+    }
+    IONCHECK( _ion_writer_binary_patch_lengths( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
+
+    iRETURN;
+}
+
+
+iERR _ion_writer_binary_write_float(ION_WRITER *pwriter, float value)
+{
+    iENTER;
+    int len;
+
+    len = ion_binary_len_ion_float(value);
+
+    IONCHECK( _ion_writer_binary_start_value( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
+    // Unfortunately float and decimal share the same TID
+    // However they can be differentiated using the number of bits they take!.
+    ION_PUT( pwriter->_typed_writer.binary._value_stream, makeTypeDescriptor(TID_FLOAT, len) ); 
+    if (len > 0) {
+        IONCHECK( ion_binary_write_double_value( pwriter->_typed_writer.binary._value_stream, value ));
     }
     IONCHECK( _ion_writer_binary_patch_lengths( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
 
