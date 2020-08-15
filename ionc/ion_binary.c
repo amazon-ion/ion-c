@@ -91,21 +91,22 @@ int ion_binary_len_var_int_64( int64_t value )
     return len;
 }
 
-int ion_binary_len_ion_double( double value )
+int ion_binary_len_ion_float( double value )
 {
     int len = 0;
-    if (value == 0 && !ion_double_is_negative_zero(value)) {
+    if (value == 0 && !ion_float_is_negative_zero(value)) {
         len = 0;
     }
     else {
         len = sizeof(value); // doubles are IEEE 754 64 bit binary floating point
     }
-   
+    return len;
+}  
 
-int ion_binary_len_ion_float( float value )
+int ion_binary_len_ion_float_32( float value )
 {
     int len = 0;
-    if (value == 0 && !ion_float_is_negative_zero(value)) {
+    if (value == 0 && !ion_float_32_is_negative_zero(value)) {
         len = 0;
     }
     else {
@@ -521,7 +522,6 @@ iERR ion_binary_write_float_value( ION_STREAM  *pstream, double value )
     BYTE    *pb = &image[UINT_64_IMAGE_LENGTH - 1];
     int      len;
 
-    ASSERT( UINT_64_IMAGE_LENGTH == 8 );                // we do depend on this here
     ASSERT( UINT_64_IMAGE_LENGTH == sizeof(value) );    // we also depend on this here
     ASSERT( pstream != NULL );
 
@@ -546,7 +546,7 @@ iERR ion_binary_write_float_value( ION_STREAM  *pstream, double value )
     iRETURN;
 }
 
-iERR ion_binary_write_float_value( ION_STREAM  *pstream, float value )
+iERR ion_binary_write_float_32_value( ION_STREAM  *pstream, float value )
 {
     iENTER;
     uint32_t intvalue = 0;
@@ -554,7 +554,6 @@ iERR ion_binary_write_float_value( ION_STREAM  *pstream, float value )
     BYTE    *pb = &image[UINT_32_IMAGE_LENGTH - 1];
     int      len;
 
-    ASSERT( UINT_32_IMAGE_LENGTH == 8 );                // we do depend on this here
     ASSERT( UINT_32_IMAGE_LENGTH == sizeof(value) );    // we also depend on this here
     ASSERT( pstream != NULL );
 

@@ -26,7 +26,6 @@
 #include "ion_timestamp.h"
 #include "ion_decimal.h"
 #include "ion_float.h"
-#include "ion_double.h"
 #include "ion_int.h"
 #include "ion_collection.h"
 #include "ion_symbol_table.h"

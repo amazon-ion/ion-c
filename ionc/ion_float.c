@@ -15,6 +15,10 @@
 #include <ionc/ion.h>
 #include <math.h>
 
-BOOL ion_float_is_negative_zero(float value) {
+BOOL ion_float_is_negative_zero(double value) {
+    return value == 0.0 && signbit(value);
+}
+
+BOOL ion_float_32_is_negative_zero(float value) {
     return value == 0.0 && signbit(value);
 }
