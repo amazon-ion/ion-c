@@ -1447,7 +1447,7 @@ iERR _ion_stream_fetch_position( ION_STREAM *stream, POSITION target_position )
     if (!_ion_stream_is_paged(stream) && _ion_stream_is_fully_buffered(stream)) {
         // if we have a user buffer, this is one large page and thus we can position within it
         page_end = IH_POSITION_OF(stream->_limit);
-        if (target_position > page_end) {
+        if (target_position >= page_end) {
             FAILWITH(IERR_EOF);
         }
         goto done;

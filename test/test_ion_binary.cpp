@@ -537,3 +537,17 @@ TEST(IonBinaryBlob, CanFullyReadBlobUsingPartialReads) {
             29, tid_BLOB, 23, "This is a BLOB of text.");
 }
 
+TEST(IonBinaryWriterBuffer, SmallBuffer) {
+    iENTER;
+    hWRITER writer = NULL;
+    uint8_t buf[2];
+    ION_WRITER_OPTIONS options = { 0 };
+    options.output_as_binary = TRUE;
+    ION_ASSERT_OK(ion_writer_open_buffer(&writer, buf, sizeof(buf), &options));
+    ION_ASSERT_OK(ion_writer_write_int32(writer, 1));
+
+    SIZE len;
+    ION_ASSERT_FAIL(ion_writer_finish(writer, &len));
+    ION_ASSERT_FAIL(ion_writer_close(writer));
+}
+
