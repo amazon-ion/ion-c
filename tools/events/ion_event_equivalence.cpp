@@ -99,6 +99,8 @@ BOOL ion_compare_scalars(ION_EVENT_EQUIVALENCE_PARAMS) {
  */
 BOOL ion_compare_struct_subset(ION_EVENT_EQUIVALENCE_PARAMS) {
     const int target_depth = ION_GET_EXPECTED->depth;
+    const int index_expected_container_start = ION_INDEX_ACTUAL_ARG;
+    const int index_actual_container_start = ION_INDEX_EXPECTED_ARG;
     ION_NEXT_INDICES; // Move past the CONTAINER_START events
     const size_t index_actual_start = ION_INDEX_ACTUAL_ARG;
     std::set<size_t> skips;
@@ -114,8 +116,9 @@ BOOL ion_compare_struct_subset(ION_EVENT_EQUIVALENCE_PARAMS) {
         while (ION_INDEX_ACTUAL_ARG < ION_STREAM_ACTUAL_ARG->size()) {
             if (skips.count(ION_INDEX_ACTUAL_ARG) == 0) {
                 ION_SET_ACTUAL;
-                ION_EXPECT_TRUE(!(ION_ACTUAL_ARG->event_type == CONTAINER_END && ION_ACTUAL_ARG->depth == target_depth),
-                                "Did not find matching field for " + ion_event_symbol_to_string(expected_field_name));
+                ION_EXPECT_TRUE_WITH_INDEX(!(ION_ACTUAL_ARG->event_type == CONTAINER_END && ION_ACTUAL_ARG->depth == target_depth),
+                                           "Did not find matching field for " + ion_event_symbol_to_string(expected_field_name),
+                                           index_expected_container_start,index_actual_container_start);
                 ION_ASSERT(IERR_OK == ion_symbol_is_equal(expected_field_name,
                                                           ION_ACTUAL_ARG->field_name, &field_names_equal),
                            "Failed to compare field names.");
