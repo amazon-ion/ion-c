@@ -29,8 +29,21 @@
 
 /**
  * Sets the current IonEventResult's comparison_result with context about the comparison failure and returns.
+ *
+ * Note: We don't write comparison report for non-equivs mode here.
  */
 #define ION_FAIL_COMPARISON(message) \
+    if (ION_COMPARISON_TYPE_ARG != COMPARISON_TYPE_NONEQUIVS) { \
+        _ion_event_set_comparison_result(ION_RESULT_ARG, ION_COMPARISON_TYPE_ARG, ION_EXPECTED_ARG, ION_ACTUAL_ARG, \
+            ION_INDEX_EXPECTED_ARG, ION_INDEX_ACTUAL_ARG, ION_STREAM_EXPECTED_ARG->location, \
+            ION_STREAM_ACTUAL_ARG->location, message); \
+    } \
+    return FALSE;
+
+/**
+ * Sets the current IonEventResult's comparison_result with context about the comparison failure and returns.
+ */
+#define ION_FAIL_COMPARISON_FOR_NON_EQUIVS(message) \
     _ion_event_set_comparison_result(ION_RESULT_ARG, ION_COMPARISON_TYPE_ARG, ION_EXPECTED_ARG, ION_ACTUAL_ARG, \
         ION_INDEX_EXPECTED_ARG, ION_INDEX_ACTUAL_ARG, ION_STREAM_EXPECTED_ARG->location, \
         ION_STREAM_ACTUAL_ARG->location, message); \
@@ -71,6 +84,7 @@
 // Equivalence assertions. Each sets the comparison_result and returns in the event of inequality.
 #define ION_EXPECT_TRUE(x, m) if (!(x)) { ION_FAIL_COMPARISON(m); }
 #define ION_EXPECT_FALSE(x, m) if (x) { ION_FAIL_COMPARISON(m); }
+#define ION_EXPECT_FALSE_FOR_NON_EQUIVS(x, m) if (x) { ION_FAIL_COMPARISON_FOR_NON_EQUIVS(m); } //for non-equivs mode only
 #define ION_EXPECT_EQ(x, y, m) if((x) != (y)) { ION_FAIL_COMPARISON(m); }
 #define ION_EXPECT_EVENT_TYPE_EQ(x, y) ION_EXPECT_EQ(x, y, "Event types did not match.")
 #define ION_EXPECT_BOOL_EQ(x, y) _ION_IS_VALUE_EQ(x, y, ion_equals_bool)

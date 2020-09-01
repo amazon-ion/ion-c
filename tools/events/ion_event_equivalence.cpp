@@ -264,7 +264,7 @@ BOOL ion_compare_sets_nonequivs(ION_EVENT_EQUIVALENCE_PARAMS) {
     // The corresponding indices are assumed to be equivalent.
     if (ION_INDEX_EXPECTED_ARG != ION_INDEX_ACTUAL_ARG) {
         ION_PREPARE_COMPARISON;
-        ION_EXPECT_FALSE(ion_compare_events(ION_EVENT_EQUIVALENCE_ARGS), "Equivalent values in a non-equivs set.");
+        ION_EXPECT_FALSE_FOR_NON_EQUIVS(ion_compare_events(ION_EVENT_EQUIVALENCE_ARGS), "Equivalent values in a non-equivs set.");
     }
     ION_PASS_ASSERTIONS;
 }
@@ -340,11 +340,11 @@ BOOL ion_compare_sets_embedded(ION_EVENT_EQUIVALENCE_PARAMS, size_t *expected_le
                     ION_ASSERT(ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_NONEQUIVS,
                                "Invalid embedded documents comparison type.");
                     if (step_expected == 1 && step_actual == 1) {
-                        ION_EXPECT_FALSE(step_expected == 1 && step_actual == 1,
+                        ION_EXPECT_FALSE_FOR_NON_EQUIVS(step_expected == 1 && step_actual == 1,
                                          "Both embedded streams are empty stream in a non-equivs set.")
                     }
                     else if (step_expected > 1 && step_actual > 1) {
-                        ION_EXPECT_FALSE(
+                        ION_EXPECT_FALSE_FOR_NON_EQUIVS(
                                 ion_compare_substreams(ION_STREAM_EXPECTED_ARG, ION_INDEX_EXPECTED_ARG,
                                                        ION_STREAM_ACTUAL_ARG, ION_INDEX_ACTUAL_ARG,
                                                        COMPARISON_TYPE_BASIC, /*result=*/NULL, // Result not needed.
