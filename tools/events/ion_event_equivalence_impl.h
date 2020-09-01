@@ -37,6 +37,15 @@
     return FALSE;
 
 /**
+ * Sets the desired index of event for IonEventResult's comparison_result context.
+ */
+#define ION_FAIL_COMPARISON_WITH_INDEX(message, index_expected, index_actual) \
+    _ion_event_set_comparison_result(ION_RESULT_ARG, ION_COMPARISON_TYPE_ARG, stream_expected->at(index_expected), \
+        stream_actual->at(index_actual), index_expected, index_actual, ION_STREAM_EXPECTED_ARG->location, \
+        ION_STREAM_ACTUAL_ARG->location, message); \
+    return FALSE;
+
+/**
  * Sets the current IonEventResult's error_description with context about the error and returns.
  */
 #define ION_FAIL_ASSERTION(message, loc) \
@@ -70,6 +79,7 @@
 
 // Equivalence assertions. Each sets the comparison_result and returns in the event of inequality.
 #define ION_EXPECT_TRUE(x, m) if (!(x)) { ION_FAIL_COMPARISON(m); }
+#define ION_EXPECT_TRUE_WITH_INDEX(x, m, e, a) if (!(x)) { ION_FAIL_COMPARISON_WITH_INDEX(m, e, a); }
 #define ION_EXPECT_FALSE(x, m) if (x) { ION_FAIL_COMPARISON(m); }
 #define ION_EXPECT_EQ(x, y, m) if((x) != (y)) { ION_FAIL_COMPARISON(m); }
 #define ION_EXPECT_EVENT_TYPE_EQ(x, y) ION_EXPECT_EQ(x, y, "Event types did not match.")
