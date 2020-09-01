@@ -118,7 +118,7 @@ BOOL ion_compare_struct_subset(ION_EVENT_EQUIVALENCE_PARAMS) {
                 ION_SET_ACTUAL;
                 ION_EXPECT_TRUE_WITH_INDEX(!(ION_ACTUAL_ARG->event_type == CONTAINER_END && ION_ACTUAL_ARG->depth == target_depth),
                                            "Did not find matching field for " + ion_event_symbol_to_string(expected_field_name),
-                                           index_expected_container_start,index_actual_container_start);
+                                           index_expected_container_start, index_actual_container_start);
                 ION_ASSERT(IERR_OK == ion_symbol_is_equal(expected_field_name,
                                                           ION_ACTUAL_ARG->field_name, &field_names_equal),
                            "Failed to compare field names.");
