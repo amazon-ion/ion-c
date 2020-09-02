@@ -340,8 +340,9 @@ BOOL ion_compare_sets_embedded(ION_EVENT_EQUIVALENCE_PARAMS, size_t *expected_le
                     ION_ASSERT(ION_COMPARISON_TYPE_ARG == COMPARISON_TYPE_NONEQUIVS,
                                "Invalid embedded documents comparison type.");
                     if (step_expected == 1 && step_actual == 1) {
-                        ION_EXPECT_FALSE_FOR_NON_EQUIVS(step_expected == 1 && step_actual == 1,
-                                         "Both embedded streams are empty stream in a non-equivs set.")
+                        ION_EXPECT_FALSE_FOR_NON_EQUIVS(
+                                step_expected == 1 && step_actual == 1,
+                                "Both embedded streams are empty stream in a non-equivs set.")
                     }
                     else if (step_expected > 1 && step_actual > 1) {
                         ION_EXPECT_FALSE_FOR_NON_EQUIVS(
