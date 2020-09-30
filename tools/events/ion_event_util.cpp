@@ -149,6 +149,11 @@ void ion_event_initialize_reader_options(ION_READER_OPTIONS *options) {
     options->decimal_context = &g_IonEventDecimalContext;
     options->max_container_depth = ION_EVENT_CONTAINER_DEPTH_MAX;
     options->max_annotation_count = ION_EVENT_ANNOTATION_MAX;
+    options->symbol_threshold = ION_EVENT_BUFFER_SIZE;
+    options->max_annotation_buffered = ION_EVENT_BUFFER_SIZE;
+    options->allocation_page_size = ION_EVENT_BUFFER_SIZE;
+    options->user_value_threshold = ION_EVENT_BUFFER_SIZE;
+    options->chunk_threshold = ION_EVENT_BUFFER_SIZE;
 }
 
 iERR ion_event_in_memory_writer_open(IonEventWriterContext *writer_context, ION_EVENT_OUTPUT_TYPE output_type,

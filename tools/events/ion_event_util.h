@@ -23,6 +23,7 @@
 #define ION_EVENT_ANNOTATION_MAX 100
 #define ION_EVENT_DECIMAL_MAX_DIGITS 10000
 #define ION_EVENT_DECIMAL_MAX_STRLEN (ION_EVENT_DECIMAL_MAX_DIGITS + 14) // 14 extra bytes as specified by decNumber.
+#define ION_EVENT_BUFFER_SIZE 67108860
 
 #define ION_EVENT_STRING_OR_NULL(ion_string) (ION_STRING_IS_NULL(ion_string) ? std::string("NULL") : std::string((char *)(ion_string)->value, (size_t)(ion_string)->length))
 #define ION_EVENT_ION_STRING_FROM_STRING(ion_string, std_string) (ion_string_assign_cstr(ion_string, (char *)(std_string).c_str(), (SIZE)(std_string).length()))

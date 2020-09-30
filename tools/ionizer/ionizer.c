@@ -29,6 +29,8 @@
 #include  <assert.h>
 #include  <time.h>
 
+#define IONIZER_DEFAULT_BUFFER_SIZE 67108860
+
 int main(int argc, char **argv)
 {
     iENTER;
@@ -55,6 +57,14 @@ int main(int argc, char **argv)
     g_writer_options.pretty_print     = g_ionizer_pretty;
     g_writer_options.output_as_binary = g_ionizer_write_binary;
     g_writer_options.escape_all_non_ascii = g_ionizer_ascii_only;
+
+    g_reader_options.symbol_threshold = IONIZER_DEFAULT_BUFFER_SIZE;
+    g_reader_options.max_annotation_buffered = IONIZER_DEFAULT_BUFFER_SIZE;
+    g_reader_options.allocation_page_size = IONIZER_DEFAULT_BUFFER_SIZE;
+    g_reader_options.user_value_threshold = IONIZER_DEFAULT_BUFFER_SIZE;
+    g_reader_options.chunk_threshold = IONIZER_DEFAULT_BUFFER_SIZE;
+    g_writer_options.allocation_page_size = IONIZER_DEFAULT_BUFFER_SIZE;
+    g_writer_options.temp_buffer_size = IONIZER_DEFAULT_BUFFER_SIZE;
 
     if (g_ionizer_pool_page_size > 0) {
         ion_initialize_page_pool(g_ionizer_pool_page_size, 10);
