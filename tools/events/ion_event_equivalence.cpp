@@ -162,6 +162,12 @@ BOOL ion_compare_sequences(ION_EVENT_EQUIVALENCE_PARAMS) {
             // The streams are incomplete, but they are the same length and all their values are equivalent.
             break;
         }
+        if (ION_STREAM_ACTUAL_ARG->size() == ION_INDEX_ACTUAL_ARG) {
+            if (ION_STREAM_EXPECTED_ARG->size() != ION_INDEX_EXPECTED_ARG) {
+                ION_EXPECT_TRUE(FALSE, "Streams have different lengths");
+            }
+            break;
+        }
         ION_EXPECTED_ARG = ION_GET_EXPECTED;
         ION_ACTUAL_ARG = ION_GET_ACTUAL;
         // NOTE: symbol tables are only allowed within embedded stream sequences. Logic could be added to verify this.
