@@ -1173,6 +1173,9 @@ iERR ion_event_stream_write_event(hWRITER writer, IonEvent *event, ION_EVENT_IND
     if (event->field_name) {
         IONCWRITE(ion_writer_write_field_name_symbol(writer, event->field_name));
     }
+    if (writer->_in_struct && !event->field_name && event->event_type != CONTAINER_END) {
+        IONFAILSTATE(IERR_INVALID_STATE, "Field name in struct cannot be null.");
+    }
     if (event->num_annotations) {
         IONCWRITE(ion_writer_write_annotation_symbols(writer, event->annotations, event->num_annotations));
     }
