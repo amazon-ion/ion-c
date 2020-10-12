@@ -2161,10 +2161,6 @@ iERR _ion_scanner_read_possible_number(ION_SCANNER *scanner, int c, int sign, IO
 
     IONCHECK(_ion_scanner_read_char(scanner, &c));
 
-    if (c > 0 && c != 'x' && c != 'X' && c != 'b' && c != 'B' && !isdigit(c) && c != '_' && c != '-' && c != 'T'
-        && c != 'e' && c != 'E' && c != 'd' && c != 'D' && c != '.' && strchr(NUMERIC_STOP_CHARACTERS, c) == NULL ) {
-        FAILWITH(IERR_INVALID_SYNTAX);
-    }
     // if we have an x we have a hexadecimal int
     if (c == 'x' || c == 'X') {
         PUSH_VALUE_BYTE(c);
