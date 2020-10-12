@@ -2379,7 +2379,7 @@ past_exponent:
     iRETURN;
 }
 
-iERR _ion_scanner_read_timestamp(ION_SCANNER *scanner, int c, BYTE **p_dst, SIZE *p_remaining, int *p_end_char, ION_SUB_TYPE *p_ist )
+iERR _ion_scanner_read_timestamp(ION_SCANNER *scanner, int c, BYTE **p_dst, SIZE *p_remaining, int *p_end_char, ION_SUB_TYPE *p_ist)
 {
     iENTER;
     ION_SUB_TYPE t                      = IST_TIMESTAMP_YEAR;

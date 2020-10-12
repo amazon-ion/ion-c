@@ -462,7 +462,7 @@ iERR _ion_scanner_read_binary_int                   (ION_SCANNER *scanner, BYTE 
 iERR _ion_scanner_read_digits                       (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char);
 iERR _ion_scanner_read_digits_with_underscores      (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char, BOOL underscore_allowed);
 iERR _ion_scanner_read_exponent                     (ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char);
-iERR _ion_scanner_read_timestamp                    (ION_SCANNER *scanner, int c, BYTE **p_dst, SIZE *p_remaining, int *p_end_char, ION_SUB_TYPE *p_ist );
+iERR _ion_scanner_read_timestamp                    (ION_SCANNER *scanner, int c, BYTE **p_dst, SIZE *p_remaining, int *p_end_char, ION_SUB_TYPE *p_ist);
 
 #ifdef __cplusplus
 }
