@@ -2300,22 +2300,22 @@ iERR _ion_scanner_read_radix_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_rem
     iRETURN;
 }
 
-iERR _ion_scanner_read_hex_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char)
+iERR _ion_scanner_read_hex_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_end_char)
 {
     iENTER;
     int c;
     IONCHECK(_ion_scanner_read_radix_int(scanner, p_dst, p_remaining, &c, ION_INT_HEX, FALSE));
-    *p_char = c;
+    *p_end_char = c;
     IONCHECK(_ion_scanner_unread_char(scanner, c));
     iRETURN;
 }
 
-iERR _ion_scanner_read_binary_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_char)
+iERR _ion_scanner_read_binary_int(ION_SCANNER *scanner, BYTE **p_dst, SIZE *p_remaining, int *p_end_char)
 {
     iENTER;
     int c;
     IONCHECK(_ion_scanner_read_radix_int(scanner, p_dst, p_remaining, &c, ION_INT_BINARY, FALSE));
-    *p_char = c;
+    *p_end_char = c;
     IONCHECK(_ion_scanner_unread_char(scanner, c));
     iRETURN;
 }
