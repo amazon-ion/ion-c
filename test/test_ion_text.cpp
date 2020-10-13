@@ -572,9 +572,7 @@ TEST(IonTextDecimal, FailsEarlyOnInvalidDecimal) {
     ION_TYPE type;
     ION_DECIMAL decimal;
     ION_ASSERT_OK(ion_test_new_text_reader(invalid_text, &reader));
-    ION_ASSERT_OK(ion_reader_next(reader, &type));
-    ASSERT_EQ(tid_DECIMAL, type);
-    ION_ASSERT_FAIL(ion_reader_read_ion_decimal(reader, &decimal));
+    ION_ASSERT_FAIL(ion_reader_next(reader, &type));
     ION_ASSERT_OK(ion_reader_close(reader));
 }
 
