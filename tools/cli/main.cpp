@@ -84,7 +84,7 @@ static const char *const VERSION_GLOSSARY = "print the command's version number 
 //   - no errors
 //   - no input for multiple input options
 static const int ARG_MAX_ERRORS = 20;
-static const int MAX_NO_INPUTS = 24;
+static const int MAX_NO_INPUTS = 48;
 
 // Common args shared by subcommands
 static const char *const OUTPUT_SHORT_OPT = "o";
