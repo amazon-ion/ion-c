@@ -337,6 +337,16 @@ TEST(IonBinarySymbol, ReaderReadsIVMInsideAnnotationWrapper) {
     ION_ASSERT_OK(ion_reader_close(reader));
 }
 
+TEST(IonBinaryReader, UnpositionedReaderHasTypeNone) {
+    hREADER reader;
+    BYTE *data = (BYTE *) "\xE0\x01\x00\xEA";
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, 4, NULL));
+    ION_ASSERT_OK(ion_reader_get_type(reader, &type));
+    ASSERT_EQ(tid_none, type);
+}
+
 TEST(IonBinarySymbol, ReaderReadsNullSymbol) {
     hREADER reader;
     BYTE *data = (BYTE *) "\xE0\x01\x00\xEA\x7F";

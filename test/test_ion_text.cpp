@@ -674,6 +674,16 @@ TEST(IonTextStruct, AcceptsFieldNameWithKeywordPrefix) {
     ION_ASSERT_OK(ion_reader_close(reader));
 }
 
+TEST(IonTextReader, UnpositionedReaderHasTypeNone) {
+    const char *ion_text = "";
+    hREADER  reader;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_get_type(reader, &type));
+    ASSERT_EQ(tid_none, type);
+}
+
 TEST(IonTextStruct, FailsOnFieldNameWithNoValueAtStructEnd) {
     const char *ion_text = "{a: }";
     hREADER  reader;
