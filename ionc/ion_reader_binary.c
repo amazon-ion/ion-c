@@ -486,7 +486,9 @@ iERR _ion_reader_binary_get_type(ION_READER *preader, ION_TYPE *p_value_type)
         // the next value. All other values must be positioned before the contents of the current value.
         if (binary->_value_type != tid_SYMBOL)
         {
-            FAILWITH(IERR_INVALID_STATE);
+            // This matches the behavior of the text reader
+            *p_value_type = tid_none;
+            SUCCEED();
         }
     }
 
