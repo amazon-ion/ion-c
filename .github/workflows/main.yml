@@ -39,7 +39,7 @@ jobs:
           name: ion-test-driver-result.ion
           path: output/results/ion-test-driver-results.ion
 
-      - name: showing result
+      - name: Showing result
         run: cat output/results/ion-test-driver-results.ion
 
       - name: Analyze two implementations
@@ -56,7 +56,7 @@ jobs:
           name: analysis-report.ion
           path: result.ion
 
-      - name: showing report
+      - name: Showing report
         run: cat result.ion
 
       - name: Check if ion-test-driver fails
