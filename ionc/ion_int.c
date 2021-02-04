@@ -40,6 +40,7 @@
 
 #include <decNumber/decNumber.h>
 #include "ion_internal.h"
+#include <stdlib.h>
 
 iERR ion_int_alloc(void *owner, ION_INT **piint)
 {
@@ -615,8 +616,9 @@ iERR ion_int_from_long(ION_INT *iint, int64_t value)
 {
     iENTER;
     SIZE  ii_length, digit_idx;
-    int64_t temp;
-    BOOL    is_neg;
+    // Stores the unsigned magnitude of the provided int64_t value. This variable must be
+    // unsigned to accommodate the absolute value of MIN_INT64, which requires 64 bits to store.
+    uint64_t magnitude;
 
     IONCHECK(_ion_int_validate_arg(iint));
     
@@ -625,25 +627,24 @@ iERR ion_int_from_long(ION_INT *iint, int64_t value)
         SUCCEED();
     }
 
-    if ((is_neg = (value < 0)) == TRUE) {
-        value = -value;
-    }
-
-    ii_length = 0; 
-    temp = value;
-    while (temp) {
-        temp >>= II_SHIFT;
+    ii_length = 0;
+    magnitude = (uint64_t) value;
+    while (magnitude) {
+        magnitude >>= II_SHIFT;
         ii_length++;
     }
 
+    // Reallocate iint's storage if it's not big enough to hold
+    // (ii_length * II_BITS_PER_II_DIGIT) bits.
     IONCHECK(_ion_int_extend_digits(iint, ii_length, TRUE));
 
-    for (digit_idx = iint->_len-1; value; digit_idx--) {
-        iint->_digits[digit_idx] = (II_DIGIT)(value & II_MASK);
-        value >>= II_SHIFT;
+    magnitude = (uint64_t) value;
+    for (digit_idx = iint->_len-1; magnitude; digit_idx--) {
+        iint->_digits[digit_idx] = (II_DIGIT)(magnitude & II_MASK);
+        magnitude >>= II_SHIFT;
     }
 
-    iint->_signum = is_neg ? -1 : 1;
+    iint->_signum = value < 0 ? -1 : 1;
 
     iRETURN;
 }
