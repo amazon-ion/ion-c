@@ -40,7 +40,6 @@
 
 #include <decNumber/decNumber.h>
 #include "ion_internal.h"
-#include <stdlib.h>
 
 iERR ion_int_alloc(void *owner, ION_INT **piint)
 {
