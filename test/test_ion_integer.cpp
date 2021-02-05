@@ -34,7 +34,8 @@ TEST(IonInteger, IIntToInt64RoundTrip) {
     // intended. For each of the following values in the range from MIN_INT64 to MAX_INT64 inclusive,
     // the test will convert the int64_t to an IINT and then back again, confirming that the output
     // int64_t is equal to the input int64_t.
-    int64_t values[] = {
+    const uint32_t number_of_values = 19;
+    int64_t values[number_of_values] = {
             MIN_INT64, MAX_INT64,
             MIN_INT64 + 16, MAX_INT64 - 16,
             -9670031482938124, 9670031482938124,
@@ -47,8 +48,10 @@ TEST(IonInteger, IIntToInt64RoundTrip) {
             0
     };
 
+    int64_t value_in;
     int64_t value_out;
-    for(int64_t value_in : values) {
+    for(int m = 0; m < number_of_values; m++) {
+        value_in = values[m];
         ION_ASSERT_OK(test_ion_int_roundtrip_int64_t(value_in, &value_out));
         ASSERT_EQ(value_in, value_out);
     }
