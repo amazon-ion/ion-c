@@ -777,6 +777,10 @@ iERR ion_stream_write(ION_STREAM *stream, BYTE *buf, SIZE len, SIZE *p_bytes_wri
     dst = stream->_curr;
     if (to_write > src_remaining) {
       to_write = src_remaining;
+    } else if (to_write < 1 && _ion_stream_is_fully_buffered(stream)) {
+      // There is no space available for writing. Since this is not a file or a user stream, space can never become
+      // available.
+      FAILWITH(IERR_BUFFER_TOO_SMALL);
     }
     memcpy(dst, src, to_write);
     if (stream->_dirty_start == NULL) {
