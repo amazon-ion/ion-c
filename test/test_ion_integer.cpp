@@ -19,13 +19,15 @@
 iERR test_ion_int_roundtrip_int64_t(int64_t value_in, int64_t * value_out) {
     iENTER;
     // Create an uninitialized Ion integer.
-    ION_INT iint;
+    ION_INT * iint;
     // Initialize the Ion integer, setting its owner to NULL.
-    IONCHECK(ion_int_init(&iint, NULL));
+    IONCHECK(ion_int_alloc(NULL, &iint));
     // Populate the Ion integer with the provided int64_t value.
-    IONCHECK(ion_int_from_long(&iint, value_in));
+    IONCHECK(ion_int_from_long(iint, value_in));
     // Read the Ion integer's value back out into the output int64_t.
-    IONCHECK(ion_int_to_int64(&iint, value_out));
+    IONCHECK(ion_int_to_int64(iint, value_out));
+    // Free the memory used to store the Ion integer's digits.
+    ion_int_free(iint);
     iRETURN;
 }
 
@@ -54,5 +56,66 @@ TEST(IonInteger, IIntToInt64RoundTrip) {
         value_in = values[m];
         ION_ASSERT_OK(test_ion_int_roundtrip_int64_t(value_in, &value_out));
         ASSERT_EQ(value_in, value_out);
+    }
+}
+
+iERR test_ion_int_to_int64_t_overflow_detection(const char * p_chars) {
+    iENTER;
+    const uint32_t max_string_length = 32;
+    uint32_t string_length = strnlen(p_chars, max_string_length);
+    // Create an uninitialized Ion integer.
+    ION_INT iint;
+    // Create an int64_t that we will later populate with the value of iint.
+    int64_t value_out;
+    // Initialize the Ion integer, setting its owner to NULL.
+    IONCHECK(ion_int_init(&iint, NULL));
+    // Populate the Ion integer with the value of the provided base-10 string
+    IONCHECK(ion_int_from_chars(&iint, p_chars, string_length));
+    // Attempt to read the Ion integer's value back out into the int64_t.
+    // If the number is outside the range of values that can be represented by
+    // an int64_t, this should return IERR_NUMERIC_OVERFLOW.
+    IONCHECK(ion_int_to_int64(&iint, &value_out));
+    iRETURN;
+}
+
+TEST(IonInteger, IIntFromInt64Overflow) {
+    // This test verifies that the `ion_int_to_int64` method will return IERR_NUMERIC_OVERFLOW
+    // if the provided Ion integer's value will not fit in an int64_t. Because any Ion integer
+    // constructed using `ion_int_from_long` will inherently fit in an int64_t, we instead
+    // construct each Ion integer with `ion_int_from_chars`, passing in Ion text encodings
+    // of the integers to create.
+    const uint32_t number_of_ok_values = 9;
+    const char *small_integers[number_of_ok_values] = {
+        "-10004991088",
+        "-9862",
+        "-138",
+        "-1",
+        "0",
+        "1",
+        "138",
+        "9862",
+        "10004991088"
+    };
+
+    // Each of the above values will fit in an int64_t, so the test function should succeed.
+    for (int m = 0; m < number_of_ok_values; m++) {
+        const char *small_integer = small_integers[m];
+        ION_ASSERT_OK(test_ion_int_to_int64_t_overflow_detection(small_integer));
+    }
+
+    const uint32_t number_of_oversized_values = 4;
+    const char *oversized_integers[number_of_oversized_values] = {
+        "9223372036854775808",  // MAX_INT64 + 1
+        "-9223372036854775809", // MIN_INT64 - 1
+        "10004991088252643637337337422",
+        "-10004991088252643637337337422",
+    };
+
+    // Each of the above values has a magnitude that is too large to fit in an int64_t,
+    // so the test function should fail, returning IERR_NUMERIC_OVERFLOW.
+    for (int m = 0; m < number_of_oversized_values; m++) {
+        const char *oversized_integer = oversized_integers[m];
+        iERR error_value = test_ion_int_to_int64_t_overflow_detection(oversized_integer);
+        ASSERT_EQ(error_value, IERR_NUMERIC_OVERFLOW);
     }
 }
