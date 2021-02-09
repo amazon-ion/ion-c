@@ -108,7 +108,7 @@ TEST(IonStream, ContinuesOverPageBoundary) {
 TEST(IonStream, BufferTooSmall) {
     iENTER;
     hWRITER writer = NULL;
-    uint8_t buf[2]; // This buffer is to small to hold the output.
+    uint8_t buf[2]; // This buffer is too small to hold the output.
     ION_WRITER_OPTIONS options = { 0 };
     options.output_as_binary = TRUE;
     ION_ASSERT_OK(ion_writer_open_buffer(&writer, buf, sizeof(buf), &options));
