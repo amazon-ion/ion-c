@@ -39,6 +39,7 @@
 #define ION_INT_GLOBAL /* static */
 
 #include <decNumber/decNumber.h>
+#include <math.h>
 #include "ion_internal.h"
 
 iERR ion_int_alloc(void *owner, ION_INT **piint)
@@ -615,8 +616,12 @@ iERR ion_int_from_long(ION_INT *iint, int64_t value)
 {
     iENTER;
     SIZE  ii_length, digit_idx;
-    int64_t temp;
-    BOOL    is_neg;
+    // Stores the unsigned magnitude of the provided int64_t value. This variable must be
+    // unsigned to accommodate the absolute value of MIN_INT64, which requires 64 bits to store.
+    uint64_t magnitude;
+    // Used for shifting operations that consume the variable.
+    uint64_t temp_magnitude;
+    BOOL is_negative;
 
     IONCHECK(_ion_int_validate_arg(iint));
     
@@ -625,25 +630,32 @@ iERR ion_int_from_long(ION_INT *iint, int64_t value)
         SUCCEED();
     }
 
-    if ((is_neg = (value < 0)) == TRUE) {
-        value = -value;
+    is_negative = value < 0;
+    magnitude = (uint64_t) value;
+    if (is_negative) {
+        // This negates an unsigned value, which is well-defined behavior. Doing so handles the
+        // MIN_INT64 case: an int64_t whose absolute value is too large to be stored in an int64_t.
+        magnitude = -magnitude;
     }
 
-    ii_length = 0; 
-    temp = value;
-    while (temp) {
-        temp >>= II_SHIFT;
+    ii_length = 0;
+    temp_magnitude = magnitude;
+    while (temp_magnitude) {
+        temp_magnitude >>= II_SHIFT;
         ii_length++;
     }
 
+    // Reallocate iint's storage if it's not big enough to hold
+    // (ii_length * II_BITS_PER_II_DIGIT) bits.
     IONCHECK(_ion_int_extend_digits(iint, ii_length, TRUE));
 
-    for (digit_idx = iint->_len-1; value; digit_idx--) {
-        iint->_digits[digit_idx] = (II_DIGIT)(value & II_MASK);
-        value >>= II_SHIFT;
+    temp_magnitude = magnitude;
+    for (digit_idx = iint->_len-1; temp_magnitude; digit_idx--) {
+        iint->_digits[digit_idx] = (II_DIGIT)(temp_magnitude & II_MASK);
+        temp_magnitude >>= II_SHIFT;
     }
 
-    iint->_signum = is_neg ? -1 : 1;
+    iint->_signum = is_negative ? -1 : 1;
 
     iRETURN;
 }
@@ -1599,28 +1611,63 @@ SIZE _ion_int_abs_bytes_signed_length_helper(const ION_INT *iint)
     return _ion_int_abs_bytes_length_helper_helper(iint, /*is_signed=*/TRUE);
 }
 
-
 iERR _ion_int_to_int64_helper(ION_INT *iint, int64_t *p_int64)
 {
     iENTER;
     II_DIGIT *digits, *end, digit;
-    int64_t   value = 0;
+    uint64_t magnitude = 0;
 
     digits = iint->_digits;
     end    = digits + iint->_len;
-    while (digits < end) {
-        digit = *digits++;
-        value <<= II_SHIFT;
-        value += digit;
-        if (value < 0) {
-             FAILWITH(IERR_NUMERIC_OVERFLOW);
-        }
+
+    // iint's magnitude is stored in an array of 31-bit II_DIGIT values. Magnitudes that
+    // require 63 or 64 bits to represent will then take 3 II_DIGITS, only using 1 to 2
+    // bits from the most significant II_DIGIT.
+    const uint32_t max_digits_per_int64_t = 3;
+    const uint32_t whole_digits_per_int64_t = 2;
+    const uint32_t max_partial_digit_value = 3; // == 0b11, two populated bits
+
+    // If iint has more 31-bit digits than could possibly fit in an int64_t, return an error.
+    if (iint->_len > max_digits_per_int64_t) {
+        FAILWITH(IERR_NUMERIC_OVERFLOW);
     }
 
-    if (iint->_signum == -1) {
-        value = -value;
+    // Check whether iint has a partial leading digit.
+    if (iint->_len > whole_digits_per_int64_t) {
+        digit = *digits++;
+        // If the leading digit uses too many bits to fit in the int64_t, return an error.
+        if (digit > max_partial_digit_value) {
+            FAILWITH(IERR_NUMERIC_OVERFLOW);
+        }
+        // This digit is small enough to fit in the space available.
+        magnitude += digit;
     }
-    *p_int64 = value;
+
+    // The remaining digits will fit into 64 bits and can be processed as whole values.
+    while (digits < end) {
+        digit = *digits++;
+        magnitude <<= II_SHIFT;
+        magnitude += digit;
+    }
+
+    // While we know that the magnitude was able fit into 64 unsigned bits, it may still
+    // be too large to fit into an int64_t. We'll need to do some more bounds checking.
+    if (iint->_signum == -1) {
+        if (magnitude > ((uint64_t) MIN_INT64)) {
+            FAILWITH(IERR_NUMERIC_OVERFLOW);
+        } else {
+            // Negate the unsigned magnitude before casting back to a signed value.
+            // Negating an unsigned value is well-defined behavior. Doing so handles the
+            // MIN_INT64 case: an int64_t whose absolute value is too large to be stored
+            // in an int64_t.
+            *p_int64 = (int64_t) -magnitude;
+        }
+    } else {
+        if (magnitude > ((uint64_t) MAX_INT64)) {
+            FAILWITH(IERR_NUMERIC_OVERFLOW);
+        }
+        *p_int64 = (int64_t) magnitude;
+    }
     SUCCEED();
 
     iRETURN;
