@@ -78,7 +78,7 @@ iERR test_ion_int_to_int64_t_overflow_detection(const char * p_chars) {
     iRETURN;
 }
 
-TEST(IonInteger, IIntFromInt64Overflow) {
+TEST(IonInteger, IIntToInt64Overflow) {
     // This test verifies that the `ion_int_to_int64` method will return IERR_NUMERIC_OVERFLOW
     // if the provided Ion integer's value will not fit in an int64_t. Because any Ion integer
     // constructed using `ion_int_from_long` will inherently fit in an int64_t, we instead
