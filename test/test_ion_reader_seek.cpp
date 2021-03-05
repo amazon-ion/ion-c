@@ -517,3 +517,166 @@ TEST_P(TextAndBinary, SeekWithLimitsUsingLengthCalculatedFromPosition) {
 
     free(data);
 }
+
+TEST_P(TextAndBinary, ReaderHandlesContainerValueOffsetSeek) {
+    // Write!
+
+    hWRITER writer = NULL;
+    ION_STREAM *ion_stream = NULL;
+    ION_STRING first, second;
+    BYTE *data;
+    SIZE data_length;
+
+    // 42 (first second)
+    ion_string_from_cstr("first", &first);
+    ion_string_from_cstr("second", &second);
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, is_binary));
+    ION_ASSERT_OK(ion_writer_write_int32(writer, 42));
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_SEXP));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &first));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &second));
+    ION_ASSERT_OK(ion_writer_finish_container(writer));
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &data, &data_length));
+
+    // Read!
+
+    hREADER reader = NULL;
+    ION_TYPE type;
+    POSITION pos_init, pos_sexp, pos_first, pos_second;
+
+    ION_ASSERT_OK(ion_test_new_reader(data, data_length, &reader));
+
+    // Assemble: Take one pass through the document to capture value offsets
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_offset(reader, &pos_init));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SEXP, type);
+    ION_ASSERT_OK(ion_reader_get_value_offset(reader, &pos_sexp));
+
+    // Enter sexp
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_get_value_offset(reader, &pos_first));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_get_value_offset(reader, &pos_second));
+
+    // Leave sexp
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_EOF, type);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+
+    // Act: Position the reader so we can seek to captured offsets
+
+    ION_ASSERT_OK(ion_test_new_reader(data, data_length, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+
+    // Assert:
+
+    // Initial value
+    ION_ASSERT_OK(ion_reader_seek(reader, pos_init, -1));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+
+    // Sexp container
+    ION_ASSERT_OK(ion_reader_seek(reader, pos_sexp, -1));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SEXP, type);
+
+    // First sexp element
+
+    ION_ASSERT_OK(ion_reader_seek(reader, pos_first, -1));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+
+    // Second sexp element
+    ION_ASSERT_OK(ion_reader_seek(reader, pos_second, -1));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+}
+
+TEST_P(TextAndBinary, ReaderHandlesInitialUnannotatedContainerValueOffsetSeek) {
+    // Write!
+
+    hWRITER writer = NULL;
+    ION_STREAM *ion_stream = NULL;
+    ION_STRING first, second;
+    BYTE *data;
+    SIZE data_length;
+
+    // (first second)
+    ion_string_from_cstr("first", &first);
+    ion_string_from_cstr("second", &second);
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, is_binary));
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_SEXP));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &first));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &second));
+    ION_ASSERT_OK(ion_writer_finish_container(writer));
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &data, &data_length));
+
+    // Read!
+
+    hREADER reader = NULL;
+    ION_TYPE type;
+    POSITION pos_sexp, pos_first, pos_second;
+
+    ION_ASSERT_OK(ion_test_new_reader(data, data_length, &reader));
+
+    // Assemble: Take one pass through the document to capture value offsets
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SEXP, type);
+    ION_ASSERT_OK(ion_reader_get_value_offset(reader, &pos_sexp));
+
+    // Enter sexp
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_get_value_offset(reader, &pos_first));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_get_value_offset(reader, &pos_second));
+
+    // Leave sexp
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_EOF, type);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+
+    // Act: Position the reader so we can seek to captured offsets
+
+    ION_ASSERT_OK(ion_test_new_reader(data, data_length, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SEXP, type);
+
+    // Assert:
+
+    // Sexp container
+    ION_ASSERT_OK(ion_reader_seek(reader, pos_sexp, -1));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SEXP, type);
+
+    // First sexp element
+    ION_ASSERT_OK(ion_reader_seek(reader, pos_first, -1));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+
+    // Second sexp element
+    ION_ASSERT_OK(ion_reader_seek(reader, pos_second, -1));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+}
