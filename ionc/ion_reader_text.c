@@ -745,6 +745,8 @@ iERR _ion_reader_text_step_in(ION_READER *preader)
         text->_state = IPS_BEFORE_UTA;
     }
 
+    IONCHECK(_ion_scanner_reset(&text->_scanner));
+
     iRETURN;
 }
 
