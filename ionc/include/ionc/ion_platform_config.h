@@ -46,7 +46,7 @@
 #endif
 
 // Support for thread local storage across compilers
-#ifdef __STDC_VERSION__ >= 201112L
+#if __STDC_VERSION__ >= 201112L
 #define THREAD_LOCAL_STORAGE _Thread_local
 #elif __GNUC__
 #define THREAD_LOCAL_STORAGE __thread
