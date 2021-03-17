@@ -212,7 +212,7 @@ iERR ion_symbol_table_get_system_table(hSYMTAB *p_hsystem_table, int32_t version
 }
 
 // HACK - TODO - hate this
-THREAD_LOCAL_STORAGE static ION_SYMBOL_TABLE *p_system_symbol_table_version_1 = NULL;
+static THREAD_LOCAL_STORAGE ION_SYMBOL_TABLE *p_system_symbol_table_version_1 = NULL;
 
 iERR _ion_symbol_table_get_system_symbol_helper(ION_SYMBOL_TABLE **pp_system_table, int32_t version)
 {
@@ -232,7 +232,7 @@ iERR _ion_symbol_table_get_system_symbol_helper(ION_SYMBOL_TABLE **pp_system_tab
 
 // currently the system symbol table uses 1304 bytes or so
 #define kIonSystemSymbolMemorySize 2048
-THREAD_LOCAL_STORAGE static char gSystemSymbolMemory[kIonSystemSymbolMemorySize];
+static THREAD_LOCAL_STORAGE char gSystemSymbolMemory[kIonSystemSymbolMemorySize];
 
 void* smallLocalAllocationBlock()
 {
