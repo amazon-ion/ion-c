@@ -44,5 +44,11 @@ currently specified in the `.gitmodules` file.
 For detailed walkthroughs of git submodule usage, see the
 [Git Tools documentation](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
 
+## Building the Library
+Use the provided scripts `build-release.sh` and `build-debug.sh`. Ensure that `cmake` is installed first.
+
+### On macOS
+`cmake` can be installed using [Homebrew](https://brew.sh/): `brew install cmake`
+
 ## Using the Library
 Ion cookbook for C coming soon!
