@@ -153,10 +153,8 @@
   #define UBTOUI(b)  (memcpy((void *)&uiwork, b, 4), uiwork)
 
   /* Store a uInt, etc., into bytes starting at a char* or uByte*.    */
-  /* Returns i, evaluated, for convenience; has to use uiwork because */
-  /* i may be an expression.                                          */
-  #define UBFROMUS(b, i)  (uswork=(i), memcpy(b, (void *)&uswork, 2), uswork)
-  #define UBFROMUI(b, i)  (uiwork=(i), memcpy(b, (void *)&uiwork, 4), uiwork)
+  #define UBFROMUS(b, i)  (uswork=(i), memcpy(b, (void *)&uswork, 2))
+  #define UBFROMUI(b, i)  (uiwork=(i), memcpy(b, (void *)&uiwork, 4))
 
   /* X10 and X100 -- multiply integer i by 10 or 100                  */
   /* [shifts are usually faster than multiply; could be conditional]  */
