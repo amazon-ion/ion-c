@@ -91,7 +91,19 @@ int ion_binary_len_var_int_64( int64_t value )
     return len;
 }
 
-int ion_binary_len_ion_float( double value )
+int ion_binary_len_ion_float_32( float value )
+{
+    int len = 0;
+    if (value == 0 && !ion_float_is_negative_zero(value)) {
+        len = 0;
+    }
+    else {
+        len = sizeof(value); // floats are IEEE 754 32 bit binary floating point
+    }
+    return len;
+}
+
+int ion_binary_len_ion_float_64(double value )
 {
     int len = 0;
     if (value == 0 && !ion_float_is_negative_zero(value)) {
@@ -502,38 +514,44 @@ iERR ion_binary_read_timestamp(ION_STREAM *pstream, int32_t len, decContext *con
     return err;
 }
 
-iERR ion_binary_write_float_value( ION_STREAM  *pstream, double value )
-{
-    iENTER;
-    uint64_t intvalue = 0;
-    BYTE     image[ UINT_64_IMAGE_LENGTH ];
-    BYTE    *pb = &image[UINT_64_IMAGE_LENGTH - 1];
-    int      len;
-
-    ASSERT( UINT_64_IMAGE_LENGTH == 8 );                // we do depend on this here
-    ASSERT( UINT_64_IMAGE_LENGTH == sizeof(value) );    // we also depend on this here
-    ASSERT( pstream != NULL );
-
-    // this copy allows us to make endian issues just int issues
-    intvalue = *((uint64_t *)&value);
-
-    // write 8 bits at a time into the temp buffer
-    // from least to most significant, backwards
-    // that is starting from the back of the temp
-    // buffer (image) - and here we always write all 8 bytes
-    for (len = 8; len; len--) {
-        *pb-- = (BYTE)(intvalue & 0xff);
-        intvalue >>= 8;
-    }
-
-    // now write the bytes out from most to least significant
-    // to the output stream
-    ASSERT((pb + 1) == image);
-
-    IONCHECK(ion_binary_write_byte_array(pstream, image, 0, UINT_64_IMAGE_LENGTH));
-
-    iRETURN;
+#define ION_BINARY_WRITE_FLOAT_BUILDER(name, type, int_type, image_len, expected_image_len) \
+iERR name (ION_STREAM  *pstream, type value) \
+{ \
+    iENTER; \
+    int_type intvalue = 0; \
+    BYTE     image[ image_len ]; \
+    BYTE    *pb = &image[(image_len) - 1]; \
+    int      len;                                                                           \
+    \
+    ASSERT( (image_len) == (expected_image_len) );/* we do depend on this here   */ \
+    ASSERT( (image_len) == sizeof(value) );       /* we also depend on this here */ \
+    ASSERT( pstream != NULL ); \
+    \
+    /* this copy allows us to make endian issues just int issues */ \
+    intvalue = *((int_type *)&value); \
+    \
+    /* write 8 bits at a time into the temp buffer */ \
+    /* from least to most significant, backwards   */ \
+    /* that is starting from the back of the temp  */ \
+    /* buffer (image) - and here we always write all 8 bytes */ \
+    for (len = (expected_image_len); len; len--) { \
+      *pb-- = (BYTE)(intvalue & 0xff); \
+      intvalue >>= 8; \
+    } \
+    \
+    \
+    /* now write the bytes out from most to least significant */ \
+    /* to the output stream */ \
+    ASSERT((pb + 1) == image); \
+    \
+    IONCHECK(ion_binary_write_byte_array(pstream, image, 0, image_len)); \
+    \
+    iRETURN; \
 }
+
+ION_BINARY_WRITE_FLOAT_BUILDER(ion_binary_write_float_32_value, float, uint32_t, UINT_32_IMAGE_LENGTH, 4)
+
+ION_BINARY_WRITE_FLOAT_BUILDER(ion_binary_write_float_64_value, double, uint64_t, UINT_64_IMAGE_LENGTH, 8)
 
 iERR _ion_binary_write_decimal_zero( ION_STREAM *pstream, decQuad *value)
 {

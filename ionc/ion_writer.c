@@ -178,7 +178,7 @@ iERR ion_writer_open(
     ION_WRITER *pwriter = NULL;
 
     if (!p_hwriter)       FAILWITH(IERR_INVALID_ARG);
-    
+
     IONCHECK(_ion_writer_open_helper(&pwriter, stream, p_options));
     *p_hwriter = PTR_TO_HANDLE(pwriter);
 
@@ -229,7 +229,7 @@ iERR _ion_writer_initialize_imports(ION_WRITER *pwriter) {
 
     iRETURN;
 }
-    
+
 iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRITER_OPTIONS *p_options)
 {
     iENTER;
@@ -263,9 +263,9 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
 
     pwriter->pcatalog = pwriter->options.pcatalog;
 
-    // our default is unknown, so if the option says "binary" we need to 
-    // change the underlying writer's obj type we'll use the presence of 
-    // unknown to trigger approprate initialization (unknown indicating 
+    // our default is unknown, so if the option says "binary" we need to
+    // change the underlying writer's obj type we'll use the presence of
+    // unknown to trigger approprate initialization (unknown indicating
     // we're not properly initialized yet.
     if (p_options && p_options->output_as_binary) {
         writer_type = ion_type_binary_writer;
@@ -466,7 +466,7 @@ iERR ion_writer_set_catalog(hWRITER hwriter, hCATALOG hcatalog)
 iERR _ion_writer_set_catalog_helper(ION_WRITER *pwriter, ION_CATALOG *pcatalog)
 {
     iENTER;
-    
+
     ASSERT(pwriter);
 
     // TODO: it really seems like this shouldn't be done willy-nilly
@@ -553,7 +553,7 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
     iENTER;
     ION_SYMBOL_TABLE_TYPE   table_type = ist_EMPTY;
     ION_SYMBOL_TABLE       *plocal, *system;
-    
+
     ASSERT(pwriter);
     ASSERT(psymtab);
 
@@ -914,7 +914,7 @@ iERR _ion_writer_write_field_name_helper(ION_WRITER *pwriter, ION_STRING *name)
 
     // we make our own copy of the string so we don't depend on the callers copy
 
-    // TODO: should make this the callers responsibility?  since internally 
+    // TODO: should make this the callers responsibility?  since internally
     // we'll often have strings (perhaps always) that we already own
     // IONCHECK(ion_strdup(pwriter, &pwriter->field_name, name));
     ION_STRING_ASSIGN(&pwriter->field_name.value, name);
@@ -1540,6 +1540,42 @@ iERR ion_writer_write_long(hWRITER hwriter, long value)
     iRETURN;
 }
 
+iERR ion_writer_write_float(hWRITER hwriter, float value)
+{
+    iENTER;
+    ION_WRITER *pwriter;
+
+    if (!hwriter)   FAILWITH(IERR_BAD_HANDLE);
+    pwriter = HANDLE_TO_PTR(hwriter, ION_WRITER);
+
+    ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
+
+    IONCHECK(_ion_writer_write_float_helper(pwriter, value));
+
+    iRETURN;
+}
+
+iERR _ion_writer_write_float_helper(ION_WRITER *pwriter, float value)
+{
+    iENTER;
+
+    ASSERT(pwriter);
+
+    switch (pwriter->type) {
+    case ion_type_text_writer:
+        // We can defer text writing to the double implementation
+        IONCHECK(_ion_writer_text_write_double(pwriter, (double)value));
+        break;
+    case ion_type_binary_writer:
+        IONCHECK(_ion_writer_binary_write_float(pwriter, value));
+        break;
+    default:
+        FAILWITH(IERR_INVALID_ARG);
+    }
+
+    iRETURN;
+}
+
 iERR ion_writer_write_double(hWRITER hwriter, double value)
 {
     iENTER;
@@ -1990,7 +2026,7 @@ iERR ion_writer_write_blob(hWRITER hwriter, BYTE *p_buf, SIZE length)
 iERR _ion_writer_write_blob_helper(ION_WRITER *pwriter, BYTE *p_buf, SIZE length)
 {
     iENTER;
-    
+
     ASSERT(pwriter);
     // p_buf can be null for a null value
     ASSERT(length >= 0);
@@ -2201,7 +2237,7 @@ iERR ion_writer_start_container(hWRITER hwriter, ION_TYPE container_type)
 iERR _ion_writer_start_container_helper(ION_WRITER *pwriter, ION_TYPE container_type)
 {
     iENTER;
-    
+
     ASSERT(pwriter);
     ASSERT(container_type == tid_STRUCT || container_type == tid_LIST || container_type == tid_SEXP);
 
@@ -2389,7 +2425,7 @@ iERR ion_writer_write_one_value(hWRITER hwriter, hREADER hreader)
         FAILWITH(IERR_INVALID_ARG);
     }
 
-    // we let a helper (also used by write all values) to the 
+    // we let a helper (also used by write all values) to the
     // real work without as much checking
     IONCHECK(_ion_writer_write_one_value_helper(pwriter, preader));
 
@@ -2401,7 +2437,7 @@ iERR _ion_writer_copy_lop(ION_WRITER *pwriter, ION_READER *preader)
 {
     iENTER;
     int32_t read;
-    BYTE    tmpByteBuffer[TEMP_BUFFER_SIZE];  
+    BYTE    tmpByteBuffer[TEMP_BUFFER_SIZE];
 
     for (;;) {
         IONCHECK(_ion_reader_read_lob_bytes_helper(preader, TRUE, tmpByteBuffer, TEMP_BUFFER_SIZE , &read));
@@ -2792,7 +2828,7 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
     // first we make sure there a reasonable local symbol table
     // in case we need to add this symbol to the list
     psymtab = pwriter->symbol_table;
-    if (!psymtab || psymtab->is_locked) 
+    if (!psymtab || psymtab->is_locked)
     {
         IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
         psymtab = pwriter->symbol_table;
@@ -2802,7 +2838,7 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
     IONCHECK( _ion_symbol_table_add_symbol_helper( psymtab, pstr, &sid));
 
     // see if this symbol ended up changing the symbol list (if it already
-    // was present the max_id doesn't change and we don't reuse 
+    // was present the max_id doesn't change and we don't reuse
     if (sid > psymtab->system_symbol_table->max_id) {
         pwriter->_has_local_symbols = TRUE;
     }
@@ -3097,9 +3133,9 @@ iERR ion_temp_buffer_make_utf8_string(ION_TEMP_BUFFER *temp_buffer, char *cstr, 
     if (!temp_buffer) FAILWITH(IERR_INVALID_ARG);
     IONCHECK(ion_temp_buffer_alloc(temp_buffer, length, (void*)&buf));
 
-    // TODO: actual cstring to utf 8 conversion - 
+    // TODO: actual cstring to utf 8 conversion -
     //       what is the character encoding in C?
-    //       (since it's controled by the compiler 
+    //       (since it's controled by the compiler
     //       and various "support" libraries
     memcpy(buf, cstr, length);
 

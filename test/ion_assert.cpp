@@ -24,11 +24,11 @@ std::string _bytesToHexString(const BYTE *bytes, SIZE len) {
 }
 
 void assertBytesEqual(const char *expected, SIZE expected_len, const BYTE *actual, SIZE actual_len) {
-    ASSERT_EQ(expected_len, actual_len);
+    EXPECT_EQ(expected_len, actual_len);
     BOOL bytes_not_equal = memcmp((BYTE *)expected, actual, (size_t)actual_len);
     if (bytes_not_equal) {
-        ASSERT_FALSE(bytes_not_equal) << _bytesToHexString((BYTE *)expected, expected_len) << " vs. " << std::endl
-                                      << _bytesToHexString(actual, actual_len);
+        ASSERT_FALSE(bytes_not_equal) << "Expected: " << _bytesToHexString((BYTE *)expected, expected_len) << " vs. " << std::endl
+                                      << "  Actual: "<< _bytesToHexString(actual, actual_len);
     }
 }
 

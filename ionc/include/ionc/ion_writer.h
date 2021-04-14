@@ -230,6 +230,7 @@ ION_API_EXPORT iERR ion_writer_write_int64          (hWRITER hwriter, int64_t va
 ION_API_EXPORT iERR ion_writer_write_long           (hWRITER hwriter, long value);
 ION_API_EXPORT iERR ion_writer_write_ion_int        (hWRITER hwriter, ION_INT *value);
 ION_API_EXPORT iERR ion_writer_write_double         (hWRITER hwriter, double value);
+ION_API_EXPORT iERR ion_writer_write_float          (hWRITER hwriter, float value);
 
 /**
  * @deprecated use of decQuads directly is deprecated. ION_DECIMAL should be used. See `ion_writer_write_ion_decimal`.
