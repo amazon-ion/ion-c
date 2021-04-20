@@ -440,6 +440,10 @@ TEST(IonBinaryFloat, ReaderSupports32BitFloats) {
     int pos_inf_bits = 0x7F800000;
     float pos_inf = *((float *)&pos_inf_bits);
 
+    // See https://amzn.github.io/ion-docs/docs/binary.html#4-float
+    // "If L is 0, then the the value is 0e0 and representation is empty."
+    test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x40", 5, 0.);
+    // Positive 0 can also be written out with 4 bytes instead
     test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x44\x00\x00\x00\x00", 9, 0.);
     test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x44\x80\x00\x00\x00", 9, -0.);
     test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x44\x40\x86\x66\x66", 9, 4.2);
@@ -547,3 +551,40 @@ TEST(IonBinaryBlob, CanFullyReadBlobUsingPartialReads) {
             29, tid_BLOB, 23, "This is a BLOB of text.");
 }
 
+void test_ion_binary_writer_supports_32_bit_floats(float value, const char *expected, SIZE expected_len) {
+    hWRITER writer = NULL;
+    ION_STREAM *ion_stream = NULL;
+    BYTE *result;
+    SIZE result_len;
+
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, TRUE));
+    ION_ASSERT_OK(ion_writer_write_float(writer, value));
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
+
+    assertBytesEqual(expected, expected_len, result, result_len);
+}
+
+TEST(IonBinaryFloat, WriterSupports32BitFloats) {
+    int neg_inf_bits = 0xFF800000;
+    float neg_inf = *((float *)&neg_inf_bits);
+    int pos_inf_bits = 0x7F800000;
+    float pos_inf = *((float *)&pos_inf_bits);
+    int nan_bits = 0x7FFFFFFF;
+    float nan = *((float *)&nan_bits);
+
+    // ion-c prefers to write positive zero as a zero-length float
+    // see: https://amzn.github.io/ion-docs/docs/binary.html#4-float
+    test_ion_binary_writer_supports_32_bit_floats(  0., "\xE0\x01\x00\xEA\x40", 5);
+    test_ion_binary_writer_supports_32_bit_floats( -0., "\xE0\x01\x00\xEA\x44\x80\x00\x00\x00", 9);
+    test_ion_binary_writer_supports_32_bit_floats( 4.2, "\xE0\x01\x00\xEA\x44\x40\x86\x66\x66", 9);
+    test_ion_binary_writer_supports_32_bit_floats(-4.2, "\xE0\x01\x00\xEA\x44\xC0\x86\x66\x66", 9);
+
+    test_ion_binary_writer_supports_32_bit_floats(neg_inf, "\xE0\x01\x00\xEA\x44\xFF\x80\x00\x00", 9);
+    test_ion_binary_writer_supports_32_bit_floats(pos_inf, "\xE0\x01\x00\xEA\x44\x7F\x80\x00\x00", 9);
+    test_ion_binary_writer_supports_32_bit_floats(nan, "\xE0\x01\x00\xEA\x44\x7F\xFF\xFF\xFF", 9);
+
+    // minimum 32-bit float
+    test_ion_binary_writer_supports_32_bit_floats(-3.4028235E38, "\xE0\x01\x00\xEA\x44\xFF\x7F\xFF\xFF", 9);
+    // maximum 32-bit float
+    test_ion_binary_writer_supports_32_bit_floats( 3.4028235E38, "\xE0\x01\x00\xEA\x44\x7F\x7F\xFF\xFF", 9);
+}

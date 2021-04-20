@@ -47,6 +47,8 @@ extern "C" {
 
 #define ION_BINARY_UNKNOWN_LENGTH               (-1)
 
+#define UINT_32_IMAGE_LENGTH                    ((SIZE)(sizeof(uint32_t)))
+
 #define VAR_UINT_64_IMAGE_LENGTH                ((SIZE)(((sizeof(uint64_t)*8) / 7) + 1))
 #define UINT_64_IMAGE_LENGTH                    ((SIZE)(sizeof(uint64_t)))
 #define VAR_INT_64_IMAGE_LENGTH                 ((SIZE)(((sizeof(int64_t)*8) / 7) + 1)) /* same as var_uint */
@@ -91,7 +93,8 @@ ION_API_EXPORT int ion_binary_len_int_64_unsigned(uint64_t value);
 /** Get the size of ion binary representation fields of the given double value. Fixed at sizeof(double)
  *
  */
-ION_API_EXPORT int ion_binary_len_ion_float(double value);
+ION_API_EXPORT int ion_binary_len_ion_float_32(float value);
+ION_API_EXPORT int ion_binary_len_ion_float_64(double value);
 
 ION_API_EXPORT iERR ion_binary_read_var_int_32       (ION_STREAM *pstream, int32_t *p_value);
 ION_API_EXPORT iERR ion_binary_read_var_int_64       (ION_STREAM *pstream, int64_t *p_value);
@@ -110,7 +113,8 @@ ION_API_EXPORT iERR ion_binary_read_decimal        (ION_STREAM *pstream, int32_t
 ION_API_EXPORT iERR ion_binary_read_timestamp      (ION_STREAM *pstream, int32_t len, decContext *context, ION_TIMESTAMP *p_value);
 ION_API_EXPORT iERR ion_binary_read_string         (ION_STREAM *pstream, int32_t len, ION_STRING *p_value);
 
-ION_API_EXPORT iERR ion_binary_write_float_value           ( ION_STREAM *pstream, double value );
+ION_API_EXPORT iERR ion_binary_write_float_32_value  (ION_STREAM *pstream, float value );
+ION_API_EXPORT iERR ion_binary_write_float_64_value  (ION_STREAM *pstream, double value );
 
 ION_API_EXPORT iERR ion_binary_write_int32_with_field_sid  ( ION_STREAM *pstream, SID field_sid, int32_t value );
 ION_API_EXPORT iERR ion_binary_write_int64_with_field_sid  ( ION_STREAM *pstream, SID sid, int64_t value );

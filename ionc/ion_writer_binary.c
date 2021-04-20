@@ -549,23 +549,40 @@ iERR _ion_writer_binary_write_ion_int(ION_WRITER *pwriter, ION_INT *iint)
     iRETURN;
 }
 
+iERR _ion_writer_binary_write_float(ION_WRITER *pwriter, float value)
+{
+    iENTER;
+    int len;
+
+    len = ion_binary_len_ion_float_32(value);
+
+    IONCHECK( _ion_writer_binary_start_value( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
+    ION_PUT( pwriter->_typed_writer.binary._value_stream, makeTypeDescriptor(TID_FLOAT, len) );
+    if (len > 0) {
+        IONCHECK(ion_binary_write_float_32_value(pwriter->_typed_writer.binary._value_stream, value));
+    }
+    IONCHECK( _ion_writer_binary_patch_lengths( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
+
+    iRETURN;
+}
 
 iERR _ion_writer_binary_write_double(ION_WRITER *pwriter, double value)
 {
     iENTER;
     int len;
 
-    len = ion_binary_len_ion_float(value);
+    len = ion_binary_len_ion_float_64(value);
 
     IONCHECK( _ion_writer_binary_start_value( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
     ION_PUT( pwriter->_typed_writer.binary._value_stream, makeTypeDescriptor(TID_FLOAT, len) );
     if (len > 0) {
-        IONCHECK( ion_binary_write_float_value( pwriter->_typed_writer.binary._value_stream, value ));
+        IONCHECK(ion_binary_write_float_64_value(pwriter->_typed_writer.binary._value_stream, value));
     }
     IONCHECK( _ion_writer_binary_patch_lengths( pwriter, ION_BINARY_TYPE_DESC_LENGTH + len ));
 
     iRETURN;
 }
+
 
 iERR _ion_writer_binary_write_decimal_helper(ION_STREAM *pstream, ION_INT *mantissa, SIZE mantissa_len,
                                              int32_t exponent) {
