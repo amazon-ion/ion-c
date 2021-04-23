@@ -69,6 +69,7 @@ typedef struct _ion_writer_options
     SIZE max_container_depth;
 
     /** The max number of annotations on 1 value, defaults to 10
+     *
      */
     SIZE max_annotation_count;
 
@@ -92,6 +93,7 @@ typedef struct _ion_writer_options
      *  populated by calling `ion_writer_options_add_shared_imports` and/or
      *  `ion_writer_options_add_shared_imports_symbol_tables`, and freed by calling
      *  `ion_writer_options_close_shared_imports`.
+     *
      *  NOTE: the system symbol table is always used as the first import; it need not be provided here.
      */
     ION_COLLECTION encoding_psymbol_table;
@@ -105,6 +107,13 @@ typedef struct _ion_writer_options
      * Note that up to 34 digits of precision will always be supported, even if configured to be less than 34.
      */
     decContext *decimal_context;
+
+    /** Normally floating point numbers (`float` or `double`) are written as 32-bit or 64-bit Ion floats depending
+     *  on which Ion writer API is used. When enabled, this API allows the writer to represent a 64-bit float
+     *  with only 32 bits whenever possible without losing precision.
+     *
+     */
+    BOOL compact_floats;
 
 } ION_WRITER_OPTIONS;
 

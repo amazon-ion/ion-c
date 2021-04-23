@@ -1586,7 +1586,13 @@ iERR ion_writer_write_double(hWRITER hwriter, double value)
 
     ION_WRITER_SYMTAB_INTERCEPT_IGNORE(pwriter);
 
-    IONCHECK(_ion_writer_write_double_helper(pwriter, value));
+    float value_32 = (float)value;
+    // Should/can this double be losslessly represented as a 32-bit Ion float?
+    if (pwriter->options.compact_floats && ((double)value_32) == value) {
+        IONCHECK(_ion_writer_write_float_helper(pwriter, value_32));
+    } else {
+        IONCHECK(_ion_writer_write_double_helper(pwriter, value));
+    }
 
     iRETURN;
 }

@@ -560,6 +560,13 @@ iERR _ion_writer_text_write_double(ION_WRITER *pwriter, double value)
 #endif
 
         // TODO this is a terrible way to convert this!
+        // See: https://github.com/amzn/ion-c/issues/112
+        // For now:
+        // "If an IEEE 754 double-precision number is converted to a decimal string with at least
+        //  17 significant digits, and then converted back to double-precision representation,
+        //  the final result must match the original number."
+        // (https://en.wikipedia.org/wiki/Double-precision_floating-point_format)
+        // Leaving room for '.', '+'/'-', and 'e', we get 17 + 1 + 1 +1 = 20
         sprintf(image, "%.20g", value);
         assert(strlen(image) < sizeof(image));
 

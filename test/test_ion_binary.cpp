@@ -564,19 +564,20 @@ void test_ion_binary_writer_supports_32_bit_floats(float value, const char *expe
     assertBytesEqual(expected, expected_len, result, result_len);
 }
 
+
 TEST(IonBinaryFloat, WriterSupports32BitFloats) {
-    int neg_inf_bits = 0xFF800000;
+    uint32_t neg_inf_bits = 0xFF800000;
     float neg_inf = *((float *)&neg_inf_bits);
-    int pos_inf_bits = 0x7F800000;
+    uint32_t pos_inf_bits = 0x7F800000;
     float pos_inf = *((float *)&pos_inf_bits);
-    int nan_bits = 0x7FFFFFFF;
+    uint32_t nan_bits = 0x7FFFFFFF;
     float nan = *((float *)&nan_bits);
 
     // ion-c prefers to write positive zero as a zero-length float
     // see: https://amzn.github.io/ion-docs/docs/binary.html#4-float
-    test_ion_binary_writer_supports_32_bit_floats(  0., "\xE0\x01\x00\xEA\x40", 5);
-    test_ion_binary_writer_supports_32_bit_floats( -0., "\xE0\x01\x00\xEA\x44\x80\x00\x00\x00", 9);
-    test_ion_binary_writer_supports_32_bit_floats( 4.2, "\xE0\x01\x00\xEA\x44\x40\x86\x66\x66", 9);
+    test_ion_binary_writer_supports_32_bit_floats(0., "\xE0\x01\x00\xEA\x40", 5);
+    test_ion_binary_writer_supports_32_bit_floats(-0., "\xE0\x01\x00\xEA\x44\x80\x00\x00\x00", 9);
+    test_ion_binary_writer_supports_32_bit_floats(4.2, "\xE0\x01\x00\xEA\x44\x40\x86\x66\x66", 9);
     test_ion_binary_writer_supports_32_bit_floats(-4.2, "\xE0\x01\x00\xEA\x44\xC0\x86\x66\x66", 9);
 
     test_ion_binary_writer_supports_32_bit_floats(neg_inf, "\xE0\x01\x00\xEA\x44\xFF\x80\x00\x00", 9);
@@ -586,5 +587,52 @@ TEST(IonBinaryFloat, WriterSupports32BitFloats) {
     // minimum 32-bit float
     test_ion_binary_writer_supports_32_bit_floats(-3.4028235E38, "\xE0\x01\x00\xEA\x44\xFF\x7F\xFF\xFF", 9);
     // maximum 32-bit float
-    test_ion_binary_writer_supports_32_bit_floats( 3.4028235E38, "\xE0\x01\x00\xEA\x44\x7F\x7F\xFF\xFF", 9);
+    test_ion_binary_writer_supports_32_bit_floats(3.4028235E38, "\xE0\x01\x00\xEA\x44\x7F\x7F\xFF\xFF", 9);
+}
+
+void test_ion_binary_writer_supports_compact_floats(BOOL compact_floats, double value, const char *expected,
+                                                   SIZE expected_len) {
+    hWRITER writer = NULL;
+    ION_STREAM *ion_stream = NULL;
+    BYTE *result;
+    SIZE result_len;
+
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, TRUE));
+
+    writer->options.compact_floats = compact_floats;
+
+    ION_ASSERT_OK(ion_writer_write_double(writer, value));
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
+
+    assertBytesEqual(expected, expected_len, result, result_len);
+}
+
+TEST(IonBinaryFloat, WriterSupportsCompactFloatsOption) {
+    // ion-c prefers to write positive zero as a zero-length float, whether this option is enabled or not
+    // see: https://amzn.github.io/ion-docs/docs/binary.html#4-float
+    test_ion_binary_writer_supports_compact_floats(TRUE, 0., "\xE0\x01\x00\xEA\x40", 5);
+    test_ion_binary_writer_supports_compact_floats(FALSE, 0., "\xE0\x01\x00\xEA\x40", 5);
+
+    // Negative zero can save some bits with a 32-bit representation
+    test_ion_binary_writer_supports_compact_floats(TRUE, -0., "\xE0\x01\x00\xEA\x44\x80\x00\x00\x00", 9);
+    test_ion_binary_writer_supports_compact_floats(FALSE, -0., "\xE0\x01\x00\xEA\x48\x80\x00\x00\x00\x00\x00\x00\x00", 13);
+
+    double original = 4.2;
+    float truncated = (float)original;
+    // The closest double approximation of decimal "4.2":
+    // * In single precision is something like: 4.1999998############# (# = precision unachievable by representation)
+    // * In double precision is something like: 4.200000000000000##### (# = precision unachievable by representation)
+    // s = sign, e = exponent, f = fraction (mantissa, significand, whatever)
+    // seee eeee eeee ffff ffff ffff ffff ffff ffff ffff ffff ffff ffff ffff ffff ffff
+    // 0100 0000 0001 0000 1100 1100 1100 1100 1100 1100 1100 1100 1100 1100 1100 1101
+    //    4    0    1    0    c    c    c    c    c    c    c    c    c    c    c    d
+    test_ion_binary_writer_supports_compact_floats(TRUE, original, "\xE0\x01\x00\xEA\x48\x40\x10\xCC\xCC\xCC\xCC\xCC\xCD", 13);
+    // seee eeee eeee ffff ffff ffff ffff ffff ffff ffff ffff ffff ffff ffff ffff ffff
+    // 0100 0000 0001 0000 1100 1100 1100 1100 1100 0000 0000 0000 0000 0000 0000 0000
+    //    4    0    1    0    c    c    c    c    c    0    0    0    0    0    0    0
+    test_ion_binary_writer_supports_compact_floats(FALSE, truncated, "\xE0\x01\x00\xEA\x48\x40\x10\xCC\xCC\xC0\x00\x00\x00", 13);
+    // seee eeee efff ffff ffff ffff ffff ffff
+    // 0100 0000 1000 0110 0110 0110 0110 0110
+    //    4    0    8    6    6    6    6    6
+    test_ion_binary_writer_supports_compact_floats(TRUE, truncated, "\xE0\x01\x00\xEA\x44\x40\x86\x66\x66", 9);
 }
