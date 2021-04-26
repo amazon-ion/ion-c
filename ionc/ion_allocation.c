@@ -41,10 +41,6 @@ void *_ion_alloc_owner(SIZE len)
     void                 *owner;
     ION_ALLOCATION_CHAIN *new_chain;
 
-    if (g_ion_alloc_page_list.page_size == ION_ALLOC_PAGE_POOL_PAGE_SIZE_NONE) {
-        ion_initialize_page_pool(ION_ALLOC_PAGE_POOL_DEFAULT_PAGE_SIZE, ION_ALLOC_PAGE_POOL_DEFAULT_LIMIT);
-    }
-
     new_chain = _ion_alloc_block(len);
     if (!new_chain) return NULL;
 
@@ -224,7 +220,8 @@ void _ion_free_block(ION_ALLOCATION_CHAIN *pblock)
 void ion_initialize_page_pool(SIZE page_size, int free_page_limit)
 {
     // once the page list is in use, you can't change your mind
-    if (g_ion_alloc_page_list.page_size != ION_ALLOC_PAGE_POOL_PAGE_SIZE_NONE)
+    // This is changed, because g_ion_alloc_page_list.page_size is initialized to ION_ALLOC_PAGE_POOL_DEFAULT_PAGE_SIZE.
+    if (g_ion_alloc_page_list.page_size == ION_ALLOC_PAGE_POOL_DEFAULT_PAGE_SIZE)
     {
         return;
     }

@@ -77,7 +77,10 @@ ION_API_EXPORT void        ion_alloc_free      (void *ptr);
 //#ifndef ION_ALLOCATION_BLOCK_SIZE
 //#define ION_ALLOCATION_BLOCK_SIZE DEFAULT_BLOCK_SIZE
 //#endif
-    
+
+// DEFAULT_BLOCK_SIZE was defined in ion_internal.h, but needed for initializing g_ion_alloc_page_list.
+#define DEFAULT_BLOCK_SIZE (1024*64)
+
 // force aligned allocations
 #ifndef ALLOC_ALIGNMENT
 #define ALLOC_ALIGNMENT 4
@@ -157,7 +160,7 @@ struct _ion_alloc_page_list
 
 GLOBAL THREAD_LOCAL_STORAGE ION_ALLOC_PAGE_LIST g_ion_alloc_page_list
 #ifdef INIT_STATICS
-= { ION_ALLOC_PAGE_POOL_PAGE_SIZE_NONE, 0, 0, NULL }
+= { ION_ALLOC_PAGE_POOL_DEFAULT_PAGE_SIZE, 0, ION_ALLOC_PAGE_POOL_DEFAULT_LIMIT, NULL }
 #endif
 ;
 
