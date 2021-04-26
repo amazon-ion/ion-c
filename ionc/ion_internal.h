@@ -81,8 +81,9 @@ typedef struct _ion_header {
 #include "ion_index.h"
 #include "ion_stream_impl.h" 
 
+// DEFAULT_BLOCK_SIZE is moved to ion_alloc.h, included above.
 //#define DEFAULT_BLOCK_SIZE (256*1024) /* was 128*1024*1024 */
-#define DEFAULT_BLOCK_SIZE (1024*64)
+//#define DEFAULT_BLOCK_SIZE (1024*64)
 
 // TODO: static final boolean _debug_on = false;
 #define ASSERT( x ) while (!(x)) { ion_helper_breakpoint(), assert( x ); }
