@@ -706,3 +706,17 @@ TEST(IonTextStruct, FailsOnFieldNameWithNoValueInMiddle) {
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(IERR_INVALID_SYNTAX, ion_reader_next(reader, &type));
 }
+
+// reproduction for amzn/ion-c#235
+TEST(IonTextInt, BinaryLiterals) {
+    const char *ion_text = "-0b100";
+    hREADER  reader;
+    ION_TYPE type;
+    int64_t value;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_read_int64(reader, &value));
+    ASSERT_EQ(-4, value);
+}

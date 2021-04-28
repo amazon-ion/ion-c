@@ -1373,7 +1373,9 @@ iERR _ion_reader_text_read_int64(ION_READER *preader, int64_t *p_value)
         FAILWITH(IERR_NULL_VALUE);
     }
 
-    if (text->_value_sub_type == IST_INT_NEG_DECIMAL || text->_value_sub_type == IST_INT_NEG_HEX) {
+    if (text->_value_sub_type == IST_INT_NEG_DECIMAL
+     || text->_value_sub_type == IST_INT_NEG_HEX
+     || text->_value_sub_type == IST_INT_NEG_BINARY) {
         sign = TRUE;
     }
 
