@@ -167,9 +167,15 @@ iERR _ion_writer_text_print_leading_white_space(ION_WRITER *pwriter)
     iENTER;
     int ii;
 
-    for (ii=0; ii<TEXTWRITER(pwriter)->_top; ii++) {
-        ION_TEXT_WRITER_APPEND_CHAR(' ');
-        ION_TEXT_WRITER_APPEND_CHAR(' ');
+    if (pwriter->options.indent_with_tabs) {
+        for (ii = 0; ii < TEXTWRITER(pwriter)->_top; ii++) {
+            ION_TEXT_WRITER_APPEND_CHAR('\t');
+        }
+    }
+    else {
+        for (ii = 0; ii < TEXTWRITER(pwriter)->_top * pwriter->options.indent_size; ii++) {
+            ION_TEXT_WRITER_APPEND_CHAR(' ');
+        }
     }
 
     iRETURN;

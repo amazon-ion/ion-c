@@ -43,7 +43,7 @@ typedef struct _ion_writer_options
      */
     BOOL indent_with_tabs;
 
-    /** Sets the default indent amount (default is 2)
+    /** Sets indent amount for pretty printing. Defaults to 2. Ignored if indent_with_tabs is true.
      *
      */
     SIZE indent_size;
