@@ -219,8 +219,11 @@ void _ion_free_block(ION_ALLOCATION_CHAIN *pblock)
 
 void ion_initialize_page_pool(SIZE page_size, int free_page_limit)
 {
-    // once the page list is in use, you can't change your mind
-    // This is changed, because g_ion_alloc_page_list.page_size is initialized to ION_ALLOC_PAGE_POOL_DEFAULT_PAGE_SIZE.
+    // TODO This is always true, causing this function to do nothing, because g_ion_alloc_page_list.page_size
+    // is statically initialized to ION_ALLOC_PAGE_POOL_DEFAULT_PAGE_SIZE. The original intent of this check
+    // (when it was != ) was to attempt to determine whether the page pool had already been initialized,
+    // however the check was insufficient. The problem of how to safely allow users to configure the page
+    // pool exactly once needs to be solved. See https://github.com/amzn/ion-c/issues/242 .
     if (g_ion_alloc_page_list.page_size == ION_ALLOC_PAGE_POOL_DEFAULT_PAGE_SIZE)
     {
         return;
