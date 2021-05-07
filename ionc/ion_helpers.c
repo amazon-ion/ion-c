@@ -194,7 +194,7 @@ void _ion_writer_text_write_blob_make_base64_image(int triple, char *output)
 
 char *_ion_writer_get_control_escape_string(int c)
 {
-    static char hex_buffer[5];
+    static THREAD_LOCAL_STORAGE char hex_buffer[5];
     char *image;
 
     switch (c) {
