@@ -402,7 +402,7 @@ TEST(IonBinaryInt, ReaderRejectsNegativeZeroMixedIntTwoByte) {
     test_ion_binary_write_from_reader_rejects_negative_zero_int((BYTE *)"\xE0\x01\x00\xEA\x31\x00", 6);
 }
 
-void test_ion_binary_reader_threshold_for_int64(BYTE *data, size_t len, char *actual_value) {
+void test_ion_binary_reader_threshold_for_int64_as_big_int(BYTE *data, size_t len, char *actual_value) {
     hREADER reader;
     ION_TYPE type;
     int64_t value;
@@ -429,12 +429,34 @@ void test_ion_binary_reader_threshold_for_int64(BYTE *data, size_t len, char *ac
     ASSERT_STREQ(actual_value, int_str);
 }
 
+void test_ion_binary_reader_threshold_for_int64_as_int64(BYTE *data, size_t len, int64_t actual_value) {
+    hREADER reader;
+    ION_TYPE type;
+    int64_t value;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, len, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+
+    // reading value as int64 will not throw numeric overflow error as it fits two's complement representation
+    ION_ASSERT_OK(ion_reader_read_int64(reader, &value));
+
+    // compare actual and generated int64 values
+    ASSERT_EQ(actual_value, value);
+}
+
 TEST(IonBinaryReader, ReaderPositiveThresholdForInt64) {
-    test_ion_binary_reader_threshold_for_int64((BYTE *)"\xE0\x01\x00\xEA\x28\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 13, "18446744073709551615");
+    // 2 ** 64
+    test_ion_binary_reader_threshold_for_int64_as_big_int((BYTE *)"\xE0\x01\x00\xEA\x28\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 13, "18446744073709551615");
+    // 2 ** 63
+    test_ion_binary_reader_threshold_for_int64_as_big_int((BYTE *)"\xE0\x01\x00\xEA\x28\x80\x00\x00\x00\x00\x00\x00\x00", 13, "9223372036854775808");
 }
 
 TEST(IonBinaryReader, ReaderNegativeThresholdForInt64) {
-    test_ion_binary_reader_threshold_for_int64((BYTE *)"\xE0\x01\x00\xEA\x38\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 13, "-18446744073709551615");
+    // -2 ** 64
+    test_ion_binary_reader_threshold_for_int64_as_big_int((BYTE *)"\xE0\x01\x00\xEA\x38\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 13, "-18446744073709551615");
+    // -2 ** 63 fits as two's complement representation
+    test_ion_binary_reader_threshold_for_int64_as_int64((BYTE *)"\xE0\x01\x00\xEA\x38\x80\x00\x00\x00\x00\x00\x00\x00", 13, -9223372036854775808);
 }
 
 void test_ion_binary_reader_requires_timestamp_fraction_less_than_one(BYTE *data, size_t len) {
