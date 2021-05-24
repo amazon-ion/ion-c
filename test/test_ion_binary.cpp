@@ -402,6 +402,63 @@ TEST(IonBinaryInt, ReaderRejectsNegativeZeroMixedIntTwoByte) {
     test_ion_binary_write_from_reader_rejects_negative_zero_int((BYTE *)"\xE0\x01\x00\xEA\x31\x00", 6);
 }
 
+void test_ion_binary_reader_threshold_for_int64_as_big_int(BYTE *data, size_t len, char *actual_value) {
+    hREADER reader;
+    ION_TYPE type;
+    int64_t value;
+    ION_INT big_int_expected;
+    SIZE str_len, written;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, len, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+
+    // reading value as int64 will throw numeric overflow error
+    ASSERT_EQ(IERR_NUMERIC_OVERFLOW,ion_reader_read_int64(reader, &value));
+
+    // initialize ION_INT and read it as big integer
+    ION_ASSERT_OK(ion_int_init(&big_int_expected, NULL));
+    ION_ASSERT_OK(ion_reader_read_ion_int(reader, &big_int_expected));
+
+    // convert big integer to string for comparison
+    ion_int_char_length(&big_int_expected, &str_len);
+    char *int_str = (char *)malloc(str_len * sizeof(char));
+    ion_int_to_char(&big_int_expected, (BYTE *)int_str, str_len, &written);
+
+    // compare string representation of the value
+    ASSERT_STREQ(actual_value, int_str);
+}
+
+void test_ion_binary_reader_threshold_for_int64_as_int64(BYTE *data, size_t len, int64_t actual_value) {
+    hREADER reader;
+    ION_TYPE type;
+    int64_t value;
+
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, len, NULL));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+
+    // reading value as int64 will not throw numeric overflow error as it fits two's complement representation
+    ION_ASSERT_OK(ion_reader_read_int64(reader, &value));
+
+    // compare actual and generated int64 values
+    ASSERT_EQ(actual_value, value);
+}
+
+TEST(IonBinaryReader, ReaderPositiveThresholdForInt64) {
+    // 2 ** 64
+    test_ion_binary_reader_threshold_for_int64_as_big_int((BYTE *)"\xE0\x01\x00\xEA\x28\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 13, "18446744073709551615");
+    // 2 ** 63
+    test_ion_binary_reader_threshold_for_int64_as_big_int((BYTE *)"\xE0\x01\x00\xEA\x28\x80\x00\x00\x00\x00\x00\x00\x00", 13, "9223372036854775808");
+}
+
+TEST(IonBinaryReader, ReaderNegativeThresholdForInt64) {
+    // -2 ** 64
+    test_ion_binary_reader_threshold_for_int64_as_big_int((BYTE *)"\xE0\x01\x00\xEA\x38\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 13, "-18446744073709551615");
+    // -2 ** 63 fits as two's complement representation
+    test_ion_binary_reader_threshold_for_int64_as_int64((BYTE *)"\xE0\x01\x00\xEA\x38\x80\x00\x00\x00\x00\x00\x00\x00", 13, -9223372036854775808);
+}
+
 void test_ion_binary_reader_requires_timestamp_fraction_less_than_one(BYTE *data, size_t len) {
     hREADER reader;
     ION_TYPE type;
