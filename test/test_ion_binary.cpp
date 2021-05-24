@@ -429,9 +429,12 @@ void test_ion_binary_reader_threshold_for_int64(BYTE *data, size_t len, char *ac
     ASSERT_STREQ(actual_value, int_str);
 }
 
-TEST(IonBinaryReader, ReaderThresholdForInt64) {
+TEST(IonBinaryReader, ReaderPositiveThresholdForInt64) {
     test_ion_binary_reader_threshold_for_int64((BYTE *)"\xE0\x01\x00\xEA\x28\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 13, "18446744073709551615");
-    test_ion_binary_reader_threshold_for_int64((BYTE *)"\xE0\x01\x00\xEA\x39\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 14, "-18446744073709551615");
+}
+
+TEST(IonBinaryReader, ReaderNegativeThresholdForInt64) {
+    test_ion_binary_reader_threshold_for_int64((BYTE *)"\xE0\x01\x00\xEA\x38\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 13, "-18446744073709551615");
 }
 
 void test_ion_binary_reader_requires_timestamp_fraction_less_than_one(BYTE *data, size_t len) {

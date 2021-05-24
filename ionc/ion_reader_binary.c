@@ -969,7 +969,7 @@ iERR _ion_reader_binary_read_int64(ION_READER *preader, int64_t *p_value)
 {
     iENTER;
     ION_BINARY_READER *binary;
-    int                tid, len, i;
+    int                tid, len;
     uint64_t           unsignedInt64 = 0;
     BOOL               is_negative;
     BOOL               is_null;
@@ -1006,15 +1006,15 @@ iERR _ion_reader_binary_read_int64(ION_READER *preader, int64_t *p_value)
     IONCHECK(ion_binary_read_uint_64(preader->istream, len, &unsignedInt64));
 
     is_negative = (tid == TID_NEG_INT)? TRUE: FALSE;
-    iERR result = cast_to_int64(unsignedInt64, is_negative, p_value);
 
-    // if an error is thrown reset reader stream's current pointer to the beginning of current value again
-    if(result) {
-        i = len;
-        while(i--) {
-            preader->istream->_curr--;
+    {
+        iERR cast_result = cast_to_int64(unsignedInt64, is_negative, p_value);
+
+        // if an error is thrown reset reader stream's current pointer to the beginning of current value again
+        if (cast_result :!= IERR_OK) {
+            preader->istream->_curr -= len;
+            FAILWITH(cast_result);
         }
-        FAILWITH(result);
     }
 
     if (is_negative && *p_value == 0) {
