@@ -244,4 +244,11 @@ iERR ion_event_stream_write_all(hWRITER writer, IonEventStream *stream, IonEvent
  */
 iERR ion_event_stream_write_all_events(hWRITER writer, IonEventStream *stream, ION_CATALOG *catalog, IonEventResult *result);
 
+/**
+ * Behaves like ion_event_stream_read_all followed by ion_event_stream_write_all(_events). Bypasses event
+ * transformation if both the input and output are value streams.
+ */
+iERR ion_event_stream_process_all(hREADER reader, hWRITER writer, ION_EVENT_OUTPUT_TYPE output_type,
+                                  IonEventStream *stream, ION_CATALOG *catalog, IonEventResult *result);
+
 #endif //IONC_VALUE_STREAM_H

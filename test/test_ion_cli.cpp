@@ -242,7 +242,7 @@ TEST(IonCli, ErrorIsConveyed) {
     test_ion_cli_process(test_file.c_str(), IO_TYPE_FILE, &command_output, &report);
     ASSERT_TRUE(report.hasErrors());
     ASSERT_FALSE(report.hasComparisonFailures());
-    ASSERT_EQ(0, command_output.length);
+    ASSERT_EQ(5, command_output.length);
     test_ion_cli_assert_error_equals(&report.getErrors()->at(0), ERROR_TYPE_READ, IERR_INVALID_SYNTAX, test_file);
     ion_cli_free_command_output(&command_output);
 }
