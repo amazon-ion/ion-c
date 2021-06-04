@@ -277,19 +277,8 @@ iERR ion_cli_write_input(IonCliCommonArgs *args, IonEventWriterContext *writer_c
     IonCliReaderContext reader_context;
     IonEventStream stream(input->contents);
     IONREPORT(ion_cli_open_reader(input, catalog, &reader_context, &stream, result));
-    if (args->output_format == OUTPUT_TYPE_EVENTS) {
-        // NOTE: don't short-circuit on read failure. Write as many events as possible.
-        err = ion_event_stream_read_all(reader_context.reader, catalog, &stream, result);
-        UPDATEERROR(ion_event_stream_write_all_events(writer_context->writer, &stream, catalog, result));
-        IONREPORT(err);
-    }
-    else if (args->output_format != OUTPUT_TYPE_NONE){
-        IONREPORT(ion_event_stream_read_all(reader_context.reader, catalog, &stream, result));
-        IONREPORT(ion_event_stream_write_all(writer_context->writer, &stream, result));
-        // Would be nice to use this (especially for performance testing), but having to peek at the first value in the
-        // stream (to identify $ion_event_stream) rules it out.
-        //IONCHECK(ion_writer_write_all_values(writer_context->writer, reader_context.reader));
-    }
+    IONREPORT(ion_event_stream_process_all(reader_context.reader, writer_context->writer, args->output_format, &stream,
+                                           catalog, result));
 cleanup:
     UPDATEERROR(ion_cli_close_reader(&reader_context, err, result));
     iRETURN;

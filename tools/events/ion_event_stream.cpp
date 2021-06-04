@@ -1525,6 +1525,37 @@ std::string _ion_error_message(iERR error_code, std::string msg, const char *fil
     return ss.str();
 }
 
+iERR ion_event_stream_process_all(hREADER reader, hWRITER writer, ION_EVENT_OUTPUT_TYPE output_type, IonEventStream *stream, ION_CATALOG *catalog, IonEventResult *result)
+{
+    iENTER;
+    bool is_event_stream, has_more_events;
+
+    UPDATEERROR(ion_event_stream_is_event_stream(reader, ION_STREAM_ARG, &is_event_stream, &has_more_events,
+                                                 ION_RESULT_ARG));
+    if (has_more_events && (err == IERR_OK)) {
+        // Read all if the input or output format is events. Value -> value conversion bypasses the event stream.
+        if (is_event_stream) {
+            err = ion_event_stream_read_all_events(reader, ION_EVENT_READ_ARGS);
+        } else if (output_type == OUTPUT_TYPE_EVENTS) {
+            err = ion_event_stream_read_all_values(reader, ION_STREAM_ARG, ION_RESULT_ARG);
+        }
+    }
+    if (output_type == OUTPUT_TYPE_EVENTS) {
+        // NOTE: don't short-circuit on read failure. Write as many events as possible.
+        UPDATEERROR(ion_event_stream_write_all_events(writer, stream, catalog, result));
+        IONREPORT(err);
+    } else {
+        IONREPORT(err);
+        // Flush anything possibly read by ion_event_stream_is_event_stream.
+        IONREPORT(ion_event_stream_write_all(writer, stream, result));
+        // Process the rest.
+        ION_SET_ERROR_CONTEXT(&stream->location, NULL);
+        IONCREAD(ion_writer_write_all_values(writer, reader));
+    }
+
+    cRETURN;
+}
+
 void _ion_event_set_error(IonEventResult *result, ION_EVENT_ERROR_TYPE error_type, iERR error_code, std::string msg,
                           std::string *location, size_t *event_index, const char *file, int line) {
     if (result != NULL) {
