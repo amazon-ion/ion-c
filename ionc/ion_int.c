@@ -680,13 +680,14 @@ iERR ion_int_from_decimal(ION_INT *iint, const decQuad *p_value, decContext *con
         FAILWITH(IERR_INVALID_ARG);
     }
 
-    // special case since zero is so common (and quick to test and set)
-    if (decQuadIsZero(p_value)) {
+    is_neg = decQuadIsSigned(p_value);
+
+    // special case since positive zero is so common (and quick to test and set)
+    if (decQuadIsZero(p_value) && !is_neg) {
         IONCHECK(_ion_int_zero(iint));
         SUCCEED();
     }
 
-    is_neg = decQuadIsSigned(p_value);
     decQuadCopyAbs(&temp1, p_value);
 
     decimal_digits = decQuadDigits(&temp1);
