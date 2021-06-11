@@ -21,7 +21,7 @@
 // or binary (base 256) representation.  This requires
 // the ability to convert between the two representations.
 // This also includes a limited abilty to get the values
-// out in more convnetional data formats as well.
+// out in more conventional data formats as well.
 //
 // This version X is mildly optimized for a 32 bit 
 // int with 64 bit int support (i.e. 32 bit arch, 
