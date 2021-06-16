@@ -686,20 +686,21 @@ TEST_P(TextAndBinary, ReaderPopulatesStructFieldsOnSeek) {
 
     hWRITER writer = NULL;
     ION_STREAM *ion_stream = NULL;
-    ION_STRING field1, field2, value;
+    ION_STRING field1, field2, value1, value2;
     BYTE *data;
     SIZE data_length;
 
     // {field1:val1,field2:val2}
     ion_string_from_cstr("field1", &field1);
-    ion_string_from_cstr("value", &value);
+    ion_string_from_cstr("value1", &value1);
     ion_string_from_cstr("field2", &field2);
+    ion_string_from_cstr("value2", &value2);
     ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, is_binary));
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ION_ASSERT_OK(ion_writer_write_field_name(writer, &field1));
-    ION_ASSERT_OK(ion_writer_write_symbol(writer, &value));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &value1));
     ION_ASSERT_OK(ion_writer_write_field_name(writer, &field2));
-    ION_ASSERT_OK(ion_writer_write_symbol(writer, &value));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &value2));
     ION_ASSERT_OK(ion_writer_finish_container(writer));
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &data, &data_length));
 
@@ -754,6 +755,6 @@ TEST_P(TextAndBinary, ReaderPopulatesStructFieldsOnSeek) {
     // Assert:
 
     // Easy assertions: there's only one value, "value," and we should have read it both times
-    assertStringsEqual((char *)value.value, cread_val1, strlen(cread_val1));
-    assertStringsEqual((char *)value.value, cread_val2, strlen(cread_val2));
+    assertStringsEqual((char *)value1.value, cread_val1, strlen(cread_val1));
+    assertStringsEqual((char *)value2.value, cread_val2, strlen(cread_val2));
 }
