@@ -721,16 +721,10 @@ TEST_P(TextAndBinary, ReaderPopulatesStructFieldsOnSeek) {
 
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-
-    // Real code would probably capture these, but it doesn't affect the issue
-    //ION_ASSERT_OK(ion_reader_get_field_name(reader, &read_field1));
     ION_ASSERT_OK(ion_reader_get_value_offset(reader, &pos_field1));
 
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
-
-    // Real code would probably capture these, but it doesn't affect the issue
-    //ION_ASSERT_OK(ion_reader_get_field_name(reader, &read_field2));
     ION_ASSERT_OK(ion_reader_get_value_offset(reader, &pos_field2));
 
     ION_ASSERT_OK(ion_reader_step_out(reader));

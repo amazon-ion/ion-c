@@ -1986,6 +1986,11 @@ iERR _ion_reader_get_position_helper(ION_READER *preader, int64_t *p_bytes, int3
  *  ion version marker and the initial local symbol table (if one
  *  is present).  At that point the symbol table will be current
  *  and later seek's will have an appropriate symbol table to use.
+ *
+ *  Note that when seeking directly into a struct, the offsets
+ *  provided by calls to ion_reader_get_value_offset point to the
+ *  beginning of the value, not the field, and therefore the field
+ *  name will not be accessible via ion_reader_get_field_name.
  */
 iERR ion_reader_seek(hREADER hreader, POSITION offset, SIZE length)
 {
