@@ -281,6 +281,10 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
         // The start position of the value was not known at the start of this function. At this point it must be known.
         text->_value_start = text->_scanner._value_start;
     }
+    else if (text->_state == IPS_BEFORE_FIELDNAME) {
+        // In latter fields in a struct, value_start will be positive, but positioned at the field name, not the value
+        text->_value_start = text->_scanner._value_start;
+    }
     else {
         text->_value_start = value_start;
     }
