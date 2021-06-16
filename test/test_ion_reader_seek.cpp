@@ -680,3 +680,86 @@ TEST_P(TextAndBinary, ReaderHandlesInitialUnannotatedContainerValueOffsetSeek) {
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
 }
+
+TEST_P(TextAndBinary, ReaderPopulatesStructFieldsOnSeek) {
+    // Write!
+
+    hWRITER writer = NULL;
+    ION_STREAM *ion_stream = NULL;
+    ION_STRING field1, field2, value;
+    BYTE *data;
+    SIZE data_length;
+
+    // {field1:val1,field2:val2}
+    ion_string_from_cstr("field1", &field1);
+    ion_string_from_cstr("value", &value);
+    ion_string_from_cstr("field2", &field2);
+    ION_ASSERT_OK(ion_test_new_writer(&writer, &ion_stream, is_binary));
+    ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
+    ION_ASSERT_OK(ion_writer_write_field_name(writer, &field1));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &value));
+    ION_ASSERT_OK(ion_writer_write_field_name(writer, &field2));
+    ION_ASSERT_OK(ion_writer_write_symbol(writer, &value));
+    ION_ASSERT_OK(ion_writer_finish_container(writer));
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &data, &data_length));
+
+    // Read!
+
+    hREADER reader = NULL;
+    ION_TYPE type;
+    POSITION pos_field1, pos_field2;
+    ION_STRING read_field1, read_val1, read_field2, read_val2;
+
+    // We use this reader to capture offsets
+    ION_ASSERT_OK(ion_test_new_reader(data, data_length, &reader));
+
+    // Assemble: Take one pass through the document to capture value offsets and field names
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+
+    // Real code would probably capture these, but it doesn't affect the issue
+    //ION_ASSERT_OK(ion_reader_get_field_name(reader, &read_field1));
+    ION_ASSERT_OK(ion_reader_get_value_offset(reader, &pos_field1));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+
+    // Real code would probably capture these, but it doesn't affect the issue
+    //ION_ASSERT_OK(ion_reader_get_field_name(reader, &read_field2));
+    ION_ASSERT_OK(ion_reader_get_value_offset(reader, &pos_field2));
+
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+
+    // Act: Move back to the original offsets and then re-assemble values
+
+    // Seek to first field
+    ION_ASSERT_OK(ion_reader_seek(reader, pos_field1, -1));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+
+    // Read field value
+    ION_ASSERT_OK(ion_reader_read_string(reader, &read_val1));
+    char *cread_val1 = ion_string_strdup(&read_val1);
+
+    // Seek to second field
+    ION_ASSERT_OK(ion_reader_seek(reader, pos_field2, -1));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+
+    // Read field value
+    ION_ASSERT_OK(ion_reader_read_string(reader, &read_val2));
+    char *cread_val2 = ion_string_strdup(&read_val2);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+
+    // Assert:
+
+    // Easy assertions: there's only one value, "value," and we should have read it both times
+    assertStringsEqual((char *)value.value, cread_val1, strlen(cread_val1));
+    assertStringsEqual((char *)value.value, cread_val2, strlen(cread_val2));
+}
