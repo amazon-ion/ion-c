@@ -1,7 +1,7 @@
 var ion__writer_8h =
 [
     [ "_ion_writer_options", "struct__ion__writer__options.html", "struct__ion__writer__options" ],
-    [ "ION_WRITER_OPTIONS", "ion__writer_8h.html#a8ad9e05ff182189a902e322171bc4c5e", null ],
+    [ "ION_WRITER_OPTIONS", "ion__writer_8h.html#a80d0027447a5bf10f32025a09c50966f", null ],
     [ "ion_writer_add_annotation", "ion__writer_8h.html#ac11bf0402543cf2b0ec532dc90b19df6", null ],
     [ "ion_writer_add_annotation_symbol", "ion__writer_8h.html#a95c9248691e0296590545b71a892d85c", null ],
     [ "ion_writer_add_imported_tables", "ion__writer_8h.html#a9da713c87b6a3acea365b7f102653281", null ],
@@ -37,6 +37,7 @@ var ion__writer_8h =
     [ "ion_writer_write_double", "ion__writer_8h.html#a5df44d8e6f4427b92375d7b4f6dad645", null ],
     [ "ion_writer_write_field_name", "ion__writer_8h.html#ac5a4a36ec3de48d095efeec671e2f543", null ],
     [ "ion_writer_write_field_name_symbol", "ion__writer_8h.html#ad5152a6723a25fccbdf5b1a33da2bd5f", null ],
+    [ "ion_writer_write_float", "ion__writer_8h.html#a53cfb10c5a3ddee7c65c5e9b682622c1", null ],
     [ "ion_writer_write_int", "ion__writer_8h.html#a422388de8cd46a00ac02f643d1aaf9db", null ],
     [ "ion_writer_write_int32", "ion__writer_8h.html#afa5a897138d2a1b6c888ebea03d010d0", null ],
     [ "ion_writer_write_int64", "ion__writer_8h.html#a57e275498147e687abcf9ff8623bb584", null ],

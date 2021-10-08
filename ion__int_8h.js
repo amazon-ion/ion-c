@@ -30,7 +30,7 @@ var ion__int_8h =
     [ "II_STRING_BASE", "ion__int_8h.html#acfed269fc4e8aa827ed009497d442e3f", null ],
     [ "ION_INT_GLOBAL", "ion__int_8h.html#acf8b72785abd14f79acbf22e0b525bcd", null ],
     [ "ION_INT_INITTO", "ion__int_8h.html#a77ff43282f3671855cdf6e56d71f4883", null ],
-    [ "_ion_int", "ion__int_8h.html#a1d641bc423ff3fc6fa21d5469a1c9347", null ],
+    [ "_ion_int", "ion__int_8h.html#a9f512fe3bff1d26aa1660823b13f0984", null ],
     [ "II_DIGIT", "ion__int_8h.html#a3b9211a38eb0809fe4d2c9b2d2b9e653", null ],
     [ "II_LONG_DIGIT", "ion__int_8h.html#a44f90e2f50f937c4bfc33f9ea5ae3255", null ],
     [ "_ion_int_abs_bytes_length_helper", "ion__int_8h.html#a6f4ad187113cd66e5a1646f1f71421d4", null ],
@@ -96,10 +96,10 @@ var ion__int_8h =
     [ "ion_int_to_int32", "ion__int_8h.html#a030f013ca085f730543d1ab01e3035cb", null ],
     [ "ion_int_to_int64", "ion__int_8h.html#a1574dbfe0bf86feae141efe6e3966539", null ],
     [ "ion_int_to_string", "ion__int_8h.html#a2dcb1a8de691888f1e0ed19c3e1e36b5", null ],
-    [ "g_digit_base_number", "ion__int_8h.html#a8b0b69b82435c084bf44b6c41a5a3d70", null ],
-    [ "g_digit_base_quad", "ion__int_8h.html#af01377d59371c5d4ce110bc9e4cf38e0", null ],
+    [ "g_digit_base_number", "ion__int_8h.html#a7dc561f872993969c9c0b9bee8d230be", null ],
+    [ "g_digit_base_quad", "ion__int_8h.html#ae23b569767bfa6d282083b06be87d002", null ],
     [ "g_Int_Null", "ion__int_8h.html#a33efe7c6e6ae924b6ace553e507710fc", null ],
     [ "g_Int_Zero", "ion__int_8h.html#a7ef2be9c9c0a8a5ddf0ad2c4f2ab642a", null ],
     [ "g_int_zero_bytes", "ion__int_8h.html#a2617323b79c65ba217099344a79c83a6", null ],
-    [ "g_ion_int_globals_initialized", "ion__int_8h.html#a756240f1bb98bfffa7e40f9b6b8b0f54", null ]
+    [ "g_ion_int_globals_initialized", "ion__int_8h.html#a0e1277791a2d1d253c5544937b9d6e4c", null ]
 ];

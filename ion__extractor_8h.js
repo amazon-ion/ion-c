@@ -12,7 +12,7 @@ var ion__extractor_8h =
     [ "ION_EXTRACTOR", "ion__extractor_8h.html#ada99b1e401d990e8264ef0f734e87d8a", null ],
     [ "ION_EXTRACTOR_CALLBACK", "ion__extractor_8h.html#a428a56bef6429d9d56f1434e42370dd7", null ],
     [ "ION_EXTRACTOR_CONTROL", "ion__extractor_8h.html#a38644e425e95d1e77af86f6ae70b9d3c", null ],
-    [ "ION_EXTRACTOR_OPTIONS", "ion__extractor_8h.html#a37a3dda89bdd2e2e68f66a650df361a3", null ],
+    [ "ION_EXTRACTOR_OPTIONS", "ion__extractor_8h.html#a5e86fdb9efa6ce068979085c006a4c52", null ],
     [ "ION_EXTRACTOR_PATH_DESCRIPTOR", "ion__extractor_8h.html#a634cd12f03fa6b8a48db7ac6d4494054", null ],
     [ "ION_EXTRACTOR_SIZE", "ion__extractor_8h.html#a4163aaaab161843ba1b1d256e493cdc5", null ],
     [ "ion_extractor_close", "ion__extractor_8h.html#a3946b9f9c46f576ccf333fdb0b417147", null ],

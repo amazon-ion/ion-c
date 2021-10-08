@@ -1,6 +1,7 @@
 var struct__ion__writer__options =
 [
     [ "allocation_page_size", "struct__ion__writer__options.html#a9789fc8aeb4ba9b308cf07f12d9f64b5", null ],
+    [ "compact_floats", "struct__ion__writer__options.html#a21f3ca9c69ebabf6c2cd68ef20d49a0c", null ],
     [ "decimal_context", "struct__ion__writer__options.html#a68994bc60c9ea55bbc1dd5abab503461", null ],
     [ "encoding_psymbol_table", "struct__ion__writer__options.html#a9a553beaa3a2d01a26dd97ee5baa0e49", null ],
     [ "escape_all_non_ascii", "struct__ion__writer__options.html#a873184d9f8ad5198782ddb0fd6209750", null ],
