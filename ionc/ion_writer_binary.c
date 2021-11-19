@@ -1229,6 +1229,7 @@ iERR _ion_writer_binary_close(ION_WRITER *pwriter)
     }
 
     IONCHECK(ion_stream_flush(pwriter->output));
+    IONCHECK(ion_stream_close(bwriter->_value_stream));
 
     iRETURN;
 }
