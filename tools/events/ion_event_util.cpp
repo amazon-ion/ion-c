@@ -22,7 +22,7 @@ decContext g_IonEventDecimalContext = {
         DEC_MAX_MATH,                   // max exponent
         -DEC_MAX_MATH,                  // min exponent
         DEC_ROUND_HALF_EVEN,            // rounding mode
-        DEC_Errors,                     // trap conditions
+        0,                              // trap conditions
         0,                              // status flags
         0                               // apply exponent clamp?
 };
