@@ -274,7 +274,9 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
         writer_type = ion_type_text_writer;
     }
 
-    IONCHECK(ion_temp_buffer_init(pwriter, &pwriter->temp_buffer, ION_WRITER_TEMP_BUFFER_DEFAULT));
+    // calculate annotations size by writer option's max_annotation_count field
+    SIZE temp_buffer_size = p_options->max_annotation_count * sizeof(ION_SYMBOL) + ION_WRITER_TEMP_BUFFER_DEFAULT;
+    IONCHECK(ion_temp_buffer_init(pwriter, &pwriter->temp_buffer, temp_buffer_size));
 
     // allocate a temp pool we can reset from time to time
     IONCHECK( _ion_writer_allocate_temp_pool( pwriter ));
@@ -1094,7 +1096,10 @@ iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotati
     ASSERT(annotation->length >= 0);
 
     if (!pwriter->annotations) {
-        IONCHECK(_ion_writer_set_max_annotation_count_helper(pwriter, DEFAULT_ANNOTATION_LIMIT));
+        int max_annotation_count = pwriter->options.max_annotation_count;
+        int final_max_annotation_count = (max_annotation_count > DEFAULT_ANNOTATION_LIMIT) ?
+                    max_annotation_count : DEFAULT_ANNOTATION_LIMIT;
+        IONCHECK(_ion_writer_set_max_annotation_count_helper(pwriter, final_max_annotation_count));
     }
     else if (pwriter->annotation_curr >= pwriter->annotation_count) FAILWITH(IERR_TOO_MANY_ANNOTATIONS);
 
