@@ -1917,7 +1917,12 @@ iERR _ion_reader_process_possible_symbol_table(ION_READER *preader, BOOL *is_sym
         preader->_local_symtab_pool = owner;
         preader->_current_symtab = local;
     }
-    iRETURN;
+    SUCCEED();
+fail:
+    if (owner != NULL) {
+        ion_free_owner(owner);
+    }
+    return err;
 }
 
 iERR ion_reader_get_position(hREADER hreader, int64_t *p_bytes, int32_t *p_line, int32_t *p_offset)
