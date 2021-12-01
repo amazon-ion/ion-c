@@ -1917,7 +1917,7 @@ iERR _ion_reader_process_possible_symbol_table(ION_READER *preader, BOOL *is_sym
         preader->_local_symtab_pool = owner;
         preader->_current_symtab = local;
     }
-    SUCCEED();
+    return IERR_OK;
 fail:
     if (owner != NULL) {
         ion_free_owner(owner);
