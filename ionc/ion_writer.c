@@ -1096,9 +1096,8 @@ iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotati
     ASSERT(annotation->length >= 0);
 
     if (!pwriter->annotations) {
-        int max_annotation_count = pwriter->options.max_annotation_count;
-        int final_max_annotation_count = (max_annotation_count > DEFAULT_ANNOTATION_LIMIT) ?
-                    max_annotation_count : DEFAULT_ANNOTATION_LIMIT;
+        int final_max_annotation_count = (pwriter->options.max_annotation_count > DEFAULT_ANNOTATION_LIMIT)
+                ? pwriter->options.max_annotation_count : DEFAULT_ANNOTATION_LIMIT;
         IONCHECK(_ion_writer_set_max_annotation_count_helper(pwriter, final_max_annotation_count));
     }
     else if (pwriter->annotation_curr >= pwriter->annotation_count) FAILWITH(IERR_TOO_MANY_ANNOTATIONS);
