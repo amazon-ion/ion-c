@@ -166,6 +166,7 @@ iERR ion_writer_open_stream(hWRITER *p_hwriter
     if (!p_hwriter) FAILWITH(IERR_INVALID_ARG);
     IONCHECK(ion_stream_open_handler_out( fn_output_handler, handler_state, &pstream ));
     IONCHECK(_ion_writer_open_helper(&pwriter, pstream, p_options));
+    pwriter->writer_owns_stream = TRUE;
     *p_hwriter = PTR_TO_HANDLE(pwriter);
     iRETURN;
 }
