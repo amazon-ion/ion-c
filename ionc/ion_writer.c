@@ -275,7 +275,7 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
     }
 
     // calculate annotations size by writer option's max_annotation_count field
-    SIZE temp_buffer_size = p_options->max_annotation_count * sizeof(ION_SYMBOL) + ION_WRITER_TEMP_BUFFER_DEFAULT;
+    SIZE temp_buffer_size = pwriter->options.max_annotation_count * sizeof(ION_SYMBOL) + ION_WRITER_TEMP_BUFFER_DEFAULT;
     IONCHECK(ion_temp_buffer_init(pwriter, &pwriter->temp_buffer, temp_buffer_size));
 
     // allocate a temp pool we can reset from time to time
