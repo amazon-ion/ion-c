@@ -46,6 +46,23 @@ iERR ion_test_open_file_writer(hWRITER *writer, FILE *out, BOOL is_binary) {
     iRETURN;
 }
 
+TEST(WriterTest, ResourcesLeakedOnWriteToTooSmallBuffer)
+{
+    hWRITER writer = NULL;
+    ION_WRITER_OPTIONS options = {
+        .output_as_binary = true
+    };
+
+    uint8_t buf[1];
+    SIZE len;
+
+    ion_writer_open_buffer(&writer, buf, sizeof(buf), &options);
+    ion_writer_write_int32(writer, 1);
+    ion_writer_finish(writer, &len);
+
+    ASSERT_EQ(IERR_BUFFER_TOO_SMALL, ion_writer_close(writer));
+}
+
 TEST_F(WriterTest, BinaryWriterCloseMustFlushStream) {
     hWRITER writer = NULL;
 

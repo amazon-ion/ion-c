@@ -1225,11 +1225,11 @@ iERR _ion_writer_binary_close(ION_WRITER *pwriter)
     patches = !ION_COLLECTION_IS_EMPTY(&bwriter->_patch_list);
     values  = ion_stream_get_position(bwriter->_value_stream) != 0;
     if (patches || values) {
-        IONCHECK(_ion_writer_binary_flush_to_output(pwriter));
+        UPDATEERROR(_ion_writer_binary_flush_to_output(pwriter));
     }
 
-    IONCHECK(ion_stream_flush(pwriter->output));
-    IONCHECK(ion_stream_close(bwriter->_value_stream));
+    UPDATEERROR(ion_stream_flush(pwriter->output));
+    UPDATEERROR(ion_stream_close(bwriter->_value_stream));
 
     iRETURN;
 }
