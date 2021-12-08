@@ -49,9 +49,9 @@ iERR ion_test_open_file_writer(hWRITER *writer, FILE *out, BOOL is_binary) {
 TEST_F(WriterTest, ResourcesNotLeakedOnWriteToTooSmallBuffer)
 {
     hWRITER writer = NULL;
-    ION_WRITER_OPTIONS options = {
-        .output_as_binary = true
-    };
+    ION_WRITER_OPTIONS options;
+    ion_event_initialize_writer_options(&options);
+    options.output_as_binary = true;
 
     uint8_t buf[1];
     SIZE len;
