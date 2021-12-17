@@ -202,7 +202,7 @@ iERR ion_symbol_table_get_system_table(hSYMTAB *p_hsystem_table, int32_t version
     iENTER;
     ION_SYMBOL_TABLE *system;
 
-    if (p_hsystem_table != NULL) FAILWITH(IERR_INVALID_ARG);
+    if (p_hsystem_table == NULL) FAILWITH(IERR_INVALID_ARG);
     if (version != 1)            FAILWITH(IERR_INVALID_ION_VERSION);
 
     IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, version));
