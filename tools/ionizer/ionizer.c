@@ -56,10 +56,6 @@ int main(int argc, char **argv)
     g_writer_options.output_as_binary = g_ionizer_write_binary;
     g_writer_options.escape_all_non_ascii = g_ionizer_ascii_only;
 
-    if (g_ionizer_pool_page_size > 0) {
-        ion_initialize_page_pool(g_ionizer_pool_page_size, 10);
-    }
-
     // set up our debug options
     if (g_ionizer_flush_each) g_writer_options.flush_every_value = TRUE;
     if (g_ionizer_dump_args)  ionizer_dump_arg_globals();
