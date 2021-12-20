@@ -131,48 +131,6 @@ typedef struct _ion_allocation_chain DBG_ION_ALLOCATION_CHAIN;
 #endif
 
 
-//
-//  structures and functions for the ion allocation page pool
-//  this is a list of free pages which are used by the various
-//  pools created by the Ion routines on behalf of the various
-//  objects, such as the reader, writer, or catalog.
-//
-//  THIS IS NOT THREAD SAFE - (which could be corrected)
-//
-
-typedef struct _ion_alloc_page      ION_ALLOC_PAGE;
-typedef struct _ion_alloc_page_list ION_ALLOC_PAGE_LIST;
-
-struct _ion_alloc_page
-{
-    ION_ALLOC_PAGE *next;
-};
-
-struct _ion_alloc_page_list
-{
-    SIZE            page_size;
-    int             page_count;
-    int             free_page_limit;
-    ION_ALLOC_PAGE *head;
-};
-
-#define ION_ALLOC_PAGE_POOL_NO_LIMIT           (-1)
-#define ION_ALLOC_PAGE_POOL_DEFAULT_LIMIT      (16)
-#define ION_ALLOC_PAGE_MIN_SIZE                (ALIGN_SIZE(sizeof(ION_ALLOCATION_CHAIN)))
-#define ION_ALLOC_PAGE_POOL_DEFAULT_PAGE_SIZE  (DEFAULT_BLOCK_SIZE)
-#define ION_ALLOC_PAGE_POOL_PAGE_SIZE_NONE     (-1)
-
-GLOBAL THREAD_LOCAL_STORAGE ION_ALLOC_PAGE_LIST g_ion_alloc_page_list
-#ifdef INIT_STATICS
-= { ION_ALLOC_PAGE_POOL_DEFAULT_PAGE_SIZE, 0, ION_ALLOC_PAGE_POOL_DEFAULT_LIMIT, NULL }
-#endif
-;
-
-ION_API_EXPORT void             ion_initialize_page_pool    (SIZE page_size, int free_page_limit);
-ION_API_EXPORT void             ion_release_page_pool       (void);
-
-ION_ALLOC_PAGE *_ion_alloc_page              (void);
-void            _ion_release_page            (ION_ALLOC_PAGE *page);
 
 void *_ion_alloc_owner     (SIZE len);
 void *_ion_alloc_with_owner(hOWNER owner, SIZE length);
