@@ -185,7 +185,7 @@ iERR ion_catalog_find_symbol_table(hCATALOG hcatalog, iSTRING name, long version
 iERR _ion_catalog_find_symbol_table_helper(ION_CATALOG *pcatalog, ION_STRING *name, int32_t version, ION_SYMBOL_TABLE **p_psymtab)
 {
     iENTER;
-    ION_SYMBOL_TABLE        *symtab;
+    ION_SYMBOL_TABLE        **ppsymtab, *psymtab, *found = NULL;
     ION_COLLECTION_CURSOR    symtab_cursor;
 
     ASSERT(pcatalog != NULL);
@@ -195,20 +195,24 @@ iERR _ion_catalog_find_symbol_table_helper(ION_CATALOG *pcatalog, ION_STRING *na
     if (version == pcatalog->system_symbol_table->version
     && ION_STRING_EQUALS(name, &pcatalog->system_symbol_table->name)
     ) {
-        symtab = pcatalog->system_symbol_table;
+        found = pcatalog->system_symbol_table;
     }
     else {
         ION_COLLECTION_OPEN(&pcatalog->table_list, symtab_cursor);
         for (;;) {
-            ION_COLLECTION_NEXT(symtab_cursor, symtab);
-            if (!symtab) break;
-            if (symtab->version != version) continue;
-            if (ION_STRING_EQUALS(name, &symtab->name)) break;
+            ION_COLLECTION_NEXT(symtab_cursor, ppsymtab);
+            if (!ppsymtab) break;
+            psymtab = *ppsymtab;
+            if (psymtab->version != version) continue;
+            if (ION_STRING_EQUALS(name, &psymtab->name)) {
+                found = psymtab;
+                break;
+            }
         }
         ION_COLLECTION_CLOSE(symtab_cursor);
     }
 
-    *p_psymtab = symtab;
+    *p_psymtab = found;
     SUCCEED();
 
     iRETURN;
