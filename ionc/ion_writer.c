@@ -36,6 +36,8 @@ iERR ion_writer_options_add_shared_imports(ION_WRITER_OPTIONS *options, ION_COLL
     iENTER;
     ION_SYMBOL_TABLE_IMPORT *user_import, *option_import;
     ION_COLLECTION_CURSOR import_cursor;
+    hOWNER owner;
+
     ASSERT(options != NULL);
     ASSERT(imports != NULL);
 
@@ -58,7 +60,8 @@ iERR ion_writer_options_add_shared_imports(ION_WRITER_OPTIONS *options, ION_COLL
         }
         ASSERT(option_import->shared_symbol_table == user_import->shared_symbol_table);
         if (option_import->shared_symbol_table) {
-            if (option_import->shared_symbol_table->owner != options->encoding_psymbol_table._owner) {
+            IONCHECK(_ion_symbol_table_get_owner(option_import->shared_symbol_table, &owner));
+            if (owner != options->encoding_psymbol_table._owner) {
                 IONCHECK(ion_symbol_table_clone_with_owner(option_import->shared_symbol_table,
                                                            &option_import->shared_symbol_table,
                                                            options->encoding_psymbol_table._owner));
@@ -74,17 +77,24 @@ iERR ion_writer_options_add_shared_imports_symbol_tables(ION_WRITER_OPTIONS *opt
     iENTER;
     ION_SYMBOL_TABLE_IMPORT *import;
     int i;
+    ION_STRING name;
+    hOWNER owner;
+
     for (i = 0; i < imports_count; i++) {
-        if (imports[i] == NULL || ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &imports[i]->name)) {
-            FAILWITH(IERR_INVALID_ARG);
-        }
+        if (imports[i] == NULL) FAILWITH(IERR_INVALID_ARG);
+
+        IONCHECK(_ion_symbol_table_get_name_helper(imports[i], &name));
+
+        if (ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &name)) FAILWITH(IERR_INVALID_ARG);
+
         import = _ion_collection_append(&options->encoding_psymbol_table);
         if (!import) FAILWITH(IERR_NO_MEMORY);
         memset(import, 0, sizeof(ION_SYMBOL_TABLE_IMPORT));
-        import->descriptor.max_id = imports[i]->max_id;
-        import->descriptor.version = imports[i]->version;
-        IONCHECK(ion_string_copy_to_owner(options->encoding_psymbol_table._owner, &import->descriptor.name, &imports[i]->name));
-        if (imports[i]->owner != options->encoding_psymbol_table._owner) {
+        IONCHECK(_ion_symbol_table_get_max_sid_helper(imports[i], &import->descriptor.max_id));
+        IONCHECK(_ion_symbol_table_get_version_helper(imports[i], &import->descriptor.version));
+        IONCHECK(_ion_symbol_table_get_owner(imports[i], &owner));
+        IONCHECK(ion_string_copy_to_owner(options->encoding_psymbol_table._owner, &import->descriptor.name, &name));
+        if (owner != options->encoding_psymbol_table._owner) {
             IONCHECK(ion_symbol_table_clone_with_owner(imports[i],
                                                        &import->shared_symbol_table,
                                                        options->encoding_psymbol_table._owner));
@@ -515,12 +525,15 @@ iERR _ion_writer_get_catalog_helper(ION_WRITER *pwriter, ION_CATALOG **p_pcatalo
 BOOL _ion_writer_has_symbol_table(ION_WRITER *pwriter)
 {
     BOOL has_symbol_table = FALSE;
+    ION_STRING name;
+
     ASSERT(pwriter);
 
-    if (pwriter->symbol_table == NULL
-        || ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &pwriter->symbol_table->name)) {
-        return FALSE;
-    }
+    if (pwriter->symbol_table == NULL) return FALSE;
+    // We've checked the preconditions, so this won't fail
+    _ion_symbol_table_get_name_helper(pwriter->symbol_table, &name);
+    if(ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &name)) return FALSE;
+
     switch (pwriter->type) {
         case ion_type_binary_writer:
             // For binary writers, if no symbol tokens have been written, then no symbol table needs to be written.
@@ -556,6 +569,7 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
     iENTER;
     ION_SYMBOL_TABLE_TYPE   table_type = ist_EMPTY;
     ION_SYMBOL_TABLE       *plocal, *system;
+    SID                     max_id;
 
     ASSERT(pwriter);
     ASSERT(psymtab);
@@ -578,7 +592,8 @@ iERR _ion_writer_set_symbol_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE *
         // create a local symbol table and add the requested (shared) symbol table as an import
         IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
         IONCHECK(_ion_symbol_table_open_helper(&plocal, pwriter->_temp_entity_pool, system));
-        IONCHECK(_ion_symbol_table_local_incorporate_symbols(plocal, psymtab, psymtab->max_id));
+        IONCHECK(_ion_symbol_table_get_max_sid_helper(psymtab, &max_id));
+        IONCHECK(_ion_symbol_table_local_incorporate_symbols(plocal, psymtab, max_id));
         psymtab = plocal;
         break;
     case ist_LOCAL:
@@ -637,6 +652,7 @@ iERR _ion_writer_add_imported_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE
     iENTER;
     ION_SYMBOL_TABLE *shared;
     BOOL duplicate_import;
+    ION_COLLECTION *import_list;
 
     ASSERT(pwriter);
     ASSERT(import);
@@ -646,8 +662,8 @@ iERR _ion_writer_add_imported_table_helper(ION_WRITER *pwriter, ION_SYMBOL_TABLE
         // Do nothing; every local symbol table implicitly imports the system symbol table.
     }
     else {
-        IONCHECK(_ion_collection_contains(&pwriter->symbol_table->import_list, import,
-                                          &_ion_symbol_table_import_compare_fn, &duplicate_import));
+        IONCHECK(_ion_symbol_table_get_imports_helper(pwriter->symbol_table, &import_list));
+        IONCHECK(_ion_collection_contains(import_list, import, &_ion_symbol_table_import_compare_fn, &duplicate_import));
         if (duplicate_import) {
             // There is no need to re-import an import that is already present.
             SUCCEED();
@@ -949,17 +965,19 @@ iERR _ion_writer_get_local_symbol_id_from_import_location(ION_WRITER *pwriter,
 {
     iENTER;
     ION_SYMBOL_TABLE_IMPORT     *import;
+    ION_COLLECTION              *import_list;
     ION_COLLECTION_CURSOR       import_cursor;
-    SID local_offset, sid = UNKNOWN_SID;
+    SID local_offset, max_id, sid = UNKNOWN_SID;
     ION_SYMBOL_TABLE *system;
 
     ASSERT(import_location && !ION_STRING_IS_NULL(&import_location->name) && import_location->location > 0);
     ASSERT(p_sid);
 
     IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
+    IONCHECK(_ion_symbol_table_get_max_sid_helper(system, &max_id));
     if (ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &import_location->name)) {
         // The import location refers to the system symbol table.
-        if (import_location->location > system->max_id) {
+        if (import_location->location > max_id) {
             FAILWITH(IERR_INVALID_SYMBOL);
         }
         sid = import_location->location;
@@ -968,8 +986,9 @@ iERR _ion_writer_get_local_symbol_id_from_import_location(ION_WRITER *pwriter,
         sid = UNKNOWN_SID;
     }
     else {
-        local_offset = system->max_id;
-        ION_COLLECTION_OPEN(&pwriter->symbol_table->import_list, import_cursor);
+        local_offset = max_id;
+        IONCHECK(_ion_symbol_table_get_imports_helper(pwriter->symbol_table, &import_list));
+        ION_COLLECTION_OPEN(import_list, import_cursor);
         for (;;) {
             ION_COLLECTION_NEXT(import_cursor, import);
             if (!import) break;
@@ -1400,10 +1419,14 @@ iERR _ion_writer_intercept_max_sid_or_version(ION_WRITER *pwriter, int64_t value
 {
     iENTER;
     ION_SYMBOL_TABLE_IMPORT *import;
-    ASSERT(pwriter->depth == 3);
-    ASSERT(!ION_COLLECTION_IS_EMPTY(&pwriter->_pending_symbol_table->import_list));
+    ION_COLLECTION          *import_list;
 
-    import = _ion_collection_tail(&pwriter->_pending_symbol_table->import_list);
+    ASSERT(pwriter->depth == 3);
+
+    IONCHECK(_ion_symbol_table_get_imports_helper(pwriter->_pending_symbol_table, &import_list));
+    ASSERT(!ION_COLLECTION_IS_EMPTY(import_list));
+
+    import = _ion_collection_tail(import_list);
     ASSERT(import != NULL);
 
     switch (pwriter->_current_symtab_intercept_state) {
@@ -1751,9 +1774,11 @@ iERR _ion_writer_validate_symbol_id(ION_WRITER *pwriter, SID sid)
 {
     iENTER;
     ION_SYMBOL_TABLE *symtab;
+    SID               max_id;
 
     IONCHECK(_ion_writer_get_symbol_table_helper(pwriter, &symtab));
-    if (sid > symtab->max_id || sid <= UNKNOWN_SID) {
+    IONCHECK(_ion_symbol_table_get_max_sid_helper(symtab, &max_id));
+    if (sid > max_id || sid <= UNKNOWN_SID) {
         FAILWITHMSG(IERR_INVALID_SYMBOL, "Attempted to write out-of-range symbol ID.");
     }
     iRETURN;
@@ -1914,14 +1939,19 @@ iERR _ion_writer_intercept_import_name(ION_WRITER *pwriter, ION_STRING *name)
 {
     iENTER;
     ION_SYMBOL_TABLE_IMPORT *import;
-    ASSERT(!ION_COLLECTION_IS_EMPTY(&pwriter->_pending_symbol_table->import_list));
+    ION_COLLECTION *import_list;
+    hOWNER owner;
+
+    IONCHECK(_ion_symbol_table_get_imports_helper(pwriter->_pending_symbol_table, &import_list));
+    ASSERT(!ION_COLLECTION_IS_EMPTY(import_list));
     //ASSERT(pwriter->_in_struct); // TODO intercepted doesn't set this
     ASSERT(pwriter->depth == 3);
 
-    import = _ion_collection_tail(&pwriter->_pending_symbol_table->import_list);
+    import = _ion_collection_tail(import_list);
     ASSERT(import != NULL);
 
-    IONCHECK(ion_string_copy_to_owner(pwriter->_pending_symbol_table->owner, &import->descriptor.name, name));
+    IONCHECK(_ion_symbol_table_get_owner(pwriter->_pending_symbol_table, &owner));
+    IONCHECK(ion_string_copy_to_owner(owner, &import->descriptor.name, name));
     ION_WRITER_SI_COMPLETE_IMPORT_NAME(pwriter);
 
     iRETURN;
@@ -1930,11 +1960,13 @@ iERR _ion_writer_intercept_import_name(ION_WRITER *pwriter, ION_STRING *name)
 iERR _ion_writer_intercept_name_or_symbols(ION_WRITER *pwriter, ION_STRING *pstr)
 {
     iENTER;
+    SID max_id;
+
     switch (pwriter->_current_symtab_intercept_state) {
         case iWSIS_IN_SYMBOLS_LIST:
             ASSERT(pwriter->depth == 2);
-            IONCHECK(_ion_symbol_table_local_add_symbol_helper(pwriter->_pending_symbol_table, pstr,
-                                                               pwriter->_pending_symbol_table->max_id + 1, NULL));
+            IONCHECK(_ion_symbol_table_get_max_sid_helper(pwriter->_pending_symbol_table, &max_id));
+            IONCHECK(_ion_symbol_table_local_add_symbol_helper(pwriter->_pending_symbol_table, pstr, max_id + 1, NULL));
             break;
         case iWSIS_IMPORT_NAME:
             IONCHECK(_ion_writer_intercept_import_name(pwriter, pstr));
@@ -2172,6 +2204,7 @@ iERR _ion_writer_transition_to_symtab_intercept_state(ION_WRITER *pwriter, ION_T
     iENTER;
     SID annotation_sid;
     ION_SYMBOL_TABLE_IMPORT *new_import;
+    ION_COLLECTION *import_list;
 
     switch (ION_TYPE_INT(container_type)) {
         case tid_STRUCT_INT:
@@ -2193,7 +2226,8 @@ iERR _ion_writer_transition_to_symtab_intercept_state(ION_WRITER *pwriter, ION_T
             }
             else if (pwriter->depth == 2 && pwriter->_current_symtab_intercept_state == iWSIS_IN_IMPORTS_LIST) {
                 pwriter->_current_symtab_intercept_state = iWSIS_IN_IMPORTS_STRUCT;
-                new_import = _ion_collection_append(&pwriter->_pending_symbol_table->import_list);
+                IONCHECK(_ion_symbol_table_get_imports_helper(pwriter->_pending_symbol_table, &import_list));
+                new_import = _ion_collection_append(import_list);
                 new_import->descriptor.version = 1;
                 new_import->descriptor.max_id = ION_SYS_SYMBOL_MAX_ID_UNDEFINED;
             }
@@ -2269,14 +2303,17 @@ iERR _ion_writer_start_container_helper(ION_WRITER *pwriter, ION_TYPE container_
 iERR _ion_writer_validate_intercepted_symtab_import(ION_WRITER *pwriter)
 {
     iENTER;
+    ION_COLLECTION *import_list;
+
     ASSERT(pwriter->_pending_symbol_table);
-    ASSERT(!ION_COLLECTION_IS_EMPTY(&pwriter->_pending_symbol_table->import_list));
-    ION_SYMBOL_TABLE_IMPORT *import = _ion_collection_tail(&pwriter->_pending_symbol_table->import_list);
+    IONCHECK(_ion_symbol_table_get_imports_helper(pwriter->_pending_symbol_table, &import_list));
+    ASSERT(!ION_COLLECTION_IS_EMPTY(import_list));
+    ION_SYMBOL_TABLE_IMPORT *import = _ion_collection_tail(import_list);
     ASSERT(import);
 
     if (ION_STRING_IS_NULL(&import->descriptor.name) || ION_STRING_EQUALS(&ION_SYMBOL_ION_STRING, &import->descriptor.name)) {
         // In this case, the import is ignored.
-        _ion_collection_pop_tail(&pwriter->_pending_symbol_table->import_list);
+        _ion_collection_pop_tail(import_list);
         SUCCEED();
     }
 
@@ -2290,18 +2327,23 @@ iERR _ion_writer_validate_intercepted_symtab_import(ION_WRITER *pwriter)
 iERR _ion_writer_symbol_table_append(ION_WRITER *pwriter)
 {
     iENTER;
+    ION_COLLECTION *symbols;
     ION_COLLECTION_CURSOR symbol_cursor;
     ION_SYMBOL *symbol_to_append;
+    SID max_id;
+
     if (pwriter->symbol_table == NULL) {
         IONCHECK(ion_symbol_table_open(&pwriter->symbol_table, pwriter->_temp_entity_pool));
     }
     ASSERT(pwriter->symbol_table && pwriter->_pending_symbol_table);
-    if (!ION_COLLECTION_IS_EMPTY(&pwriter->_pending_symbol_table->symbols)) {
-        ION_COLLECTION_OPEN(&pwriter->_pending_symbol_table->symbols, symbol_cursor);
+    IONCHECK(_ion_symbol_table_get_symbols_helper(pwriter->_pending_symbol_table, &symbols));
+    if (!ION_COLLECTION_IS_EMPTY(symbols)) {
+        ION_COLLECTION_OPEN(symbols, symbol_cursor);
         for (;;) {
             ION_COLLECTION_NEXT(symbol_cursor, symbol_to_append);
             if (!symbol_to_append) break;
-            IONCHECK(_ion_symbol_table_local_add_symbol_helper(pwriter->symbol_table, &symbol_to_append->value, pwriter->symbol_table->max_id + 1, NULL));
+            IONCHECK(_ion_symbol_table_get_max_sid_helper(pwriter->symbol_table, &max_id));
+            IONCHECK(_ion_symbol_table_local_add_symbol_helper(pwriter->symbol_table, &symbol_to_append->value, max_id + 1, NULL));
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
     }
@@ -2312,6 +2354,8 @@ iERR _ion_writer_transition_from_symtab_intercept_state(ION_WRITER *pwriter)
 {
     iENTER;
     ION_SYMBOL_TABLE_IMPORT *import;
+    ION_COLLECTION          *import_list;
+
     switch (pwriter->depth) {
         case 0:
             if (pwriter->_current_symtab_intercept_state) {
@@ -2357,7 +2401,8 @@ iERR _ion_writer_transition_from_symtab_intercept_state(ION_WRITER *pwriter)
                 SUCCEED(); // This is some open content that will be ignored (and lost).
             }
             IONCHECK(_ion_writer_validate_intercepted_symtab_import(pwriter));
-            import = _ion_collection_tail(&pwriter->_pending_symbol_table->import_list);
+            IONCHECK(_ion_symbol_table_get_imports_helper(pwriter->_pending_symbol_table, &import_list))
+            import = _ion_collection_tail(import_list);
             // import will be NULL when it is ignored.
             if (import != NULL) {
                 if (pwriter->pcatalog != NULL) {
@@ -2829,8 +2874,9 @@ iERR _ion_writer_free_local_symbol_table( ION_WRITER *pwriter )
 iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *p_sid)
 {
     iENTER;
-    SID               sid = UNKNOWN_SID;
-    ION_SYMBOL_TABLE *psymtab;
+    SID               sid = UNKNOWN_SID, max_id;
+    ION_SYMBOL_TABLE *psymtab, *system;
+    BOOL symtab_is_locked;
 
     ASSERT(pwriter);
     ASSERT(pstr);
@@ -2839,8 +2885,12 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
     // first we make sure there a reasonable local symbol table
     // in case we need to add this symbol to the list
     psymtab = pwriter->symbol_table;
-    if (!psymtab || psymtab->is_locked)
-    {
+    if (!psymtab) {
+        IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
+        psymtab = pwriter->symbol_table;
+    }
+    IONCHECK(_ion_symbol_table_is_locked_helper(psymtab, &symtab_is_locked));
+    if (symtab_is_locked) {
         IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
         psymtab = pwriter->symbol_table;
     }
@@ -2850,7 +2900,9 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
 
     // see if this symbol ended up changing the symbol list (if it already
     // was present the max_id doesn't change and we don't reuse
-    if (sid > psymtab->system_symbol_table->max_id) {
+    IONCHECK(_ion_symbol_table_get_system_symbol_table(psymtab, &system));
+    IONCHECK(_ion_symbol_table_get_max_sid_helper(system, &max_id));
+    if (sid > max_id) {
         pwriter->_has_local_symbols = TRUE;
     }
 

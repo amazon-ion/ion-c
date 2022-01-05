@@ -565,13 +565,16 @@ iERR _ion_reader_binary_validate_symbol_token(ION_READER *preader, SID sid)
 {
     iENTER;
     ION_SYMBOL_TABLE *symbol_table;
+    SID max_id;
+
     ASSERT(preader);
 
     symbol_table = preader->_current_symtab;
     if (!symbol_table) {
         IONCHECK(ion_symbol_table_get_system_table(&symbol_table, ION_SYSTEM_VERSION));
     }
-    if (sid <= UNKNOWN_SID || sid > symbol_table->max_id) {
+    IONCHECK(_ion_symbol_table_get_max_sid_helper(symbol_table, &max_id));
+    if (sid <= UNKNOWN_SID || sid > max_id) {
         FAILWITH(IERR_INVALID_SYMBOL);
     }
     iRETURN;

@@ -1088,6 +1088,9 @@ iERR _ion_writer_binary_write_string(ION_WRITER *pwriter, ION_STRING *pstr )
 iERR _ion_writer_binary_write_symbol_id(ION_WRITER *pwriter, SID sid)
 {
     iENTER;
+    ION_SYMBOL_TABLE *system;
+    SID max_id;
+
     if (pwriter->depth == 0 && pwriter->annotation_count == 0 && _ion_symbol_table_sid_is_IVM(sid)) {
         SUCCEED(); // At the top level, writing a symbol value that looks like the IVM is a no-op.
     }
@@ -1102,8 +1105,12 @@ iERR _ion_writer_binary_write_symbol_id(ION_WRITER *pwriter, SID sid)
     }
     IONCHECK( _ion_writer_binary_patch_lengths( pwriter, len + ION_BINARY_TYPE_DESC_LENGTH ));
 
-    if (pwriter->symbol_table && sid > pwriter->symbol_table->system_symbol_table->max_id) {
-        pwriter->_has_local_symbols = TRUE;
+    if (pwriter->symbol_table) {
+        IONCHECK(_ion_symbol_table_get_system_symbol_table(pwriter->symbol_table, &system));
+        IONCHECK(_ion_symbol_table_get_max_sid_helper(system, &max_id));
+        if (sid > max_id) {
+            pwriter->_has_local_symbols = TRUE;
+        }
     }
 
     iRETURN;
@@ -1350,6 +1357,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     ION_SYMBOL              *symbol;
     ION_COLLECTION_CURSOR    import_cursor;
     ION_COLLECTION_CURSOR    symbol_cursor;
+    ION_COLLECTION          *import_list, *symbols;
 
     int output_start, output_finish, total_len;
     int import_len, import_list_len, import_header_len;
@@ -1358,6 +1366,10 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
 
     int symbol_list_len, symbol_header_len;
     BOOL append_symbols;
+
+    ION_STRING name;
+    int32_t version;
+    SID max_id, flushed_max_id;
         
     // first calculate the length of the bits and pieces we will be
     // writing out in the second phase.  We do this all in one big
@@ -1370,15 +1382,19 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     // the normal high level routines should be used for other
     // symbol tables instead.
     ASSERT(psymtab != NULL);
-    ASSERT(ION_STRING_IS_NULL(&psymtab->name) == TRUE);
-    ASSERT(psymtab->version < 1);
-    ASSERT(psymtab->flushed_max_id >= 0);
+    IONCHECK(_ion_symbol_table_get_name_helper(psymtab, &name));
+    ASSERT(ION_STRING_IS_NULL(&name) == TRUE);
+    IONCHECK(_ion_symbol_table_get_version_helper(psymtab, &version));
+    ASSERT(version < 1);
+    IONCHECK(_ion_symbol_table_get_flushed_max_sid_helper(psymtab, &flushed_max_id));
+    ASSERT(flushed_max_id >= 0);
 
-    append_symbols = psymtab->flushed_max_id > 0;
-    ASSERT(append_symbols ? (psymtab->flushed_max_id <= psymtab->max_id) : TRUE);
+    append_symbols = flushed_max_id > 0;
+    IONCHECK(_ion_symbol_table_get_max_sid_helper(psymtab, &max_id));
+    ASSERT(append_symbols ? (flushed_max_id <= max_id) : TRUE);
 
     if (append_symbols) {
-        if (psymtab->flushed_max_id == psymtab->max_id) {
+        if (flushed_max_id == max_id) {
             // This symbol table has been written previously and no new symbols have been added. There is no need to write
             // anything.
             *p_length = 0;
@@ -1392,8 +1408,9 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
         // This symbol table has not been written previously. Its imports must be explicitly written.
         import_list_len = import_header_len = 0;
 
-        if (!ION_COLLECTION_IS_EMPTY(&psymtab->import_list)) {
-            ION_COLLECTION_OPEN(&psymtab->import_list, import_cursor);
+        IONCHECK(_ion_symbol_table_get_imports_helper(psymtab, &import_list));
+        if (!ION_COLLECTION_IS_EMPTY(import_list)) {
+            ION_COLLECTION_OPEN(import_list, import_cursor);
             for (;;) {
                 ION_COLLECTION_NEXT(import_cursor, import);
                 if (!import) break;
@@ -1415,12 +1432,13 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     }
        
     symbol_list_len = symbol_header_len = 0;
-    if (!ION_COLLECTION_IS_EMPTY(&psymtab->symbols)) {
-        ION_COLLECTION_OPEN(&psymtab->symbols, symbol_cursor);
+    IONCHECK(_ion_symbol_table_get_symbols_helper(psymtab, &symbols));
+    if (!ION_COLLECTION_IS_EMPTY(symbols)) {
+        ION_COLLECTION_OPEN(symbols, symbol_cursor);
         for (;;) {
             ION_COLLECTION_NEXT(symbol_cursor, symbol);
             if (!symbol) break;
-            if (symbol->sid <= psymtab->flushed_max_id) continue;
+            if (symbol->sid <= flushed_max_id) continue;
             symbol_list_len += ion_writer_binary_serialize_symbol_length(symbol);
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
@@ -1501,7 +1519,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
                 ION_PUT(out, makeTypeDescriptor(TID_LIST, import_list_len));
             }
 
-            ION_COLLECTION_OPEN(&psymtab->import_list, import_cursor);
+            ION_COLLECTION_OPEN(import_list, import_cursor);
             for (;;) {
                 ION_COLLECTION_NEXT(import_cursor, import);
                 if (!import) break;
@@ -1537,11 +1555,11 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
         }
 
         //  write the strings out
-        ION_COLLECTION_OPEN(&psymtab->symbols, symbol_cursor);
+        ION_COLLECTION_OPEN(symbols, symbol_cursor);
         for (;;) {
             ION_COLLECTION_NEXT(symbol_cursor, symbol);
             if (!symbol) break;
-            if (symbol->sid <= psymtab->flushed_max_id) continue;
+            if (symbol->sid <= flushed_max_id) continue;
             IONCHECK(ion_binary_write_string_with_td_byte(out, &symbol->value));
         }
         ION_COLLECTION_CLOSE(symbol_cursor);
@@ -1551,7 +1569,7 @@ iERR _ion_writer_binary_serialize_symbol_table(ION_SYMBOL_TABLE *psymtab, ION_ST
     if (output_finish - output_start != total_len) {
         FAILWITH(IERR_INVALID_STATE);
     }
-    psymtab->flushed_max_id = psymtab->max_id;
+    IONCHECK(_ion_symbol_table_set_flushed_max_sid_helper(psymtab, max_id));
     iRETURN;
 }
 

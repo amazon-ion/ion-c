@@ -895,13 +895,16 @@ iERR _ion_reader_text_has_any_annotations(ION_READER *preader, BOOL *p_has_annot
 iERR _ion_reader_text_validate_symbol_token(ION_READER *preader, ION_SYMBOL *p_symbol) {
     iENTER;
     ION_SYMBOL_TABLE *symbol_table;
+    SID               max_id;
+
     ASSERT(preader);
     ASSERT(p_symbol);
 
     IONCHECK(_ion_reader_text_get_symbol_table(preader, &symbol_table));
     ASSERT(symbol_table);
 
-    if (p_symbol->sid > symbol_table->max_id) {
+    IONCHECK(_ion_symbol_table_get_max_sid_helper(symbol_table, &max_id));
+    if (p_symbol->sid > max_id) {
         FAILWITH(IERR_INVALID_SYMBOL);
     }
 

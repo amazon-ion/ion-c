@@ -70,6 +70,7 @@ BOOL _ion_symbol_needs_quotes(ION_STRING *p_str, BOOL symbol_identifiers_need_qu
 // internal (pointer based helpers) functions for symbol tables (in ion_symbol_table.c)
 iERR _ion_symbol_table_open_helper(ION_SYMBOL_TABLE **p_psymtab, hOWNER owner, ION_SYMBOL_TABLE *psystem);
 iERR _ion_symbol_table_clone_with_owner_helper(ION_SYMBOL_TABLE **p_pclone, ION_SYMBOL_TABLE *orig, hOWNER owner, ION_SYMBOL_TABLE *system_symtab);
+iERR _ion_symbol_table_clone_with_owner_and_system_table(hSYMTAB hsymtab, hSYMTAB *p_hclone, hOWNER owner, hSYMTAB hsystem);
 iERR _ion_symbol_table_get_system_symbol_helper(ION_SYMBOL_TABLE **pp_system_table, int32_t version);
 //iERR _ion_symbol_table_load_import_list_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL_TABLE_IMPORT **p_head);
 iERR _ion_symbol_table_load_symbol_list_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL **p_listhead);
@@ -78,13 +79,18 @@ iERR _ion_symbol_table_unload_helper(ION_SYMBOL_TABLE *symtab, ION_WRITER *pwrit
 iERR _ion_symbol_table_lock_helper(ION_SYMBOL_TABLE *symtab);
 iERR _ion_symbol_table_is_locked_helper(ION_SYMBOL_TABLE *symtab, BOOL *p_is_locked);
 iERR _ion_symbol_table_get_type_helper(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABLE_TYPE *p_type);
+iERR _ion_symbol_table_get_owner(hSYMTAB hsymtab, hOWNER *howner);
+iERR _ion_symbol_table_get_system_symbol_table(hSYMTAB hsymtab, hSYMTAB *p_hsymtab_system);
 iERR _ion_symbol_table_get_name_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *p_name);
 iERR _ion_symbol_table_get_version_helper(ION_SYMBOL_TABLE *symtab, int32_t *p_version);
 iERR _ion_symbol_table_get_max_sid_helper(ION_SYMBOL_TABLE *symtab, SID *p_max_id);
+iERR _ion_symbol_table_get_flushed_max_sid_helper(ION_SYMBOL_TABLE *symtab, SID *p_flushed_max_id);
 iERR _ion_symbol_table_set_name_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name);
 iERR _ion_symbol_table_set_version_helper(ION_SYMBOL_TABLE *symtab, int32_t version);
 iERR _ion_symbol_table_set_max_sid_helper(ION_SYMBOL_TABLE *symtab, SID max_id);
+iERR _ion_symbol_table_set_flushed_max_sid_helper(ION_SYMBOL_TABLE *symtab, SID flushed_max_id);
 iERR _ion_symbol_table_get_imports_helper(ION_SYMBOL_TABLE *symtab, ION_COLLECTION **p_imports);
+iERR _ion_symbol_table_get_symbols_helper(ION_SYMBOL_TABLE *symtab, ION_COLLECTION **p_symbols);
 iERR _ion_symbol_table_parse_possible_symbol_identifier(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym, BOOL *p_is_symbol_identifier);
 iERR _ion_symbol_table_find_by_name_helper(ION_SYMBOL_TABLE *symtab, ION_STRING *name, SID *p_sid, ION_SYMBOL **p_sym, BOOL symbol_identifiers_as_sids);
 iERR _ion_symbol_table_find_by_sid_helper(ION_SYMBOL_TABLE *symtab, SID sid, ION_STRING **p_name);
