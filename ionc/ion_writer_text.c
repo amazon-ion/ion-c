@@ -196,11 +196,13 @@ iERR _ion_writer_text_close_collection(ION_WRITER *pwriter, BYTE close_char)
 
 BOOL _ion_writer_text_has_symbol_table(ION_WRITER *pwriter)
 {
+    ION_COLLECTION *import_list;
     // Text writers only need to serialize a symbol table when the current symbol table contains shared imports and
     // the stream contains at least one value.
     ASSERT(pwriter);
-    return pwriter->symbol_table != NULL && !TEXTWRITER(pwriter)->_no_output
-           && !ION_COLLECTION_IS_EMPTY(&pwriter->symbol_table->import_list);
+    if (!pwriter->symbol_table) return FALSE;
+    _ion_symbol_table_get_imports_helper(pwriter->symbol_table, &import_list);
+    return !TEXTWRITER(pwriter)->_no_output && !ION_COLLECTION_IS_EMPTY(import_list);
 }
 
 iERR _ion_writer_text_write_stream_start(ION_WRITER *pwriter)

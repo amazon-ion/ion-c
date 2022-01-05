@@ -124,6 +124,24 @@ iERR ion_symbol_table_clone_with_owner(hSYMTAB hsymtab, hSYMTAB *p_hclone, hOWNE
     iRETURN;
 }
 
+iERR _ion_symbol_table_clone_with_owner_and_system_table(hSYMTAB hsymtab, hSYMTAB *p_hclone, hOWNER owner, hSYMTAB hsystem)
+{
+    iENTER;
+    ION_SYMBOL_TABLE *orig, *clone, *system;
+
+    if (hsymtab == NULL) FAILWITH(IERR_INVALID_ARG);
+    if (p_hclone == NULL) FAILWITH(IERR_INVALID_ARG);
+
+    orig = HANDLE_TO_PTR(hsymtab, ION_SYMBOL_TABLE);
+    system = HANDLE_TO_PTR(hsystem, ION_SYMBOL_TABLE);
+
+    IONCHECK(_ion_symbol_table_clone_with_owner_helper(&clone, orig, owner, system));
+
+    *p_hclone = PTR_TO_HANDLE(clone);
+
+    iRETURN;
+}
+
 iERR _ion_symbol_table_clone_with_owner_helper(ION_SYMBOL_TABLE **p_pclone, ION_SYMBOL_TABLE *orig, hOWNER owner, ION_SYMBOL_TABLE *system)
 {
     iENTER;
@@ -844,6 +862,20 @@ iERR _ion_symbol_table_get_type_helper(ION_SYMBOL_TABLE *symtab, ION_SYMBOL_TABL
     return IERR_OK;
 }
 
+iERR _ion_symbol_table_get_owner(hSYMTAB hsymtab, hOWNER *howner) {
+    iENTER;
+    ION_SYMBOL_TABLE *symtab;
+
+    if (hsymtab == NULL) FAILWITH(IERR_INVALID_ARG);
+    if (howner == NULL)  FAILWITH(IERR_INVALID_ARG);
+
+    symtab = HANDLE_TO_PTR(hsymtab, ION_SYMBOL_TABLE);
+
+    *howner = symtab->owner;
+
+    iRETURN;
+}
+
 iERR ion_symbol_table_get_name(hSYMTAB hsymtab, iSTRING p_name)
 {
     iENTER;
@@ -880,6 +912,21 @@ iERR ion_symbol_table_get_version(hSYMTAB hsymtab, int32_t *p_version)
     symtab = HANDLE_TO_PTR(hsymtab, ION_SYMBOL_TABLE);
 
     IONCHECK(_ion_symbol_table_get_version_helper(symtab, p_version));
+
+    iRETURN;
+}
+
+iERR _ion_symbol_table_get_system_symbol_table(hSYMTAB hsymtab, hSYMTAB *p_hsymtab_system)
+{
+    iENTER;
+    ION_SYMBOL_TABLE *symtab;
+
+    if (hsymtab == NULL) FAILWITH(IERR_INVALID_ARG);
+    if (p_hsymtab_system == NULL)  FAILWITH(IERR_INVALID_ARG);
+
+    symtab = HANDLE_TO_PTR(hsymtab, ION_SYMBOL_TABLE);
+
+    *p_hsymtab_system = symtab->system_symbol_table;
 
     iRETURN;
 }
@@ -924,6 +971,25 @@ iERR _ion_symbol_table_get_max_sid_helper(ION_SYMBOL_TABLE *symtab, SID *p_max_i
     }
 
     *p_max_id = max_id;
+
+    return IERR_OK;
+}
+
+iERR _ion_symbol_table_get_flushed_max_sid_helper(ION_SYMBOL_TABLE *symtab, SID *p_flushed_max_id)
+{
+    ASSERT(symtab != NULL);
+    ASSERT(p_flushed_max_id != NULL);
+
+    *p_flushed_max_id = symtab->flushed_max_id;
+
+    return IERR_OK;
+}
+
+iERR _ion_symbol_table_set_flushed_max_sid_helper(ION_SYMBOL_TABLE *symtab, SID flushed_max_id)
+{
+    ASSERT(symtab != NULL);
+
+    symtab->flushed_max_id = flushed_max_id;
 
     return IERR_OK;
 }
@@ -1038,6 +1104,16 @@ iERR _ion_symbol_table_get_imports_helper(ION_SYMBOL_TABLE *symtab, ION_COLLECTI
     ASSERT(p_imports != NULL);
 
     *p_imports = &symtab->import_list;
+
+    return IERR_OK;
+}
+
+iERR _ion_symbol_table_get_symbols_helper(ION_SYMBOL_TABLE *symtab, ION_COLLECTION **p_symbols)
+{
+    ASSERT(symtab != NULL);
+    ASSERT(p_symbols != NULL);
+
+    *p_symbols = &symtab->symbols;
 
     return IERR_OK;
 }

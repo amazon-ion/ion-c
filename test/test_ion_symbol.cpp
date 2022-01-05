@@ -1392,6 +1392,7 @@ TEST_P(BinaryAndTextTest, WriterAcceptsImportsAfterConstruction) {
     ION_SYMBOL_TABLE_IMPORT *foo_import, *bar_import, import1_import, import2_import;
     ION_COLLECTION new_imports_1, new_imports_2;
     ION_SYMBOL_TABLE *writer_table;
+    ION_COLLECTION *writer_table_import_list;
     BOOL contains_import;
 
     ion_string_from_cstr("foo", &foo);
@@ -1416,23 +1417,24 @@ TEST_P(BinaryAndTextTest, WriterAcceptsImportsAfterConstruction) {
 
     ION_ASSERT_OK(ion_writer_get_symbol_table(writer, &writer_table));
 
-    ION_ASSERT_OK(_ion_collection_contains(&writer_table->import_list, foo_import, &_ion_symbol_table_import_compare_fn, &contains_import));
+    ION_ASSERT_OK(ion_symbol_table_get_imports(writer_table, &writer_table_import_list));
+    ION_ASSERT_OK(_ion_collection_contains(writer_table_import_list, foo_import, &_ion_symbol_table_import_compare_fn, &contains_import));
     ASSERT_TRUE(contains_import);
 
-    ION_ASSERT_OK(_ion_collection_contains(&writer_table->import_list, bar_import, &_ion_symbol_table_import_compare_fn, &contains_import));
+    ION_ASSERT_OK(_ion_collection_contains(writer_table_import_list, bar_import, &_ion_symbol_table_import_compare_fn, &contains_import));
     ASSERT_TRUE(contains_import);
 
     ION_STRING_ASSIGN(&import1_import.descriptor.name, &import1_name);
     ION_STRING_ASSIGN(&import2_import.descriptor.name, &import2_name);
-    import1_import.descriptor.max_id = import1->max_id;
-    import2_import.descriptor.max_id = import2->max_id;
-    import1_import.descriptor.version = import1->version;
-    import2_import.descriptor.version = import2->version;
+    ION_ASSERT_OK(ion_symbol_table_get_max_sid(import1, &import1_import.descriptor.max_id));
+    ION_ASSERT_OK(ion_symbol_table_get_max_sid(import2, &import2_import.descriptor.max_id));
+    ION_ASSERT_OK(ion_symbol_table_get_version(import1, &import1_import.descriptor.version));
+    ION_ASSERT_OK(ion_symbol_table_get_version(import2, &import2_import.descriptor.version));
 
-    ION_ASSERT_OK(_ion_collection_contains(&writer_table->import_list, &import1_import, &_ion_symbol_table_import_compare_fn, &contains_import));
+    ION_ASSERT_OK(_ion_collection_contains(writer_table_import_list, &import1_import, &_ion_symbol_table_import_compare_fn, &contains_import));
     ASSERT_TRUE(contains_import);
 
-    ION_ASSERT_OK(_ion_collection_contains(&writer_table->import_list, &import2_import, &_ion_symbol_table_import_compare_fn, &contains_import));
+    ION_ASSERT_OK(_ion_collection_contains(writer_table_import_list, &import2_import, &_ion_symbol_table_import_compare_fn, &contains_import));
     ASSERT_TRUE(contains_import);
 
     ION_ASSERT_OK(ion_writer_close(writer));

@@ -1856,16 +1856,20 @@ iERR _ion_reader_symbol_table_context_change_notify(ION_READER *preader, ION_SYM
 {
     iENTER;
     BOOL imports_equal;
+    ION_COLLECTION *current_import_list, *context_import_list;
+
     ASSERT(preader);
     ASSERT(new_context);
 
-    if (preader->context_change_notifier.notify != NULL && !ION_COLLECTION_IS_EMPTY(&new_context->import_list)) {
-        IONCHECK(_ion_collection_compare(&preader->_current_symtab->import_list, &new_context->import_list,
+    IONCHECK(_ion_symbol_table_get_imports_helper(new_context, &context_import_list));
+    if (preader->context_change_notifier.notify != NULL && !ION_COLLECTION_IS_EMPTY(context_import_list)) {
+        IONCHECK(_ion_symbol_table_get_imports_helper(preader->_current_symtab, &current_import_list));
+        IONCHECK(_ion_collection_compare(current_import_list, context_import_list,
                                          &_ion_symbol_table_import_compare_fn, &imports_equal));
         if (!imports_equal) {
             // Only notify if the imports actually changed.
             IONCHECK(preader->context_change_notifier.notify(preader->context_change_notifier.context,
-                                                             &new_context->import_list));
+                                                             context_import_list));
         }
     }
     iRETURN;
@@ -2098,16 +2102,19 @@ iERR _ion_reader_set_symbol_table_helper(ION_READER *preader, ION_SYMBOL_TABLE *
 {
     iENTER;
     ION_SYMBOL_TABLE *clone, *system;
+    hOWNER owner;
 
     ASSERT(preader);
     ASSERT(symtab);
 
     IONCHECK(_ion_symbol_table_get_system_symbol_helper(&system, ION_SYSTEM_VERSION));
 
-    if (symtab != NULL && symtab != system && symtab->owner != preader)
-    {
-        IONCHECK(_ion_symbol_table_clone_with_owner_helper(&clone, symtab, preader, system));
-        symtab = clone;
+    if (symtab != NULL) {
+        IONCHECK(_ion_symbol_table_get_owner(symtab, &owner));
+        if(symtab != system && owner != preader) {
+            IONCHECK(_ion_symbol_table_clone_with_owner_helper(&clone, symtab, preader, system));
+            symtab = clone;
+        }
     }
 
     preader->_current_symtab = symtab;
