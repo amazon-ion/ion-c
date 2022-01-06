@@ -22,6 +22,32 @@
 #include <string.h>
 //#include "hashfn.h"
 
+// strings are commonly used pointer length values
+// the referenced data is (should be) immutable
+// and is often shared or owned by others
+// the character encoding is utf-8 and both comparisons
+// and collation is only done as memcmp
+
+struct _ion_symbol_table
+{
+    void               *owner;          // this may be a reader, writer, catalog or itself
+    BOOL                is_locked;
+    BOOL                has_local_symbols;
+    ION_STRING          name;
+    int32_t             version;
+    int32_t             max_id;         // the max SID of this symbol tables symbols, including shared symbols.
+    int32_t             min_local_id;   // the lowest local SID. Only valid if has_local_symbols is TRUE. by_id[0] holds this symbol.
+    int32_t             flushed_max_id; // the max SID already serialized. If symbols are appended, only the ones after this need to be serialized.
+    ION_COLLECTION      import_list;    // collection of ION_SYMBOL_TABLE_IMPORT
+    ION_COLLECTION      symbols;        // collection of ION_SYMBOL
+    ION_SYMBOL_TABLE   *system_symbol_table;
+
+    int32_t             by_id_max;      // current size of by_id, which holds the local symbols, but NOT necessarily the number of declared local symbols.
+    ION_SYMBOL        **by_id;          // the local symbols. Accessing shared symbols requires delegate lookups to the imports.
+    ION_INDEX           by_name;        // the local symbols (by name).
+
+};
+
 iERR _ion_symbol_table_local_find_by_sid(ION_SYMBOL_TABLE *symtab, SID sid, ION_SYMBOL **p_sym);
 
 iERR ion_symbol_table_open(hSYMTAB *p_hsymtab, hOWNER owner)
