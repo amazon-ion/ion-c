@@ -27,6 +27,7 @@ message(STATUS "Setting DECNUMBER max digits to 34")
 
 set(CMAKE_INSTALL_RPATH "$ORIGIN")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_subdirectory(decNumber)
 add_subdirectory(ionc)
