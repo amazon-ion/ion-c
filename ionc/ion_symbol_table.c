@@ -35,9 +35,9 @@ struct _ion_symbol_table
     BOOL                has_local_symbols;
     ION_STRING          name;
     int32_t             version;
-    int32_t             max_id;         // the max SID of this symbol tables symbols, including shared symbols.
-    int32_t             min_local_id;   // the lowest local SID. Only valid if has_local_symbols is TRUE. by_id[0] holds this symbol.
-    int32_t             flushed_max_id; // the max SID already serialized. If symbols are appended, only the ones after this need to be serialized.
+    SID                 max_id;         // the max SID of this symbol tables symbols, including shared symbols.
+    SID                 min_local_id;   // the lowest local SID. Only valid if has_local_symbols is TRUE. by_id[0] holds this symbol.
+    SID                 flushed_max_id; // the max SID already serialized. If symbols are appended, only the ones after this need to be serialized.
     ION_COLLECTION      import_list;    // collection of ION_SYMBOL_TABLE_IMPORT
     ION_COLLECTION      symbols;        // collection of ION_SYMBOL
     ION_SYMBOL_TABLE   *system_symbol_table;
@@ -652,6 +652,7 @@ iERR _ion_symbol_table_load_helper(ION_READER *preader, hOWNER owner, ION_SYMBOL
             ION_COLLECTION_NEXT(symbol_cursor, symbol);
             if (!symbol) break;
             if (symbol->sid == UNKNOWN_SID) {
+                if (sid == INT32_MAX) FAILWITH(IERR_INVALID_SYMBOL);
                 sid++;
                 symbol->sid = sid;
             }

@@ -236,7 +236,7 @@ iERR _ion_catalog_find_symbol_table_helper(ION_CATALOG *pcatalog, ION_STRING *na
     iRETURN;
 }
 
-iERR ion_catalog_find_best_match(hCATALOG hcatalog, iSTRING name, long version, ION_SYMBOL_TABLE **p_psymtab)
+iERR ion_catalog_find_best_match(hCATALOG hcatalog, iSTRING name, long version, hSYMTAB *p_symtab)
 {
     iENTER;
     ION_CATALOG      *catalog;
@@ -244,16 +244,16 @@ iERR ion_catalog_find_best_match(hCATALOG hcatalog, iSTRING name, long version, 
 
     if (hcatalog == NULL) FAILWITH(IERR_INVALID_ARG);
     if (ION_STRING_IS_NULL(name)) FAILWITH(IERR_INVALID_ARG);
-    if (p_psymtab == NULL) FAILWITH(IERR_INVALID_ARG);
+    if (p_symtab == NULL) FAILWITH(IERR_INVALID_ARG);
 
     catalog = HANDLE_TO_PTR(hcatalog, ION_CATALOG);
 
     IONCHECK(_ion_catalog_find_best_match_helper(catalog, name, version, -1, &symtab));
     if (symtab != NULL) {
-        *p_psymtab = PTR_TO_HANDLE(symtab);
+        *p_symtab = PTR_TO_HANDLE(symtab);
     }
     else {
-        *p_psymtab = NULL;
+        *p_symtab = NULL;
     }
     iRETURN;
 }
