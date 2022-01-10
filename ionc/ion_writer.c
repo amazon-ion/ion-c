@@ -2876,7 +2876,7 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
     iENTER;
     SID               sid = UNKNOWN_SID, max_id;
     ION_SYMBOL_TABLE *psymtab, *system;
-    BOOL symtab_is_locked;
+    BOOL              symtab_is_locked;
 
     ASSERT(pwriter);
     ASSERT(pstr);
@@ -2888,11 +2888,12 @@ iERR _ion_writer_make_symbol_helper(ION_WRITER *pwriter, ION_STRING *pstr, SID *
     if (!psymtab) {
         IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
         psymtab = pwriter->symbol_table;
-    }
-    IONCHECK(_ion_symbol_table_is_locked_helper(psymtab, &symtab_is_locked));
-    if (symtab_is_locked) {
-        IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
-        psymtab = pwriter->symbol_table;
+    } else {
+        IONCHECK(_ion_symbol_table_is_locked_helper(psymtab, &symtab_is_locked));
+        if (symtab_is_locked) {
+            IONCHECK(_ion_writer_initialize_local_symbol_table(pwriter));
+            psymtab = pwriter->symbol_table;
+        }
     }
 
     // we'll remember what the top symbol is to see if add_symbol changes it
