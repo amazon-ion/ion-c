@@ -160,13 +160,13 @@ iERR _ion_symbol_table_clone_with_owner_helper(ION_SYMBOL_TABLE **p_pclone, ION_
 
     // since these value should be immutable if the owner
     // has NOT changed we can use cheaper copies
-    new_owner = (orig->owner != owner);
+    new_owner = (orig->owner != clone->owner);
     if (is_shared) {
         // if this is a shared table we copy the name and version
         clone->version = orig->version;
         if (new_owner) {
             // otherwise we have to do expensive copies
-            IONCHECK(ion_string_copy_to_owner(owner, &clone->name, &orig->name));
+            IONCHECK(ion_string_copy_to_owner(clone->owner, &clone->name, &orig->name));
         }
         else {
             // we get to share the name contents
@@ -177,12 +177,12 @@ iERR _ion_symbol_table_clone_with_owner_helper(ION_SYMBOL_TABLE **p_pclone, ION_
     // now we move the imports
     copy_fn = new_owner ? _ion_symbol_table_local_import_copy_new_owner 
                         : _ion_symbol_table_local_import_copy_same_owner;
-    IONCHECK(_ion_collection_copy(&clone->import_list, &orig->import_list, copy_fn, owner));
+    IONCHECK(_ion_collection_copy(&clone->import_list, &orig->import_list, copy_fn, clone->owner));
 
     // and finally copy the actual symbols
     copy_fn = new_owner ? _ion_symbol_local_copy_new_owner 
                         : _ion_symbol_local_copy_same_owner;
-    IONCHECK(_ion_collection_copy(&clone->symbols, &orig->symbols, copy_fn, owner));
+    IONCHECK(_ion_collection_copy(&clone->symbols, &orig->symbols, copy_fn, clone->owner));
 
     // now adjust the symbol table owner handles (hsymtab)
     ION_COLLECTION_OPEN(&clone->symbols, symbol_cursor);
