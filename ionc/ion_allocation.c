@@ -176,7 +176,7 @@ void *_ion_alloc_with_owner_helper(ION_ALLOCATION_CHAIN *powner, SIZE request_le
 ION_ALLOCATION_CHAIN *_ion_alloc_block(SIZE min_needed)
 {
     ION_ALLOCATION_CHAIN *new_block;
-    SIZE                  alloc_size = min_needed + sizeof(ION_ALLOCATION_CHAIN); // subtract out the block[1]
+    SIZE                  alloc_size = min_needed + ALIGN_SIZE(sizeof(ION_ALLOCATION_CHAIN)); // subtract out the block[1]
 
     if (alloc_size > g_ion_alloc_page_list.page_size) {
         // it's an oversize block - we'll ask the system for this one
@@ -200,7 +200,7 @@ ION_ALLOCATION_CHAIN *_ion_alloc_block(SIZE min_needed)
     new_block->position = ION_ALLOC_BLOCK_TO_USER_PTR(new_block);
     new_block->limit    = ((BYTE*)new_block) + new_block->size;
 
-    assert(new_block->position == ((BYTE *)(&new_block->limit) + sizeof(new_block->limit)));
+    assert(new_block->position == ((BYTE *)(&new_block->limit) + ALIGN_SIZE(sizeof(new_block->limit))));
 
     return new_block;
 }
