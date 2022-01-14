@@ -83,14 +83,18 @@ ION_API_EXPORT void        ion_alloc_free      (void *ptr);
 
 // force aligned allocations
 #ifndef ALLOC_ALIGNMENT
-#define ALLOC_ALIGNMENT 4
+#if __STDC_VERSION__ >= 201112L
+#include <stdalign.h>
+#include <stddef.h>
+#define ALLOC_ALIGNMENT (alignof(max_align_t))
+#else
+#define ALLOC_ALIGNMENT 16
+#endif
+#elif ((ALLOC_ALIGNMENT) & ((ALLOC_ALIGNMENT)-1)) != 0
+#error Invalid ALLOC_ALIGNMENT. Must be a power of 2.
 #endif
     
 #define ALIGN_MASK ((ALLOC_ALIGNMENT)-1)
-    
-#if ((ALLOC_ALIGNMENT) & ALIGN_MASK) != 0
-#error Invalid ALLOC_ALIGNMENT. Must be a power of 2.
-#endif
     
 #define ALIGN_SIZE(size) ((((size_t)(size)) + ALIGN_MASK) & ~ALIGN_MASK)
 #define ALIGN_PTR(ptr) ALIGN_SIZE(ptr)
@@ -108,8 +112,8 @@ struct _ion_allocation_chain
     // user bytes follow this header, though there may be some unused bytes here for alignment purposes
 };
 
-#define ION_ALLOC_BLOCK_TO_USER_PTR(block) ((BYTE*)ALIGN_PTR(((BYTE*)(block)) + sizeof(ION_ALLOCATION_CHAIN)))
-#define ION_ALLOC_USER_PTR_TO_BLOCK(ptr)   ((ION_ALLOCATION_CHAIN *)(((BYTE*)(ptr)) - sizeof(ION_ALLOCATION_CHAIN)))
+#define ION_ALLOC_BLOCK_TO_USER_PTR(block) ((BYTE*)ALIGN_PTR(((BYTE*)(block)) + ALIGN_SIZE(sizeof(ION_ALLOCATION_CHAIN))))
+#define ION_ALLOC_USER_PTR_TO_BLOCK(ptr)   ((ION_ALLOCATION_CHAIN *)(((BYTE*)(ptr)) - ALIGN_SIZE(sizeof(ION_ALLOCATION_CHAIN))))
 
 
 #ifdef MEM_DEBUG
