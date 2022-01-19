@@ -87,20 +87,13 @@ std::string find_ion_tests_path() {
     if (directory_exists("ion-tests")) {
         return "ion-tests";
     }
-    std::string from_test_directory = join_path(/*ion-c*/"..", "ion-tests");
-    if (directory_exists(from_test_directory)) {
-        return from_test_directory;
+    for (std::string parent_dir = ".."; directory_exists(parent_dir); parent_dir = join_path(parent_dir, "..")) {
+        std::string ion_tests_dir = join_path(parent_dir, "ion-tests");
+        if (directory_exists(ion_tests_dir)) {
+            return ion_tests_dir;
+        }
     }
-    std::string from_build_directory;
-    test_concat_filenames(&from_build_directory, 5, /*test*/"..", /*release*/"..", /*build*/"..", /*ion-c*/"..", "ion-tests");
-    if (directory_exists(from_build_directory)) {
-        return from_build_directory;
-    }
-    std::string from_out_of_source_test_directory;
-    test_concat_filenames(&from_out_of_source_test_directory, 3, /*e.g., cmake-build-debug*/"..", /*..ion-c*/"..", "ion-tests");
-    if (directory_exists(from_out_of_source_test_directory)) {
-        return from_out_of_source_test_directory;
-    }
+    // giving up
     return "";
 }
 
