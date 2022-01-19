@@ -1715,3 +1715,23 @@ TEST_P(BinaryAndTextTest, ReaderSkipsOverIVMBoundary) {
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_EOF, type);
 }
+
+TEST(IonSymbolTable, CanBeRemovedFromCatalog) {
+    ION_SYMBOL_TEST_POPULATE_CATALOG;
+    int32_t cnt;
+
+    ION_ASSERT_OK(ion_catalog_get_symbol_table_count(catalog, &cnt));
+    ASSERT_EQ(2, cnt);
+    ION_ASSERT_OK(ion_catalog_release_symbol_table(catalog, import1));
+    ION_ASSERT_OK(ion_catalog_get_symbol_table_count(catalog, &cnt));
+    ASSERT_EQ(1, cnt);
+    ION_ASSERT_OK(ion_catalog_release_symbol_table(catalog, import1));
+    ION_ASSERT_OK(ion_catalog_get_symbol_table_count(catalog, &cnt));
+    ASSERT_EQ(1, cnt);
+    ION_ASSERT_OK(ion_catalog_release_symbol_table(catalog, import2));
+    ION_ASSERT_OK(ion_catalog_get_symbol_table_count(catalog, &cnt));
+    ASSERT_EQ(0, cnt);
+    ION_ASSERT_OK(ion_catalog_release_symbol_table(catalog, import2));
+    ION_ASSERT_OK(ion_catalog_get_symbol_table_count(catalog, &cnt));
+    ASSERT_EQ(0, cnt);
+}

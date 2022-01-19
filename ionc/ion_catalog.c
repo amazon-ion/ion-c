@@ -340,30 +340,46 @@ iERR ion_catalog_release_symbol_table(hCATALOG hcatalog, hSYMTAB hsymtab)
 iERR _ion_catalog_release_symbol_table_helper(ION_CATALOG *pcatalog, ION_SYMBOL_TABLE *psymtab)
 {
     iENTER;
-    ION_SYMBOL_TABLE *test;
-    ION_STRING        name;
-    int32_t           version;
-    hOWNER            owner;
+    ION_SYMBOL_TABLE        **ppsymtab, **found = NULL;
+    ION_COLLECTION_CURSOR   symtab_cursor;
+    ION_STRING              name, our_name;
+    int32_t                 version, our_version;
 
     ASSERT(pcatalog != NULL);
     ASSERT(psymtab != NULL);
 
-    IONCHECK(_ion_symbol_table_get_owner(psymtab, &owner));
+    IONCHECK(ion_symbol_table_get_name(psymtab, &name));
+    IONCHECK(ion_symbol_table_get_version(psymtab, &version));
 
-    // if this symbol table is "foreign" get "our copy" of the table
-    if (owner != pcatalog->owner) {
-        IONCHECK(ion_symbol_table_get_name(psymtab, &name));
-        IONCHECK(ion_symbol_table_get_version(psymtab, &version));
-        IONCHECK(_ion_catalog_find_symbol_table_helper(pcatalog, &name, version, &test));
-        if (!test) {
-            // TODO: again - is this just fine (the table's already released)
-            //       or is this a problem to report
-            // FAILWITH(IERR_SYMBOL_TABLE_NOT_FOUND);
-            SUCCEED();
+    ASSERT(pcatalog != NULL);
+
+    // the argument to _ion_collection_remove must be a pointer to
+    // ION_COLLECTION_NODE._data; i.e. the second parameter of
+    // ION_COLLECTION_NEXT(cursor, p_data)
+    ION_COLLECTION_OPEN(&pcatalog->table_list, symtab_cursor);
+    for (;;) {
+        ION_COLLECTION_NEXT(symtab_cursor, ppsymtab);
+        if (!ppsymtab) break;
+        if (*ppsymtab != psymtab) {
+            IONCHECK(ion_symbol_table_get_version(*ppsymtab, &our_version));
+            if (our_version != version) continue;
+
+            IONCHECK(ion_symbol_table_get_name(*ppsymtab, &our_name));
+            if (!ION_STRING_EQUALS(&our_name, &name)) continue;
         }
+        found = ppsymtab;
+        break;
+    }
+    ION_COLLECTION_CLOSE(symtab_cursor);
+
+    if (!found) {
+		// TODO: again - is this just fine (the table's already released)
+		//       or is this a problem to report
+		// FAILWITH(IERR_SYMBOL_TABLE_NOT_FOUND);
+		SUCCEED();
     }
 
-    _ion_collection_remove(&pcatalog->table_list, psymtab);
+    _ion_collection_remove(&pcatalog->table_list, found);
 
     iRETURN;
 }

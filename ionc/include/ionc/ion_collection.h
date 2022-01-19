@@ -27,7 +27,12 @@ typedef struct _ion_collection_node  ION_COLLECTION_NODE;
 typedef struct _ion_collection_node *ION_COLLECTION_CURSOR;
 
 
-#define IPCN_DATA_SIZE sizeof(void *)
+#define IPCN_DATA_SIZE      sizeof(void *)
+#define IPCN_OVERHEAD_SIZE  (sizeof(ION_COLLECTION_NODE) - IPCN_DATA_SIZE)
+
+#define IPCN_pNODE_TO_pDATA(x) (&((x)->_data[0]))
+#define IPCN_pDATA_TO_pNODE(x) ((ION_COLLECTION_NODE *) (((uint8_t *)(x)) - IPCN_OVERHEAD_SIZE))
+
 
 /** The node allocation scheme depends on this layout !
  * currently that there are only 2 members so it uses

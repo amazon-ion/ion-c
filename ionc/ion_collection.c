@@ -372,12 +372,14 @@ void _ion_collection_remove_node_helper(ION_COLLECTION *collection, ION_COLLECTI
     next = node->_next;
 
     if (next) {
+        ASSERT(next->_prev == node);
         next->_prev = prev;
     }
     else {
         collection->_tail = prev;
     }
     if (prev) {
+        ASSERT(prev->_next == node);
         prev->_next = next;
     }
     else {

@@ -19,11 +19,6 @@
 extern "C" {
 #endif
 
-#define IPCN_OVERHEAD_SIZE  (sizeof(ION_COLLECTION_NODE) - IPCN_DATA_SIZE)
-
-#define IPCN_pNODE_TO_pDATA(x)    (&((x)->_data[0]))
-#define IPCN_pDATA_TO_pNODE(x) ((ION_COLLECTION_NODE *)(((uint8_t *)(x)) - IPCN_OVERHEAD_SIZE))
-
 typedef iERR (*ION_COPY_FN)(void *context, void *dst, void *src, int32_t data_size);
 typedef iERR (*ION_COMPARE_FN)(void *lhs, void *rhs, BOOL *is_equal);
 
