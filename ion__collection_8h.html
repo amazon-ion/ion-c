@@ -113,6 +113,15 @@ Macros</h2></td></tr>
 <tr class="memitem:ad27d188cab4aa270f9b6abbf68d42a02"><td class="memItemLeft" align="right" valign="top"><a id="ad27d188cab4aa270f9b6abbf68d42a02"></a>
 #define&#160;</td><td class="memItemRight" valign="bottom"><b>IPCN_DATA_SIZE</b>&#160;&#160;&#160;sizeof(void *)</td></tr>
 <tr class="separator:ad27d188cab4aa270f9b6abbf68d42a02"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5e73c819394fee4112c72d94fb5d4851"><td class="memItemLeft" align="right" valign="top"><a id="a5e73c819394fee4112c72d94fb5d4851"></a>
+#define&#160;</td><td class="memItemRight" valign="bottom"><b>IPCN_OVERHEAD_SIZE</b>&#160;&#160;&#160;(sizeof(<a class="el" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a>) - IPCN_DATA_SIZE)</td></tr>
+<tr class="separator:a5e73c819394fee4112c72d94fb5d4851"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab1831c1fe1623dac5940cd58c8393343"><td class="memItemLeft" align="right" valign="top"><a id="ab1831c1fe1623dac5940cd58c8393343"></a>
+#define&#160;</td><td class="memItemRight" valign="bottom"><b>IPCN_pNODE_TO_pDATA</b>(x)&#160;&#160;&#160;(&amp;((x)-&gt;_data[0]))</td></tr>
+<tr class="separator:ab1831c1fe1623dac5940cd58c8393343"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2d30077ecb5fb317397ec5b2a8a952ca"><td class="memItemLeft" align="right" valign="top"><a id="a2d30077ecb5fb317397ec5b2a8a952ca"></a>
+#define&#160;</td><td class="memItemRight" valign="bottom"><b>IPCN_pDATA_TO_pNODE</b>(x)&#160;&#160;&#160;((<a class="el" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a> *) (((uint8_t *)(x)) - IPCN_OVERHEAD_SIZE))</td></tr>
+<tr class="separator:a2d30077ecb5fb317397ec5b2a8a952ca"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abef6620c4aff22d8021c7f1047ca4a92"><td class="memItemLeft" align="right" valign="top"><a id="abef6620c4aff22d8021c7f1047ca4a92"></a>
 #define&#160;</td><td class="memItemRight" valign="bottom"><b>ION_COLLECTION_IS_EMPTY</b>(collection)&#160;&#160;&#160;((collection)-&gt;_head == NULL)</td></tr>
 <tr class="separator:abef6620c4aff22d8021c7f1047ca4a92"><td class="memSeparator" colspan="2">&#160;</td></tr>

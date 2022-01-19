@@ -120,62 +120,67 @@ $(document).ready(function(){initNavTree('ion__collection_8h_source.html',''); i
 <div class="line"><a name="l00027"></a><span class="lineno">   27</span>&#160;<span class="keyword">typedef</span> <span class="keyword">struct </span><a class="code" href="struct__ion__collection__node.html">_ion_collection_node</a> *<a class="code" href="struct__ion__collection__node.html">ION_COLLECTION_CURSOR</a>;</div>
 <div class="line"><a name="l00028"></a><span class="lineno">   28</span>&#160; </div>
 <div class="line"><a name="l00029"></a><span class="lineno">   29</span>&#160; </div>
-<div class="line"><a name="l00030"></a><span class="lineno">   30</span>&#160;<span class="preprocessor">#define IPCN_DATA_SIZE sizeof(void *)</span></div>
-<div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160; </div>
-<div class="line"><a name="l00036"></a><span class="lineno"><a class="line" href="struct__ion__collection__node.html">   36</a></span>&#160;<span class="keyword">struct </span><a class="code" href="struct__ion__collection__node.html">_ion_collection_node</a></div>
-<div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;{</div>
-<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;    <a class="code" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a> *_next;</div>
-<div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;    <a class="code" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a> *_prev;</div>
-<div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;    uint8_t              _data[IPCN_DATA_SIZE]; <span class="comment">// this is a place holder, length is max value length</span></div>
-<div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;};</div>
-<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160; </div>
-<div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160; </div>
-<div class="line"><a name="l00066"></a><span class="lineno"><a class="line" href="struct__ion__collection.html">   66</a></span>&#160;<span class="keyword">struct </span><a class="code" href="struct__ion__collection.html">_ion_collection</a></div>
-<div class="line"><a name="l00067"></a><span class="lineno">   67</span>&#160;{</div>
-<div class="line"><a name="l00068"></a><span class="lineno">   68</span>&#160;    <span class="keywordtype">void</span>                *_owner;</div>
-<div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;    int32_t              _node_size;</div>
-<div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;    int32_t              _count;</div>
-<div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;    <a class="code" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a> *_head;</div>
-<div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160;    <a class="code" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a> *_tail;</div>
-<div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160;    <a class="code" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a> *_freelist;</div>
-<div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160;};</div>
-<div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160; </div>
-<div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160;<span class="comment">// BOOL ion_collection_is_empty(ION_COLLECTION *collection)</span></div>
-<div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160;<span class="preprocessor">#define ION_COLLECTION_IS_EMPTY(collection)         \</span></div>
-<div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160;<span class="preprocessor">    ((collection)-&gt;_head == NULL)</span></div>
-<div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160; </div>
-<div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;<span class="comment">// SIZE count = ion_collection_size(ION_COLLECTION_CURSOR *pcursor)</span></div>
-<div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;<span class="preprocessor">#define ION_COLLECTION_SIZE(pcol)                   \</span></div>
-<div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;<span class="preprocessor">    ((pcol)-&gt;_count)</span></div>
-<div class="line"><a name="l00083"></a><span class="lineno">   83</span>&#160; </div>
-<div class="line"><a name="l00084"></a><span class="lineno">   84</span>&#160;<span class="comment">// ION_COLLECTION_CURSOR pcursor = ion_collection_open(ION_COLLECTION *collection)</span></div>
-<div class="line"><a name="l00085"></a><span class="lineno">   85</span>&#160;<span class="preprocessor">#define ION_COLLECTION_OPEN(collection, pcursor)    \</span></div>
-<div class="line"><a name="l00086"></a><span class="lineno">   86</span>&#160;<span class="preprocessor">    (pcursor) = (collection)-&gt;_head</span></div>
-<div class="line"><a name="l00087"></a><span class="lineno">   87</span>&#160; </div>
-<div class="line"><a name="l00088"></a><span class="lineno">   88</span>&#160;<span class="comment">// void *pbuf = ion_collection_next(ION_COLLECTION_CURSOR *pcursor)</span></div>
-<div class="line"><a name="l00089"></a><span class="lineno">   89</span>&#160;<span class="preprocessor">#define ION_COLLECTION_NEXT(pcursor, pbuf)          \</span></div>
-<div class="line"><a name="l00090"></a><span class="lineno">   90</span>&#160;<span class="preprocessor">    if ((pcursor) != NULL) {                        \</span></div>
-<div class="line"><a name="l00091"></a><span class="lineno">   91</span>&#160;<span class="preprocessor">        *((void **)&amp;(pbuf)) = IPCN_pNODE_TO_pDATA(pcursor);  \</span></div>
-<div class="line"><a name="l00092"></a><span class="lineno">   92</span>&#160;<span class="preprocessor">        (pcursor) = (pcursor)-&gt;_next;               \</span></div>
-<div class="line"><a name="l00093"></a><span class="lineno">   93</span>&#160;<span class="preprocessor">    } else {                                        \</span></div>
-<div class="line"><a name="l00094"></a><span class="lineno">   94</span>&#160;<span class="preprocessor">        *((void **)&amp;(pbuf)) =  NULL;                \</span></div>
-<div class="line"><a name="l00095"></a><span class="lineno">   95</span>&#160;<span class="preprocessor">    }</span></div>
-<div class="line"><a name="l00096"></a><span class="lineno">   96</span>&#160; </div>
-<div class="line"><a name="l00097"></a><span class="lineno">   97</span>&#160;<span class="comment">// ION_COLLECTION_CURSOR *pcursor = ion_collection_close();</span></div>
-<div class="line"><a name="l00098"></a><span class="lineno">   98</span>&#160;<span class="preprocessor">#define ION_COLLECTION_CLOSE(pcursor)               \</span></div>
-<div class="line"><a name="l00099"></a><span class="lineno">   99</span>&#160;<span class="preprocessor">    (pcursor) = NULL</span></div>
-<div class="line"><a name="l00100"></a><span class="lineno">  100</span>&#160; </div>
+<div class="line"><a name="l00030"></a><span class="lineno">   30</span>&#160;<span class="preprocessor">#define IPCN_DATA_SIZE      sizeof(void *)</span></div>
+<div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160;<span class="preprocessor">#define IPCN_OVERHEAD_SIZE  (sizeof(ION_COLLECTION_NODE) - IPCN_DATA_SIZE)</span></div>
+<div class="line"><a name="l00032"></a><span class="lineno">   32</span>&#160; </div>
+<div class="line"><a name="l00033"></a><span class="lineno">   33</span>&#160;<span class="preprocessor">#define IPCN_pNODE_TO_pDATA(x) (&amp;((x)-&gt;_data[0]))</span></div>
+<div class="line"><a name="l00034"></a><span class="lineno">   34</span>&#160;<span class="preprocessor">#define IPCN_pDATA_TO_pNODE(x) ((ION_COLLECTION_NODE *) (((uint8_t *)(x)) - IPCN_OVERHEAD_SIZE))</span></div>
+<div class="line"><a name="l00035"></a><span class="lineno">   35</span>&#160; </div>
+<div class="line"><a name="l00036"></a><span class="lineno">   36</span>&#160; </div>
+<div class="line"><a name="l00041"></a><span class="lineno"><a class="line" href="struct__ion__collection__node.html">   41</a></span>&#160;<span class="keyword">struct </span><a class="code" href="struct__ion__collection__node.html">_ion_collection_node</a></div>
+<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;{</div>
+<div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;    <a class="code" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a> *_next;</div>
+<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;    <a class="code" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a> *_prev;</div>
+<div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160;    uint8_t              _data[IPCN_DATA_SIZE]; <span class="comment">// this is a place holder, length is max value length</span></div>
+<div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;};</div>
+<div class="line"><a name="l00047"></a><span class="lineno">   47</span>&#160; </div>
+<div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160; </div>
+<div class="line"><a name="l00071"></a><span class="lineno"><a class="line" href="struct__ion__collection.html">   71</a></span>&#160;<span class="keyword">struct </span><a class="code" href="struct__ion__collection.html">_ion_collection</a></div>
+<div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160;{</div>
+<div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160;    <span class="keywordtype">void</span>                *_owner;</div>
+<div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160;    int32_t              _node_size;</div>
+<div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;    int32_t              _count;</div>
+<div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160;    <a class="code" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a> *_head;</div>
+<div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160;    <a class="code" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a> *_tail;</div>
+<div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160;    <a class="code" href="struct__ion__collection__node.html">ION_COLLECTION_NODE</a> *_freelist;</div>
+<div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160;};</div>
+<div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160; </div>
+<div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;<span class="comment">// BOOL ion_collection_is_empty(ION_COLLECTION *collection)</span></div>
+<div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;<span class="preprocessor">#define ION_COLLECTION_IS_EMPTY(collection)         \</span></div>
+<div class="line"><a name="l00083"></a><span class="lineno">   83</span>&#160;<span class="preprocessor">    ((collection)-&gt;_head == NULL)</span></div>
+<div class="line"><a name="l00084"></a><span class="lineno">   84</span>&#160; </div>
+<div class="line"><a name="l00085"></a><span class="lineno">   85</span>&#160;<span class="comment">// SIZE count = ion_collection_size(ION_COLLECTION_CURSOR *pcursor)</span></div>
+<div class="line"><a name="l00086"></a><span class="lineno">   86</span>&#160;<span class="preprocessor">#define ION_COLLECTION_SIZE(pcol)                   \</span></div>
+<div class="line"><a name="l00087"></a><span class="lineno">   87</span>&#160;<span class="preprocessor">    ((pcol)-&gt;_count)</span></div>
+<div class="line"><a name="l00088"></a><span class="lineno">   88</span>&#160; </div>
+<div class="line"><a name="l00089"></a><span class="lineno">   89</span>&#160;<span class="comment">// ION_COLLECTION_CURSOR pcursor = ion_collection_open(ION_COLLECTION *collection)</span></div>
+<div class="line"><a name="l00090"></a><span class="lineno">   90</span>&#160;<span class="preprocessor">#define ION_COLLECTION_OPEN(collection, pcursor)    \</span></div>
+<div class="line"><a name="l00091"></a><span class="lineno">   91</span>&#160;<span class="preprocessor">    (pcursor) = (collection)-&gt;_head</span></div>
+<div class="line"><a name="l00092"></a><span class="lineno">   92</span>&#160; </div>
+<div class="line"><a name="l00093"></a><span class="lineno">   93</span>&#160;<span class="comment">// void *pbuf = ion_collection_next(ION_COLLECTION_CURSOR *pcursor)</span></div>
+<div class="line"><a name="l00094"></a><span class="lineno">   94</span>&#160;<span class="preprocessor">#define ION_COLLECTION_NEXT(pcursor, pbuf)          \</span></div>
+<div class="line"><a name="l00095"></a><span class="lineno">   95</span>&#160;<span class="preprocessor">    if ((pcursor) != NULL) {                        \</span></div>
+<div class="line"><a name="l00096"></a><span class="lineno">   96</span>&#160;<span class="preprocessor">        *((void **)&amp;(pbuf)) = IPCN_pNODE_TO_pDATA(pcursor);  \</span></div>
+<div class="line"><a name="l00097"></a><span class="lineno">   97</span>&#160;<span class="preprocessor">        (pcursor) = (pcursor)-&gt;_next;               \</span></div>
+<div class="line"><a name="l00098"></a><span class="lineno">   98</span>&#160;<span class="preprocessor">    } else {                                        \</span></div>
+<div class="line"><a name="l00099"></a><span class="lineno">   99</span>&#160;<span class="preprocessor">        *((void **)&amp;(pbuf)) =  NULL;                \</span></div>
+<div class="line"><a name="l00100"></a><span class="lineno">  100</span>&#160;<span class="preprocessor">    }</span></div>
 <div class="line"><a name="l00101"></a><span class="lineno">  101</span>&#160; </div>
-<div class="line"><a name="l00102"></a><span class="lineno">  102</span>&#160;<span class="preprocessor">#ifdef __cplusplus</span></div>
-<div class="line"><a name="l00103"></a><span class="lineno">  103</span>&#160;}</div>
-<div class="line"><a name="l00104"></a><span class="lineno">  104</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="line"><a name="l00102"></a><span class="lineno">  102</span>&#160;<span class="comment">// ION_COLLECTION_CURSOR *pcursor = ion_collection_close();</span></div>
+<div class="line"><a name="l00103"></a><span class="lineno">  103</span>&#160;<span class="preprocessor">#define ION_COLLECTION_CLOSE(pcursor)               \</span></div>
+<div class="line"><a name="l00104"></a><span class="lineno">  104</span>&#160;<span class="preprocessor">    (pcursor) = NULL</span></div>
 <div class="line"><a name="l00105"></a><span class="lineno">  105</span>&#160; </div>
-<div class="line"><a name="l00106"></a><span class="lineno">  106</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="line"><a name="l00106"></a><span class="lineno">  106</span>&#160; </div>
+<div class="line"><a name="l00107"></a><span class="lineno">  107</span>&#160;<span class="preprocessor">#ifdef __cplusplus</span></div>
+<div class="line"><a name="l00108"></a><span class="lineno">  108</span>&#160;}</div>
+<div class="line"><a name="l00109"></a><span class="lineno">  109</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="line"><a name="l00110"></a><span class="lineno">  110</span>&#160; </div>
+<div class="line"><a name="l00111"></a><span class="lineno">  111</span>&#160;<span class="preprocessor">#endif</span></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <div class="ttc" id="aion__types_8h_html"><div class="ttname"><a href="ion__types_8h.html">ion_types.h</a></div></div>
-<div class="ttc" id="astruct__ion__collection_html"><div class="ttname"><a href="struct__ion__collection.html">_ion_collection</a></div><div class="ttdef"><b>Definition:</b> ion_collection.h:66</div></div>
-<div class="ttc" id="astruct__ion__collection__node_html"><div class="ttname"><a href="struct__ion__collection__node.html">_ion_collection_node</a></div><div class="ttdef"><b>Definition:</b> ion_collection.h:36</div></div>
+<div class="ttc" id="astruct__ion__collection_html"><div class="ttname"><a href="struct__ion__collection.html">_ion_collection</a></div><div class="ttdef"><b>Definition:</b> ion_collection.h:71</div></div>
+<div class="ttc" id="astruct__ion__collection__node_html"><div class="ttname"><a href="struct__ion__collection__node.html">_ion_collection_node</a></div><div class="ttdef"><b>Definition:</b> ion_collection.h:41</div></div>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
