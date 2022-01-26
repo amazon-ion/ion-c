@@ -51,8 +51,12 @@ typedef struct _ion_reader_text
      *
      */
     POSITION              _value_start;
+    int                   _value_start_line;
+    int                   _value_start_col_offset;
     POSITION              _value_end;
     POSITION              _annotation_start;
+    POSITION              _annotation_start_line;
+    POSITION              _annotation_start_col_offset;
 
     /** space for the field name. The string value always points to the field name buffer and the length of the string is the
      *  number of bytes in the current field name. The actual characters are in the field name buffer and we limit field names

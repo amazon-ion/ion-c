@@ -177,7 +177,7 @@ struct _ion_stream
   BYTE            *_buffer;       // current page of data in use
   SIZE             _buffer_size;  // current buffer size, this is page size if the is a paged stream, otherwise it's the one and only buffer length
   POSITION         _offset;       // offset of first byte of buffer in source
-  BYTE            *_curr;         // position = _offset + (_curr - _buffer)
+  BYTE            *_curr;         // position = _col_offset + (_curr - _buffer)
   BYTE            *_limit;        // end of buffered data
 
   POSITION         _mark;         // -1 for no mark otherwise the file position where the mark started

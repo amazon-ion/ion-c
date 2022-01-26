@@ -80,6 +80,8 @@ typedef struct _ion_scanner
      *
      */
     POSITION        _value_start;
+    int             _value_start_line;
+    int             _value_start_col_offset;
 
     /** This small buffer is used to hold bytes used during base64 decoding. It is typically used
      *  when a base64 value cross an input page buffer.
@@ -104,7 +106,7 @@ typedef struct _ion_scanner
     SIZE            _unread_value_length;
 
     /** Used to keep track of the location (line number) of the current token. It's for debugging and error reporting.
-     * @see _offset
+     * @see _col_offset
      *
      */
     int             _line;                    //  = 1;
@@ -112,7 +114,7 @@ typedef struct _ion_scanner
     /** Used to keep track of the location (column number) of the current token. It's for debugging purpose and error reporting.
      * @see _line
      */
-    int             _offset;                  //  = 0;
+    int             _col_offset;                  //  = 0;
 
     /** Internal temporary variable used to keep track of the column number.
      * There are (currently) no states where it's necessary
@@ -120,7 +122,7 @@ typedef struct _ion_scanner
      * only need 1 saved offset
      *
      */
-    int             _saved_offset;            //  = 0;
+    int             _saved_col_offset;            //  = 0;
 
 } ION_SCANNER;
 

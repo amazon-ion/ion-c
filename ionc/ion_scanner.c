@@ -114,8 +114,8 @@ iERR _ion_scanner_reset(ION_SCANNER *scanner)
     IONCHECK(_ion_scanner_reset_value(scanner));
 
     scanner->_line               = 1;
-    scanner->_offset             = 0;
-    scanner->_saved_offset       = 0;
+    scanner->_col_offset         = 0;
+    scanner->_saved_col_offset   = 0;
     scanner->_unread_sub_type    = IST_NONE;
 
     SUCCEED();
@@ -132,10 +132,12 @@ iERR _ion_scanner_reset_value(ION_SCANNER *scanner)
 
     ION_STRING_INIT(&scanner->_value_image);
     
-    scanner->_value_location     = SVL_NONE;
-    scanner->_value_start        = -1;
-    scanner->_pending_bytes_pos  = scanner->_pending_bytes;
-    scanner->_pending_bytes_end  = scanner->_pending_bytes;
+    scanner->_value_location            = SVL_NONE;
+    scanner->_value_start               = -1;
+    scanner->_value_start_line          = -1;
+    scanner->_value_start_col_offset    = -1;
+    scanner->_pending_bytes_pos         = scanner->_pending_bytes;
+    scanner->_pending_bytes_end         = scanner->_pending_bytes;
 
     SUCCEED();
 
@@ -218,6 +220,9 @@ iERR _ion_scanner_next_actual(ION_SCANNER *scanner, ION_SUB_TYPE *p_ist)
     // but the common case is not, so we'll set this to "in string" when we know
     scanner->_value_location = SVL_NONE;
     scanner->_value_start  = ion_stream_get_position( scanner->_stream ) - 1; // -1 because we read past the byte
+    scanner->_value_start_line = scanner->_line;
+    scanner->_value_start_col_offset = scanner->_col_offset -1;
+
     
     switch (c) {
     case EOF:
@@ -441,7 +446,7 @@ iERR _ion_scanner_read_char(ION_SCANNER *scanner, int *p_char)
     int c;
 
     ION_GET(scanner->_stream, c);
-    scanner->_offset++;
+    scanner->_col_offset++;
 
     if (c == '\r' || c == '\n') {
         IONCHECK(_ion_scanner_read_char_newline_helper(scanner, &c));
@@ -513,9 +518,9 @@ iERR _ion_scanner_read_char_newline_helper(ION_SCANNER *scanner, int *p_char)
     // there are (currently) no states where it's necessary
     // to pre-read over more than a single new line, so we
     // only need 1 saved offset
-    scanner->_saved_offset = scanner->_offset;
+    scanner->_saved_col_offset = scanner->_col_offset;
     scanner->_line++;
-    scanner->_offset = 0;
+    scanner->_col_offset = 0;
 
     *p_char = newline;
 
@@ -711,7 +716,7 @@ iERR _ion_scanner_unread_char(ION_SCANNER *scanner, int c)
         goto uncount_line;
     default:
         IONCHECK(ion_stream_unread_byte(scanner->_stream, c));
-        scanner->_offset--;
+        scanner->_col_offset--;
         break;
     }
     SUCCEED();
@@ -726,7 +731,7 @@ uncount_line:
 void _ion_scanner_unread_char_uncount_line(ION_SCANNER *scanner)
 {
     scanner->_line--;
-    scanner->_offset = scanner->_saved_offset;
+    scanner->_col_offset = scanner->_saved_col_offset;
 }
 
 iERR _ion_scanner_peek_double_colon(ION_SCANNER *scanner, BOOL *p_is_double_colon)
