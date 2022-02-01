@@ -2169,7 +2169,7 @@ iERR ion_reader_get_value_position(hREADER hreader, int64_t *p_offset, int32_t *
 
     switch(preader->type) {
     case ion_type_text_reader:
-        IONCHECK(_ion_reader_text_get_value_position(preader, &p_offset, &p_line, &p_col_offset));
+        IONCHECK(_ion_reader_text_get_value_position(preader, p_offset, p_line, p_col_offset));
         break;
     case ion_type_binary_reader:
         FAILWITH(IERR_INVALID_ARG);
