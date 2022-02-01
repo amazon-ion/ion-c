@@ -69,7 +69,10 @@ iERR _ion_reader_text_open(ION_READER *preader)
     text->_value_start = -1;
     text->_value_start_line = -1;
     text->_value_start_col_offset = -1;
-    text->_value_end   = -1;
+    text->_value_end = -1;
+    text->_annotation_start = -1;
+    text->_annotation_start_line = -1;
+    text->_annotation_start_col_offset = -1;
 
     IONCHECK(_ion_reader_text_open_alloc_buffered_string(preader
         , preader->options.symbol_threshold

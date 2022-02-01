@@ -443,12 +443,11 @@ ION_API_EXPORT iERR ion_reader_read_lob_bytes        (hREADER hreader, BYTE *p_b
 ION_API_EXPORT iERR ion_reader_read_lob_partial_bytes(hREADER hreader, BYTE *p_buf, SIZE buf_max, SIZE *p_length);
 
 /**
- * Gets the offset of from the current position and if hreader is a text
- * reader, also gets the line and column of the current position of the
- * reader.
+ * Gets the current position and if hreader is a text reader, also gets
+ * the line and column numbers.
  *
- * Note that this is only useful for error reporting debugging purposes
- * about invalid Ion data, since the position reported by this function
+ * Note that this is only useful for error reporting or debugging purposes
+ * about malformed Ion data, since the position reported by this function
  * is unlikely to be pointed at the start of a value.  To obtain the
  * position of the current value from the reader to report the origin
  * of semantic errors within well formed Ion data, see

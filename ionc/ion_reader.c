@@ -2158,9 +2158,6 @@ iERR ion_reader_get_value_offset(hREADER hreader, POSITION *p_offset)
 iERR ion_reader_get_value_position(hREADER hreader, int64_t *p_offset, int32_t *p_line, int32_t *p_col_offset) {
     iENTER;
     ION_READER *preader;
-    POSITION    offset;
-    int32_t     line = -1;
-    int32_t     col_offset = -1;
 
     if (!hreader) FAILWITH(IERR_INVALID_ARG);
     preader = HANDLE_TO_PTR(hreader, ION_READER);
@@ -2172,7 +2169,7 @@ iERR ion_reader_get_value_position(hREADER hreader, int64_t *p_offset, int32_t *
 
     switch(preader->type) {
     case ion_type_text_reader:
-        IONCHECK(_ion_reader_text_get_value_position(preader, &offset, &line, &col_offset));
+        IONCHECK(_ion_reader_text_get_value_position(preader, &p_offset, &p_line, &p_col_offset));
         break;
     case ion_type_binary_reader:
         FAILWITH(IERR_INVALID_ARG);
@@ -2181,10 +2178,6 @@ iERR ion_reader_get_value_position(hREADER hreader, int64_t *p_offset, int32_t *
     default:
         FAILWITH(IERR_INVALID_STATE);
     }
-
-    *p_offset = offset;
-    *p_line = line;
-    *p_col_offset = col_offset;
 
     SUCCEED();
 
