@@ -10,6 +10,8 @@ jobs:
   test_amazon_linux:
     name: ${{ format('Test ({0}, {1})', matrix.container-image, matrix.compiler.cc)}}
     strategy:
+      # Run all jobs, even if one fails.  This makes it easier to gather debugging info for various platforms.
+      fail-fast: false
       matrix:
         container-image: ['amazonlinux:1', 'amazonlinux:2']
         compiler:
@@ -56,6 +58,8 @@ jobs:
   test_ubuntu_and_mac:
     name: ${{ format('Test ({0}, {1})', matrix.os, matrix.compiler.cc)}}
     strategy:
+      # Run all jobs, even if one fails.  This makes it easier to gather debugging info for various platforms.
+      fail-fast: false
       matrix:
         os: ['macos-latest', 'ubuntu-latest']
         compiler:
