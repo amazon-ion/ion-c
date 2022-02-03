@@ -316,6 +316,19 @@ ION_API_EXPORT iERR ion_reader_get_value_offset    (hREADER   hreader
  * to end-users when Ion-text files are used to express domain-specific
  * language (DSL) scripts.
  *
+ * The numbers reported by this function (p_line) start at 1, while the
+ * column offset (p_col_offset) start at zero (since it is the
+ * offset from the start of the line.
+ *
+ * If the last call to `ion_reader_next` encountered a container
+ * terminator (`]`, `)` or `}`), instead of another value, the position
+ * reported is that of the terminator.  Thus, it is possible to obtain
+ * the starting and ending positions of all containers.
+ *
+ * If the last call to `ion_reader_next` encountered a the end of file
+ * instead of another value, the position reported is that of the last
+ * character in the file.
+ *
  * If the reader is a binary reader, fails immediately and returns
  * IERR_INVALID_ARG.  If all that's desired is the offset of the value
  * relative to the beginning of the buffer, please use
