@@ -265,13 +265,13 @@ TEST(IonBinarySymbol, ReaderReadsSymbolValueZeroAsSID) {
     ION_ASSERT_OK(ion_reader_next(reader, &actual_type));
     ASSERT_EQ(tid_SYMBOL, actual_type);
     ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &actual));
-    ION_ASSERT_OK(ion_reader_close(reader));
 
     ASSERT_EQ(0, actual);
 
     ION_ASSERT_OK(ion_reader_get_symbol_table(reader, &symbol_table));
     ION_ASSERT_OK(ion_symbol_table_find_by_sid(symbol_table, 0, &symbol_value));
     ASSERT_TRUE(ION_STRING_IS_NULL(symbol_value));
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
 
 TEST(IonBinarySymbol, WriterWritesSymbolValueIVM) {
