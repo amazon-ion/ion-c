@@ -476,10 +476,13 @@ TEST(IonExtractorSucceedsWhen, MultiplePathsCreatedUpFrontMatch) {
     assertion_contexts[path2->_path_id].path = path2;
     assertion_contexts[path3->_path_id].path = path3;
 
-    ION_EXTRACTOR_TEST_MATCH;
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader)); \
+    ION_ASSERT_OK(ion_extractor_match(extractor, reader)); \
     ION_EXTRACTOR_TEST_ASSERT_MATCHED(path->_path_id, 1);
     ION_EXTRACTOR_TEST_ASSERT_MATCHED(path2->_path_id, 1);
     ION_EXTRACTOR_TEST_ASSERT_MATCHED(path3->_path_id, 1);
+    ION_ASSERT_OK(ion_extractor_close(extractor)); \
+    ION_ASSERT_OK(ion_reader_close(reader));
 
 }
 
