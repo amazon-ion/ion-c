@@ -15,13 +15,16 @@ jobs:
       matrix:
         container-image: ['amazonlinux:1', 'amazonlinux:2']
         compiler:
-          - { cc: 'gcc', cxx: 'g++'}
-          - { cc: 'clang', cxx: 'clang++' }
+          - { cc: 'gcc', cxx: 'g++', debug_cflags: '', debug_cxxflags: '', debug_ldflags: '' }
+          - { cc: 'clang', cxx: 'clang++', debug_cflags: '', debug_cxxflags: '', debug_ldflags: '' }
     runs-on: ubuntu-latest
     container: ${{ format('docker://{0}', matrix.container-image) }}
     env:
       CC: ${{ matrix.compiler.cc }}
       CXX: ${{ matrix.compiler.cxx }}
+      DEBUG_CFLAGS: ${{ matrix.compiler.debug_cflags }}
+      DEBUG_CXXFLAGS: ${{ matrix.compiler.debug_cxxflags }}
+      DEBUG_LDFLAGS: ${{ matrix.compiler.debug_ldflags }}
     steps:
       - name: Install `which`
         run: yum install which -y
@@ -63,19 +66,24 @@ jobs:
       matrix:
         os: ['macos-latest', 'ubuntu-latest']
         compiler:
-          - { cc: 'gcc', cxx: 'g++'}
-          - { cc: 'clang', cxx: 'clang++' }
+          - { cc: 'gcc', cxx: 'g++', debug_cflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_cxxflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_ldflags: '-fsanitize=address,undefined' }
+          - { cc: 'clang', cxx: 'clang++', debug_cflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_cxxflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_ldflags: ''  }
         # gcc just redirects to clang on the macos vm; replace with a specific gcc alias
         exclude:
           - os: 'macos-latest'
             compiler: { cc: 'gcc', cxx: 'g++'}
         include:
           - os: 'macos-latest'
-            compiler: { cc: 'gcc-11', cxx: 'g++-11'}
+            compiler: { cc: 'gcc-11', cxx: 'g++-11', debug_cflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_cxxflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_ldflags: '-fsanitize=address,undefined' }
     runs-on: ${{ matrix.os }}
     env:
       CC: ${{ matrix.compiler.cc }}
       CXX: ${{ matrix.compiler.cxx }}
+      DEBUG_CFLAGS: ${{ matrix.compiler.debug_cflags }}
+      DEBUG_CXXFLAGS: ${{ matrix.compiler.debug_cxxflags }}
+      DEBUG_LDFLAGS: ${{ matrix.compiler.debug_ldflags }}
+      UBSAN_OPTIONS: "print_stacktrace=1"
+      ASAN_OPTIONS: "halt_on_error=0"
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
