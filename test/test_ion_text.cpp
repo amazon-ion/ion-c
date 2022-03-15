@@ -720,3 +720,15 @@ TEST(IonTextInt, BinaryLiterals) {
     ION_ASSERT_OK(ion_reader_read_int64(reader, &value));
     ASSERT_EQ(-4, value);
 }
+
+TEST(IonTextInt, ) {
+    const char *ion_text = "2007-02-23T12:14:32.13371337133713371337844674407370955551616Z";
+    hREADER  reader;
+    ION_TYPE type;
+    ION_TIMESTAMP value;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_TIMESTAMP, type);
+    ASSERT_EQ( IERR_INVALID_TIMESTAMP, ion_reader_read_timestamp(reader, &value));
+}
