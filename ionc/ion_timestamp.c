@@ -596,7 +596,7 @@ iERR ion_timestamp_parse(ION_TIMESTAMP *ptime, char *buffer, SIZE buf_length, SI
         if (fractional_digits_read == 0) {
             FAILWITH(IERR_INVALID_TIMESTAMP);
         }
-        if (cp > end_of_buffer) FAILWITH(IERR_INVALID_TIMESTAMP);
+        if (cp > end_of_buffer || dst >= end_of_temp) FAILWITH(IERR_INVALID_TIMESTAMP);
 
         *dst = 0; // null terminate the string (it's why we copied it after all)
         // TODO timestamp fraction as ION_DECIMAL to support full precision?
