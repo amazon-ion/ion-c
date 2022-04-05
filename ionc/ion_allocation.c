@@ -169,7 +169,6 @@ void *_ion_alloc_with_owner_helper(ION_ALLOCATION_CHAIN *powner, SIZE request_le
     ptr = pblock->position;
     pblock->position = next_ptr;
 
-    if (ptr) memset(ptr, 0, length);
     return ptr;
 }
 

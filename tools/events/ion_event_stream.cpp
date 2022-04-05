@@ -850,6 +850,7 @@ iERR ion_event_stream_read_event(hREADER reader, ION_EVENT_READ_PARAMS) {
     void *consensus_value = NULL;
     uint8_t visited_fields = 0;
 
+    ION_SYMBOL_INIT(&value_annotation);
     ION_SYMBOL_INIT(&value_field_name);
     ION_STRING_INIT(&value_text_str);
 

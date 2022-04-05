@@ -441,6 +441,8 @@ iERR _ion_symbol_table_local_load_symbol_list(ION_READER *preader, hOWNER owner,
             ION_STRING_ASSIGN(&sym->value, &str);
         }
         sym->sid = UNKNOWN_SID;
+        ION_STRING_INIT(&sym->import_location.name);
+        sym->import_location.location = UNKNOWN_SID;
     }
     // step back out to the symbol table struct
     IONCHECK(_ion_reader_step_out_helper(preader));
@@ -510,6 +512,8 @@ iERR _ion_symbol_table_append(ION_READER *preader, hOWNER owner, ION_SYMBOL_TABL
                 if (!symbol_to_append) break;
                 appended_symbol = (ION_SYMBOL *)_ion_collection_append(&cloned->symbols);
                 // These strings have the same owner; they can be assigned rather than copied.
+                ION_STRING_INIT(&appended_symbol->import_location.name);
+                appended_symbol->import_location.location = UNKNOWN_SID;
                 ION_STRING_ASSIGN(&appended_symbol->value, &symbol_to_append->value);
                 appended_symbol->sid = UNKNOWN_SID; // This is assigned correctly later.
             }
