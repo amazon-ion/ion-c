@@ -3186,6 +3186,8 @@ iERR ion_temp_buffer_alloc(ION_TEMP_BUFFER *temp_buffer, SIZE needed, void **p_p
 
     if (!temp_buffer) FAILWITH(IERR_INVALID_ARG);
     if (!p_ptr || needed < 0) FAILWITH(IERR_INVALID_ARG);
+    // align to pointer size
+    needed = (SIZE) ((((size_t) needed) + (sizeof(void *) - 1)) & ~(sizeof(void *) - 1));
     if (temp_buffer->position + needed >= temp_buffer->limit) FAILWITH(IERR_NO_MEMORY);
 
     buf = temp_buffer->position;
