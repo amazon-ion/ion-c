@@ -308,10 +308,9 @@ ION_COLLECTION_NODE *_ion_collection_alloc_node_helper( ION_COLLECTION *collecti
     }
 
     // clean up the node before anyone uses it
-    node->_next = NULL;
-    node->_prev = NULL;
+    memset(node, 0, collection->_node_size);
 
-    return node;    
+    return node;
 }
 
 ION_COLLECTION_NODE *_ion_collection_push_node_helper(ION_COLLECTION *collection)
