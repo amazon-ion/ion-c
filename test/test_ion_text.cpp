@@ -619,6 +619,44 @@ TEST(IonTextBlob, CanReadBlob) {
                        tid_BLOB, 23, "This is a BLOB of text.");
 }
 
+void test_text_list(const char *ion_text) {
+    ION_TYPE expected_tid = tid_LIST;
+
+    hREADER reader;
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+
+    ION_TYPE type;
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(expected_tid, type);
+
+    // Attempting to read another element should return EOF.
+    int result = ion_reader_next(reader, &type);
+    ION_ASSERT_OK(result);
+    ASSERT_EQ(tid_EOF, type);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
+TEST(IonTextList, CanReadListClob1) {
+    test_text_list("[{{\"foo\"}},{{\"bar\"}}]");
+}
+
+TEST(IonTextList, CanReadListClob2) {
+    test_text_list("[1,{{\"foo\"}},2]");
+}
+
+TEST(IonTextList, CanReadInt) {
+    test_text_list("[1,2]");
+}
+
+TEST(IonTextList, CanReadSymbol) {
+    test_text_list("[foo,bar]");
+}
+
+TEST(IonTextList, CanReadBlob) {
+    test_text_list("[{{ Zm9v }}, {{ YmFy }}]");
+}
+
 /** Tests the ability to read BLOB or CLOB using multiple calls to ion_reader_read_lob_partial_bytes. */
 void test_partial_lob_read(const char *ion_text, ION_TYPE expected_tid, SIZE expected_size, const char *expected_value) {
     hREADER reader;
