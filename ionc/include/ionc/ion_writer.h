@@ -224,7 +224,12 @@ ION_API_EXPORT iERR ion_writer_write_field_name     (hWRITER hwriter, iSTRING na
 ION_API_EXPORT iERR ion_writer_write_field_name_symbol(hWRITER hwriter, ION_SYMBOL *field_name);
 
 ION_API_EXPORT iERR ion_writer_clear_field_name     (hWRITER hwriter);
+
+/**
+ * It is the caller's responsibility to keep `annotation` string in scope until the writer's annotations are cleared.
+ */
 ION_API_EXPORT iERR ion_writer_add_annotation       (hWRITER hwriter, iSTRING annotation);
+
 ION_API_EXPORT iERR ion_writer_add_annotation_symbol(hWRITER hwriter, ION_SYMBOL *annotation);
 ION_API_EXPORT iERR ion_writer_write_annotations    (hWRITER hwriter, iSTRING p_annotations, SIZE count);
 ION_API_EXPORT iERR ion_writer_write_annotation_symbols(hWRITER hwriter, ION_SYMBOL *annotations, SIZE count);

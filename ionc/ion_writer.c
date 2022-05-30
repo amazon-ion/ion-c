@@ -1125,8 +1125,7 @@ iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotati
     annotation_symbol = &pwriter->annotations[pwriter->annotation_curr];
     ASSERT(annotation_symbol);
 
-    ION_STRING_INIT(&annotation_symbol->value);
-    IONCHECK(ion_strdup(pwriter->_temp_entity_pool, &annotation_symbol->value, annotation));
+    ION_STRING_ASSIGN(&annotation_symbol->value, annotation);
     annotation_symbol->sid = UNKNOWN_SID; // The text is known; the SID is irrelevant.
     annotation_symbol->add_count = 0;
     ION_STRING_INIT(&annotation_symbol->import_location.name);
