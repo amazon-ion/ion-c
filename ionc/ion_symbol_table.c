@@ -276,12 +276,18 @@ iERR _ion_symbol_table_get_system_symbol_helper(ION_SYMBOL_TABLE **pp_system_tab
 
 // currently the system symbol table uses 1304 bytes or so
 #define kIonSystemSymbolMemorySize 2048
-static THREAD_LOCAL_STORAGE char gSystemSymbolMemory[kIonSystemSymbolMemorySize];
+// This needs to be aligned to `ALLOC_ALIGNMENT` bytes since it's being used as a block of memory
+// The ION_ALLOCATION_CHAIN created at the beginning of the memory array might need a wider alignment than what a char[] provides by default
+// User data allocated within this block will also likely need a wider alignment, but this is taken care of by the `ION_ALLOC_BLOCK_TO_USER_PTR` macro
+static THREAD_LOCAL_STORAGE ALIGN_AS(ALLOC_ALIGNMENT) char gSystemSymbolMemory[kIonSystemSymbolMemorySize];
 
 void* smallLocalAllocationBlock()
 {
     ION_ALLOCATION_CHAIN *new_block = (ION_ALLOCATION_CHAIN*)gSystemSymbolMemory;
     SIZE                  alloc_size = kIonSystemSymbolMemorySize;
+
+    // Assert that the new block is aligned
+    assert(new_block == (ION_ALLOCATION_CHAIN *)ALIGN_PTR(new_block));
 
     new_block->size     = alloc_size;
 
@@ -290,6 +296,9 @@ void* smallLocalAllocationBlock()
 
     new_block->position = ION_ALLOC_BLOCK_TO_USER_PTR(new_block);
     new_block->limit    = ((BYTE*)new_block) + alloc_size;
+
+    // Assert that the user data pointer we're about to hand out is aligned and lives past the end of the allocation chain
+    assert(new_block->position == ((BYTE *)ALIGN_PTR((BYTE *)(&new_block->limit) + ALIGN_SIZE(sizeof(new_block->limit)))));
 
     return new_block->position;
 }
