@@ -56,4 +56,15 @@
 #error "Compiler does not support thread local storage"
 #endif
 
+// Support for type alignment specification (`alignas`) across compilers
+#if __STDC_VERSION__ >= 201112L
+#define ALIGN_AS(size) _Alignas(size)
+#elif __GNUC__
+#define ALIGN_AS(size) __attribute__((__aligned__(size)))
+#elif defined(_MSC_VER)
+#define ALIGN_AS(size) __declspec(align(size))
+#else
+#error "Compiler does not support type alignment specification"
+#endif
+
 #endif

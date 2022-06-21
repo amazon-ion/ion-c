@@ -112,7 +112,7 @@ struct _ion_allocation_chain
     // user bytes follow this header, though there may be some unused bytes here for alignment purposes
 };
 
-#define ION_ALLOC_BLOCK_TO_USER_PTR(block) ((BYTE*)ALIGN_PTR(((BYTE*)(block)) + ALIGN_SIZE(sizeof(ION_ALLOCATION_CHAIN))))
+#define ION_ALLOC_BLOCK_TO_USER_PTR(block) ((BYTE*)(((BYTE*)(block)) + ALIGN_SIZE(sizeof(ION_ALLOCATION_CHAIN))))
 #define ION_ALLOC_USER_PTR_TO_BLOCK(ptr)   ((ION_ALLOCATION_CHAIN *)(((BYTE*)(ptr)) - ALIGN_SIZE(sizeof(ION_ALLOCATION_CHAIN))))
 
 
