@@ -179,4 +179,10 @@
                                     && (((dn)->bits&DECSPECIAL)==0))
   #define decNumberRadix(dn)       (10)
 
+# if defined(__clang__) || defined(__GNUC__)
+#  define NOSAN_BOUNDS __attribute__((no_sanitize("bounds")))
+# else
+#  define NOSAN_BOUNDS
+# endif
+
 #endif

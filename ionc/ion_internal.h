@@ -262,6 +262,14 @@ GLOBAL int TID_NIBBLE_TO_ION_TYPE[]
 #endif
 ;
 
+#if defined(__clang__) || defined(__GNUC__)
+#  define NOSAN_SHIFT __attribute__((no_sanitize("shift")))
+#  define NOSAN_SINT_OVERFLOW __attribute__((no_sanitize("signed-integer-overflow")))
+#else
+#  define NOSAN_SHIFT
+#  define NOSAN_SINT_OVERFLOW
+#endif
+
 
 #ifdef __cplusplus
 }

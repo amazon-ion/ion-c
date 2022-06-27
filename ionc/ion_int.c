@@ -712,6 +712,9 @@ iERR ion_int_from_decimal(ION_INT *iint, const decQuad *p_value, decContext *con
     iRETURN;
 }
 
+// Disable sanitizer bounds checking since we know this function requires this behavior when
+// indexing beyond lsu struct bounds on larger numbers.
+NOSAN_BOUNDS
 iERR _ion_int_from_decimal_number(ION_INT *iint, const decNumber *p_value, decContext *context)
 {
     iENTER;
