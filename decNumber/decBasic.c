@@ -2242,7 +2242,7 @@ decFloat * decFloatFMA(decFloat *result, const decFloat *dfl,
       // all done except for the special IEEE 754 exact-zero-result
       // rule (see above); while testing for zero, strip leading
       // zeros (which will save decFinalize doing it)
-      for (; UBTOUI(lo->msd)==0 && lo->msd+3<lo->lsd;) lo->msd+=4;
+      for (; lo->msd+3<lo->lsd && UBTOUI(lo->msd)==0;) lo->msd+=4;
       for (; *lo->msd==0 && lo->msd<lo->lsd;) lo->msd++;
       if (*lo->msd==0) {           // must be true zero (and diffsign)
         lo->sign=0;                // assume +
