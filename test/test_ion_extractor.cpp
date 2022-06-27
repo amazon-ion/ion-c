@@ -43,7 +43,7 @@
  * Initializes an extractor test with the default options.
  */
 #define ION_EXTRACTOR_TEST_INIT \
-    ION_EXTRACTOR_OPTIONS options; \
+    ION_EXTRACTOR_OPTIONS options = {0}; \
     options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH; \
     options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS; \
     options.match_relative_paths = false; \
@@ -548,7 +548,7 @@ TEST(IonExtractorSucceedsWhen, NoPathMatchesFromIon) {
 }
 
 TEST(IonExtractorSucceedsWhen, ARelativePathMatches) {
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH;
     options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS;
     options.match_relative_paths = true;
@@ -591,7 +591,7 @@ TEST(IonExtractorSucceedsWhen, StepOutControlIsReceivedAfterMatch) {
 }
 
 TEST(IonExtractorSucceedsWhen, StepOutControlIsReceivedAfterMatchOnRelativePath) {
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH;
     options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS;
     options.match_relative_paths = true;
@@ -633,7 +633,7 @@ TEST(IonExtractorSucceedsWhen, StepOutControlIsReceivedAfterMatchOnWildcard) {
 }
 
 TEST(IonExtractorSucceedsWhen, NumPathsAtMaximum) {
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH;
     options.max_num_paths = ION_EXTRACTOR_MAX_NUM_PATHS;
     hREADER reader;
@@ -676,7 +676,7 @@ TEST(IonExtractorSucceedsWhen, TopLevelWildcardHasZeroMatches) {
 }
 
 TEST(IonExtractorSucceedsWhen, DepthOneWildcardIsRegistered) {
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH;
     options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS;
     options.match_relative_paths = true;
@@ -693,7 +693,7 @@ TEST(IonExtractorSucceedsWhen, DepthOneWildcardIsRegistered) {
 }
 
 TEST(IonExtractorSucceedsWhen, DepthTwoWildcardIsRegisteredTwice) {
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH;
     options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS;
     options.match_relative_paths = true;
@@ -724,7 +724,7 @@ TEST(IonExtractorSucceedsWhen, BothTopLevelWildcardAndLengthOnePathAreRegistered
 }
 
 TEST(IonExtractorSucceedsWhen, CaseInsensitiveMatches) {
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH;
     options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS;
     options.match_case_insensitive = true;
@@ -793,7 +793,7 @@ TEST(IonExtractorSucceedsWhen, SkippingNestedSexps) {
 
 TEST(IonExtractorFailsWhen, MaxPathLengthExceedsLimit) {
     hEXTRACTOR extractor;
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = ION_EXTRACTOR_MAX_PATH_LENGTH + 1;
     options.max_num_paths = ION_EXTRACTOR_MAX_NUM_PATHS;
     ION_ASSERT_FAIL(ion_extractor_open(&extractor, &options));
@@ -801,7 +801,7 @@ TEST(IonExtractorFailsWhen, MaxPathLengthExceedsLimit) {
 
 TEST(IonExtractorFailsWhen, MaxNumPathsExceedsLimit) {
     hEXTRACTOR extractor;
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = ION_EXTRACTOR_MAX_PATH_LENGTH;
     options.max_num_paths = ION_EXTRACTOR_MAX_NUM_PATHS + 1;
     ION_ASSERT_FAIL(ion_extractor_open(&extractor, &options));
@@ -809,7 +809,7 @@ TEST(IonExtractorFailsWhen, MaxNumPathsExceedsLimit) {
 
 TEST(IonExtractorFailsWhen, MaxPathLengthIsBelowMinimum) {
     hEXTRACTOR extractor;
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = 0;
     options.max_num_paths = ION_EXTRACTOR_MAX_NUM_PATHS;
     ION_ASSERT_FAIL(ion_extractor_open(&extractor, &options));
@@ -817,7 +817,7 @@ TEST(IonExtractorFailsWhen, MaxPathLengthIsBelowMinimum) {
 
 TEST(IonExtractorFailsWhen, MaxNumPathsIsBelowMinimum) {
     hEXTRACTOR extractor;
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = ION_EXTRACTOR_MAX_PATH_LENGTH;
     options.max_num_paths = 0;
     ION_ASSERT_FAIL(ion_extractor_open(&extractor, &options));
@@ -836,7 +836,7 @@ TEST(IonExtractorFailsWhen, PathExceedsDeclaredLength) {
 TEST(IonExtractorFailsWhen, PathExceedsMaxLength) {
     hEXTRACTOR extractor;
     hPATH path;
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = 1;
     options.max_num_paths = ION_EXTRACTOR_MAX_NUM_PATHS;
     ION_ASSERT_OK(ion_extractor_open(&extractor, &options));
@@ -847,7 +847,7 @@ TEST(IonExtractorFailsWhen, PathExceedsMaxLength) {
 TEST(IonExtractorFailsWhen, PathFromIonExceedsMaxLength) {
     hEXTRACTOR extractor;
     hPATH path;
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = 1;
     options.max_num_paths = ION_EXTRACTOR_MAX_NUM_PATHS;
     const char *ion_text = "(foo bar)"; // Length: 2, max_length: 1.
@@ -872,7 +872,7 @@ TEST(IonExtractorFailsWhen, PathIsIncomplete) {
 TEST(IonExtractorFailsWhen, TooManyPathsAreRegistered) {
     hEXTRACTOR extractor;
     hPATH path;
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = ION_EXTRACTOR_MAX_PATH_LENGTH;
     options.max_num_paths = 1;
     ION_ASSERT_OK(ion_extractor_open(&extractor, &options));
@@ -916,7 +916,7 @@ TEST(IonExtractorFailsWhen, PathIsCreatedFromIonThatExceedsMaxLength) {
     hEXTRACTOR extractor;
     hPATH path;
     const char *data = "(foo bar)";
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = 1;
     options.max_num_paths = ION_EXTRACTOR_MAX_NUM_PATHS;
     ION_ASSERT_OK(ion_extractor_open(&extractor, &options));
@@ -991,7 +991,7 @@ TEST(IonExtractorFailsWhen, ControlStepsOutBeyondReaderDepth) {
 }
 
 TEST(IonExtractorFailsWhen, ControlStepsOutBeyondRelativePathDepth) {
-    ION_EXTRACTOR_OPTIONS options;
+    ION_EXTRACTOR_OPTIONS options = {0};
     options.max_path_length = ION_EXTRACTOR_TEST_PATH_LENGTH;
     options.max_num_paths = ION_EXTRACTOR_TEST_MAX_PATHS;
     options.match_relative_paths = true;
