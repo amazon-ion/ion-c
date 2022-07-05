@@ -1981,6 +1981,8 @@ iERR _ion_scanner_read_lob_closing_braces(ION_SCANNER *scanner)
     iRETURN;
 }
 
+// Disabled sanitizer shift checks, due to unsigned int shifting.
+NOSAN_SHIFT
 iERR _ion_scanner_read_as_base64(ION_SCANNER *scanner, BYTE *buf, SIZE len, SIZE *p_bytes_written, BOOL *p_eos_encountered)
 {
     iENTER;

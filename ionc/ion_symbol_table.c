@@ -2155,6 +2155,9 @@ int_fast8_t  _ion_symbol_table_compare_fn(void *key1, void *key2, void *context)
     return cmp;
 }
 
+// Disable the unexpected behavior sanitizer's shift, and signed int overflow checks since
+// we know _ion_symbol_table_hash_fn uses these behaviors.
+NOSAN_SHIFT NOSAN_SINT_OVERFLOW
 int_fast32_t _ion_symbol_table_hash_fn(void *key, void *context)
 {
     ION_SYMBOL  *sym = (ION_SYMBOL *)key;

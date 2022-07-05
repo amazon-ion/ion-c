@@ -3347,6 +3347,9 @@ const char *decNumberClassToString(enum decClass eclass) {
 /* All fields are updated as required.  This is a utility operation,  */
 /* so special values are unchanged and no error is possible.          */
 /* ------------------------------------------------------------------ */
+// Disable sanitizer bounds checking, since this function relies on
+// occasionally walking beyond the lsu definition.
+NOSAN_BOUNDS
 decNumber * decNumberCopy(decNumber *dest, const decNumber *src) {
 
   #if DECCHECK
@@ -3616,6 +3619,10 @@ decNumber * decNumberZero(decNumber *dn) {
 /* ------------------------------------------------------------------ */
 // If DECCHECK is enabled the string "?" is returned if a number is
 // invalid.
+// This function disables bounds checking for for the Undefined Behavior
+// sanitizer since it relies on occasionally walking past the struct
+// defined boundaries for decNumber's lsu.
+NOSAN_BOUNDS
 static void decToString(const decNumber *dn, char *string, Flag eng) {
   Int exp=dn->exponent;       // local copy
   Int e;                      // E-part value
