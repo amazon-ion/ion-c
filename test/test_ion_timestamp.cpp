@@ -181,5 +181,6 @@ TEST_P(IonTimestampOutOfRangeFraction, WriterFailsOnOutOfRangeFraction) {
 
     ION_ASSERT_OK(ion_test_new_writer(&writer, &stream, true));
     ASSERT_EQ(IERR_INVALID_TIMESTAMP, ion_writer_write_timestamp(writer, &timestamp));
-
+    ION_ASSERT_OK(ion_writer_close(writer));
+    ION_ASSERT_OK(ion_stream_close(stream));
 }

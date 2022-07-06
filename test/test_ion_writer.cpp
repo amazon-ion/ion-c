@@ -32,7 +32,7 @@ protected:
     FILE *out;
 };
 
-iERR ion_test_open_file_writer(hWRITER *writer, FILE *out, BOOL is_binary) {
+iERR ion_test_open_file_writer(hWRITER *writer, FILE *out, BOOL is_binary, ION_STREAM **stream) {
     iENTER;
     ION_WRITER_OPTIONS options;
     ION_STREAM *ion_stream = NULL;
@@ -42,6 +42,8 @@ iERR ion_test_open_file_writer(hWRITER *writer, FILE *out, BOOL is_binary) {
 
     IONCHECK(ion_stream_open_file_out(out, &ion_stream));
     IONCHECK(ion_writer_open(writer, ion_stream, &options));
+
+    *stream = ion_stream;
 
     iRETURN;
 }
@@ -65,14 +67,17 @@ TEST_F(WriterTest, ResourcesNotLeakedOnWriteToTooSmallBuffer)
 
 TEST_F(WriterTest, BinaryWriterCloseMustFlushStream) {
     hWRITER writer = NULL;
+    ION_STREAM *stream = NULL;
 
     long file_size;
 
-    ion_test_open_file_writer(&writer, out, TRUE);
+    ion_test_open_file_writer(&writer, out, TRUE, &stream);
 
     ION_ASSERT_OK(ion_writer_write_bool(writer, TRUE));
 
     ION_ASSERT_OK(ion_writer_close(writer));
+
+    ION_ASSERT_OK(ion_stream_close(stream));
 
     // get the size of the file after closing the writer
     fseek(out, 0L, SEEK_END);
@@ -84,14 +89,16 @@ TEST_F(WriterTest, BinaryWriterCloseMustFlushStream) {
 
 TEST_F(WriterTest, TextWriterCloseMustFlushStream) {
     hWRITER writer = NULL;
+    ION_STREAM *stream = NULL;
 
     long file_size;
 
-    ion_test_open_file_writer(&writer, out, FALSE);
+    ion_test_open_file_writer(&writer, out, FALSE, &stream);
 
     ION_ASSERT_OK(ion_writer_write_bool(writer, TRUE));
 
     ION_ASSERT_OK(ion_writer_close(writer));
+    ION_ASSERT_OK(ion_stream_close(stream));
 
     // get the size of the file after closing the writer
     fseek(out, 0L, SEEK_END);
