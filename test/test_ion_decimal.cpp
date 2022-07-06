@@ -123,12 +123,15 @@
     ION_ASSERT_OK(ion_writer_write_ion_decimal(writer, &ion_decimal)); \
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
+
 #define ION_DECIMAL_BINARY_READER_EXPECT_OVERFLOW(func, decimal_digits) \
     ION_DECIMAL_TEXT_TO_BINARY(decimal_digits); \
+    ION_ASSERT_OK(ion_reader_close(reader)); \
+    reader = NULL; \
     /* This new reader only supports decQuad precision, which the input exceeds. */ \
     ION_DECIMAL_EXPECT_OVERFLOW(func, DECQUAD_Pmax); \
     free(result); \
-    ION_DECIMAL_FREE_1(&ion_decimal); \
+    ION_DECIMAL_FREE_1(&ion_decimal);
 
 
 /* Reading/writing tests */

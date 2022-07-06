@@ -564,7 +564,6 @@ TEST(IonExtractorSucceedsWhen, ARelativePathMatches) {
     ION_ASSERT_OK(ion_reader_next(reader, &type)); // foo
     ASSERT_EQ(tid_STRUCT, type);
     ION_ASSERT_OK(ion_reader_step_in(reader)); //bar
-    ION_ASSERT_OK(ion_extractor_open(&extractor, &options));
 
     ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(baz)", &assertMatchesInt1or3);
     ION_EXTRACTOR_TEST_PATH_FROM_TEXT("(foo bar baz)", &assertPathNeverMatches); // Never matches because the extractor is scoped at depth 2.

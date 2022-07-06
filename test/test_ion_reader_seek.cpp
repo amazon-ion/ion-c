@@ -603,6 +603,9 @@ TEST_P(TextAndBinary, ReaderHandlesContainerValueOffsetSeek) {
     ION_ASSERT_OK(ion_reader_seek(reader, pos_second, -1));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+    free(data);
 }
 
 TEST_P(TextAndBinary, ReaderHandlesInitialUnannotatedContainerValueOffsetSeek) {
@@ -679,6 +682,8 @@ TEST_P(TextAndBinary, ReaderHandlesInitialUnannotatedContainerValueOffsetSeek) {
     ION_ASSERT_OK(ion_reader_seek(reader, pos_second, -1));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
+    ION_ASSERT_OK(ion_reader_close(reader));
+    free(data);
 }
 
 TEST_P(TextAndBinary, ReaderPopulatesStructFieldsOnSeek) {
@@ -709,7 +714,7 @@ TEST_P(TextAndBinary, ReaderPopulatesStructFieldsOnSeek) {
     hREADER reader = NULL;
     ION_TYPE type;
     POSITION pos_field1, pos_field2;
-    ION_STRING read_field1, read_val1, read_field2, read_val2;
+    ION_STRING read_val1, read_val2;
 
     // We use this reader to capture offsets
     ION_ASSERT_OK(ion_test_new_reader(data, data_length, &reader));
@@ -751,10 +756,14 @@ TEST_P(TextAndBinary, ReaderPopulatesStructFieldsOnSeek) {
     char *cread_val2 = ion_string_strdup(&read_val2);
 
     ION_ASSERT_OK(ion_reader_close(reader));
+    free(data);
 
     // Assert:
 
     // Easy assertions: there's only one value, "value," and we should have read it both times
     assertStringsEqual((char *)value1.value, cread_val1, strlen(cread_val1));
     assertStringsEqual((char *)value2.value, cread_val2, strlen(cread_val2));
+
+    free(cread_val1);
+    free(cread_val2);
 }

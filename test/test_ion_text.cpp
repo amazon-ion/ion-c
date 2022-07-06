@@ -59,6 +59,8 @@ TEST(IonTextSexp, ReaderHandlesNested)
     ASSERT_EQ(tid_EOF, type);
 
     ION_ASSERT_OK(ion_reader_close(reader));
+    free(third);
+    free(fourth);
 }
 
 TEST(IonTextTimestamp, WriterIgnoresSuperfluousOffset) {
@@ -77,6 +79,8 @@ TEST(IonTextTimestamp, WriterIgnoresSuperfluousOffset) {
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     assertStringsEqual("0001T", (char *)result, result_len);
+
+    free(result);
 }
 
 TEST(IonTextSymbol, WriterWritesSymbolValueZero) {
@@ -94,6 +98,8 @@ TEST(IonTextSymbol, WriterWritesSymbolValueZero) {
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     assertStringsEqual("$0 '$0'", (char *)result, result_len);
+
+    free(result);
 }
 
 TEST(IonTextSymbol, WriterWritesSymbolAnnotationZero) {
@@ -117,6 +123,7 @@ TEST(IonTextSymbol, WriterWritesSymbolAnnotationZero) {
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     assertStringsEqual("'$0'::$0 $0::$0::'$0'", (char *)result, result_len);
+    free(result);
 }
 
 TEST(IonTextSymbol, WriterWritesSymbolFieldNameZero) {
@@ -151,6 +158,8 @@ TEST(IonTextSymbol, WriterWritesSymbolFieldNameZero) {
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     assertStringsEqual("{'$0':'$0'::$0,$0:'$0'::$0,'$0':$0::$0,$0:$0::$0}", (char *)result, result_len);
+
+    free(result);
 }
 
 TEST(IonTextSymbol, ReaderReadsSymbolValueSymbolZero) {
@@ -184,6 +193,7 @@ TEST(IonTextSymbol, ReaderReadsAnnotationSymbolZero) {
     ION_STRING annotation_strs[1];
     SIZE num_annotations;
     ION_SYMBOL symbol;
+    char *tmp = NULL;
 
     ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
 
@@ -191,7 +201,7 @@ TEST(IonTextSymbol, ReaderReadsAnnotationSymbolZero) {
     ASSERT_EQ(tid_SYMBOL, type);
     ION_ASSERT_OK(ion_reader_get_annotations(reader, annotation_strs, 1, &num_annotations));
     ASSERT_EQ(1, num_annotations);
-    ASSERT_STREQ("$0", ion_string_strdup(&annotation_strs[0]));
+    ASSERT_STREQ("$0", tmp = ion_string_strdup(&annotation_strs[0])); free(tmp);
     ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &symbol_value));
     ASSERT_EQ(0, symbol_value);
 
@@ -226,13 +236,14 @@ TEST(IonTextSymbol, ReaderReadsFieldNameSymbolZero) {
     ASSERT_EQ(tid_STRUCT, type);
     ION_ASSERT_OK(ion_reader_step_in(reader));
 
+    char *tmp = NULL;
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
     ION_ASSERT_OK(ion_reader_get_field_name(reader, &field_name_str));
-    ASSERT_STREQ("$0", ion_string_strdup(&field_name_str)); // This one just looks like symbol zero, but it's actually a user symbol with the text $0
+    ASSERT_STREQ("$0", tmp = ion_string_strdup(&field_name_str)); free(tmp); // This one just looks like symbol zero, but it's actually a user symbol with the text $0
     ION_ASSERT_OK(ion_reader_get_annotations(reader, annotations, 1, &num_annotations));
     ASSERT_EQ(1, num_annotations);
-    ASSERT_STREQ("$0", ion_string_strdup(&annotations[0]));
+    ASSERT_STREQ("$0", tmp = ion_string_strdup(&annotations[0])); free(tmp);
     ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &symbol_value));
     ASSERT_EQ(0, symbol_value);
 
@@ -246,7 +257,7 @@ TEST(IonTextSymbol, ReaderReadsFieldNameSymbolZero) {
     ASSERT_EQ(1, num_annotations);
     ASSERT_EQ(0, annotation_symbols[0].sid);
     ION_ASSERT_OK(ion_reader_read_string(reader, &symbol_text));
-    ASSERT_STREQ("$0", ion_string_strdup(&symbol_text));
+    ASSERT_STREQ("$0", tmp = ion_string_strdup(&symbol_text)); free(tmp);
 
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_SYMBOL, type);
@@ -256,7 +267,7 @@ TEST(IonTextSymbol, ReaderReadsFieldNameSymbolZero) {
     ASSERT_EQ(0, field_name->sid); // Because it was unquoted, this represents symbol zero.
     ION_ASSERT_OK(ion_reader_get_annotations(reader, annotations, 1, &num_annotations));
     ASSERT_EQ(1, num_annotations);
-    ASSERT_STREQ("$0", ion_string_strdup(&annotations[0]));
+    ASSERT_STREQ("$0", tmp = ion_string_strdup(&annotations[0])); free(tmp);
     ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &symbol_value));
     ASSERT_EQ(0, symbol_value);
 
@@ -295,21 +306,35 @@ TEST(IonTextSymbol, WriterWriteAllValuesPreservesSymbolZero) {
     const BYTE *ion_binary = (BYTE *)"\xDE\x90\x8A\xE3\x81\x8A\x70\x80\xE4\x81\x80\x71\x0A\x80\xE3\x81\x8A\x70";
     const SIZE ion_binary_size = 18;
 
-    BYTE *result = NULL;
-    SIZE result_len;
+    // Storage and length to receive text encoding.
+    BYTE *as_text = NULL;
+    SIZE as_text_len = 0;
 
-    ion_test_write_all_values_from_text(ion_text, &result, &result_len, FALSE);
-    assertStringsEqual(ion_text, (char *)result, result_len);
+    ion_test_write_all_values_from_text(ion_text, &as_text, &as_text_len, FALSE);
+    assertStringsEqual(ion_text, (char *)as_text, as_text_len);
+    free(as_text); as_text = NULL;
 
-    ion_test_write_all_values_from_text(ion_text, &result, &result_len, TRUE);
-    assertBytesEqual((const char *)ion_binary, ion_binary_size, result + result_len - ion_binary_size, ion_binary_size);
+    // Storage and length to receive binary encoding.
+    BYTE *as_binary = NULL;
+    SIZE as_binary_len = 0;
 
-    ion_test_write_all_values_from_binary(result, result_len, &result, &result_len, FALSE);
-    assertStringsEqual(ion_text, (char *)result, result_len);
+    ion_test_write_all_values_from_text(ion_text, &as_binary, &as_binary_len, TRUE);
+    assertBytesEqual((const char *)ion_binary, ion_binary_size, as_binary + as_binary_len - ion_binary_size, ion_binary_size);
 
-    ion_test_write_all_values_from_text(ion_text, &result, &result_len, TRUE);
-    ion_test_write_all_values_from_binary(result, result_len, &result, &result_len, TRUE);
-    assertBytesEqual((const char *)ion_binary, ion_binary_size, result + result_len - ion_binary_size, ion_binary_size);
+    ion_test_write_all_values_from_binary(as_binary, as_binary_len, &as_text, &as_text_len, FALSE);
+    assertStringsEqual(ion_text, (char *)as_text, as_text_len);
+    free(as_text); as_text = NULL;
+    free(as_binary); as_binary = NULL;
+
+    // Storage and length for final binary round-trip
+    BYTE *bin_rt = NULL;
+    SIZE bin_rt_len = 0;
+    ion_test_write_all_values_from_text(ion_text, &as_binary, &as_binary_len, TRUE);
+    ion_test_write_all_values_from_binary(as_binary, as_binary_len, &bin_rt, &bin_rt_len, TRUE);
+    assertBytesEqual((const char *)ion_binary, ion_binary_size, bin_rt + bin_rt_len - ion_binary_size, ion_binary_size);
+
+    free(bin_rt);
+    free(as_binary);
 }
 
 TEST(IonTextSymbol, WriterWritesSymbolValueIVMTextAsNoOp) {
@@ -331,6 +356,8 @@ TEST(IonTextSymbol, WriterWritesSymbolValueIVMTextAsNoOp) {
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     assertStringsEqual("123 456 789", (char *)result, result_len);
+
+    free(result);
 }
 
 TEST(IonTextSymbol, ReaderReadsSymbolValueIVM) {
@@ -430,6 +457,7 @@ TEST(IonTextSymbol, WriterWritesKeywordsAsQuotedSymbols) {
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     assertStringsEqual("'false' 'true' 'nan'", (char *)result, result_len);
+    free(result);
 }
 
 TEST(IonTextSymbol, ReaderChoosesLowestSIDForDuplicateSymbol) {
@@ -472,21 +500,32 @@ TEST(IonTextSymbol, WriterWriteAllValuesPreservesSymbolKeywords) {
     const BYTE *ion_binary = (BYTE *)"\xD6\x8B\xE4\x81\x8C\x71\x0A";
     const SIZE ion_binary_size = 7;
 
-    BYTE *result = NULL;
-    SIZE result_len;
+    BYTE *as_text = NULL;
+    SIZE as_text_len = 0;
 
-    ion_test_write_all_values_from_text(ion_text, &result, &result_len, FALSE);
-    assertStringsEqual(ion_text, (char *)result, result_len);
+    ion_test_write_all_values_from_text(ion_text, &as_text, &as_text_len, FALSE);
+    assertStringsEqual(ion_text, (char *)as_text, as_text_len);
+    free(as_text); as_text = NULL;
 
-    ion_test_write_all_values_from_text(ion_text, &result, &result_len, TRUE);
-    assertBytesEqual((const char *)ion_binary, ion_binary_size, result + result_len - ion_binary_size, ion_binary_size);
+    BYTE *as_bin = NULL;
+    SIZE as_bin_len = 0;
 
-    ion_test_write_all_values_from_binary(result, result_len, &result, &result_len, FALSE);
-    assertStringsEqual(ion_text, (char *)result, result_len);
+    ion_test_write_all_values_from_text(ion_text, &as_bin, &as_bin_len, TRUE);
+    assertBytesEqual((const char *)ion_binary, ion_binary_size, as_bin + as_bin_len - ion_binary_size, ion_binary_size);
 
-    ion_test_write_all_values_from_text(ion_text, &result, &result_len, TRUE);
-    ion_test_write_all_values_from_binary(result, result_len, &result, &result_len, TRUE);
-    assertBytesEqual((const char *)ion_binary, ion_binary_size, result + result_len - ion_binary_size, ion_binary_size);
+    ion_test_write_all_values_from_binary(as_bin, as_bin_len, &as_text, &as_text_len, FALSE);
+    assertStringsEqual(ion_text, (char *)as_text, as_text_len);
+    free(as_bin);
+    free(as_text);
+
+    BYTE *final_bin = NULL;
+    SIZE final_bin_len = 0;
+    ion_test_write_all_values_from_text(ion_text, &as_bin, &as_bin_len, TRUE);
+    ion_test_write_all_values_from_binary(as_bin, as_bin_len, &final_bin, &final_bin_len, TRUE);
+    assertBytesEqual((const char *)ion_binary, ion_binary_size, final_bin + final_bin_len - ion_binary_size, ion_binary_size);
+
+    free(as_bin);
+    free(final_bin);
 }
 
 TEST(IonTextSymbol, ReaderReadsUndefinedSymbol) {
@@ -720,6 +759,7 @@ TEST(IonTextReader, UnpositionedReaderHasTypeNone) {
     ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
     ION_ASSERT_OK(ion_reader_get_type(reader, &type));
     ASSERT_EQ(tid_none, type);
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
 
 TEST(IonTextStruct, FailsOnFieldNameWithNoValueAtStructEnd) {
@@ -731,6 +771,7 @@ TEST(IonTextStruct, FailsOnFieldNameWithNoValueAtStructEnd) {
     ASSERT_EQ(tid_STRUCT, type);
     ION_ASSERT_OK(ion_reader_step_in(reader));
     ASSERT_EQ(IERR_INVALID_SYNTAX, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
 
 TEST(IonTextStruct, FailsOnFieldNameWithNoValueInMiddle) {
@@ -743,6 +784,7 @@ TEST(IonTextStruct, FailsOnFieldNameWithNoValueInMiddle) {
     ION_ASSERT_OK(ion_reader_step_in(reader));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(IERR_INVALID_SYNTAX, ion_reader_next(reader, &type));
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
 
 // reproduction for amzn/ion-c#235
@@ -757,6 +799,7 @@ TEST(IonTextInt, BinaryLiterals) {
     ASSERT_EQ(tid_INT, type);
     ION_ASSERT_OK(ion_reader_read_int64(reader, &value));
     ASSERT_EQ(-4, value);
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
 
 TEST(IonTextTimestamp, InvalidTimestamp) {
@@ -769,4 +812,5 @@ TEST(IonTextTimestamp, InvalidTimestamp) {
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_TIMESTAMP, type);
     ASSERT_EQ( IERR_INVALID_TIMESTAMP, ion_reader_read_timestamp(reader, &value));
+    ION_ASSERT_OK(ion_reader_close(reader));
 }

@@ -64,18 +64,25 @@ iERR test_ion_int_to_int64_t_overflow_detection(const char * p_chars) {
     const uint32_t max_string_length = 32;
     uint32_t string_length = strnlen(p_chars, max_string_length);
     // Create an uninitialized Ion integer.
-    ION_INT iint;
+    ION_INT *iint = NULL;
     // Create an int64_t that we will later populate with the value of iint.
     int64_t value_out;
+
+    // Allocate ION_INT on the heap so we don't have to free the inner data manually.
+    ion_int_alloc(NULL, &iint);
     // Initialize the Ion integer, setting its owner to NULL.
-    IONCHECK(ion_int_init(&iint, NULL));
+    IONCHECK(ion_int_init(iint, NULL));
     // Populate the Ion integer with the value of the provided base-10 string
-    IONCHECK(ion_int_from_chars(&iint, p_chars, string_length));
+    IONCHECK(ion_int_from_chars(iint, p_chars, string_length));
     // Attempt to read the Ion integer's value back out into the int64_t.
     // If the number is outside the range of values that can be represented by
     // an int64_t, this should return IERR_NUMERIC_OVERFLOW.
-    IONCHECK(ion_int_to_int64(&iint, &value_out));
-    iRETURN;
+    IONCHECK(ion_int_to_int64(iint, &value_out));
+
+fail:
+    ion_int_free(iint);
+
+    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 TEST(IonInteger, IIntToInt64Overflow) {
