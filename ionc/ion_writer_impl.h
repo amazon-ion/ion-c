@@ -321,7 +321,7 @@ iERR _ion_writer_text_append_lob(ION_WRITER *pwriter, BYTE *p_buf, SIZE length);
 iERR _ion_writer_text_finish_lob(ION_WRITER *pwriter);
 iERR _ion_writer_text_start_container(ION_WRITER *pwriter, ION_TYPE container_type);
 iERR _ion_writer_text_finish_container(ION_WRITER *pwriter);
-iERR _ion_writer_text_close(ION_WRITER *pwriter);
+iERR _ion_writer_text_close(ION_WRITER *pwriter, BOOL flush);
 
 //
 // internal binary impl's of public api's
@@ -346,7 +346,7 @@ iERR _ion_writer_binary_append_lob(ION_WRITER *pwriter, BYTE *p_buf, SIZE length
 iERR _ion_writer_binary_finish_lob(ION_WRITER *pwriter);
 iERR _ion_writer_binary_start_container(ION_WRITER *pwriter, ION_TYPE container_type);
 iERR _ion_writer_binary_finish_container(ION_WRITER *pwriter);
-iERR _ion_writer_binary_close(ION_WRITER *pwriter);
+iERR _ion_writer_binary_close(ION_WRITER *pwriter, BOOL flush);
 
 iERR _ion_writer_binary_output_stream_handler(ION_STREAM *pstream);
 iERR _ion_writer_binary_input_stream_handler(ION_STREAM *pstream);
