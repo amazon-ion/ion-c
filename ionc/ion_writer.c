@@ -2830,9 +2830,12 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
 
     ASSERT(pwriter);
 
+    BOOL flush = TRUE;
+
     if (pwriter->depth != 0) {
-        UPDATEERROR(_ion_writer_free(pwriter));
-        FAILWITHMSG(IERR_UNEXPECTED_EOF, "Writer freed; cannot flush a writer that is not at the top level.");
+        flush = FALSE;
+        err = IERR_UNEXPECTED_EOF;
+        DEBUG_ERRMSG(err, "Writer freed; cannot flush a writer that is not at the top level.");
     }
 
     // all the local resources are allocated in the parent
@@ -2845,17 +2848,19 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
         break;
     case ion_type_text_writer:
         if (pwriter->_typed_writer.text._top > 0) {
-            UPDATEERROR(_ion_writer_free(pwriter));
-            FAILWITHMSG(IERR_UNEXPECTED_EOF, "Cannot flush a text writer with a value in progress.");
+            flush = FALSE;
+            err = IERR_UNEXPECTED_EOF;
+            DEBUG_ERRMSG(err, "Cannot flush a text writer with a value in progress.");
         }
-        UPDATEERROR(_ion_writer_text_close(pwriter));
+        UPDATEERROR(_ion_writer_text_close(pwriter, flush));
         break;
     case ion_type_binary_writer:
         if (pwriter->_typed_writer.binary._lob_in_progress != tid_none) {
-            UPDATEERROR(_ion_writer_free(pwriter));
-            FAILWITHMSG(IERR_UNEXPECTED_EOF, "Cannot flush a binary writer with a lob in progress.");
+            flush = FALSE;
+            err = IERR_UNEXPECTED_EOF;
+            DEBUG_ERRMSG(err, "Cannot flush a binary writer with a lob in progress.");
         }
-        UPDATEERROR(_ion_writer_binary_close(pwriter));
+        UPDATEERROR(_ion_writer_binary_close(pwriter, flush));
         break;
     default:
         UPDATEERROR(IERR_INVALID_ARG);

@@ -1219,7 +1219,7 @@ iERR _ion_writer_binary_write_all_values(ION_WRITER *pwriter, ION_READER *preade
     iRETURN;
 }
 
-iERR _ion_writer_binary_close(ION_WRITER *pwriter)
+iERR _ion_writer_binary_close(ION_WRITER *pwriter, BOOL flush)
 {
     iENTER;
     ION_BINARY_WRITER *bwriter;
@@ -1231,11 +1231,14 @@ iERR _ion_writer_binary_close(ION_WRITER *pwriter)
 
     patches = !ION_COLLECTION_IS_EMPTY(&bwriter->_patch_list);
     values  = ion_stream_get_position(bwriter->_value_stream) != 0;
-    if (patches || values) {
-        UPDATEERROR(_ion_writer_binary_flush_to_output(pwriter));
+
+    if (flush) {
+        if (patches || values) {
+            UPDATEERROR(_ion_writer_binary_flush_to_output(pwriter));
+        }
+        UPDATEERROR(ion_stream_flush(pwriter->output));
     }
 
-    UPDATEERROR(ion_stream_flush(pwriter->output));
     UPDATEERROR(ion_stream_close(bwriter->_value_stream));
 
     iRETURN;

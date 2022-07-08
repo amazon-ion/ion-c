@@ -1112,17 +1112,18 @@ iERR _ion_writer_text_finish_container(ION_WRITER *pwriter)
     iRETURN;
 }
 
-iERR _ion_writer_text_close(ION_WRITER *pwriter)
+iERR _ion_writer_text_close(ION_WRITER *pwriter, BOOL flush)
 {
     iENTER;
 
     if (!pwriter) FAILWITH(IERR_BAD_HANDLE);
 
-    if (pwriter->options.pretty_print) {
-        ION_PUT(pwriter->output, '\n');
+    if (flush) {
+        if (pwriter->options.pretty_print) {
+            ION_PUT(pwriter->output, '\n');
+        }
+        IONCHECK(ion_stream_flush(pwriter->output));
     }
-
-    IONCHECK(ion_stream_flush(pwriter->output));
 
     iRETURN;
 }
