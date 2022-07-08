@@ -279,6 +279,7 @@ iERR ion_temp_buffer_reset(ION_TEMP_BUFFER *temp_buffer);
 iERR _ion_writer_allocate_temp_pool( ION_WRITER *pwriter );
 iERR _ion_writer_reset_temp_pool( ION_WRITER *pwriter );
 iERR _ion_writer_free_temp_pool( ION_WRITER *pwriter );
+iERR _ion_writer_free_pending_pool( ION_WRITER *pwriter );
 
 
 

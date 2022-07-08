@@ -2812,6 +2812,7 @@ iERR _ion_writer_free(ION_WRITER *pwriter)
     // Free the writer's members.
     UPDATEERROR(_ion_writer_free_local_symbol_table( pwriter ));
     UPDATEERROR( _ion_writer_free_temp_pool( pwriter ));
+    UPDATEERROR(_ion_writer_free_pending_pool(pwriter));
 
     // If the writer allocated the stream, free it.
     if (pwriter->writer_owns_stream) {
@@ -3280,4 +3281,15 @@ iERR _ion_writer_free_temp_pool( ION_WRITER *pwriter )
     SUCCEED();
 
     iRETURN;
+}
+
+iERR _ion_writer_free_pending_pool(ION_WRITER *writer) {
+    iENTER;
+
+    if (writer->_pending_temp_entity_pool != NULL) {
+        ion_free_owner(writer->_pending_temp_entity_pool);
+        writer->_pending_temp_entity_pool = NULL;
+    }
+
+    RETURN(__location_name__, __line__, __count__++, err);
 }
