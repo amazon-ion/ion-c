@@ -224,6 +224,7 @@ iERR ion_cli_open_writer(IonCliCommonArgs *common_args, ION_CATALOG *catalog, IO
     if (imports && !ION_COLLECTION_IS_EMPTY(imports)) {
         IONCWRITE(ion_writer_options_initialize_shared_imports(&writer_context->options));
         IONCWRITE(ion_writer_options_add_shared_imports(&writer_context->options, imports));
+        writer_context->has_imports = true;
     }
 
     IONCWRITE(ion_cli_open_writer_basic(&common_args->output, common_args->output_format, writer_context, result));
