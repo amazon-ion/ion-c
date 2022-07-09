@@ -1092,6 +1092,7 @@ iERR ion_event_stream_is_event_stream(hREADER reader, IonEventStream *stream, bo
                 && ION_STRING_EQUALS(&ion_event_stream_marker, &symbol_value->value)) {
                 *is_event_stream = TRUE;
                 stream->remove(i); // Toss this event -- it's not part of the user data.
+                delete event;
             }
         }
         else if (event->event_type == STREAM_END) {
