@@ -1027,6 +1027,19 @@ cleanup:
     if (value_imports) {
         ion_free_owner(value_imports);
     }
+
+    // Free string data for the current value_field_name.
+    if (p_value_field_name) {
+        free(value_field_name.import_location.name.value);
+        free(value_field_name.value.value);
+    }
+
+    // Free string data associated with the annotation symbols.
+    for (std::vector<ION_SYMBOL>::iterator it = value_annotations.begin(); it != value_annotations.end(); it++) {
+       free(it->value.value);
+       free(it->import_location.name.value);
+    }
+
     iRETURN;
 }
 
