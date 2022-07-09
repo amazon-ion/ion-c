@@ -280,7 +280,11 @@ iERR ion_extractor_path_create_from_ion(ION_EXTRACTOR *extractor, ION_EXTRACTOR_
     }
 
     *p_path = path;
-    iRETURN;
+
+fail:
+    UPDATEERROR(ion_reader_close(reader));
+
+    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 bool _ion_extractor_string_equals_nocase(ION_STRING *lhs, ION_STRING *rhs) {
