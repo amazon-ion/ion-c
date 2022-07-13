@@ -425,9 +425,11 @@ cleanup:
     }
     if (reader_contexts) {
         for (size_t i = 0; i < num_inputs; i++) {
-            ion_reader_close(reader_contexts[i]->reader);
-            ion_stream_close(reader_contexts[i]->ion_stream);
-            delete reader_contexts[i];
+            if (reader_contexts[i] != NULL) {
+                ion_reader_close(reader_contexts[i]->reader);
+                ion_stream_close(reader_contexts[i]->ion_stream);
+                delete reader_contexts[i];
+            }
         }
         free(reader_contexts);
     }
