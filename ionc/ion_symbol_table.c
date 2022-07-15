@@ -2137,10 +2137,6 @@ int_fast8_t  _ion_symbol_table_compare_fn(void *key1, void *key2, void *context)
 
     ASSERT(sym1);
     ASSERT(sym2);
-#ifdef DEBUG
-    ASSERT(!ION_STRING_IS_NULL(&sym1->value));
-    ASSERT(!ION_STRING_IS_NULL(&sym2->value));
-#endif
 
     // this compare is for the purposes of the hash table only !
     if (sym1 == sym2) {
@@ -2148,6 +2144,10 @@ int_fast8_t  _ion_symbol_table_compare_fn(void *key1, void *key2, void *context)
     }
     else if ((cmp = (sym1->value.length - sym2->value.length)) != 0) {
         cmp = (cmp > 0) ? 1 : -1; // normalize the value
+    }
+    // Both symbols are of the same length, so we handle the empty & NULL value cases.
+    else if (sym1->value.length == 0) {
+       cmp = 0;
     }
     else {
         cmp = memcmp(sym1->value.value, sym2->value.value, sym1->value.length);
