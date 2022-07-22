@@ -233,8 +233,9 @@ iERR ion_cli_open_writer(IonCliCommonArgs *common_args, ION_CATALOG *catalog, IO
 
 iERR ion_cli_close_writer(IonEventWriterContext *context, ION_CLI_IO_TYPE output_type, ION_STRING *output, iERR err,
                           IonEventResult *result) {
-    UPDATEERROR(ion_event_writer_close(context, result, err, output_type == IO_TYPE_MEMORY, &output->value,
-                                       &output->length));
+    UPDATEERROR(ion_event_writer_close(context, result, err, output_type == IO_TYPE_MEMORY,
+                                       (output == NULL) ? NULL : &output->value,
+                                       (output == NULL) ? NULL : &output->length));
     cRETURN;
 }
 
