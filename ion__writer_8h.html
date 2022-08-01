@@ -153,8 +153,7 @@ ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_wr
 <tr class="memitem:aa1ea07fd3671482271bc41d321c84c8f"><td class="memItemLeft" align="right" valign="top"><a id="aa1ea07fd3671482271bc41d321c84c8f"></a>
 ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_writer_clear_field_name</b> (hWRITER hwriter)</td></tr>
 <tr class="separator:aa1ea07fd3671482271bc41d321c84c8f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac11bf0402543cf2b0ec532dc90b19df6"><td class="memItemLeft" align="right" valign="top"><a id="ac11bf0402543cf2b0ec532dc90b19df6"></a>
-ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_writer_add_annotation</b> (hWRITER hwriter, <a class="el" href="struct__ion__string.html">iSTRING</a> annotation)</td></tr>
+<tr class="memitem:ac11bf0402543cf2b0ec532dc90b19df6"><td class="memItemLeft" align="right" valign="top">ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ion__writer_8h.html#ac11bf0402543cf2b0ec532dc90b19df6">ion_writer_add_annotation</a> (hWRITER hwriter, <a class="el" href="struct__ion__string.html">iSTRING</a> annotation)</td></tr>
 <tr class="separator:ac11bf0402543cf2b0ec532dc90b19df6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a95c9248691e0296590545b71a892d85c"><td class="memItemLeft" align="right" valign="top"><a id="a95c9248691e0296590545b71a892d85c"></a>
 ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_writer_add_annotation_symbol</b> (hWRITER hwriter, <a class="el" href="struct__ion__symbol.html">ION_SYMBOL</a> *annotation)</td></tr>
@@ -250,6 +249,35 @@ ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_wr
 <tr class="separator:a49732bb0f82a8b9ce9dbdcc86ba4e0c1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Function Documentation</h2>
+<a id="ac11bf0402543cf2b0ec532dc90b19df6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac11bf0402543cf2b0ec532dc90b19df6">&#9670;&nbsp;</a></span>ion_writer_add_annotation()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">ION_API_EXPORT iERR ion_writer_add_annotation </td>
+          <td>(</td>
+          <td class="paramtype">hWRITER&#160;</td>
+          <td class="paramname"><em>hwriter</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="struct__ion__string.html">iSTRING</a>&#160;</td>
+          <td class="paramname"><em>annotation</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>It is the caller's responsibility to keep <code>annotation</code> string in scope until the writer's annotations are cleared. </p>
+
+</div>
+</div>
 <a id="a9da713c87b6a3acea365b7f102653281"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a9da713c87b6a3acea365b7f102653281">&#9670;&nbsp;</a></span>ion_writer_add_imported_tables()</h2>
 

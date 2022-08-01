@@ -192,53 +192,55 @@ $(document).ready(function(){initNavTree('ion__writer_8h_source.html',''); initR
 <div class="line"><a name="l00224"></a><span class="lineno">  224</span>&#160;ION_API_EXPORT iERR <a class="code" href="ion__writer_8h.html#ad5152a6723a25fccbdf5b1a33da2bd5f">ion_writer_write_field_name_symbol</a>(hWRITER hwriter, <a class="code" href="struct__ion__symbol.html">ION_SYMBOL</a> *field_name);</div>
 <div class="line"><a name="l00225"></a><span class="lineno">  225</span>&#160; </div>
 <div class="line"><a name="l00226"></a><span class="lineno">  226</span>&#160;ION_API_EXPORT iERR ion_writer_clear_field_name     (hWRITER hwriter);</div>
-<div class="line"><a name="l00227"></a><span class="lineno">  227</span>&#160;ION_API_EXPORT iERR ion_writer_add_annotation       (hWRITER hwriter, <a class="code" href="struct__ion__string.html">iSTRING</a> annotation);</div>
-<div class="line"><a name="l00228"></a><span class="lineno">  228</span>&#160;ION_API_EXPORT iERR ion_writer_add_annotation_symbol(hWRITER hwriter, <a class="code" href="struct__ion__symbol.html">ION_SYMBOL</a> *annotation);</div>
-<div class="line"><a name="l00229"></a><span class="lineno">  229</span>&#160;ION_API_EXPORT iERR ion_writer_write_annotations    (hWRITER hwriter, <a class="code" href="struct__ion__string.html">iSTRING</a> p_annotations, SIZE count);</div>
-<div class="line"><a name="l00230"></a><span class="lineno">  230</span>&#160;ION_API_EXPORT iERR ion_writer_write_annotation_symbols(hWRITER hwriter, <a class="code" href="struct__ion__symbol.html">ION_SYMBOL</a> *annotations, SIZE count);</div>
-<div class="line"><a name="l00231"></a><span class="lineno">  231</span>&#160;ION_API_EXPORT iERR ion_writer_clear_annotations    (hWRITER hwriter);</div>
+<div class="line"><a name="l00227"></a><span class="lineno">  227</span>&#160; </div>
+<div class="line"><a name="l00231"></a><span class="lineno">  231</span>&#160;ION_API_EXPORT iERR <a class="code" href="ion__writer_8h.html#ac11bf0402543cf2b0ec532dc90b19df6">ion_writer_add_annotation</a>       (hWRITER hwriter, <a class="code" href="struct__ion__string.html">iSTRING</a> annotation);</div>
 <div class="line"><a name="l00232"></a><span class="lineno">  232</span>&#160; </div>
-<div class="line"><a name="l00233"></a><span class="lineno">  233</span>&#160;ION_API_EXPORT iERR ion_writer_write_null           (hWRITER hwriter);</div>
-<div class="line"><a name="l00234"></a><span class="lineno">  234</span>&#160;ION_API_EXPORT iERR ion_writer_write_typed_null     (hWRITER hwriter, <a class="code" href="ion__types_8h.html#a308bfbb77f025705b23c85d55741404a">ION_TYPE</a> type);</div>
-<div class="line"><a name="l00235"></a><span class="lineno">  235</span>&#160;ION_API_EXPORT iERR ion_writer_write_bool           (hWRITER hwriter, BOOL value);</div>
-<div class="line"><a name="l00236"></a><span class="lineno">  236</span>&#160;ION_API_EXPORT iERR ion_writer_write_int            (hWRITER hwriter, <span class="keywordtype">int</span> value);</div>
-<div class="line"><a name="l00237"></a><span class="lineno">  237</span>&#160;ION_API_EXPORT iERR ion_writer_write_int32          (hWRITER hwriter, int32_t value);</div>
-<div class="line"><a name="l00238"></a><span class="lineno">  238</span>&#160;ION_API_EXPORT iERR ion_writer_write_int64          (hWRITER hwriter, int64_t value);</div>
-<div class="line"><a name="l00239"></a><span class="lineno">  239</span>&#160;ION_API_EXPORT iERR ion_writer_write_long           (hWRITER hwriter, <span class="keywordtype">long</span> value);</div>
-<div class="line"><a name="l00240"></a><span class="lineno">  240</span>&#160;ION_API_EXPORT iERR ion_writer_write_ion_int        (hWRITER hwriter, <a class="code" href="struct__ion__int.html">ION_INT</a> *value);</div>
-<div class="line"><a name="l00241"></a><span class="lineno">  241</span>&#160;ION_API_EXPORT iERR ion_writer_write_double         (hWRITER hwriter, <span class="keywordtype">double</span> value);</div>
-<div class="line"><a name="l00242"></a><span class="lineno">  242</span>&#160;ION_API_EXPORT iERR ion_writer_write_float          (hWRITER hwriter, <span class="keywordtype">float</span> value);</div>
-<div class="line"><a name="l00243"></a><span class="lineno">  243</span>&#160; </div>
-<div class="line"><a name="l00247"></a><span class="lineno">  247</span>&#160;ION_API_EXPORT iERR <a class="code" href="ion__writer_8h.html#ac71d86e603e1d003be0e453276601dd1">ion_writer_write_decimal</a>        (hWRITER hwriter, decQuad *value);</div>
-<div class="line"><a name="l00248"></a><span class="lineno">  248</span>&#160;ION_API_EXPORT iERR ion_writer_write_ion_decimal    (hWRITER hwriter, <a class="code" href="struct__ion__decimal.html">ION_DECIMAL</a> *value);</div>
-<div class="line"><a name="l00249"></a><span class="lineno">  249</span>&#160;ION_API_EXPORT iERR ion_writer_write_timestamp      (hWRITER hwriter, <a class="code" href="struct__ion__timestamp.html">iTIMESTAMP</a> value);</div>
-<div class="line"><a name="l00250"></a><span class="lineno">  250</span>&#160;ION_API_EXPORT iERR ion_writer_write_symbol         (hWRITER hwriter, <a class="code" href="struct__ion__string.html">iSTRING</a> p_value);</div>
-<div class="line"><a name="l00251"></a><span class="lineno">  251</span>&#160;ION_API_EXPORT iERR ion_writer_write_ion_symbol     (hWRITER hwriter, <a class="code" href="struct__ion__symbol.html">ION_SYMBOL</a> *symbol);</div>
-<div class="line"><a name="l00252"></a><span class="lineno">  252</span>&#160;ION_API_EXPORT iERR ion_writer_write_string         (hWRITER hwriter, <a class="code" href="struct__ion__string.html">iSTRING</a> p_value);</div>
-<div class="line"><a name="l00253"></a><span class="lineno">  253</span>&#160;ION_API_EXPORT iERR ion_writer_write_clob           (hWRITER hwriter, BYTE *p_buf, SIZE length);</div>
-<div class="line"><a name="l00254"></a><span class="lineno">  254</span>&#160;ION_API_EXPORT iERR ion_writer_write_blob           (hWRITER hwriter, BYTE *p_buf, SIZE length);</div>
-<div class="line"><a name="l00255"></a><span class="lineno">  255</span>&#160; </div>
-<div class="line"><a name="l00256"></a><span class="lineno">  256</span>&#160;ION_API_EXPORT iERR ion_writer_start_lob            (hWRITER hwriter, <a class="code" href="ion__types_8h.html#a308bfbb77f025705b23c85d55741404a">ION_TYPE</a> lob_type);</div>
-<div class="line"><a name="l00257"></a><span class="lineno">  257</span>&#160;ION_API_EXPORT iERR ion_writer_append_lob           (hWRITER hwriter, BYTE *p_buf, SIZE length);</div>
-<div class="line"><a name="l00258"></a><span class="lineno">  258</span>&#160;ION_API_EXPORT iERR ion_writer_finish_lob           (hWRITER hwriter);</div>
-<div class="line"><a name="l00259"></a><span class="lineno">  259</span>&#160;ION_API_EXPORT iERR ion_writer_start_container      (hWRITER hwriter, <a class="code" href="ion__types_8h.html#a308bfbb77f025705b23c85d55741404a">ION_TYPE</a> container_type);</div>
-<div class="line"><a name="l00260"></a><span class="lineno">  260</span>&#160;ION_API_EXPORT iERR ion_writer_finish_container     (hWRITER hwriter);</div>
-<div class="line"><a name="l00261"></a><span class="lineno">  261</span>&#160; </div>
-<div class="line"><a name="l00262"></a><span class="lineno">  262</span>&#160;ION_API_EXPORT iERR ion_writer_write_one_value      (hWRITER hwriter, hREADER hreader);</div>
-<div class="line"><a name="l00263"></a><span class="lineno">  263</span>&#160;ION_API_EXPORT iERR ion_writer_write_all_values     (hWRITER hwriter, hREADER hreader);</div>
-<div class="line"><a name="l00264"></a><span class="lineno">  264</span>&#160; </div>
-<div class="line"><a name="l00271"></a><span class="lineno">  271</span>&#160;ION_API_EXPORT iERR <a class="code" href="ion__writer_8h.html#a9e5f29029a0f5dc82fac97c740981842">ion_writer_flush</a>                (hWRITER hwriter, SIZE *p_bytes_flushed);</div>
-<div class="line"><a name="l00272"></a><span class="lineno">  272</span>&#160; </div>
-<div class="line"><a name="l00279"></a><span class="lineno">  279</span>&#160;ION_API_EXPORT iERR <a class="code" href="ion__writer_8h.html#a6888b8c1cdba8814baaabd4cbeba9495">ion_writer_finish</a>               (hWRITER hwriter, SIZE *p_bytes_flushed);</div>
-<div class="line"><a name="l00280"></a><span class="lineno">  280</span>&#160; </div>
-<div class="line"><a name="l00286"></a><span class="lineno">  286</span>&#160;ION_API_EXPORT iERR <a class="code" href="ion__writer_8h.html#a49732bb0f82a8b9ce9dbdcc86ba4e0c1">ion_writer_close</a>                (hWRITER hwriter);</div>
-<div class="line"><a name="l00287"></a><span class="lineno">  287</span>&#160; </div>
-<div class="line"><a name="l00288"></a><span class="lineno">  288</span>&#160;<span class="preprocessor">#ifdef __cplusplus</span></div>
-<div class="line"><a name="l00289"></a><span class="lineno">  289</span>&#160;}</div>
-<div class="line"><a name="l00290"></a><span class="lineno">  290</span>&#160;<span class="preprocessor">#endif</span></div>
-<div class="line"><a name="l00291"></a><span class="lineno">  291</span>&#160; </div>
+<div class="line"><a name="l00233"></a><span class="lineno">  233</span>&#160;ION_API_EXPORT iERR ion_writer_add_annotation_symbol(hWRITER hwriter, <a class="code" href="struct__ion__symbol.html">ION_SYMBOL</a> *annotation);</div>
+<div class="line"><a name="l00234"></a><span class="lineno">  234</span>&#160;ION_API_EXPORT iERR ion_writer_write_annotations    (hWRITER hwriter, <a class="code" href="struct__ion__string.html">iSTRING</a> p_annotations, SIZE count);</div>
+<div class="line"><a name="l00235"></a><span class="lineno">  235</span>&#160;ION_API_EXPORT iERR ion_writer_write_annotation_symbols(hWRITER hwriter, <a class="code" href="struct__ion__symbol.html">ION_SYMBOL</a> *annotations, SIZE count);</div>
+<div class="line"><a name="l00236"></a><span class="lineno">  236</span>&#160;ION_API_EXPORT iERR ion_writer_clear_annotations    (hWRITER hwriter);</div>
+<div class="line"><a name="l00237"></a><span class="lineno">  237</span>&#160; </div>
+<div class="line"><a name="l00238"></a><span class="lineno">  238</span>&#160;ION_API_EXPORT iERR ion_writer_write_null           (hWRITER hwriter);</div>
+<div class="line"><a name="l00239"></a><span class="lineno">  239</span>&#160;ION_API_EXPORT iERR ion_writer_write_typed_null     (hWRITER hwriter, <a class="code" href="ion__types_8h.html#a308bfbb77f025705b23c85d55741404a">ION_TYPE</a> type);</div>
+<div class="line"><a name="l00240"></a><span class="lineno">  240</span>&#160;ION_API_EXPORT iERR ion_writer_write_bool           (hWRITER hwriter, BOOL value);</div>
+<div class="line"><a name="l00241"></a><span class="lineno">  241</span>&#160;ION_API_EXPORT iERR ion_writer_write_int            (hWRITER hwriter, <span class="keywordtype">int</span> value);</div>
+<div class="line"><a name="l00242"></a><span class="lineno">  242</span>&#160;ION_API_EXPORT iERR ion_writer_write_int32          (hWRITER hwriter, int32_t value);</div>
+<div class="line"><a name="l00243"></a><span class="lineno">  243</span>&#160;ION_API_EXPORT iERR ion_writer_write_int64          (hWRITER hwriter, int64_t value);</div>
+<div class="line"><a name="l00244"></a><span class="lineno">  244</span>&#160;ION_API_EXPORT iERR ion_writer_write_long           (hWRITER hwriter, <span class="keywordtype">long</span> value);</div>
+<div class="line"><a name="l00245"></a><span class="lineno">  245</span>&#160;ION_API_EXPORT iERR ion_writer_write_ion_int        (hWRITER hwriter, <a class="code" href="struct__ion__int.html">ION_INT</a> *value);</div>
+<div class="line"><a name="l00246"></a><span class="lineno">  246</span>&#160;ION_API_EXPORT iERR ion_writer_write_double         (hWRITER hwriter, <span class="keywordtype">double</span> value);</div>
+<div class="line"><a name="l00247"></a><span class="lineno">  247</span>&#160;ION_API_EXPORT iERR ion_writer_write_float          (hWRITER hwriter, <span class="keywordtype">float</span> value);</div>
+<div class="line"><a name="l00248"></a><span class="lineno">  248</span>&#160; </div>
+<div class="line"><a name="l00252"></a><span class="lineno">  252</span>&#160;ION_API_EXPORT iERR <a class="code" href="ion__writer_8h.html#ac71d86e603e1d003be0e453276601dd1">ion_writer_write_decimal</a>        (hWRITER hwriter, decQuad *value);</div>
+<div class="line"><a name="l00253"></a><span class="lineno">  253</span>&#160;ION_API_EXPORT iERR ion_writer_write_ion_decimal    (hWRITER hwriter, <a class="code" href="struct__ion__decimal.html">ION_DECIMAL</a> *value);</div>
+<div class="line"><a name="l00254"></a><span class="lineno">  254</span>&#160;ION_API_EXPORT iERR ion_writer_write_timestamp      (hWRITER hwriter, <a class="code" href="struct__ion__timestamp.html">iTIMESTAMP</a> value);</div>
+<div class="line"><a name="l00255"></a><span class="lineno">  255</span>&#160;ION_API_EXPORT iERR ion_writer_write_symbol         (hWRITER hwriter, <a class="code" href="struct__ion__string.html">iSTRING</a> p_value);</div>
+<div class="line"><a name="l00256"></a><span class="lineno">  256</span>&#160;ION_API_EXPORT iERR ion_writer_write_ion_symbol     (hWRITER hwriter, <a class="code" href="struct__ion__symbol.html">ION_SYMBOL</a> *symbol);</div>
+<div class="line"><a name="l00257"></a><span class="lineno">  257</span>&#160;ION_API_EXPORT iERR ion_writer_write_string         (hWRITER hwriter, <a class="code" href="struct__ion__string.html">iSTRING</a> p_value);</div>
+<div class="line"><a name="l00258"></a><span class="lineno">  258</span>&#160;ION_API_EXPORT iERR ion_writer_write_clob           (hWRITER hwriter, BYTE *p_buf, SIZE length);</div>
+<div class="line"><a name="l00259"></a><span class="lineno">  259</span>&#160;ION_API_EXPORT iERR ion_writer_write_blob           (hWRITER hwriter, BYTE *p_buf, SIZE length);</div>
+<div class="line"><a name="l00260"></a><span class="lineno">  260</span>&#160; </div>
+<div class="line"><a name="l00261"></a><span class="lineno">  261</span>&#160;ION_API_EXPORT iERR ion_writer_start_lob            (hWRITER hwriter, <a class="code" href="ion__types_8h.html#a308bfbb77f025705b23c85d55741404a">ION_TYPE</a> lob_type);</div>
+<div class="line"><a name="l00262"></a><span class="lineno">  262</span>&#160;ION_API_EXPORT iERR ion_writer_append_lob           (hWRITER hwriter, BYTE *p_buf, SIZE length);</div>
+<div class="line"><a name="l00263"></a><span class="lineno">  263</span>&#160;ION_API_EXPORT iERR ion_writer_finish_lob           (hWRITER hwriter);</div>
+<div class="line"><a name="l00264"></a><span class="lineno">  264</span>&#160;ION_API_EXPORT iERR ion_writer_start_container      (hWRITER hwriter, <a class="code" href="ion__types_8h.html#a308bfbb77f025705b23c85d55741404a">ION_TYPE</a> container_type);</div>
+<div class="line"><a name="l00265"></a><span class="lineno">  265</span>&#160;ION_API_EXPORT iERR ion_writer_finish_container     (hWRITER hwriter);</div>
+<div class="line"><a name="l00266"></a><span class="lineno">  266</span>&#160; </div>
+<div class="line"><a name="l00267"></a><span class="lineno">  267</span>&#160;ION_API_EXPORT iERR ion_writer_write_one_value      (hWRITER hwriter, hREADER hreader);</div>
+<div class="line"><a name="l00268"></a><span class="lineno">  268</span>&#160;ION_API_EXPORT iERR ion_writer_write_all_values     (hWRITER hwriter, hREADER hreader);</div>
+<div class="line"><a name="l00269"></a><span class="lineno">  269</span>&#160; </div>
+<div class="line"><a name="l00276"></a><span class="lineno">  276</span>&#160;ION_API_EXPORT iERR <a class="code" href="ion__writer_8h.html#a9e5f29029a0f5dc82fac97c740981842">ion_writer_flush</a>                (hWRITER hwriter, SIZE *p_bytes_flushed);</div>
+<div class="line"><a name="l00277"></a><span class="lineno">  277</span>&#160; </div>
+<div class="line"><a name="l00284"></a><span class="lineno">  284</span>&#160;ION_API_EXPORT iERR <a class="code" href="ion__writer_8h.html#a6888b8c1cdba8814baaabd4cbeba9495">ion_writer_finish</a>               (hWRITER hwriter, SIZE *p_bytes_flushed);</div>
+<div class="line"><a name="l00285"></a><span class="lineno">  285</span>&#160; </div>
+<div class="line"><a name="l00291"></a><span class="lineno">  291</span>&#160;ION_API_EXPORT iERR <a class="code" href="ion__writer_8h.html#a49732bb0f82a8b9ce9dbdcc86ba4e0c1">ion_writer_close</a>                (hWRITER hwriter);</div>
 <div class="line"><a name="l00292"></a><span class="lineno">  292</span>&#160; </div>
-<div class="line"><a name="l00293"></a><span class="lineno">  293</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="line"><a name="l00293"></a><span class="lineno">  293</span>&#160;<span class="preprocessor">#ifdef __cplusplus</span></div>
+<div class="line"><a name="l00294"></a><span class="lineno">  294</span>&#160;}</div>
+<div class="line"><a name="l00295"></a><span class="lineno">  295</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="line"><a name="l00296"></a><span class="lineno">  296</span>&#160; </div>
+<div class="line"><a name="l00297"></a><span class="lineno">  297</span>&#160; </div>
+<div class="line"><a name="l00298"></a><span class="lineno">  298</span>&#160;<span class="preprocessor">#endif</span></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <div class="ttc" id="astruct__ion__decimal_html"><div class="ttname"><a href="struct__ion__decimal.html">_ion_decimal</a></div><div class="ttdef"><b>Definition:</b> ion_decimal.h:89</div></div>
@@ -274,6 +276,7 @@ $(document).ready(function(){initNavTree('ion__writer_8h_source.html',''); initR
 <div class="ttc" id="astruct__ion__writer__options_html_a57199174381586e010d891a88d748f5b"><div class="ttname"><a href="struct__ion__writer__options.html#a57199174381586e010d891a88d748f5b">_ion_writer_options::small_containers_in_line</a></div><div class="ttdeci">BOOL small_containers_in_line</div><div class="ttdef"><b>Definition:</b> ion_writer.h:54</div></div>
 <div class="ttc" id="aion__writer_8h_html_a9da713c87b6a3acea365b7f102653281"><div class="ttname"><a href="ion__writer_8h.html#a9da713c87b6a3acea365b7f102653281">ion_writer_add_imported_tables</a></div><div class="ttdeci">ION_API_EXPORT iERR ion_writer_add_imported_tables(hWRITER hwriter, ION_COLLECTION *imports)</div></div>
 <div class="ttc" id="astruct__ion__collection_html"><div class="ttname"><a href="struct__ion__collection.html">_ion_collection</a></div><div class="ttdef"><b>Definition:</b> ion_collection.h:71</div></div>
+<div class="ttc" id="aion__writer_8h_html_ac11bf0402543cf2b0ec532dc90b19df6"><div class="ttname"><a href="ion__writer_8h.html#ac11bf0402543cf2b0ec532dc90b19df6">ion_writer_add_annotation</a></div><div class="ttdeci">ION_API_EXPORT iERR ion_writer_add_annotation(hWRITER hwriter, iSTRING annotation)</div></div>
 <div class="ttc" id="astruct__ion__writer__options_html_a9a553beaa3a2d01a26dd97ee5baa0e49"><div class="ttname"><a href="struct__ion__writer__options.html#a9a553beaa3a2d01a26dd97ee5baa0e49">_ion_writer_options::encoding_psymbol_table</a></div><div class="ttdeci">ION_COLLECTION encoding_psymbol_table</div><div class="ttdef"><b>Definition:</b> ion_writer.h:99</div></div>
 <div class="ttc" id="aion__types_8h_html_a308bfbb77f025705b23c85d55741404a"><div class="ttname"><a href="ion__types_8h.html#a308bfbb77f025705b23c85d55741404a">ION_TYPE</a></div><div class="ttdeci">struct ion_type * ION_TYPE</div><div class="ttdef"><b>Definition:</b> ion_types.h:69</div></div>
 <div class="ttc" id="astruct__ion__writer__options_html_a5a7a8634a51b7a6107ba49f5ff0813af"><div class="ttname"><a href="struct__ion__writer__options.html#a5a7a8634a51b7a6107ba49f5ff0813af">_ion_writer_options::max_container_depth</a></div><div class="ttdeci">SIZE max_container_depth</div><div class="ttdef"><b>Definition:</b> ion_writer.h:69</div></div>
