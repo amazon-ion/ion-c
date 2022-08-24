@@ -1168,9 +1168,6 @@ TEST(IonTextPosition, MultilinePositions) {
 
 /** Tests ion_reader_get_value_position for 2 long string values appearing on separate lines. */
 TEST(IonTextPosition, LongStringPositions) {
-    // the only sane way to verify the line & byte offsets for the assertions below are in the following
-    // comments.
-
     //line numbers:        1 2          3       4          5   6                     7       8          9   10
     const char *ion_text = "\n'''foo'''\n// bar\n'''baz'''\n42\nsome_anno::'''bat'''\n// bor\n'''baa'''\n43\n";
     //offsets (1s place):    0123456789 0123456 7890123456 7890 123456789012345678901 2345678 9012345678 901 23456789
