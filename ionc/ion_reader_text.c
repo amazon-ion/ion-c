@@ -81,6 +81,8 @@ iERR _ion_reader_text_open(ION_READER *preader)
         , &(text->_field_name_buffer_length)
     ));
     text->_field_name.sid = UNKNOWN_SID;
+    ION_STRING_INIT(&text->_field_name.import_location.name);
+    text->_field_name.import_location.location = UNKNOWN_SID;
 
     text->_annotation_string_pool_length = preader->options.max_annotation_count;  // max number of annotations, size of string pool as count
     text->_annotation_value_buffer_length = preader->options.max_annotation_buffered + (preader->options.max_annotation_count * sizeof(BYTE));
@@ -176,6 +178,8 @@ iERR _ion_reader_text_reset_value(ION_READER *preader)
     ION_STRING_INIT(&text->_field_name.value);
     text->_field_name.add_count = 0;
     text->_field_name.sid = UNKNOWN_SID;
+    ION_STRING_INIT(&text->_field_name.import_location.name);
+    text->_field_name.import_location.location = UNKNOWN_SID;
 
     text->_value_type               =  tid_none;
     text->_value_sub_type           =  IST_NONE;
@@ -1675,6 +1679,7 @@ iERR _ion_reader_text_read_symbol(ION_READER *preader, ION_SYMBOL *p_symbol)
         ION_STRING_ASSIGN(&p_symbol->value, user_str);
         p_symbol->sid = UNKNOWN_SID;
         ION_STRING_INIT(&p_symbol->import_location.name);
+        p_symbol->import_location.location = UNKNOWN_SID;
     }
     iRETURN;
 }

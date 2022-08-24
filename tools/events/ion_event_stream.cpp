@@ -850,6 +850,7 @@ iERR ion_event_stream_read_event(hREADER reader, ION_EVENT_READ_PARAMS) {
     void *consensus_value = NULL;
     uint8_t visited_fields = 0;
 
+    ION_SYMBOL_INIT(&value_annotation);
     ION_SYMBOL_INIT(&value_field_name);
     ION_STRING_INIT(&value_text_str);
 
@@ -1026,6 +1027,19 @@ cleanup:
     if (value_imports) {
         ion_free_owner(value_imports);
     }
+
+    // Free string data for the current value_field_name.
+    if (p_value_field_name) {
+        free(value_field_name.import_location.name.value);
+        free(value_field_name.value.value);
+    }
+
+    // Free string data associated with the annotation symbols.
+    for (std::vector<ION_SYMBOL>::iterator it = value_annotations.begin(); it != value_annotations.end(); it++) {
+       free(it->value.value);
+       free(it->import_location.name.value);
+    }
+
     iRETURN;
 }
 
@@ -1078,6 +1092,7 @@ iERR ion_event_stream_is_event_stream(hREADER reader, IonEventStream *stream, bo
                 && ION_STRING_EQUALS(&ion_event_stream_marker, &symbol_value->value)) {
                 *is_event_stream = TRUE;
                 stream->remove(i); // Toss this event -- it's not part of the user data.
+                delete event;
             }
         }
         else if (event->event_type == STREAM_END) {

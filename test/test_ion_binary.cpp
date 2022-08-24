@@ -61,6 +61,8 @@ TEST(IonWriterAddAnnotation, SameInTextAndBinary) {
     ION_ASSERT_OK(ion_event_stream_read_all_from_bytes(binary_data, binary_len, NULL, &binary_stream));
     ION_ASSERT_OK(ion_event_stream_read_all_from_bytes(text_data, text_len, NULL, &text_stream));
     ASSERT_TRUE(ion_compare_streams(&binary_stream, &text_stream));
+    free(binary_data);
+    free(text_data);
 }
 
 TEST(IonBinaryTimestamp, WriterConvertsToUTC) {
@@ -79,6 +81,8 @@ TEST(IonBinaryTimestamp, WriterConvertsToUTC) {
 
     // Expected: 2008-02-29T23:59 with offset of +1 minutes.
     assertBytesEqual("\xE0\x01\x00\xEA\x67\x81\x0F\xD8\x82\x9D\x97\xBB", 12, result, result_len);
+
+    free(result);
 }
 
 TEST(IonBinaryTimestamp, ReaderConvertsFromUTC) {
@@ -115,6 +119,8 @@ TEST(IonBinaryTimestamp, WriterIgnoresSuperfluousOffset) {
 
     // Expected: 0001T with unknown local offset (C0 == -0 == unknown local offset).
     assertBytesEqual("\xE0\x01\x00\xEA\x62\xC0\x81", 7, result, result_len);
+
+    free(result);
 }
 
 TEST(IonBinaryTimestamp, ReaderIgnoresSuperfluousOffset) {
@@ -149,6 +155,7 @@ TEST(IonBinarySymbol, WriterWritesSymbolValueThatLooksLikeSymbolZero) {
     // NOTE: the symbol value refers to \x0A (i.e. SID 10 -- a local symbol), NOT \x00 (SID 0). This is because the
     // ion_writer_write_symbol API, which takes a string from the user, was used.
     assertBytesEqual("\x71\x0A", 2, result + result_len - 2, 2);
+    free(result);
 }
 
 TEST(IonBinarySymbol, WriterWritesSymbolValueSymbolZero) {
@@ -163,6 +170,7 @@ TEST(IonBinarySymbol, WriterWritesSymbolValueSymbolZero) {
 
     // NOTE: symbol zero is NOT added to the local symbol table. Symbol zero is not present in ANY symbol table.
     assertBytesEqual("\xE0\x01\x00\xEA\x70", 5, result, result_len);
+    free(result);
 }
 
 TEST(IonBinarySymbol, WriterWritesAnnotationThatLooksLikeSymbolZero) {
@@ -182,6 +190,7 @@ TEST(IonBinarySymbol, WriterWritesAnnotationThatLooksLikeSymbolZero) {
     // NOTE: the annotation refers to \x8A (i.e. SID 10 -- a local symbol), NOT \x80 (SID 0). This is because the
     // ion_writer_add_annotation API, which takes a string from the user, was used.
     assertBytesEqual("\xE3\x81\x8A\x70", 4, result + result_len - 4, 4);
+    free(result);
 }
 
 TEST(IonBinarySymbol, WriterWritesAnnotationSymbolZero) {
@@ -197,6 +206,7 @@ TEST(IonBinarySymbol, WriterWritesAnnotationSymbolZero) {
 
     // NOTE: symbol zero is NOT added to the local symbol table. Symbol zero is not present in ANY symbol table.
     assertBytesEqual("\xE0\x01\x00\xEA\xE3\x81\x80\x70", 8, result, result_len);
+    free(result);
 }
 
 TEST(IonBinarySymbol, WriterWritesFieldNameThatLooksLikeSymbolZero) {
@@ -219,6 +229,7 @@ TEST(IonBinarySymbol, WriterWritesFieldNameThatLooksLikeSymbolZero) {
     // NOTE: the field name and annotation refer to \x8A (i.e. SID 10 -- a local symbol), NOT \x80 (SID 0).
     // This is due to use of APIs that accept a string from the user.
     assertBytesEqual("\xD5\x8A\xE3\x81\x8A\x70", 6, result + result_len - 6, 6);
+    free(result);
 }
 
 TEST(IonBinarySymbol, WriterWritesFieldNameSymbolZero) {
@@ -237,6 +248,7 @@ TEST(IonBinarySymbol, WriterWritesFieldNameSymbolZero) {
 
     // NOTE: symbol zero is NOT added to the local symbol table. Symbol zero is not present in ANY symbol table.
     assertBytesEqual("\xE0\x01\x00\xEA\xD5\x80\xE3\x81\x80\x70", 10, result, result_len);
+    free(result);
 }
 
 TEST(IonBinarySymbol, ReaderReadsSymbolValueZeroAsString) {
@@ -265,13 +277,13 @@ TEST(IonBinarySymbol, ReaderReadsSymbolValueZeroAsSID) {
     ION_ASSERT_OK(ion_reader_next(reader, &actual_type));
     ASSERT_EQ(tid_SYMBOL, actual_type);
     ION_ASSERT_OK(ion_test_reader_read_symbol_sid(reader, &actual));
-    ION_ASSERT_OK(ion_reader_close(reader));
 
     ASSERT_EQ(0, actual);
 
     ION_ASSERT_OK(ion_reader_get_symbol_table(reader, &symbol_table));
     ION_ASSERT_OK(ion_symbol_table_find_by_sid(symbol_table, 0, &symbol_value));
     ASSERT_TRUE(ION_STRING_IS_NULL(symbol_value));
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
 
 TEST(IonBinarySymbol, WriterWritesSymbolValueIVM) {
@@ -293,6 +305,7 @@ TEST(IonBinarySymbol, WriterWritesSymbolValueIVM) {
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     assertBytesEqual("\xE0\x01\x00\xEA\x20\x21\x01\x21\x02", 9, result, result_len);
+    free(result);
 }
 
 TEST(IonBinarySymbol, ReaderReadsSymbolValueIVMNoOpAtEOF) {
@@ -345,6 +358,7 @@ TEST(IonBinaryReader, UnpositionedReaderHasTypeNone) {
     ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, 4, NULL));
     ION_ASSERT_OK(ion_reader_get_type(reader, &type));
     ASSERT_EQ(tid_none, type);
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
 
 TEST(IonBinarySymbol, ReaderReadsNullSymbol) {
@@ -392,6 +406,7 @@ void test_ion_binary_write_from_reader_rejects_negative_zero_int(BYTE *data, siz
     ION_ASSERT_FAIL(ion_writer_write_one_value(writer, reader));
     ION_ASSERT_OK(ion_writer_close(writer));
     ION_ASSERT_OK(ion_reader_close(reader));
+    ION_ASSERT_OK(ion_stream_close(stream));
 }
 
 TEST(IonBinaryInt, ReaderRejectsNegativeZeroMixedIntOneByte) {
@@ -406,7 +421,7 @@ void test_ion_binary_reader_threshold_for_int64_as_big_int(BYTE *data, size_t le
     hREADER reader;
     ION_TYPE type;
     int64_t value;
-    ION_INT big_int_expected;
+    ION_INT *big_int_expected;
     SIZE str_len, written;
 
     ION_ASSERT_OK(ion_reader_open_buffer(&reader, data, len, NULL));
@@ -417,16 +432,21 @@ void test_ion_binary_reader_threshold_for_int64_as_big_int(BYTE *data, size_t le
     ASSERT_EQ(IERR_NUMERIC_OVERFLOW,ion_reader_read_int64(reader, &value));
 
     // initialize ION_INT and read it as big integer
-    ION_ASSERT_OK(ion_int_init(&big_int_expected, NULL));
-    ION_ASSERT_OK(ion_reader_read_ion_int(reader, &big_int_expected));
+    ION_ASSERT_OK(ion_int_alloc(NULL, &big_int_expected));
+    ION_ASSERT_OK(ion_int_init(big_int_expected, NULL));
+    ION_ASSERT_OK(ion_reader_read_ion_int(reader, big_int_expected));
+    ION_ASSERT_OK(ion_reader_close(reader));
 
     // convert big integer to string for comparison
-    ion_int_char_length(&big_int_expected, &str_len);
+    ion_int_char_length(big_int_expected, &str_len);
     char *int_str = (char *)malloc(str_len * sizeof(char));
-    ion_int_to_char(&big_int_expected, (BYTE *)int_str, str_len, &written);
+    ion_int_to_char(big_int_expected, (BYTE *)int_str, str_len, &written);
+    ion_int_free(big_int_expected);
 
     // compare string representation of the value
     ASSERT_STREQ(actual_value, int_str);
+
+    free(int_str);
 }
 
 void test_ion_binary_reader_threshold_for_int64_as_int64(BYTE *data, size_t len, int64_t actual_value) {
@@ -443,6 +463,8 @@ void test_ion_binary_reader_threshold_for_int64_as_int64(BYTE *data, size_t len,
 
     // compare actual and generated int64 values
     ASSERT_EQ(actual_value, value);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
 
 TEST(IonBinaryReader, ReaderPositiveThresholdForInt64) {
@@ -468,6 +490,7 @@ void test_ion_binary_reader_requires_timestamp_fraction_less_than_one(BYTE *data
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_TIMESTAMP, type);
     ASSERT_EQ(IERR_INVALID_BINARY, ion_reader_read_timestamp(reader, &ts));
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
 
 TEST(IonBinaryTimestamp, ReaderRequiresTimestampFractionLessThanOne) {
@@ -489,6 +512,7 @@ void test_ion_binary_reader_supports_32_bit_floats(BYTE *data, size_t len, float
     ASSERT_EQ(tid_FLOAT, type);
     ION_ASSERT_OK(ion_reader_read_double(reader, &actual));
     ASSERT_FLOAT_EQ(expected, (float) actual);
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
 
 TEST(IonBinaryFloat, ReaderSupports32BitFloats) {
@@ -526,6 +550,7 @@ TEST(IonBinaryFloat, ReaderSupports32BitFloatNan) {
     ION_ASSERT_OK(ion_reader_read_double(reader, &actual));
     ASSERT_TRUE(std::isnan(nan));
     ASSERT_TRUE(std::isnan(actual));
+    ION_ASSERT_OK(ion_reader_close(reader));
 }
 
 /**
@@ -619,6 +644,8 @@ void test_ion_binary_writer_supports_32_bit_floats(float value, const char *expe
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     assertBytesEqual(expected, expected_len, result, result_len);
+
+    free(result);
 }
 
 
@@ -662,6 +689,8 @@ void test_ion_binary_writer_supports_compact_floats(BOOL compact_floats, double 
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
 
     assertBytesEqual(expected, expected_len, result, result_len);
+
+    free(result);
 }
 
 TEST(IonBinaryFloat, WriterSupportsCompactFloatsOption) {

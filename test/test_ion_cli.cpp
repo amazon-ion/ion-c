@@ -471,6 +471,7 @@ TEST(IonCli, ProcessSymbolsWithUnknownTextWithoutCatalog) {
     test_ion_cli_process(filepath.c_str(), IO_TYPE_FILE, &command_output, &report, OUTPUT_TYPE_EVENTS);
     ASSERT_FALSE(report.hasComparisonFailures());
     ASSERT_FALSE(report.hasErrors());
+
     IonCliCommonArgs common_args;
     test_ion_cli_init_common_args(&common_args);
     IonEventStream stream;
@@ -507,11 +508,14 @@ TEST(IonCli, FirstValueHasError) {
     ASSERT_FALSE(report1.hasComparisonFailures());
     ASSERT_TRUE(report1.hasErrors());
     char *events = ion_string_strdup(&command_output);
+    ion_cli_free_command_output(&command_output);
     test_ion_cli_process(events, IO_TYPE_MEMORY, &command_output, &report2);
     ASSERT_FALSE(report2.hasComparisonFailures());
     ASSERT_FALSE(report2.hasErrors());
     ASSERT_EQ(0, command_output.length);
     free(events);
+
+    ion_cli_free_command_output(&command_output);
 }
 
 TEST(IonCli, ParsingFailureDoesNotYieldEvent) {
@@ -523,11 +527,14 @@ TEST(IonCli, ParsingFailureDoesNotYieldEvent) {
     ASSERT_FALSE(report1.hasComparisonFailures());
     ASSERT_TRUE(report1.hasErrors());
     char *events = ion_string_strdup(&command_output);
+    ion_cli_free_command_output(&command_output);
     test_ion_cli_process(events, IO_TYPE_MEMORY, &command_output, &report2);
     ASSERT_FALSE(report2.hasComparisonFailures());
     ASSERT_FALSE(report2.hasErrors());
     ASSERT_EQ(0, command_output.length);
     free(events);
+
+    ion_cli_free_command_output(&command_output);
 }
 
 TEST(IonCli, ComparingBadListWithElementsFromEventStreamSucceeds) {
@@ -543,6 +550,8 @@ TEST(IonCli, ComparingBadListWithElementsFromEventStreamSucceeds) {
     ASSERT_FALSE(report2.hasComparisonFailures());
     ASSERT_FALSE(report2.hasErrors());
     free(events);
+
+    ion_cli_free_command_output(&command_output);
 }
 
 TEST(IonCli, ComparingBadListWithoutElementsFromEventStreamSucceeds) {
@@ -558,6 +567,8 @@ TEST(IonCli, ComparingBadListWithoutElementsFromEventStreamSucceeds) {
     ASSERT_FALSE(report2.hasComparisonFailures());
     ASSERT_FALSE(report2.hasErrors());
     free(events);
+
+    ion_cli_free_command_output(&command_output);
 }
 
 TEST(IonCli, ComparingSymbolZeroFromEventStreamSucceeds) {
@@ -573,6 +584,7 @@ TEST(IonCli, ComparingSymbolZeroFromEventStreamSucceeds) {
     ASSERT_FALSE(report2.hasComparisonFailures());
     ASSERT_FALSE(report2.hasErrors());
     free(events);
+    ion_cli_free_command_output(&command_output);
 }
 
 TEST(IonCli, ComparingInnerVersionMarkersSucceeds) {
@@ -588,4 +600,6 @@ TEST(IonCli, ComparingInnerVersionMarkersSucceeds) {
     ASSERT_FALSE(report2.hasComparisonFailures());
     ASSERT_FALSE(report2.hasErrors());
     free(events);
+
+    ion_cli_free_command_output(&command_output);
 }

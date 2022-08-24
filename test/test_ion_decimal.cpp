@@ -42,8 +42,8 @@
 
 /* Reading/writing test utilities */
 
-#define ION_DECIMAL_READER_NEXT \
-    ION_ASSERT_OK(ion_reader_next(reader, &type)); \
+#define ION_DECIMAL_READER_NEXT(reader) \
+    ION_ASSERT_OK(ion_reader_next((reader), &type)); \
     ASSERT_EQ(tid_DECIMAL, type);
 
 #define ION_DECIMAL_WRITER_INIT(is_binary) \
@@ -102,7 +102,7 @@
  */
 #define ION_DECIMAL_EXPECT_OVERFLOW(func, max_digits) \
     ION_DECIMAL_READER_INIT_CUSTOM_OPTIONS(max_digits); \
-    ION_DECIMAL_READER_NEXT; \
+    ION_DECIMAL_READER_NEXT(reader); \
     ASSERT_EQ(IERR_NUMERIC_OVERFLOW, func); \
     ION_ASSERT_OK(ion_reader_close(reader));
 
@@ -115,20 +115,23 @@
     ION_DECIMAL_READER_INIT; \
     ION_DECIMAL_WRITER_INIT(TRUE); \
     \
-    ION_DECIMAL_READER_NEXT; \
+    ION_DECIMAL_READER_NEXT(reader); \
     ION_ASSERT_OK(ion_reader_read_ion_decimal(reader, &ion_decimal)); \
     ASSERT_TRUE(ION_DECIMAL_IS_NUMBER((&ion_decimal))); \
     ASSERT_EQ(decimal_digits, ion_decimal.value.num_value->digits); \
     \
     ION_ASSERT_OK(ion_writer_write_ion_decimal(writer, &ion_decimal)); \
-    ION_DECIMAL_CLOSE_READER_WRITER;
+    ION_ASSERT_OK(ion_test_writer_get_bytes(writer, ion_stream, &result, &result_len));
+
 
 #define ION_DECIMAL_BINARY_READER_EXPECT_OVERFLOW(func, decimal_digits) \
     ION_DECIMAL_TEXT_TO_BINARY(decimal_digits); \
+    ION_ASSERT_OK(ion_reader_close(reader)); \
+    reader = NULL; \
     /* This new reader only supports decQuad precision, which the input exceeds. */ \
     ION_DECIMAL_EXPECT_OVERFLOW(func, DECQUAD_Pmax); \
     free(result); \
-    ION_DECIMAL_FREE_1(&ion_decimal); \
+    ION_DECIMAL_FREE_1(&ion_decimal);
 
 
 /* Reading/writing tests */
@@ -140,7 +143,7 @@ TEST(IonTextDecimal, RoundtripPreservesFullFidelityDecNumber) {
     ION_DECIMAL_READER_INIT;
     ION_DECIMAL_WRITER_INIT(FALSE);
 
-    ION_DECIMAL_READER_NEXT;
+    ION_DECIMAL_READER_NEXT(reader);
     ION_ASSERT_OK(ion_reader_read_ion_decimal(reader, &ion_decimal));
     ION_ASSERT_OK(ion_writer_write_ion_decimal(writer, &ion_decimal));
 
@@ -151,16 +154,18 @@ TEST(IonTextDecimal, RoundtripPreservesFullFidelityDecNumber) {
 TEST(IonBinaryDecimal, RoundtripPreservesFullFidelityDecNumber) {
     const char *text_decimal = "1.1999999999999999555910790149937383830547332763671875";
     ION_DECIMAL ion_decimal_after;
+    hREADER test_reader;
 
     ION_DECIMAL_TEXT_TO_BINARY(53);
 
-    ION_ASSERT_OK(ion_test_new_reader(result, (SIZE)result_len, &reader));
-    ION_DECIMAL_READER_NEXT;
-    ION_ASSERT_OK(ion_reader_read_ion_decimal(reader, &ion_decimal_after));
-    ION_ASSERT_OK(ion_reader_close(reader));
+    ION_ASSERT_OK(ion_test_new_reader(result, (SIZE)result_len, &test_reader));
+    ION_DECIMAL_READER_NEXT(test_reader);
+    ION_ASSERT_OK(ion_reader_read_ion_decimal(test_reader, &ion_decimal_after));
 
     ASSERT_TRUE(ion_equals_decimal(&ion_decimal, &ion_decimal_after));
 
+    ION_ASSERT_OK(ion_reader_close(test_reader));
+    ION_ASSERT_OK(ion_reader_close(reader));
     free(result);
     ION_DECIMAL_FREE_2(&ion_decimal, &ion_decimal_after);
 }
@@ -217,9 +222,9 @@ TEST(IonTextDecimal, ReaderAlwaysPreservesUpTo34Digits) {
     ION_DECIMAL_READER_INIT_CUSTOM_OPTIONS(3);
     ION_DECIMAL_WRITER_INIT(FALSE);
 
-    ION_DECIMAL_READER_NEXT;
+    ION_DECIMAL_READER_NEXT(reader);
     ION_ASSERT_OK(ion_reader_read_ion_decimal(reader, &ion_decimal));
-    ION_DECIMAL_READER_NEXT;
+    ION_DECIMAL_READER_NEXT(reader);
     ION_ASSERT_OK(ion_reader_read_decimal(reader, &quad));
 
     ION_ASSERT_OK(ion_writer_write_ion_decimal(writer, &ion_decimal));
@@ -242,11 +247,11 @@ TEST(IonBinaryDecimal, ReaderAlwaysPreservesUpTo34Digits) {
     ION_DECIMAL_READER_INIT;
     ION_DECIMAL_WRITER_INIT(TRUE);
 
-    ION_DECIMAL_READER_NEXT;
+    ION_DECIMAL_READER_NEXT(reader);
     ION_ASSERT_OK(ion_reader_read_ion_decimal(reader, &ion_decimal_before));
     ASSERT_EQ(ION_DECIMAL_TYPE_QUAD, ion_decimal_before.type);
     ASSERT_EQ(4, decQuadDigits(&ion_decimal_before.value.quad_value));
-    ION_DECIMAL_READER_NEXT;
+    ION_DECIMAL_READER_NEXT(reader);
     ION_ASSERT_OK(ion_reader_read_decimal(reader, &quad_before));
 
     ION_ASSERT_OK(ion_writer_write_ion_decimal(writer, &ion_decimal_before));
@@ -254,9 +259,9 @@ TEST(IonBinaryDecimal, ReaderAlwaysPreservesUpTo34Digits) {
     ION_DECIMAL_CLOSE_READER_WRITER;
 
     ION_DECIMAL_READER_INIT_CUSTOM_OPTIONS(3);
-    ION_DECIMAL_READER_NEXT;
+    ION_DECIMAL_READER_NEXT(reader);
     ION_ASSERT_OK(ion_reader_read_ion_decimal(reader, &ion_decimal_after));
-    ION_DECIMAL_READER_NEXT;
+    ION_DECIMAL_READER_NEXT(reader);
     ION_ASSERT_OK(ion_reader_read_decimal(reader, &quad_after));
 
     ION_ASSERT_OK(ion_decimal_equals(&ion_decimal_before, &ion_decimal_after, &((ION_READER *)reader)->_deccontext, &decimal_equals));

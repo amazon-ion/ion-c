@@ -1125,9 +1125,11 @@ iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotati
     annotation_symbol = &pwriter->annotations[pwriter->annotation_curr];
     ASSERT(annotation_symbol);
 
-    IONCHECK(ion_strdup(pwriter->_temp_entity_pool, &annotation_symbol->value, annotation));
+    ION_STRING_ASSIGN(&annotation_symbol->value, annotation);
     annotation_symbol->sid = UNKNOWN_SID; // The text is known; the SID is irrelevant.
     annotation_symbol->add_count = 0;
+    ION_STRING_INIT(&annotation_symbol->import_location.name);
+    annotation_symbol->import_location.location = UNKNOWN_SID;
 
     pwriter->annotation_curr++;
 
@@ -1155,6 +1157,8 @@ iERR _ion_writer_add_annotation_sid_helper(ION_WRITER *pwriter, SID sid)
     ION_STRING_INIT(&annotation_symbol->value);
     annotation_symbol->sid = sid;
     annotation_symbol->add_count = 0;
+    ION_STRING_INIT(&annotation_symbol->import_location.name);
+    annotation_symbol->import_location.location = UNKNOWN_SID;
 
     pwriter->annotation_curr++;
 
@@ -2230,6 +2234,7 @@ iERR _ion_writer_transition_to_symtab_intercept_state(ION_WRITER *pwriter, ION_T
                 new_import = _ion_collection_append(import_list);
                 new_import->descriptor.version = 1;
                 new_import->descriptor.max_id = ION_SYS_SYMBOL_MAX_ID_UNDEFINED;
+                new_import->shared_symbol_table = NULL;
             }
             break;
         case tid_LIST_INT:
@@ -2806,6 +2811,7 @@ iERR _ion_writer_free(ION_WRITER *pwriter)
     // Free the writer's members.
     UPDATEERROR(_ion_writer_free_local_symbol_table( pwriter ));
     UPDATEERROR( _ion_writer_free_temp_pool( pwriter ));
+    UPDATEERROR(_ion_writer_free_pending_pool(pwriter));
 
     // If the writer allocated the stream, free it.
     if (pwriter->writer_owns_stream) {
@@ -2823,9 +2829,12 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
 
     ASSERT(pwriter);
 
+    BOOL flush = TRUE;
+
     if (pwriter->depth != 0) {
-        UPDATEERROR(_ion_writer_free(pwriter));
-        FAILWITHMSG(IERR_UNEXPECTED_EOF, "Writer freed; cannot flush a writer that is not at the top level.");
+        flush = FALSE;
+        err = IERR_UNEXPECTED_EOF;
+        DEBUG_ERRMSG(err, "Writer freed; cannot flush a writer that is not at the top level.");
     }
 
     // all the local resources are allocated in the parent
@@ -2838,17 +2847,19 @@ iERR _ion_writer_close_helper(ION_WRITER *pwriter)
         break;
     case ion_type_text_writer:
         if (pwriter->_typed_writer.text._top > 0) {
-            UPDATEERROR(_ion_writer_free(pwriter));
-            FAILWITHMSG(IERR_UNEXPECTED_EOF, "Cannot flush a text writer with a value in progress.");
+            flush = FALSE;
+            err = IERR_UNEXPECTED_EOF;
+            DEBUG_ERRMSG(err, "Cannot flush a text writer with a value in progress.");
         }
-        UPDATEERROR(_ion_writer_text_close(pwriter));
+        UPDATEERROR(_ion_writer_text_close(pwriter, flush));
         break;
     case ion_type_binary_writer:
         if (pwriter->_typed_writer.binary._lob_in_progress != tid_none) {
-            UPDATEERROR(_ion_writer_free(pwriter));
-            FAILWITHMSG(IERR_UNEXPECTED_EOF, "Cannot flush a binary writer with a lob in progress.");
+            flush = FALSE;
+            err = IERR_UNEXPECTED_EOF;
+            DEBUG_ERRMSG(err, "Cannot flush a binary writer with a lob in progress.");
         }
-        UPDATEERROR(_ion_writer_binary_close(pwriter));
+        UPDATEERROR(_ion_writer_binary_close(pwriter, flush));
         break;
     default:
         UPDATEERROR(IERR_INVALID_ARG);
@@ -3180,6 +3191,8 @@ iERR ion_temp_buffer_alloc(ION_TEMP_BUFFER *temp_buffer, SIZE needed, void **p_p
 
     if (!temp_buffer) FAILWITH(IERR_INVALID_ARG);
     if (!p_ptr || needed < 0) FAILWITH(IERR_INVALID_ARG);
+    // align to pointer size
+    needed = (SIZE) ((((size_t) needed) + (sizeof(void *) - 1)) & ~(sizeof(void *) - 1));
     if (temp_buffer->position + needed >= temp_buffer->limit) FAILWITH(IERR_NO_MEMORY);
 
     buf = temp_buffer->position;
@@ -3272,4 +3285,15 @@ iERR _ion_writer_free_temp_pool( ION_WRITER *pwriter )
     SUCCEED();
 
     iRETURN;
+}
+
+iERR _ion_writer_free_pending_pool(ION_WRITER *writer) {
+    iENTER;
+
+    if (writer->_pending_temp_entity_pool != NULL) {
+        ion_free_owner(writer->_pending_temp_entity_pool);
+        writer->_pending_temp_entity_pool = NULL;
+    }
+
+    RETURN(__location_name__, __line__, __count__++, err);
 }

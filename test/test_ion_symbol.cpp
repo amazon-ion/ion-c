@@ -343,6 +343,8 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsIsRecognize
     ION_ASSERT_OK(ion_test_writer_write_symbol_sid(writer, 10)); // This maps to sym1.
 
     ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT("$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1}]} sym1");
+
+    ION_ASSERT_OK(ion_catalog_close(catalog));
 }
 
 TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsAndOpenContentIsRecognizedAsSymbolTable) {
@@ -437,6 +439,7 @@ TEST_P(BinaryAndTextTest, ManuallyWritingSymbolTableStructWithImportsAndOpenCont
     ION_ASSERT_OK(ion_reader_read_ion_symbol(reader, &symbol));
     ION_ASSERT_OK(ion_writer_write_ion_symbol(roundtrip_writer, &symbol));
     ION_ASSERT_OK(ion_reader_close(reader));
+    ION_ASSERT_OK(ion_catalog_close(catalog));
     free(result);
 
     ION_ASSERT_OK(ion_test_writer_get_bytes(roundtrip_writer, stream, &result, &bytes_flushed));
@@ -567,6 +570,7 @@ TEST_P(BinaryAndTextTest, ManuallyWritingAmbiguousImportFails) {
     ION_ASSERT_OK(ion_writer_write_int(writer, 1));
     ASSERT_EQ(IERR_INVALID_SYMBOL_TABLE, ion_writer_finish_container(writer));
     ASSERT_EQ(IERR_UNEXPECTED_EOF, ion_writer_close(writer));
+    ion_stream_close(stream);
 }
 
 TEST_P(BinaryAndTextTest, ManuallyWriteSymbolTableAppendSucceeds) {
@@ -680,6 +684,7 @@ TEST_P(BinaryAndTextTest, SymbolTableGettersWithManualLSTInProgressReturnsPrevio
     ASSERT_NE(symbol_table_1, symbol_table_2);
 
     ION_ASSERT_OK(ion_writer_close(writer));
+    ION_ASSERT_OK(ion_stream_close(stream));
 }
 
 TEST_P(BinaryAndTextTest, SymbolTableSetterWithManualLSTInProgressFails) {
@@ -700,6 +705,7 @@ TEST_P(BinaryAndTextTest, SymbolTableSetterWithManualLSTInProgressFails) {
 
     ION_ASSERT_OK(ion_writer_close(writer));
     ION_ASSERT_OK(ion_symbol_table_close(symbol_table));
+    ION_ASSERT_OK(ion_stream_close(stream));
 }
 
 TEST(IonSymbolTable, TextWritingKnownSymbolFromSIDResolvesText) {
@@ -718,6 +724,9 @@ TEST(IonSymbolTable, TextWritingKnownSymbolFromSIDResolvesText) {
 
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
     assertStringsEqual("$ion_symbol_table::{imports:[{name:\"import1\",version:1,max_id:1},{name:\"import2\",version:1,max_id:2}]} {sym1:sym2::sym3}", (char *)result, bytes_flushed);
+    free(result);
+
+    ion_catalog_close(catalog);
 }
 
 TEST(IonSymbolTable, TextWritingSymbolWithUnknownTextAsSidFromImportWritesIdentifierAndForcesSymbolTable) {
@@ -747,6 +756,7 @@ TEST(IonSymbolTable, TextWritingSymbolWithUnknownTextAsSidFromImportWritesIdenti
 
     ION_ASSERT_OK(ion_test_writer_get_bytes(writer, stream, &result, &bytes_flushed));
     assertStringsEqual("$ion_symbol_table::{imports:[{name:\"foo\",version:1,max_id:3}]} abc $11 def", (char *)result, bytes_flushed);
+    ion_symbol_table_close(import);
     free(result);
 }
 
@@ -803,6 +813,7 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromImport) {
         ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT("$ion_symbol_table::{imports:[{name:\"foo\",version:1,max_id:3}]} {abc:$11::def}");
     }
     ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
+    ION_ASSERT_OK(ion_symbol_table_close(import));
 }
 
 TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromCatalog) {
@@ -843,6 +854,7 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromCatalog) {
     else {
         ION_SYMBOL_TEST_REWRITE_WITH_CATALOG_FROM_WRITER_AND_ASSERT_TEXT("{sym1:sym2::sym3}");
     }
+    ION_ASSERT_OK(ion_catalog_close(catalog));
 }
 
 TEST_P(BinaryAndTextTest, WritingInvalidIonSymbolFails) {
@@ -863,6 +875,7 @@ TEST_P(BinaryAndTextTest, WritingInvalidIonSymbolFails) {
     ASSERT_EQ(IERR_INVALID_SYMBOL, ion_writer_write_field_name_symbol(writer, &symbol));
     ION_ASSERT_OK(ion_writer_finish_container(writer));
     ION_ASSERT_OK(ion_writer_close(writer));
+    ION_ASSERT_OK(ion_stream_close(stream));
 }
 
 TEST_P(BinaryAndTextTest, WritingIonSymbolWithUnknownTextNotFoundInImportsOrCatalogFails) {
@@ -896,6 +909,9 @@ TEST_P(BinaryAndTextTest, WritingIonSymbolWithUnknownTextNotFoundInImportsOrCata
     ION_ASSERT_OK(ion_writer_finish_container(writer));
     ION_ASSERT_OK(ion_writer_close(writer));
     ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
+    ION_ASSERT_OK(ion_symbol_table_close(import));
+    ION_ASSERT_OK(ion_catalog_close(catalog));
+    ION_ASSERT_OK(ion_stream_close(stream));
 }
 
 TEST(IonSymbolTable, TextWritingSymbolWithUnknownTextFromManuallyWrittenSymbolTableWritesIdentifierAndForcesSymbolTable) {
@@ -1058,6 +1074,8 @@ TEST_P(BinaryAndTextTest, FlushingOrFinishingOrClosingWriterBelowTopLevelFails) 
     ASSERT_EQ(IERR_UNEXPECTED_EOF, ion_writer_finish(writer, &bytes_flushed));
     ASSERT_EQ(0, bytes_flushed);
     ASSERT_EQ(IERR_UNEXPECTED_EOF, ion_writer_close(writer));
+
+    ION_ASSERT_OK(ion_stream_close(stream));
 }
 
 TEST_P(BinaryAndTextTest, ClosingWriterWithPendingLobFails) {
@@ -1071,6 +1089,7 @@ TEST_P(BinaryAndTextTest, ClosingWriterWithPendingLobFails) {
     ASSERT_EQ(IERR_UNEXPECTED_EOF, ion_writer_finish(writer, &bytes_flushed));
     ASSERT_EQ(0, bytes_flushed);
     ASSERT_EQ(IERR_UNEXPECTED_EOF, ion_writer_close(writer));
+    ION_ASSERT_OK(ion_stream_close(stream));
 }
 
 TEST(IonSymbolTable, LoadSymbolTableWithAnnotationSecondFails) {
@@ -1440,6 +1459,7 @@ TEST_P(BinaryAndTextTest, WriterAcceptsImportsAfterConstruction) {
     ION_ASSERT_OK(ion_writer_close(writer));
     ION_ASSERT_OK(ion_catalog_close(catalog));
     ION_ASSERT_OK(ion_writer_options_close_shared_imports(&writer_options));
+    ION_ASSERT_OK(ion_stream_close(stream));
 }
 
 TEST_P(BinaryAndTextTest, AddImportedTablesFailsBelowTopLevel) {
@@ -1623,6 +1643,7 @@ TEST_P(BinaryAndTextTest, AddImportedTablesFailsWithPendingAnnotations) {
     ION_ASSERT_OK(ion_writer_add_annotation(writer, &foo));
     ASSERT_EQ(IERR_INVALID_STATE, ion_writer_add_imported_tables(writer, &new_imports));
     ION_ASSERT_OK(ion_writer_close(writer));
+    ION_ASSERT_OK(ion_stream_close(stream));
 }
 
 TEST_P(BinaryAndTextTest, LSTNullSlotsRoundtrippedAsSymbolZero) {
@@ -1682,6 +1703,8 @@ TEST_P(BinaryAndTextTest, ReaderSkipsOverSymbol) {
     assertStringsEqual((char *)def_written.value, (char *)def_read.value, def_written.length);
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_EOF, type);
+    ION_ASSERT_OK(ion_reader_close(reader));
+    free(data);
 }
 
 TEST_P(BinaryAndTextTest, ReaderSkipsOverIVMBoundary) {
@@ -1714,6 +1737,8 @@ TEST_P(BinaryAndTextTest, ReaderSkipsOverIVMBoundary) {
     assertStringsEqual((char *)def_written.value, (char *)def_read.value, def_written.length);
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_EOF, type);
+    ION_ASSERT_OK(ion_reader_close(reader));
+    free(data);
 }
 
 TEST(IonSymbolTable, CanBeRemovedFromCatalog) {
@@ -1734,4 +1759,6 @@ TEST(IonSymbolTable, CanBeRemovedFromCatalog) {
     ION_ASSERT_OK(ion_catalog_release_symbol_table(catalog, import2));
     ION_ASSERT_OK(ion_catalog_get_symbol_table_count(catalog, &cnt));
     ASSERT_EQ(0, cnt);
+
+    ION_ASSERT_OK(ion_catalog_close(catalog));
 }

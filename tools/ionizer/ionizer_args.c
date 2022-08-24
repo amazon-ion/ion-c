@@ -31,7 +31,6 @@ BOOL set_name(OC *pcur);
 BOOL set_symbol_table(OC *pcur);
 BOOL set_catalog_name(OC *pcur);
 BOOL set_version(OC *pcur);
-BOOL set_pagesize(OC *pcur);
 BOOL set_write_binary(OC *pcur);
 BOOL set_write_symtab(OC *pcur);
 BOOL set_ugly(OC *pcur);
@@ -54,7 +53,6 @@ OPT_DEF inionizer_options[] = {
     { ot_int,    't', "trace",         TRUE, FALSE, set_trace,          "turns on trace options 1:args,2:parse state,3:parse fns,4:tokens,5:calls,6:time" },
     { ot_string, 'n', "name",         FALSE, FALSE, set_name,           "sets the output symbol table name" },
     { ot_string, 'o', "output",       FALSE, FALSE, set_output,         "sets the output format: ugly, binary, pretty, counts, none(scan only), types(counts)" },
-    { ot_int,    'p', "pagesize",      TRUE, FALSE, set_pagesize,       "set the page size of the memory pool" },
     { ot_string, 's', "symbol_table", FALSE, FALSE, set_symbol_table,   "symbol table file for the writer (uses newest version)" },
     { ot_none,   'u', NULL,           FALSE, FALSE, set_ugly,           "sets the output format to ugly" },
     { ot_int,    'v', "version",      FALSE, FALSE, set_version,        "set the output symbol tables version" },
@@ -139,12 +137,6 @@ BOOL set_version(OC *pcur) {
     char * val = opt_get_arg(pcur);
     if (!val) return FALSE;
     g_ionizer_symtab_version = atoi(val);
-    return TRUE;
-}
-BOOL set_pagesize(OC *pcur) {
-    char * val = opt_get_arg(pcur);
-    if (!val) return FALSE;
-    g_ionizer_pool_page_size = atoi(val);
     return TRUE;
 }
 

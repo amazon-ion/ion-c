@@ -57,10 +57,12 @@ iERR _ion_writer_text_initialize_stack(ION_WRITER *pwriter)
             ,DEFAULT_WRITER_STACK_DEPTH * sizeof(*(TEXTWRITER(pwriter)->_stack_parent_type))
             ,(void **)&TEXTWRITER(pwriter)->_stack_parent_type)
     );
+    memset(TEXTWRITER(pwriter)->_stack_parent_type, 0, DEFAULT_WRITER_STACK_DEPTH * sizeof(*(TEXTWRITER(pwriter)->_stack_parent_type)));
     IONCHECK(ion_temp_buffer_alloc(&pwriter->temp_buffer
             ,DEFAULT_WRITER_STACK_DEPTH * sizeof(*(TEXTWRITER(pwriter)->_stack_flags))
             ,(void **)&TEXTWRITER(pwriter)->_stack_flags)
     );
+    memset(TEXTWRITER(pwriter)->_stack_flags, 0, DEFAULT_WRITER_STACK_DEPTH * sizeof(*(TEXTWRITER(pwriter)->_stack_flags)));
     iRETURN;
 }
 
@@ -79,7 +81,9 @@ iERR _ion_writer_text_grow_stack(ION_WRITER *pwriter)
     IONCHECK(ion_temp_buffer_alloc(&pwriter->temp_buffer, new_flag_size, (void **)&pnew_flags));
 
     memcpy(pnew_types, TEXTWRITER(pwriter)->_stack_parent_type, old_type_size);
+    memset(((char *) pnew_types) + old_type_size, 0, new_type_size - old_type_size);
     memcpy(pnew_flags, TEXTWRITER(pwriter)->_stack_flags, old_flag_size);
+    memset(((char *) pnew_flags) + old_flag_size, 0, new_flag_size - old_flag_size);
 
     TEXTWRITER(pwriter)->_stack_parent_type = pnew_types;
     TEXTWRITER(pwriter)->_stack_flags = pnew_flags;
@@ -1108,17 +1112,18 @@ iERR _ion_writer_text_finish_container(ION_WRITER *pwriter)
     iRETURN;
 }
 
-iERR _ion_writer_text_close(ION_WRITER *pwriter)
+iERR _ion_writer_text_close(ION_WRITER *pwriter, BOOL flush)
 {
     iENTER;
 
     if (!pwriter) FAILWITH(IERR_BAD_HANDLE);
 
-    if (pwriter->options.pretty_print) {
-        ION_PUT(pwriter->output, '\n');
+    if (flush) {
+        if (pwriter->options.pretty_print) {
+            ION_PUT(pwriter->output, '\n');
+        }
+        IONCHECK(ion_stream_flush(pwriter->output));
     }
-
-    IONCHECK(ion_stream_flush(pwriter->output));
 
     iRETURN;
 }

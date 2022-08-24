@@ -276,12 +276,18 @@ iERR _ion_symbol_table_get_system_symbol_helper(ION_SYMBOL_TABLE **pp_system_tab
 
 // currently the system symbol table uses 1304 bytes or so
 #define kIonSystemSymbolMemorySize 2048
-static THREAD_LOCAL_STORAGE char gSystemSymbolMemory[kIonSystemSymbolMemorySize];
+// This needs to be aligned to `ALLOC_ALIGNMENT` bytes since it's being used as a block of memory
+// The ION_ALLOCATION_CHAIN created at the beginning of the memory array might need a wider alignment than what a char[] provides by default
+// User data allocated within this block will also likely need a wider alignment, but this is taken care of by the `ION_ALLOC_BLOCK_TO_USER_PTR` macro
+static THREAD_LOCAL_STORAGE ALIGN_AS(ALLOC_ALIGNMENT) char gSystemSymbolMemory[kIonSystemSymbolMemorySize];
 
 void* smallLocalAllocationBlock()
 {
     ION_ALLOCATION_CHAIN *new_block = (ION_ALLOCATION_CHAIN*)gSystemSymbolMemory;
     SIZE                  alloc_size = kIonSystemSymbolMemorySize;
+
+    // Assert that the new block is aligned
+    assert(new_block == (ION_ALLOCATION_CHAIN *)ALIGN_PTR(new_block));
 
     new_block->size     = alloc_size;
 
@@ -290,6 +296,9 @@ void* smallLocalAllocationBlock()
 
     new_block->position = ION_ALLOC_BLOCK_TO_USER_PTR(new_block);
     new_block->limit    = ((BYTE*)new_block) + alloc_size;
+
+    // Assert that the user data pointer we're about to hand out is aligned and lives past the end of the allocation chain
+    assert(new_block->position == ((BYTE *)ALIGN_PTR((BYTE *)(&new_block->limit) + ALIGN_SIZE(sizeof(new_block->limit)))));
 
     return new_block->position;
 }
@@ -441,6 +450,8 @@ iERR _ion_symbol_table_local_load_symbol_list(ION_READER *preader, hOWNER owner,
             ION_STRING_ASSIGN(&sym->value, &str);
         }
         sym->sid = UNKNOWN_SID;
+        ION_STRING_INIT(&sym->import_location.name);
+        sym->import_location.location = UNKNOWN_SID;
     }
     // step back out to the symbol table struct
     IONCHECK(_ion_reader_step_out_helper(preader));
@@ -510,6 +521,8 @@ iERR _ion_symbol_table_append(ION_READER *preader, hOWNER owner, ION_SYMBOL_TABL
                 if (!symbol_to_append) break;
                 appended_symbol = (ION_SYMBOL *)_ion_collection_append(&cloned->symbols);
                 // These strings have the same owner; they can be assigned rather than copied.
+                ION_STRING_INIT(&appended_symbol->import_location.name);
+                appended_symbol->import_location.location = UNKNOWN_SID;
                 ION_STRING_ASSIGN(&appended_symbol->value, &symbol_to_append->value);
                 appended_symbol->sid = UNKNOWN_SID; // This is assigned correctly later.
             }
@@ -2124,10 +2137,6 @@ int_fast8_t  _ion_symbol_table_compare_fn(void *key1, void *key2, void *context)
 
     ASSERT(sym1);
     ASSERT(sym2);
-#ifdef DEBUG
-    ASSERT(!ION_STRING_IS_NULL(&sym1->value));
-    ASSERT(!ION_STRING_IS_NULL(&sym2->value));
-#endif
 
     // this compare is for the purposes of the hash table only !
     if (sym1 == sym2) {
@@ -2136,12 +2145,19 @@ int_fast8_t  _ion_symbol_table_compare_fn(void *key1, void *key2, void *context)
     else if ((cmp = (sym1->value.length - sym2->value.length)) != 0) {
         cmp = (cmp > 0) ? 1 : -1; // normalize the value
     }
+    // Both symbols are of the same length, so we handle the empty & NULL value cases.
+    else if (sym1->value.length == 0) {
+       cmp = 0;
+    }
     else {
         cmp = memcmp(sym1->value.value, sym2->value.value, sym1->value.length);
     }
     return cmp;
 }
 
+// Disable the unexpected behavior sanitizer's shift, and signed int overflow checks since
+// we know _ion_symbol_table_hash_fn uses these behaviors.
+NOSAN_SHIFT NOSAN_SINT_OVERFLOW
 int_fast32_t _ion_symbol_table_hash_fn(void *key, void *context)
 {
     ION_SYMBOL  *sym = (ION_SYMBOL *)key;

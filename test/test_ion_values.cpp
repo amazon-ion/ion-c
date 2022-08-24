@@ -46,7 +46,7 @@ TEST(IonUserStream, SucceedsInTheMiddleOfAValue) {
     hREADER reader;
     ION_TYPE type;
     ION_STRING value;
-    ION_ASSERT_OK(ion_stream_open_handler_in(&test_stream_handler, &chunk1_stream, &ion_stream));
+    ION_ASSERT_OK(ion_stream_open_handler_in(test_stream_handler, &chunk1_stream, &ion_stream));
     ION_ASSERT_OK(ion_reader_open(&reader, ion_stream, NULL));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_STRUCT, type);
@@ -60,4 +60,5 @@ TEST(IonUserStream, SucceedsInTheMiddleOfAValue) {
     ION_ASSERT_OK(ion_reader_step_out(reader));
 
     ION_ASSERT_OK(ion_reader_close(reader));
+    ION_ASSERT_OK(ion_stream_close(ion_stream));
 }

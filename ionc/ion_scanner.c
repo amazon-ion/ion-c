@@ -1189,30 +1189,21 @@ iERR _ion_scanner_skip_unknown_lob(ION_SCANNER *scanner)
     iENTER;
     int c;
 
-    for (;;) {
-        // we should see a double closing curly brace next
-        IONCHECK(_ion_scanner_read_past_lob_whitespace(scanner, &c));
-        switch (c) {
-        case '\'':
-            // note that a valid triple quoted string looks like an empty
-            // single quoted string, followed by a single quoted string,
-            // followed by another empty single quoted string
-            IONCHECK(_ion_scanner_skip_single_quoted_string(scanner));
-            break;
-        case '\"':
-            IONCHECK(_ion_scanner_skip_plain_clob(scanner));
-            break;
-        case '}':
-            IONCHECK(_ion_scanner_read_char(scanner, &c));
-            if (c == '}') {
-                SUCCEED();
-            }
-            break;
-        case EOF:
-            FAILWITH(IERR_UNEXPECTED_EOF);
-        default:
-            break;
-        }
+    IONCHECK(_ion_scanner_read_past_lob_whitespace(scanner, &c));
+    switch (c) {
+    case '\'':
+        // if we see a single quote, try to skip a long clob (one with a 
+        // triple-quoted string)
+        IONCHECK(_ion_scanner_skip_long_clob(scanner));
+        break;
+    case '\"':
+        // if we see a double quote, try to skip a plain clob
+        IONCHECK(_ion_scanner_skip_plain_clob(scanner));
+        break;
+    default:
+        // else try to skip a regular blob
+        IONCHECK(_ion_scanner_skip_blob(scanner));
+        break;
     }
 
     iRETURN;
@@ -1995,6 +1986,8 @@ iERR _ion_scanner_read_lob_closing_braces(ION_SCANNER *scanner)
     iRETURN;
 }
 
+// Disabled sanitizer shift checks, due to unsigned int shifting.
+NOSAN_SHIFT
 iERR _ion_scanner_read_as_base64(ION_SCANNER *scanner, BYTE *buf, SIZE len, SIZE *p_bytes_written, BOOL *p_eos_encountered)
 {
     iENTER;

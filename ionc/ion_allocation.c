@@ -141,7 +141,7 @@ void *_ion_alloc_with_owner_helper(ION_ALLOCATION_CHAIN *powner, SIZE request_le
         pblock = _ion_alloc_block(length);
         if (!pblock) return NULL;
 
-        if (pblock->size > g_ion_alloc_page_list.page_size && powner->head != NULL) {
+        if (pblock->size > DEFAULT_BLOCK_SIZE && powner->head != NULL) {
             // this is an oversized block, so don't put it
             // at the front since it will be full and we'll
             // have wasted the freespace in the current
@@ -169,7 +169,6 @@ void *_ion_alloc_with_owner_helper(ION_ALLOCATION_CHAIN *powner, SIZE request_le
     ptr = pblock->position;
     pblock->position = next_ptr;
 
-    if (ptr) memset(ptr, 0, length);
     return ptr;
 }
 
@@ -178,29 +177,21 @@ ION_ALLOCATION_CHAIN *_ion_alloc_block(SIZE min_needed)
     ION_ALLOCATION_CHAIN *new_block;
     SIZE                  alloc_size = min_needed + ALIGN_SIZE(sizeof(ION_ALLOCATION_CHAIN)); // subtract out the block[1]
 
-    if (alloc_size > g_ion_alloc_page_list.page_size) {
-        // it's an oversize block - we'll ask the system for this one
-        new_block = (ION_ALLOCATION_CHAIN *)ion_xalloc(alloc_size);    
-        new_block->size = alloc_size;
-    }
-    else {
-        // it's a normal size block - go out to the block pool for it
-        new_block = (ION_ALLOCATION_CHAIN *)_ion_alloc_page();
-        if (new_block) {
-            new_block->size = g_ion_alloc_page_list.page_size;
-        }
-    }
+    if (alloc_size < DEFAULT_BLOCK_SIZE) alloc_size = DEFAULT_BLOCK_SIZE;
+
+    new_block = (ION_ALLOCATION_CHAIN *)ion_xalloc(alloc_size);    
     
     // see if we suceeded
     if (!new_block) return NULL;
-    
+
+    new_block->size     = alloc_size;
     new_block->next     = NULL;
     new_block->head     = NULL;
 
     new_block->position = ION_ALLOC_BLOCK_TO_USER_PTR(new_block);
     new_block->limit    = ((BYTE*)new_block) + new_block->size;
 
-    assert(new_block->position == ((BYTE *)(&new_block->limit) + ALIGN_SIZE(sizeof(new_block->limit))));
+    assert(new_block->position == ((BYTE *)ALIGN_PTR((BYTE *)(&new_block->limit) + ALIGN_SIZE(sizeof(new_block->limit)))));
 
     return new_block;
 }
@@ -208,90 +199,9 @@ ION_ALLOCATION_CHAIN *_ion_alloc_block(SIZE min_needed)
 void _ion_free_block(ION_ALLOCATION_CHAIN *pblock)
 {
     if (!pblock) return;
-    if (pblock->size > g_ion_alloc_page_list.page_size) {
-        ion_xfree(pblock);
-    }
-    else {
-        _ion_release_page((ION_ALLOC_PAGE *)pblock);
-    }
+    ion_xfree(pblock);
     return;
 }
-
-void ion_initialize_page_pool(SIZE page_size, int free_page_limit)
-{
-    // TODO This is always true, causing this function to do nothing, because g_ion_alloc_page_list.page_size
-    // is statically initialized to ION_ALLOC_PAGE_POOL_DEFAULT_PAGE_SIZE. The original intent of this check
-    // (when it was != ) was to attempt to determine whether the page pool had already been initialized,
-    // however the check was insufficient. The problem of how to safely allow users to configure the page
-    // pool exactly once needs to be solved. See https://github.com/amzn/ion-c/issues/242 .
-    if (g_ion_alloc_page_list.page_size == ION_ALLOC_PAGE_POOL_DEFAULT_PAGE_SIZE)
-    {
-        return;
-    }
-    
-    // we need a min size to hold the pointers we use to maintain the page list
-    if (page_size < ION_ALLOC_PAGE_MIN_SIZE) 
-    {
-        page_size = ION_ALLOC_PAGE_MIN_SIZE;
-    }
-    g_ion_alloc_page_list.page_size       = page_size;
-    g_ion_alloc_page_list.free_page_limit = free_page_limit;
-
-    // TODO: should we pre-allocate the pages?
-    
-    return;
-}
-
-void ion_release_page_pool(void)
-{
-    ION_ALLOC_PAGE *page;
-    
-    while ((page = g_ion_alloc_page_list.head) != NULL) {
-        g_ion_alloc_page_list.head = page->next;
-        ion_xfree(page);
-        g_ion_alloc_page_list.page_count--;
-    }
-    ASSERT(g_ion_alloc_page_list.page_count == 0);
-
-    // here we mark the page size to indicate the pool is inactive
-    g_ion_alloc_page_list.page_size = ION_ALLOC_PAGE_POOL_PAGE_SIZE_NONE;
-
-    return;
-}
-
-ION_ALLOC_PAGE *_ion_alloc_page(void)
-{
-    ION_ALLOC_PAGE *page;
-    
-    if ((page = g_ion_alloc_page_list.head) != NULL) {
-        g_ion_alloc_page_list.head = page->next;
-        g_ion_alloc_page_list.page_count--;
-    }
-    else {
-        ASSERT(g_ion_alloc_page_list.page_size != ION_ALLOC_PAGE_POOL_PAGE_SIZE_NONE);
-        page = ion_xalloc(g_ion_alloc_page_list.page_size);
-    }
-    return page;
-}
-
-void _ion_release_page(ION_ALLOC_PAGE *page)
-{
-    if (page == NULL) return;
-
-    if (g_ion_alloc_page_list.free_page_limit != ION_ALLOC_PAGE_POOL_NO_LIMIT
-     && g_ion_alloc_page_list.page_count >= g_ion_alloc_page_list.free_page_limit
-    ) {
-        ion_xfree(page);
-    }
-    else {
-        page->next = g_ion_alloc_page_list.head;
-        g_ion_alloc_page_list.head = page;
-        g_ion_alloc_page_list.page_count++;
-    }
-    return;
-}
-
-
 
 #ifdef MEM_DEBUG
 

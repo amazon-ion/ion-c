@@ -57,7 +57,6 @@ IZ_GLOBAL BOOL g_ionizer_debug          IZ_INITTO(FALSE);
 IZ_GLOBAL BOOL g_ionizer_dump_args      IZ_INITTO(FALSE);
 
 IZ_GLOBAL int  g_ionizer_symtab_version IZ_INITTO(0);
-IZ_GLOBAL int  g_ionizer_pool_page_size IZ_INITTO(-1);
 
 // IZ_GLOBAL char g_ionizer_symtab_name[MAX_FILE_NAME_LEN + 1] IZ_INITTO({0});
 // IZ_GLOBAL char g_ionizer_catalog[MAX_FILE_NAME_LEN + 1] IZ_INITTO({0});
