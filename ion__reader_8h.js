@@ -22,6 +22,7 @@ var ion__reader_8h =
     [ "ion_reader_get_type", "ion__reader_8h.html#ad6aa4ece2e2a4d96bd8025a0bf5181c2", null ],
     [ "ion_reader_get_value_length", "ion__reader_8h.html#ad1034e34903ec1e0d181257227a8ff5b", null ],
     [ "ion_reader_get_value_offset", "ion__reader_8h.html#a35c828438c1a5930325be64abc7b311e", null ],
+    [ "ion_reader_get_value_position", "ion__reader_8h.html#ab32fe0879295b0980f3c74d674310818", null ],
     [ "ion_reader_has_annotation", "ion__reader_8h.html#a72ed5e98f83be0e30d82112704bf17bc", null ],
     [ "ion_reader_has_any_annotations", "ion__reader_8h.html#a55e6ee44c50d5879f24e46092a1ae4dc", null ],
     [ "ion_reader_is_in_struct", "ion__reader_8h.html#a757572710feb736ef78076d7b016e0e7", null ],

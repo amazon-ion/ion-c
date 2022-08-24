@@ -141,6 +141,8 @@ ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_re
 <tr class="separator:a911723f0b7d05fabe212ec1d4e895ff1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a35c828438c1a5930325be64abc7b311e"><td class="memItemLeft" align="right" valign="top">ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ion__reader_8h.html#a35c828438c1a5930325be64abc7b311e">ion_reader_get_value_offset</a> (hREADER hreader, POSITION *p_offset)</td></tr>
 <tr class="separator:a35c828438c1a5930325be64abc7b311e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab32fe0879295b0980f3c74d674310818"><td class="memItemLeft" align="right" valign="top">ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ion__reader_8h.html#ab32fe0879295b0980f3c74d674310818">ion_reader_get_value_position</a> (hREADER hreader, int64_t *p_offset, int32_t *p_line, int32_t *p_col_offset)</td></tr>
+<tr class="separator:ab32fe0879295b0980f3c74d674310818"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad1034e34903ec1e0d181257227a8ff5b"><td class="memItemLeft" align="right" valign="top">ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ion__reader_8h.html#ad1034e34903ec1e0d181257227a8ff5b">ion_reader_get_value_length</a> (hREADER hreader, SIZE *p_length)</td></tr>
 <tr class="separator:ad1034e34903ec1e0d181257227a8ff5b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7dc7a48089a0b599583cf460a3bbdbea"><td class="memItemLeft" align="right" valign="top">ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ion__reader_8h.html#a7dc7a48089a0b599583cf460a3bbdbea">ion_reader_get_symbol_table</a> (hREADER hreader, hSYMTAB *p_hsymtab)</td></tr>
@@ -236,8 +238,7 @@ ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_re
 <tr class="memitem:ac5d607ef8397d8c8cc182d055ce97433"><td class="memItemLeft" align="right" valign="top"><a id="ac5d607ef8397d8c8cc182d055ce97433"></a>
 ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_reader_read_lob_partial_bytes</b> (hREADER hreader, BYTE *p_buf, SIZE buf_max, SIZE *p_length)</td></tr>
 <tr class="separator:ac5d607ef8397d8c8cc182d055ce97433"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6717769219b363049da40d3585dc6e3d"><td class="memItemLeft" align="right" valign="top"><a id="a6717769219b363049da40d3585dc6e3d"></a>
-ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_reader_get_position</b> (hREADER hreader, int64_t *p_bytes, int32_t *p_line, int32_t *p_offset)</td></tr>
+<tr class="memitem:a6717769219b363049da40d3585dc6e3d"><td class="memItemLeft" align="right" valign="top">ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ion__reader_8h.html#a6717769219b363049da40d3585dc6e3d">ion_reader_get_position</a> (hREADER hreader, int64_t *p_bytes, int32_t *p_line, int32_t *p_offset)</td></tr>
 <tr class="separator:a6717769219b363049da40d3585dc6e3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adeac3474fcbc9ed2e10e9eb9e9181d2e"><td class="memItemLeft" align="right" valign="top">ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="ion__reader_8h.html#adeac3474fcbc9ed2e10e9eb9e9181d2e">ion_reader_close</a> (hREADER hreader)</td></tr>
 <tr class="separator:adeac3474fcbc9ed2e10e9eb9e9181d2e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -306,6 +307,48 @@ ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_re
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a id="a6717769219b363049da40d3585dc6e3d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6717769219b363049da40d3585dc6e3d">&#9670;&nbsp;</a></span>ion_reader_get_position()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">ION_API_EXPORT iERR ion_reader_get_position </td>
+          <td>(</td>
+          <td class="paramtype">hREADER&#160;</td>
+          <td class="paramname"><em>hreader</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int64_t *&#160;</td>
+          <td class="paramname"><em>p_bytes</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int32_t *&#160;</td>
+          <td class="paramname"><em>p_line</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int32_t *&#160;</td>
+          <td class="paramname"><em>p_offset</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Gets the current position and if hreader is a text reader, also gets the line and column numbers.</p>
+<p>Note that this is only useful for error reporting or debugging purposes about malformed Ion data, since the position reported by this function is unlikely to be pointed at the start of a value. To obtain the position of the current value from the reader to report the origin of semantic errors within well formed Ion data, see ion_reader_get_value_position. </p>
 
 </div>
 </div>
@@ -458,6 +501,52 @@ ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_re
       </table>
 </div><div class="memdoc">
 <p>returns the offset of the value the reader is currently positioned on. This offset is appropriate to use later to seek to. </p>
+
+</div>
+</div>
+<a id="ab32fe0879295b0980f3c74d674310818"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab32fe0879295b0980f3c74d674310818">&#9670;&nbsp;</a></span>ion_reader_get_value_position()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">ION_API_EXPORT iERR ion_reader_get_value_position </td>
+          <td>(</td>
+          <td class="paramtype">hREADER&#160;</td>
+          <td class="paramname"><em>hreader</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int64_t *&#160;</td>
+          <td class="paramname"><em>p_offset</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int32_t *&#160;</td>
+          <td class="paramname"><em>p_line</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int32_t *&#160;</td>
+          <td class="paramname"><em>p_col_offset</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Gets the position of the current value in the reader.</p>
+<p>The position of the current value is the first character of its Ion-text representation or (if present) the first character of the first annotation. This information is useful for reporting semantic errors to end-users when Ion-text files are used to express domain-specific language (DSL) scripts.</p>
+<p>The numbers reported by this function (p_line) start at 1, while the column offset (p_col_offset) start at zero since it is the offset from the start of the line.</p>
+<p>If the last call to <code>ion_reader_next</code> encountered a container terminator (<code>]</code>, <code>)</code> or <code>}</code>), instead of another value, the position reported is that of the terminator. Thus, it is possible to obtain the starting and ending positions of all containers.</p>
+<p>If the last call to <code>ion_reader_next</code> encountered the end of file instead of another value, the position reported is that of the last character in the file.</p>
+<p>If the reader is a binary reader, fails immediately and returns IERR_INVALID_ARG. If all that's desired is the offset of the value relative to the beginning of the buffer, please use ion_reader_get_value_offset, which works with both text and binary readers. </p>
 
 </div>
 </div>
