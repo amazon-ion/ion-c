@@ -310,6 +310,7 @@ iERR _ion_reader_text_get_field_sid             (ION_READER *preader, SID *p_sid
 iERR _ion_reader_text_get_annotations           (ION_READER *preader, ION_STRING *p_strs, SIZE max_count, SIZE *p_count);
 iERR _ion_reader_text_get_annotation_symbols    (ION_READER *preader, ION_SYMBOL *p_symbols, SIZE max_count, SIZE *p_count);
 iERR _ion_reader_text_get_value_offset          (ION_READER *preader, POSITION *p_offset);
+iERR _ion_reader_text_get_value_position        (ION_READER *preader, int64_t *p_offset, int32_t *p_line, int32_t *p_col_offset);
 iERR _ion_reader_text_get_value_length          (ION_READER *preader, SIZE *p_length);
 
 // value getting functions

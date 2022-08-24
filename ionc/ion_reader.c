@@ -1951,7 +1951,6 @@ iERR ion_reader_get_position(hREADER hreader, int64_t *p_bytes, int32_t *p_line,
 iERR _ion_reader_get_position_helper(ION_READER *preader, int64_t *p_bytes, int32_t *p_line, int32_t *p_offset)
 {
     iENTER;
-
     ASSERT( preader );
     ASSERT( p_bytes );
     ASSERT( p_line );
@@ -1960,7 +1959,7 @@ iERR _ion_reader_get_position_helper(ION_READER *preader, int64_t *p_bytes, int3
     switch(preader->type) {
     case ion_type_text_reader:
         *p_line   = preader->typed_reader.text._scanner._line;
-        *p_offset = preader->typed_reader.text._scanner._offset;
+        *p_offset = preader->typed_reader.text._scanner._col_offset;
         // fall through to binary to get the "bytes read" from the input stream
     case ion_type_binary_reader:
         *p_bytes  = ion_stream_get_position(preader->istream);
@@ -2151,6 +2150,35 @@ iERR ion_reader_get_value_offset(hREADER hreader, POSITION *p_offset)
     }
 
     *p_offset = offset;
+    SUCCEED();
+
+    iRETURN;
+}
+
+iERR ion_reader_get_value_position(hREADER hreader, int64_t *p_offset, int32_t *p_line, int32_t *p_col_offset) {
+    iENTER;
+    ION_READER *preader;
+
+    if (!hreader) FAILWITH(IERR_INVALID_ARG);
+    preader = HANDLE_TO_PTR(hreader, ION_READER);
+    if (!p_offset) FAILWITH(IERR_INVALID_ARG);
+
+    ASSERT(p_offset);
+    ASSERT(p_line);
+    ASSERT(p_col_offset);
+
+    switch(preader->type) {
+    case ion_type_text_reader:
+        IONCHECK(_ion_reader_text_get_value_position(preader, p_offset, p_line, p_col_offset));
+        break;
+    case ion_type_binary_reader:
+        FAILWITH(IERR_INVALID_ARG);
+        break;
+    case ion_type_unknown_reader:
+    default:
+        FAILWITH(IERR_INVALID_STATE);
+    }
+
     SUCCEED();
 
     iRETURN;

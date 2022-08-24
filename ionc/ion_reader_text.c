@@ -67,7 +67,12 @@ iERR _ion_reader_text_open(ION_READER *preader)
     text->_current_container = tid_DATAGRAM;
    
     text->_value_start = -1;
-    text->_value_end   = -1;
+    text->_value_start_line = -1;
+    text->_value_start_col_offset = -1;
+    text->_value_end = -1;
+    text->_annotation_start = -1;
+    text->_annotation_start_line = -1;
+    text->_annotation_start_col_offset = -1;
 
     IONCHECK(_ion_reader_text_open_alloc_buffered_string(preader
         , preader->options.symbol_threshold
@@ -161,10 +166,14 @@ iERR _ion_reader_text_reset_value(ION_READER *preader)
 
     ASSERT(preader);
 
-    text->_value_start              = -1;
-    text->_annotation_start         = -1;
-    text->_annotation_count         =  0;
-    text->_annotation_value_next    =  text->_annotation_value_buffer;
+    text->_value_start                 = -1;
+    text->_value_start_line            = -1;
+    text->_value_start_col_offset      = -1;
+    text->_annotation_start            = -1;
+    text->_annotation_start_line       = -1;
+    text->_annotation_start_col_offset = -1;
+    text->_annotation_count            =  0;
+    text->_annotation_value_next       =  text->_annotation_value_buffer;
 
     ION_STRING_INIT(&text->_field_name.value);
     text->_field_name.add_count = 0;
@@ -193,6 +202,7 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
     ION_TEXT_READER *text = &preader->typed_reader.text;
     ION_SUB_TYPE     ist = IST_NONE;
     POSITION value_start;
+    int value_start_line, value_start_offset;
 
     ASSERT(preader);
 
@@ -226,6 +236,8 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
 
     // Save the value start position, as it is reset during `_ion_reader_text_reset_value`.
     value_start = text->_scanner._value_start;
+    value_start_line = text->_scanner._value_start_line;
+    value_start_offset = text ->_scanner._value_start_col_offset;
 
     if (text->_value_end > -1 && ion_stream_get_position(text->_scanner._stream) >= text->_value_end) {
         // In a previous seek, the user limited the length of the stream, and that limit has now been reached.
@@ -284,13 +296,19 @@ iERR _ion_reader_text_next(ION_READER *preader, ION_TYPE *p_value_type)
     if (value_start < 0) {
         // The start position of the value was not known at the start of this function. At this point it must be known.
         text->_value_start = text->_scanner._value_start;
+        text->_value_start_line = text->_scanner._value_start_line;
+        text->_value_start_col_offset = text->_scanner._value_start_col_offset;
     }
     else if (text->_state == IPS_BEFORE_FIELDNAME) {
         // In latter fields in a struct, value_start will be positive, but positioned at the field name, not the value
         text->_value_start = text->_scanner._value_start;
+        text->_value_start_line = text->_scanner._value_start_line;
+        text->_value_start_col_offset = text->_scanner._value_start_col_offset;
     }
     else {
         text->_value_start = value_start;
+        text->_value_start_line = value_start_line;
+        text->_value_start_col_offset = value_start_offset;
     }
     text->_value_sub_type = ist;
     text->_value_type     = IST_BASE_TYPE( ist );
@@ -501,6 +519,8 @@ iERR _ion_reader_text_load_utas(ION_READER *preader, ION_SUB_TYPE *p_ist)
             // if this is our first annotation, remember where the first annotation started.
             if (text->_annotation_start == -1) {
                 text->_annotation_start = text->_scanner._value_start;
+                text->_annotation_start_line = text->_scanner._value_start_line;
+                text->_annotation_start_col_offset = text->_scanner._value_start_col_offset;
             }
 
             // now we append the annotation ...
@@ -753,7 +773,7 @@ iERR _ion_reader_text_step_in(ION_READER *preader)
         text->_state = IPS_BEFORE_UTA;
     }
 
-    IONCHECK(_ion_scanner_reset(&text->_scanner));
+    IONCHECK(_ion_scanner_reset_value(&text->_scanner));
 
     iRETURN;
 }
@@ -1188,6 +1208,49 @@ iERR _ion_reader_text_get_value_offset(ION_READER *preader, POSITION *p_offset)
     }
 
     *p_offset = offset;
+    SUCCEED();
+
+    iRETURN;
+}
+
+iERR _ion_reader_text_get_value_position(ION_READER *preader, int64_t *p_offset, int32_t *p_line, int32_t *p_col_offset)
+{
+    iENTER;
+    ION_TEXT_READER  *text = &preader->typed_reader.text;
+    POSITION          offset;
+    int32_t           line;
+    int32_t           col_offset;
+
+    ASSERT(preader && preader->type == ion_type_text_reader);
+
+    ASSERT(p_offset);
+    ASSERT(p_line);
+    ASSERT(p_col_offset);
+
+    // return -1 on eof (alternatively we could "throw" an eof error)
+    if (preader->_eof) {
+        offset = -1;
+        line = -1;
+        p_col_offset = -1;
+    }
+    else {
+        if (text->_annotation_start >= 0) {
+            // if the value was annotated we need to back up and include
+            // the annotation, since the annotation is part of the value.
+            offset = text->_annotation_start;
+            line = text->_annotation_start_line;
+            col_offset = text->_annotation_start_col_offset;
+        }
+        else {
+            offset = text->_value_start;
+            line = text->_value_start_line;
+            col_offset = text->_value_start_col_offset;
+        }
+    }
+
+    *p_offset = offset;
+    *p_line = line;
+    *p_col_offset = col_offset;
     SUCCEED();
 
     iRETURN;

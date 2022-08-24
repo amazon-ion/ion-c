@@ -814,3 +814,510 @@ TEST(IonTextTimestamp, InvalidTimestamp) {
     ASSERT_EQ( IERR_INVALID_TIMESTAMP, ion_reader_read_timestamp(reader, &value));
     ION_ASSERT_OK(ion_reader_close(reader));
 }
+
+/** tests ion_reader_get_value_position for scalar values. */
+TEST(IonTextPosition, PositionOfValues) {
+    const char *ion_text =
+        // Column number cheat sheet:
+        //         1         2         3         4         5         6         7         8         9         10        11        12        13
+        // 2345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+        "  null true 1 2e0 3.0 four 'five' \"six\" 2007-07-07T {{ V2hhdCBhcmUgeW91IGRvaW5nLCBEYXZlPw== }} {{ '''I can't let you do that, Dave.''' }} 42";
+
+    hREADER  reader;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+
+    int64_t offset = 0;
+    int32_t line = 0;
+    int32_t col_offset = 0;
+
+    // "null"
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_NULL, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 2);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 2);
+
+    // "true"
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_BOOL, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 7);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 7);
+
+    // "1"
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 12);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 12);
+
+    // "2e0"
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_FLOAT, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 14);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 14);
+
+    // "3.0"
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_DECIMAL, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 18);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 18);
+
+    // "four"
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 22);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 22);
+
+    // "'five''"
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SYMBOL, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 27);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 27);
+
+    // "\"six\""
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_STRING, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 34);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 34);
+
+    // 2007-07-07T
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_TIMESTAMP, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 40);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 40);
+
+    // {{ V2hhdCBhcmUgeW91IGRvaW5nLCBEYXZlPw== }}
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_BLOB, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 52);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 52);
+
+    // {{ '''I can't let you do that, Dave.''' }}
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_CLOB, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 95);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 95);
+
+    // 42
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    // assert position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 138);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 138);
+
+}
+
+/** tests ion_reader_get_value_position for annotated values. */
+TEST(IonTextPosition, PositionOfAnnotatedValues) {
+    const char *ion_text = "  a::1 b::2 c::3 ";
+
+    hREADER  reader;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+
+    int64_t offset = 0;
+    int32_t line = 0;
+    int32_t col_offset = 0;
+
+    // a::1
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 2);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 2);
+
+    // b::2
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 7);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 7);
+
+    // c::3
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 12);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 12);
+
+}
+
+/** tests ion_reader_get_value_position for list elements appearing on separate lines. */
+TEST(IonTextPosition, PositionOfListElements) {
+    // this is `[1,2,3] 42` split across multiple lines with values prefixed with various tabs and spaces.
+    const char *ion_text = "\n[\n\t1,\n\t 2,\n\t  some_anno::3\n]\n 42";
+
+    hREADER  reader;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+
+    int64_t offset = 0;
+    int32_t line = 0;
+    int32_t col_offset = 0;
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_LIST, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 1);
+    ASSERT_EQ(line, 2);
+    ASSERT_EQ(col_offset, 0);
+
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+
+    // value position should remain unchanged after step in
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 1);
+    ASSERT_EQ(line, 2);
+    ASSERT_EQ(col_offset, 0);
+
+    // first list element
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 4);
+    ASSERT_EQ(line, 3);
+    ASSERT_EQ(col_offset, 1);
+
+    // second list element
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 9);
+    ASSERT_EQ(line, 4);
+    ASSERT_EQ(col_offset, 2);
+
+    // third list element
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 15);
+    ASSERT_EQ(line, 5);
+    ASSERT_EQ(col_offset, 3);
+
+    // calling next again will try to read past the end of the list.
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_EOF, type);
+    // should be on the closing ]
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 28);
+    ASSERT_EQ(line, 6);
+    ASSERT_EQ(col_offset, 0);
+
+    // finally, step out
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+
+    // read one value to ensure position is still correct after stepping out
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 31);
+    ASSERT_EQ(line, 7);
+    ASSERT_EQ(col_offset, 1);
+}
+
+/** tests ion_reader_get_value_position for sexp elements appearing on separate lines. */
+TEST(IonTextPosition, PositionOfSexpElements) {
+    // this is `(1 2 3) 42` split across multiple lines with values prefixed with various tabs and spaces.
+    const char *ion_text = "\n(\n\t1 \n\t 2 \n\t  some_anno::3\n)\n 42";
+
+    hREADER  reader;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+
+    int64_t offset = 0;
+    int32_t line = 0;
+    int32_t col_offset = 0;
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_SEXP, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 1);
+    ASSERT_EQ(line, 2);
+    ASSERT_EQ(col_offset, 0);
+
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+
+    // value position should remain unchanged after step in
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 1);
+    ASSERT_EQ(line, 2);
+    ASSERT_EQ(col_offset, 0);
+
+    // first list element
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 4);
+    ASSERT_EQ(line, 3);
+    ASSERT_EQ(col_offset, 1);
+
+    // second list element
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 9);
+    ASSERT_EQ(line, 4);
+    ASSERT_EQ(col_offset, 2);
+
+    // third list element
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 15);
+    ASSERT_EQ(line, 5);
+    ASSERT_EQ(col_offset, 3);
+
+    // calling next again will try to read past the end of the sexp.
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_EOF, type);
+    // should be on the closing )
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 28);
+    ASSERT_EQ(line, 6);
+    ASSERT_EQ(col_offset, 0);
+
+    // finally, step out
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+
+    // read one value to ensure position is still correct after stepping out
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 31);
+    ASSERT_EQ(line, 7);
+    ASSERT_EQ(col_offset, 1);
+}
+
+/** ion_reader_get_value_position for struct fields appearing on separate lines. */
+TEST(IonTextPosition, PositionOfStructFields) {
+    // this is `{ a: 1, b: 2, c: 3 } 42` split across multiple lines with fields prefixed with various whitespace.
+    const char *ion_text = "\n{a:1,\nb: 2,\nc:  \nsome_anno::3\n} 42";
+
+    hREADER  reader;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+
+    int64_t offset = 0;
+    int32_t line = 0;
+    int32_t col_offset = 0;
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_STRUCT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 1);
+    ASSERT_EQ(line, 2);
+    ASSERT_EQ(col_offset, 0);
+
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+
+    // Note: positions are on the value and *not* on field name.
+
+    // value position should remain unchanged after step in
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 1);
+    ASSERT_EQ(line, 2);
+    ASSERT_EQ(col_offset, 0);
+
+    // field a
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 4);
+    ASSERT_EQ(line, 2);
+    ASSERT_EQ(col_offset, 3);
+
+    // field b
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 10);
+    ASSERT_EQ(line, 3);
+    ASSERT_EQ(col_offset, 3);
+
+    // field c
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 18);
+    ASSERT_EQ(line, 5);
+    ASSERT_EQ(col_offset, 0);
+
+    // calling next again will try to read past the end of the struct.
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_EOF, type);
+    // should be on the closing )
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 31);
+    ASSERT_EQ(line, 6);
+    ASSERT_EQ(col_offset, 0);
+
+    // finally, step out
+    ION_ASSERT_OK(ion_reader_step_out(reader));
+
+    // read one value to ensure position is still correct after stepping out
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 33);
+    ASSERT_EQ(line, 6);
+    ASSERT_EQ(col_offset, 2);
+}
+
+/** Tests ion_reader_get_value_position for top-level values appearing on separate lines. */
+TEST(IonTextPosition, MultilinePositions) {
+    const char *ion_text = "1\n2\n3\n\n4\n";
+
+    hREADER  reader;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+
+    int64_t offset = 0;
+    int32_t line = 0;
+    int32_t col_offset = 0;
+
+    // Advance to "1", read it and assert value and position.
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 0);
+    ASSERT_EQ(line, 1);
+    ASSERT_EQ(col_offset, 0);
+
+    // Advance to "2"
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 2);
+    ASSERT_EQ(line, 2);
+    ASSERT_EQ(col_offset, 0);
+
+    // Advance to "3"
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 4);
+    ASSERT_EQ(line, 3);
+    ASSERT_EQ(col_offset, 0);
+
+    // Advance to "4", read it and assert value and position.
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 7);
+    ASSERT_EQ(line, 5);
+    ASSERT_EQ(col_offset, 0);
+
+    // calling next again will try to read past the end of input.
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_EOF, type);
+    // should be on the last character in the file
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 8);
+    ASSERT_EQ(line, 6);
+    ASSERT_EQ(col_offset, 0);
+}
+
+/** Tests ion_reader_get_value_position for 2 long string values appearing on separate lines. */
+TEST(IonTextPosition, LongStringPositions) {
+    //line numbers:        1 2          3       4          5   6                     7       8          9   10
+    const char *ion_text = "\n'''foo'''\n// bar\n'''baz'''\n42\nsome_anno::'''bat'''\n// bor\n'''baa'''\n43\n";
+    //offsets (1s place):    0123456789 0123456 7890123456 7890 123456789012345678901 2345678 9012345678 901 23456789
+    //offsets (10s place):   0          1          2           3         4         5           6          7
+    // i.e. the "42" in ion_text is on line 5, byte offset 28.
+
+    hREADER  reader;
+    ION_TYPE type;
+
+    ION_ASSERT_OK(ion_test_new_text_reader(ion_text, &reader));
+
+    int64_t offset = 0;
+    int32_t line = 0;
+    int32_t col_offset = 0;
+
+    // Advance to "foobaz", read it and assert value and position.
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_STRING, type);
+
+    // Read the position of the int and verify we have the correct position
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 1);
+    ASSERT_EQ(line, 2);
+    ASSERT_EQ(col_offset, 0);
+
+    // Advance to "42"
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 28);
+    ASSERT_EQ(line, 5);
+    ASSERT_EQ(col_offset, 0);
+
+    // Advance to "batbaa"
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_STRING, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 31);
+    ASSERT_EQ(line, 6);
+    ASSERT_EQ(col_offset, 0);
+
+    // Advance to "43", read it and assert value and position.
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_INT, type);
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 69);
+    ASSERT_EQ(line, 9);
+    ASSERT_EQ(col_offset, 0);
+
+    // calling next again will try to read past the end of input.
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_EOF, type);
+    // should be on the last character in the file
+    ION_ASSERT_OK(ion_reader_get_value_position(reader, &offset, &line, &col_offset));
+    ASSERT_EQ(offset, 71);
+    ASSERT_EQ(line, 10);
+    ASSERT_EQ(col_offset, 0);
+
+}

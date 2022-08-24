@@ -306,6 +306,40 @@ ION_API_EXPORT iERR ion_reader_set_symbol_table    (hREADER   hreader
  */
 ION_API_EXPORT iERR ion_reader_get_value_offset    (hREADER   hreader
                                                    ,POSITION *p_offset);
+
+/**
+ * Gets the position of the current value in the reader.
+ *
+ * The position of the current value is the first character of its Ion-text
+ * representation or (if present) the first character of the first
+ * annotation.  This information is useful for reporting semantic errors
+ * to end-users when Ion-text files are used to express domain-specific
+ * language (DSL) scripts.
+ *
+ * The numbers reported by this function (p_line) start at 1, while the
+ * column offset (p_col_offset) start at zero since it is the
+ * offset from the start of the line.
+ *
+ * If the last call to `ion_reader_next` encountered a container
+ * terminator (`]`, `)` or `}`), instead of another value, the position
+ * reported is that of the terminator.  Thus, it is possible to obtain
+ * the starting and ending positions of all containers.
+ *
+ * If the last call to `ion_reader_next` encountered the end of file
+ * instead of another value, the position reported is that of the last
+ * character in the file.
+ *
+ * If the reader is a binary reader, fails immediately and returns
+ * IERR_INVALID_ARG.  If all that's desired is the offset of the value
+ * relative to the beginning of the buffer, please use
+ * ion_reader_get_value_offset, which works with both text and binary
+ * readers.
+ */
+ION_API_EXPORT iERR ion_reader_get_value_position  (hREADER   hreader
+                                                   ,int64_t   *p_offset
+                                                   ,int32_t   *p_line
+                                                   ,int32_t   *p_col_offset);
+
 /** returns the length of the value the reader is currently
  *  positioned on.  This length is appropriate to use later
  *  when calling ion_reader_seek to limit "over-reading" in
@@ -421,6 +455,17 @@ ION_API_EXPORT iERR ion_reader_get_lob_size          (hREADER hreader, SIZE *p_l
 ION_API_EXPORT iERR ion_reader_read_lob_bytes        (hREADER hreader, BYTE *p_buf, SIZE buf_max, SIZE *p_length);
 ION_API_EXPORT iERR ion_reader_read_lob_partial_bytes(hREADER hreader, BYTE *p_buf, SIZE buf_max, SIZE *p_length);
 
+/**
+ * Gets the current position and if hreader is a text reader, also gets
+ * the line and column numbers.
+ *
+ * Note that this is only useful for error reporting or debugging purposes
+ * about malformed Ion data, since the position reported by this function
+ * is unlikely to be pointed at the start of a value.  To obtain the
+ * position of the current value from the reader to report the origin
+ * of semantic errors within well formed Ion data, see
+ * ion_reader_get_value_position.
+ */
 ION_API_EXPORT iERR ion_reader_get_position          (hREADER hreader, int64_t *p_bytes, int32_t *p_line, int32_t *p_offset);
 
 /**
