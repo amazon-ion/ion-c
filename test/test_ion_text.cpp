@@ -940,6 +940,7 @@ TEST(IonTextPosition, PositionOfValues) {
     ASSERT_EQ(line, 1);
     ASSERT_EQ(col_offset, 138);
 
+    ion_reader_close(reader);
 }
 
 /** tests ion_reader_get_value_position for annotated values. */
@@ -979,6 +980,7 @@ TEST(IonTextPosition, PositionOfAnnotatedValues) {
     ASSERT_EQ(line, 1);
     ASSERT_EQ(col_offset, 12);
 
+    ion_reader_close(reader);
 }
 
 /** tests ion_reader_get_value_position for list elements appearing on separate lines. */
@@ -1053,6 +1055,8 @@ TEST(IonTextPosition, PositionOfListElements) {
     ASSERT_EQ(offset, 31);
     ASSERT_EQ(line, 7);
     ASSERT_EQ(col_offset, 1);
+
+    ion_reader_close(reader);
 }
 
 /** tests ion_reader_get_value_position for sexp elements appearing on separate lines. */
@@ -1127,6 +1131,8 @@ TEST(IonTextPosition, PositionOfSexpElements) {
     ASSERT_EQ(offset, 31);
     ASSERT_EQ(line, 7);
     ASSERT_EQ(col_offset, 1);
+
+    ion_reader_close(reader);
 }
 
 /** ion_reader_get_value_position for struct fields appearing on separate lines. */
@@ -1203,6 +1209,8 @@ TEST(IonTextPosition, PositionOfStructFields) {
     ASSERT_EQ(offset, 33);
     ASSERT_EQ(line, 6);
     ASSERT_EQ(col_offset, 2);
+
+    ion_reader_close(reader);
 }
 
 /** Tests ion_reader_get_value_position for top-level values appearing on separate lines. */
@@ -1258,6 +1266,8 @@ TEST(IonTextPosition, MultilinePositions) {
     ASSERT_EQ(offset, 8);
     ASSERT_EQ(line, 6);
     ASSERT_EQ(col_offset, 0);
+
+    ion_reader_close(reader);
 }
 
 /** Tests ion_reader_get_value_position for 2 long string values appearing on separate lines. */
@@ -1320,4 +1330,5 @@ TEST(IonTextPosition, LongStringPositions) {
     ASSERT_EQ(line, 10);
     ASSERT_EQ(col_offset, 0);
 
+    ion_reader_close(reader);
 }
