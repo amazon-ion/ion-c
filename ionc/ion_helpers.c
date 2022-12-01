@@ -221,6 +221,27 @@ char *_ion_writer_get_control_escape_string(int c)
     return image;
 }
 
+char *_ion_writer_get_control_escape_string_json(int c)
+{
+    static THREAD_LOCAL_STORAGE char hex_buffer[7] = {'\\', 'u', '0', '0', 0, 0, 0};
+    char *image;
+
+    switch (c) {
+        case '"':  image = "\\\""; break; // \u0022  \" Double Quotation
+        case '\b': image = "\\b"; break;  // \u0008  \b Backspace.
+        case '\f': image = "\\f"; break;  // \u000c  \f Form feed.
+        case '\n': image = "\\n"; break;  // \u000a  \n Line feed
+        case '\r': image = "\\r"; break;  // \u000d  \r Carriage Return
+        case '\t': image = "\\t"; break;  // \u0009  \t Tab
+        case '\\': image = "\\\\"; break;   // \u002F  \/ Solidus/Slash character.
+        default:
+            hex_buffer[4] = _ion_hex_chars[(c >> 4) & 0xF];
+            hex_buffer[5] = _ion_hex_chars[c & 0xF];
+            image = hex_buffer;
+    }
+
+    return image;
+}
 
 //char *ion_type_to_str(ION_TYPE t)
 const char *ion_type_to_str(ION_TYPE t)

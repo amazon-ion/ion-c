@@ -153,7 +153,6 @@ static const char *const VERSION_SUB_COMMAND_GLOSSARY = "Print the command's ver
 static const char *const HELP_SUB_COMMAND_GLOSSARY = "Print help for ion and its subcommands.";
 static const char *const SUB_COMMAND_GLOSSARY = "Print help for a subcommand process, compare or extract.";
 
-
 //
 // arg table datastructs
 //
@@ -376,7 +375,11 @@ void ion_print_process_examples() {
 
             "Read input1.ion and input2.10n and output to stdout any values in the streams \n"
             "that match the filter .foo:\n"
-            "\t$ ion process --filter .foo input1.ion input2.10n\n\n";
+            "\t$ ion process --filter .foo input1.ion input2.10n\n\n"
+
+            "Read input.ion and down-convert it into JSON.\n"
+            "\t$ ion process --output json input.ion"
+            ;
 
     std::cout << s << std::endl;
 
@@ -507,6 +510,14 @@ iERR ion_cli_arg_to_output_type(IonCliCommonArgs *common_args, int count, const 
     }
     if (input == "pretty") {
         common_args->output_format = OUTPUT_TYPE_TEXT_PRETTY;
+        SUCCEED()
+    }
+    if (input == "json") {
+        common_args->output_format = OUTPUT_TYPE_TEXT_UGLY_JSON;
+        SUCCEED()
+    }
+    if (input == "json-pretty") {
+        common_args->output_format = OUTPUT_TYPE_TEXT_PRETTY_JSON;
         SUCCEED()
     }
     if (input == "binary") {
@@ -757,7 +768,6 @@ int ion_c_cli_main(int argc, char **argv) {
     } else if (help_nerrors == 0) {
         EXIT(ion_help_subcommand(sub_cmd->count, sub_cmd->sval))
     } else if (proc_nerrors == 0) {
-
         iREPORT_EXIT(ion_cli_common_args(&report,
                                          &common_args,
                                          proc_out_f->count,

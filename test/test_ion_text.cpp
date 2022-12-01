@@ -609,7 +609,6 @@ TEST(IonTextDecimal, FailsEarlyOnInvalidDecimal) {
     const char *invalid_text = "0d.6";
     hREADER reader;
     ION_TYPE type;
-    ION_DECIMAL decimal;
     ION_ASSERT_OK(ion_test_new_text_reader(invalid_text, &reader));
     ION_ASSERT_FAIL(ion_reader_next(reader, &type));
     ION_ASSERT_OK(ion_reader_close(reader));
@@ -1331,4 +1330,138 @@ TEST(IonTextPosition, LongStringPositions) {
     ASSERT_EQ(col_offset, 0);
 
     ion_reader_close(reader);
+}
+
+iERR convert_to_json(const char *ion_text, const char *json_text, size_t size) {
+    iERR err = IERR_OK;
+    hREADER reader = NULL;
+    hWRITER writer = NULL;
+    ION_WRITER_OPTIONS woptions = {0};
+    ION_READER_OPTIONS roptions = {0};
+
+    woptions.json_downconvert = TRUE;
+    memset((void*)json_text, 0, size);
+
+    IONCHECK(ion_reader_open_buffer(&reader, (BYTE*)ion_text, strlen(ion_text), &roptions));
+    IONCHECK(ion_writer_open_buffer(&writer, (BYTE*)json_text, size, &woptions));
+    IONCHECK(ion_writer_write_all_values(writer, reader));
+fail:
+    if (writer != NULL)
+        ion_writer_close(writer);
+    if (reader != NULL)
+        ion_reader_close(reader);
+    return err;
+}
+
+
+#define IONJSON_CMP(ion, json_expected) {               \
+    char json_text[1024];                               \
+    ION_ASSERT_OK(convert_to_json(ion, json_text, sizeof(json_text))); \
+    EXPECT_STREQ(json_text, json_expected);             \
+}
+
+TEST(IonTextDownconvert, ConvertsToJson) {
+    // This test is taken directly from the current Cookbook documentation, from the section explaining
+    // down conversion.
+    const char *ion_text = "{data: annot::{foo: null.string, bar: (2 + 2)}, time: 1969-07-20T20:18Z}";
+    const char *json_expected = "{\"data\":{\"foo\":null,\"bar\":[2,\"+\",2]},\"time\":\"1969-07-20T20:18Z\"}";
+
+    IONJSON_CMP(ion_text, json_expected);
+}
+
+TEST(IonTextDownconvert, Nulls) {
+    IONJSON_CMP("null", "null");
+    IONJSON_CMP("null.null", "null");
+    IONJSON_CMP("null.bool", "null");
+    IONJSON_CMP("null.int", "null");
+    IONJSON_CMP("null.float", "null");
+    IONJSON_CMP("null.decimal", "null");
+    IONJSON_CMP("null.timestamp", "null");
+    IONJSON_CMP("null.string", "null");
+    IONJSON_CMP("null.symbol", "null");
+    IONJSON_CMP("null.blob", "null");
+    IONJSON_CMP("null.clob", "null");
+    IONJSON_CMP("null.struct", "null");
+    IONJSON_CMP("null.list", "null");
+    IONJSON_CMP("null.sexp", "null");
+}
+
+TEST(IonTextDownconvert, Strings) {
+    IONJSON_CMP("\" \\\" \"", "\" \\\" \"");
+    IONJSON_CMP("\" \\\\ \"", "\" \\\\ \"");
+    IONJSON_CMP("'''Hello''' '''World'''", "\"HelloWorld\"");
+    IONJSON_CMP("\" \\x08 \"", "\" \\b \"");
+    IONJSON_CMP("\" \\? \"", "\" ? \"");
+    IONJSON_CMP("\" \\x0B \"", "\" \\u000B \"");
+    IONJSON_CMP("\" \\xAE \"", "\" \\u00AE \"");
+    IONJSON_CMP("\" μ \"", "\" \\u03BC \"");
+}
+
+TEST(IonTextDownconvert, IntsFloatsAndDecimals) {
+    // Integers
+    IONJSON_CMP("123456789012345678901", "123456789012345678901");
+
+    // Floats
+    IONJSON_CMP("nan", "null");
+    IONJSON_CMP("+inf", "null");
+    IONJSON_CMP("-inf", "null");
+    IONJSON_CMP("1.0e0", "1");
+    IONJSON_CMP("1.5e0", "1.5");
+    IONJSON_CMP("1e-5", "1e-05");
+    IONJSON_CMP("0.1",  "0.1");
+
+    // Decimals
+    // Decimal formatting does not follow the same pattern as float formatting.
+    IONJSON_CMP("1d0", "1");
+    IONJSON_CMP("1.",  "1");
+    IONJSON_CMP("1d-0",  "1");
+    IONJSON_CMP("0d1", "0E+1");
+    IONJSON_CMP("1.5d0", "1.5");
+    IONJSON_CMP("1d-5", "0.00001");
+    IONJSON_CMP("1d+5", "1E+5");
+}
+
+TEST(IonTextDownconvert, Lists) {
+    IONJSON_CMP("[1, 2, 3]", "[1,2,3]");
+    IONJSON_CMP("[1, two]", "[1,\"two\"]");
+    IONJSON_CMP("[1, 2, ]", "[1,2]");
+}
+
+TEST(IonTextDownconvert, Sexp) {
+    IONJSON_CMP("(1 2)", "[1,2]");
+    IONJSON_CMP("(1 2 )", "[1,2]"); // remove trailing delimiters.
+}
+
+TEST(IonTextDownconvert, Structs) {
+    IONJSON_CMP("{foo: bar,}", "{\"foo\":\"bar\"}");
+}
+
+TEST(IonTextDownconvert, BlobsAndClobs) {
+    // Blobs
+    IONJSON_CMP("{{ +AB/ }}", "\"+AB/\"");
+    IONJSON_CMP(
+        "{{ VG8gaW5maW5pdHkuLi4gYW5kIGJleW9uZCE= }}",
+        "\"VG8gaW5maW5pdHkuLi4gYW5kIGJleW9uZCE=\""
+    );
+
+    // Clobs
+    IONJSON_CMP(
+        "{{ \"This is a CLOB of text\" }}",
+        "\"This is a CLOB of text\""
+    );
+    IONJSON_CMP(
+        "{{ '''Clob with multiple lines'''" \
+        "   '''more text..''' }}",
+        "\"Clob with multiple linesmore text..\""
+    );
+    IONJSON_CMP("{{ \"\\a\" }}", "\"\\u0007\"");
+    IONJSON_CMP("{{ \"\x7f\" }}", "\"\\u007F\"");
+    // JSON Escape Sequences
+    IONJSON_CMP("{{ \" \\\\ \" }}", "\" \\\\ \""); // Reverse Solidus
+    IONJSON_CMP("{{ \" \\/ \" }}", "\" / \"");     // Escaping Solidus isn't necessary.
+    IONJSON_CMP("{{ \" \\b \" }}", "\" \\b \"");   // Backspace
+    IONJSON_CMP("{{ \" \\f \" }}", "\" \\f \"");   // Form Feed
+    IONJSON_CMP("{{ \" \\n \" }}", "\" \\n \"");   // Line Feed
+    IONJSON_CMP("{{ \" \\r \" }}", "\" \\r \"");   // Carriage Return
+    IONJSON_CMP("{{ \" \\t \" }}", "\" \\t \"");   // Tab
 }

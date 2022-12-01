@@ -115,6 +115,11 @@ typedef struct _ion_writer_options
      */
     BOOL compact_floats;
 
+    /** Enable JSON downconversion for the writer.
+     * This will cause the writer to produce valid JSON, losing any Ion specific features.
+     */
+    BOOL json_downconvert;
+
 } ION_WRITER_OPTIONS;
 
 

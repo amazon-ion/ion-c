@@ -1637,7 +1637,11 @@ iERR _ion_writer_write_double_helper(ION_WRITER *pwriter, double value)
 
     switch (pwriter->type) {
     case ion_type_text_writer:
-        IONCHECK(_ion_writer_text_write_double(pwriter, value));
+        if (ION_TEXT_WRITER_IS_JSON()) {
+           IONCHECK(_ion_writer_text_write_double_json(pwriter, value));
+        } else {
+           IONCHECK(_ion_writer_text_write_double(pwriter, value));
+        }
         break;
     case ion_type_binary_writer:
         IONCHECK(_ion_writer_binary_write_double(pwriter, value));

@@ -109,7 +109,7 @@ iERR _ion_writer_text_push(ION_WRITER *pwriter, ION_TYPE type)
 
     switch ((intptr_t)type) {
     case (intptr_t)tid_SEXP:
-        TEXTWRITER(pwriter)->_separator_character = ' ';
+        TEXTWRITER(pwriter)->_separator_character = ION_TEXT_WRITER_IS_JSON() ? ',':' ';
         break;
     case (intptr_t)tid_LIST:
     case (intptr_t)tid_STRUCT:
@@ -134,10 +134,10 @@ iERR _ion_writer_text_pop(ION_WRITER *pwriter, ION_TYPE *ptype)
     TEXTWRITER(pwriter)->_top--;
     type = TEXTWRITER(pwriter)->_stack_parent_type[TEXTWRITER(pwriter)->_top];  // popped parent
 
-    parenttype = (TEXTWRITER(pwriter)->_top > 0) ? TEXTWRITER(pwriter)->_stack_parent_type[TEXTWRITER(pwriter)->_top - 1] : tid_SEXP;
+    parenttype = (TEXTWRITER(pwriter)->_top > 0) ? TEXTWRITER(pwriter)->_stack_parent_type[TEXTWRITER(pwriter)->_top - 1] : tid_NULL;
     switch ((intptr_t)parenttype) {
     case (intptr_t)tid_SEXP:
-        TEXTWRITER(pwriter)->_separator_character = ' ';
+        TEXTWRITER(pwriter)->_separator_character = (pwriter->options.json_downconvert) ? ',':' ';
         break;
     case (intptr_t)tid_LIST:
     case (intptr_t)tid_STRUCT:
@@ -297,7 +297,7 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
     // write field name
     if (pwriter->_in_struct) {
         IONCHECK(_ion_writer_get_field_name_as_string_helper(pwriter, &str, NULL));
-        IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii, !ION_STRING_IS_NULL(&pwriter->field_name.value)));
+        IONCHECK(_ion_writer_text_append_symbol_string(pwriter, &str, !ION_STRING_IS_NULL(&pwriter->field_name.value)));
         ION_TEXT_WRITER_APPEND_CHAR(':');
         if (ION_TEXT_WRITER_IS_PRETTY()) {
             ION_TEXT_WRITER_APPEND_CHAR(' ');
@@ -305,16 +305,18 @@ iERR _ion_writer_text_start_value(ION_WRITER *pwriter)
         IONCHECK(_ion_writer_clear_field_name_helper(pwriter));
     }
 
-    // write annotations
-    count = pwriter->annotation_curr;
-    if (count > 0) {
-        for (ii=0; ii<count; ii++) {
-            IONCHECK(_ion_writer_get_annotation_as_string_helper(pwriter, ii, &str, NULL));
-            IONCHECK(_ion_writer_text_append_symbol_string(pwriter->output, &str, pwriter->options.escape_all_non_ascii, !ION_STRING_IS_NULL(&pwriter->annotations[ii].value)));
-            ION_TEXT_WRITER_APPEND_CHAR(':');
-            ION_TEXT_WRITER_APPEND_CHAR(':');
-        }
-        IONCHECK(_ion_writer_clear_annotations_helper(pwriter));
+    // write annotations if we're not downconverting.
+    if (!pwriter->options.json_downconvert) {
+       count = pwriter->annotation_curr;
+       if (count > 0) {
+          for (ii=0; ii<count; ii++) {
+             IONCHECK(_ion_writer_get_annotation_as_string_helper(pwriter, ii, &str, NULL));
+             IONCHECK(_ion_writer_text_append_symbol_string(pwriter, &str, !ION_STRING_IS_NULL(&pwriter->annotations[ii].value)));
+             ION_TEXT_WRITER_APPEND_CHAR(':');
+             ION_TEXT_WRITER_APPEND_CHAR(':');
+          }
+          IONCHECK(_ion_writer_clear_annotations_helper(pwriter));
+       }
     }
 
     iRETURN;
@@ -354,22 +356,26 @@ iERR _ion_writer_text_write_typed_null(ION_WRITER *pwriter, ION_TYPE type)
 
     IONCHECK(_ion_writer_text_start_value(pwriter));
 
-    switch ((intptr_t)type) {
-    case (intptr_t)tid_NULL:      image = "null";           break;
-    case (intptr_t)tid_BOOL:      image = "null.bool";      break;
-    case (intptr_t)tid_INT:       image = "null.int";       break;
-    case (intptr_t)tid_FLOAT:     image = "null.float";     break;
-    case (intptr_t)tid_DECIMAL:   image = "null.decimal";   break;
-    case (intptr_t)tid_TIMESTAMP: image = "null.timestamp"; break;
-    case (intptr_t)tid_SYMBOL:    image = "null.symbol";    break;
-    case (intptr_t)tid_STRING:    image = "null.string";    break;
-    case (intptr_t)tid_BLOB:      image = "null.blob";      break;
-    case (intptr_t)tid_CLOB:      image = "null.clob";      break;
-    case (intptr_t)tid_SEXP:      image = "null.sexp";      break;
-    case (intptr_t)tid_LIST:      image = "null.list";      break;
-    case (intptr_t)tid_STRUCT:    image = "null.struct";    break;
-    default:
-        FAILWITH(IERR_INVALID_STATE);
+    if (!pwriter->options.json_downconvert) {
+       switch ((intptr_t)type) {
+          case (intptr_t)tid_NULL:      image = "null";           break;
+          case (intptr_t)tid_BOOL:      image = "null.bool";      break;
+          case (intptr_t)tid_INT:       image = "null.int";       break;
+          case (intptr_t)tid_FLOAT:     image = "null.float";     break;
+          case (intptr_t)tid_DECIMAL:   image = "null.decimal";   break;
+          case (intptr_t)tid_TIMESTAMP: image = "null.timestamp"; break;
+          case (intptr_t)tid_SYMBOL:    image = "null.symbol";    break;
+          case (intptr_t)tid_STRING:    image = "null.string";    break;
+          case (intptr_t)tid_BLOB:      image = "null.blob";      break;
+          case (intptr_t)tid_CLOB:      image = "null.clob";      break;
+          case (intptr_t)tid_SEXP:      image = "null.sexp";      break;
+          case (intptr_t)tid_LIST:      image = "null.list";      break;
+          case (intptr_t)tid_STRUCT:    image = "null.struct";    break;
+          default:
+                                        FAILWITH(IERR_INVALID_STATE);
+       }
+    } else {
+       image = "null";
     }
 
     // _output.append(nullimage);
@@ -599,6 +605,62 @@ iERR _ion_writer_text_write_double(ION_WRITER *pwriter, double value)
     iRETURN;
 }
 
+iERR _ion_writer_text_write_double_json(ION_WRITER *pwriter, double value) {
+   iERR err = IERR_OK;
+   char image[64], *mark;
+   int fpc = FLOAT_CLASS(value);
+
+   IONCHECK(_ion_writer_text_start_value(pwriter));
+   switch (fpc) {
+#  if defined(_MSC_VER)
+   case _FPCLASS_SNAN:
+   case _FPCLASS_QNAN:
+   case _FPCLASS_NINF:
+   case _FPCLASS_PINF:
+#  elif defined(__GNUC__)
+   case FP_NAN:
+   case FP_INFINITE:
+#  endif
+      IONCHECK(_ion_writer_text_append_ascii_cstr(pwriter->output, "null"));
+      break;
+#  if defined(_MSC_VER)
+   case _FPCLASS_PZ:
+   case _FPCLASS_NZ:
+#  elif defined(__GNUC__)
+   case FP_ZERO:
+#  endif
+      IONCHECK(_ion_writer_text_append_ascii_cstr(pwriter->output, "0"));
+      break;
+#  if defined(_MSC_VER)
+   case _FPCLASS_NN:
+   case _FPCLASS_ND:
+   case _FPCLASS_PD:
+   case _FPCLASS_PN:
+#  elif defined(__GNUC__)
+   case FP_NORMAL:
+   case FP_SUBNORMAL:
+        // TODO this is a terrible way to convert this!
+        // See: https://github.com/amzn/ion-c/issues/112
+
+        // The '*' in the format string indicates `DBL_DIG - 1` should be used for the precision.
+        // The precision is the number of digits allowed to the *right* of the decimal point.
+        // DBL_DIG contains the number of decimal digits that are guaranteed to be preserved
+        // in a text to double roundtrip without change due to rounding or overflow. We subtract
+        // one, since the precision is digits right of the decimal point, and DBL_DIG is total digits.
+        snprintf(image, sizeof(image), "%.*g", DBL_DIG - 1, value);
+
+        for (mark = image; *mark == ' '; ) mark++; // strip leading spaces
+        IONCHECK(_ion_writer_text_append_ascii_cstr(pwriter->output, mark));
+        break;
+#  endif
+   default:
+      FAILWITH(IERR_UNRECOGNIZED_FLOAT);
+   }
+
+fail:
+   return err;
+}
+
 iERR _ion_writer_text_write_decimal_quad(ION_WRITER *pwriter, decQuad *value)
 {
     iENTER;
@@ -614,7 +676,7 @@ iERR _ion_writer_text_write_decimal_quad(ION_WRITER *pwriter, decQuad *value)
         SUCCEED();
     }
 
-    IONCHECK(_ion_decimal_to_string_quad_helper(value, image));
+    IONCHECK(_ion_decimal_to_string_quad_helper(value, image, ION_TEXT_WRITER_IS_JSON()));
     IONCHECK(_ion_writer_text_append_ascii_cstr(pwriter->output, image));
     IONCHECK(_ion_writer_text_close_value(pwriter));
 
@@ -653,6 +715,7 @@ iERR _ion_writer_text_write_timestamp(ION_WRITER *pwriter, iTIMESTAMP value)
     iENTER;
     char temp[ION_TIMESTAMP_STRING_LENGTH + 1];
     SIZE output_length;
+    BOOL json_downconvert = ION_TEXT_WRITER_IS_JSON();
 
     ASSERT(pwriter);
 
@@ -667,7 +730,11 @@ iERR _ion_writer_text_write_timestamp(ION_WRITER *pwriter, iTIMESTAMP value)
         temp[output_length] = '\0';
 
         // and our helper does the rest
+        if (json_downconvert)
+           ION_PUT(pwriter->output, '"');
         IONCHECK(_ion_writer_text_append_ascii_cstr(pwriter->output, temp));
+        if (json_downconvert)
+           ION_PUT(pwriter->output, '"');
         IONCHECK(_ion_writer_text_close_value(pwriter));
     }
 
@@ -679,6 +746,7 @@ iERR _ion_writer_text_write_symbol_from_string(ION_WRITER *pwriter, ION_STRING *
     iENTER;
     ION_STREAM *poutput;
     SIZE written;
+    BOOL down_convert = ION_TEXT_WRITER_IS_JSON();
 
     if (pwriter->depth == 0 && pwriter->annotation_count == 0 && pstr->value[0] == '$'
         && _ion_symbol_table_parse_version_marker(pstr, NULL, NULL)) {
@@ -686,21 +754,22 @@ iERR _ion_writer_text_write_symbol_from_string(ION_WRITER *pwriter, ION_STRING *
         SUCCEED();
     }
     else {
+        char quote = ION_TEXT_WRITER_IS_JSON() ? '"':'\'';
         if (pstr->length < 0) FAILWITH(IERR_INVALID_ARG);
         poutput = pwriter->output;
 
         IONCHECK(_ion_writer_text_start_value(pwriter));
 
         // write the symbol with, or without, quotes (and escaping) as appropriate
-        if (_ion_symbol_needs_quotes(pstr, symbol_identifiers_need_quotes)) {
-            ION_PUT(poutput, '\'');
-            if (pwriter->options.escape_all_non_ascii) {
-                IONCHECK(_ion_writer_text_append_escaped_string(poutput, pstr, '\''));
+        if (_ion_symbol_needs_quotes(pstr, symbol_identifiers_need_quotes) || down_convert) {
+            ION_PUT(poutput, quote);
+            if (pwriter->options.escape_all_non_ascii || down_convert) {
+                IONCHECK(_ion_writer_text_append_escaped_string(poutput, pstr, quote, down_convert));
             }
             else {
-                IONCHECK(_ion_writer_text_append_escaped_string_utf8(poutput, pstr, '\''));
+                IONCHECK(_ion_writer_text_append_escaped_string_utf8(poutput, pstr, quote));
             }
-            ION_PUT(poutput, '\'');
+            ION_PUT(poutput, quote);
         }
         else {
             // no quotes means no escapes means we get to write the bytes out as is
@@ -770,8 +839,8 @@ iERR _ion_writer_text_write_string(ION_WRITER *pwriter, iSTRING str)
         IONCHECK(_ion_writer_text_start_value(pwriter));
 
         ION_PUT(poutput, '\"');
-        if (pwriter->options.escape_all_non_ascii) {
-            IONCHECK(_ion_writer_text_append_escaped_string(poutput, str, '"'));
+        if (pwriter->options.escape_all_non_ascii || ION_TEXT_WRITER_IS_JSON()) {
+            IONCHECK(_ion_writer_text_append_escaped_string(poutput, str, '"', ION_TEXT_WRITER_IS_JSON()));
         }
         else {
             IONCHECK(_ion_writer_text_append_escaped_string_utf8(poutput, str, '"'));
@@ -819,7 +888,12 @@ iERR _ion_writer_text_append_clob_contents(ION_WRITER *pwriter, BYTE *p_buf, SIZ
      for (ii=0; ii<length; ii++) {
         c = p_buf[ii];
         if (ION_WRITER_NEEDS_ESCAPE_ASCII(c)) {
-            image = _ion_writer_get_control_escape_string(c);
+            if (ION_TEXT_WRITER_IS_JSON()) {
+               image = _ion_writer_get_control_escape_string_json(c);
+            }
+            else {
+               image = _ion_writer_get_control_escape_string(c);
+            }
             IONCHECK(_ion_writer_text_append_ascii_cstr(pwriter->output, image));
         }
         else if (c == '"') {
@@ -991,8 +1065,8 @@ iERR _ion_writer_text_start_lob(ION_WRITER *pwriter, ION_TYPE lob_type)
     if (!pwriter) FAILWITH(IERR_BAD_HANDLE);
 
     switch ((intptr_t)lob_type) {
-    case (intptr_t)tid_BLOB:  open_str = "{{";    break;
-    case (intptr_t)tid_CLOB:  open_str = "{{\"";  break;
+    case (intptr_t)tid_BLOB:  open_str = ION_TEXT_WRITER_IS_JSON() ? "\"":"{{";    break;
+    case (intptr_t)tid_CLOB:  open_str = ION_TEXT_WRITER_IS_JSON() ? "\"":"{{\"";  break;
     default:        FAILWITH(IERR_INVALID_ARG);
     }
 
@@ -1038,8 +1112,8 @@ iERR _ion_writer_text_finish_lob(ION_WRITER *pwriter)
     IONCHECK(_ion_writer_text_pop(pwriter, &lob_type));
 
     switch ((intptr_t)lob_type) {
-    case (intptr_t)tid_BLOB:  close_str = "}}";   break;
-    case (intptr_t)tid_CLOB:  close_str = "\"}}"; break;
+    case (intptr_t)tid_BLOB:  close_str = ION_TEXT_WRITER_IS_JSON() ? "\"":"}}";   break;
+    case (intptr_t)tid_CLOB:  close_str = ION_TEXT_WRITER_IS_JSON() ? "\"":"\"}}"; break;
     default:        FAILWITH(IERR_INVALID_ARG);
     }
 
@@ -1075,7 +1149,8 @@ iERR _ion_writer_text_start_container(ION_WRITER *pwriter, ION_TYPE container_ty
     switch ((intptr_t)container_type) {
     case (intptr_t)tid_STRUCT:    open_char = '{';    break;
     case (intptr_t)tid_LIST:      open_char = '[';    break;
-    case (intptr_t)tid_SEXP:      open_char = '(';    break;
+    case (intptr_t)tid_SEXP:      open_char = (pwriter->options.json_downconvert) ? '[':'(';
+                                  break;
     default:                      FAILWITH(IERR_INVALID_ARG);
     }
     ION_TEXT_WRITER_APPEND_CHAR(open_char);
@@ -1102,7 +1177,8 @@ iERR _ion_writer_text_finish_container(ION_WRITER *pwriter)
     switch ((intptr_t)container_type) {
     case (intptr_t)tid_STRUCT:    close_char = '}';   break;
     case (intptr_t)tid_LIST:      close_char = ']';   break;
-    case (intptr_t)tid_SEXP:      close_char = ')';   break;
+    case (intptr_t)tid_SEXP:      close_char = (pwriter->options.json_downconvert) ? ']':')';
+                                  break;
     default:                      FAILWITH(IERR_INVALID_ARG);
     }
     IONCHECK(_ion_writer_text_close_collection(pwriter, close_char));
@@ -1128,24 +1204,26 @@ iERR _ion_writer_text_close(ION_WRITER *pwriter, BOOL flush)
     iRETURN;
 }
 
-iERR _ion_writer_text_append_symbol_string(ION_STREAM *poutput, ION_STRING *p_str, BOOL as_ascii, BOOL system_identifiers_need_quotes)
+iERR _ion_writer_text_append_symbol_string(ION_WRITER *pwriter, ION_STRING *p_str, BOOL system_identifiers_need_quotes)
 {
     iENTER;
     SIZE written;
+    char quote_char = (pwriter->options.json_downconvert) ? '"' : '\'';
+    ION_STREAM *poutput = pwriter->output;
 
     if (!poutput) FAILWITH(IERR_BAD_HANDLE);
     if (!p_str) FAILWITH(IERR_INVALID_ARG);
     if (p_str->length < 0) FAILWITH(IERR_INVALID_ARG);
 
-    if (_ion_symbol_needs_quotes(p_str, system_identifiers_need_quotes)) {
-        ION_PUT(poutput, '\'');
-        if (as_ascii) {
-            IONCHECK(_ion_writer_text_append_escaped_string(poutput, p_str, '\''));
+    if (_ion_symbol_needs_quotes(p_str, system_identifiers_need_quotes) || pwriter->options.json_downconvert) {
+        ION_PUT(poutput, quote_char);
+        if (pwriter->options.escape_all_non_ascii || ION_TEXT_WRITER_IS_JSON()) {
+            IONCHECK(_ion_writer_text_append_escaped_string(poutput, p_str, quote_char, ION_TEXT_WRITER_IS_JSON()));
         }
         else {
-            IONCHECK(_ion_writer_text_append_escaped_string_utf8(poutput, p_str, '\''));
+            IONCHECK(_ion_writer_text_append_escaped_string_utf8(poutput, p_str, quote_char));
         }
-        ION_PUT(poutput, '\'');
+        ION_PUT(poutput, quote_char);
     }
     else {
         IONCHECK(ion_stream_write(poutput, p_str->value, p_str->length, &written ));
@@ -1171,7 +1249,7 @@ iERR _ion_writer_text_append_ascii_cstr(ION_STREAM *poutput, char *cp)
     iRETURN;
 }
 
-iERR _ion_writer_text_append_escape_sequence_string(ION_STREAM *poutput, BYTE *cp, BYTE *limit, BYTE **p_next)
+iERR _ion_writer_text_append_escape_sequence_string(ION_STREAM *poutput, BOOL down_convert, BYTE *cp, BYTE *limit, BYTE **p_next)
 {
     iENTER;
     char   unicode_buffer[4];  // unicode byte sequences are less than 4 bytes long
@@ -1181,7 +1259,10 @@ iERR _ion_writer_text_append_escape_sequence_string(ION_STREAM *poutput, BYTE *c
 
     c = *cp;
     if (c < 32 || c == '\\' || c == '"' || c == '\'') {
-        image = _ion_writer_get_control_escape_string(c);
+        if (!down_convert)
+            image = _ion_writer_get_control_escape_string(c);
+        else
+            image = _ion_writer_get_control_escape_string_json(c);
         IONCHECK(_ion_writer_text_append_ascii_cstr(poutput, image));
         cp++;
     }
@@ -1193,7 +1274,7 @@ iERR _ion_writer_text_append_escape_sequence_string(ION_STREAM *poutput, BYTE *c
         }
         IONCHECK(_ion_writer_text_read_unicode_scalar(unicode_buffer, &ilen, &unicode_scalar));
         len = ilen;
-        IONCHECK(_ion_writer_text_append_unicode_scalar(poutput, unicode_scalar));
+        IONCHECK(_ion_writer_text_append_unicode_scalar(poutput, unicode_scalar, down_convert));
         cp += len;
     }
 
@@ -1221,7 +1302,7 @@ iERR _ion_writer_text_append_escape_sequence_cstr_limit(ION_STREAM *poutput, cha
         strncpy(temp_buffer, cp, len);
         IONCHECK(_ion_writer_text_read_unicode_scalar(temp_buffer, &ilen, &unicode_scalar));
         len = ilen;
-        IONCHECK(_ion_writer_text_append_unicode_scalar(poutput, unicode_scalar));
+        IONCHECK(_ion_writer_text_append_unicode_scalar(poutput, unicode_scalar, FALSE));
         cp += len;
     }
 
@@ -1243,7 +1324,7 @@ iERR _ion_writer_text_append_escape_sequence_cstr(ION_STREAM *poutput, char *cp,
     }
     else {
         IONCHECK(_ion_writer_text_read_unicode_scalar(cp, &len, &unicode_scalar));
-        IONCHECK(_ion_writer_text_append_unicode_scalar(poutput, unicode_scalar));
+        IONCHECK(_ion_writer_text_append_unicode_scalar(poutput, unicode_scalar, FALSE));
         cp += len;
     }
 
@@ -1271,7 +1352,7 @@ iERR _ion_writer_text_append_escaped_string_utf8(ION_STREAM *poutput, ION_STRING
         // as normal characters and pass through - at this point we don't
         // validate that the sequences are valid
         if (ION_WRITER_NEEDS_ESCAPE_UTF8(*cp) || (*cp == quote_char)) {
-            IONCHECK(_ion_writer_text_append_escape_sequence_string(poutput, cp, limit, &cp));
+            IONCHECK(_ion_writer_text_append_escape_sequence_string(poutput, FALSE, cp, limit, &cp));
         }
         else {
             ION_PUT(poutput, *cp);
@@ -1282,7 +1363,7 @@ iERR _ion_writer_text_append_escaped_string_utf8(ION_STREAM *poutput, ION_STRING
     iRETURN;
 }
 
-iERR _ion_writer_text_append_escaped_string(ION_STREAM *poutput, ION_STRING *p_str, char quote_char)
+iERR _ion_writer_text_append_escaped_string(ION_STREAM *poutput, ION_STRING *p_str, char quote_char, BOOL down_convert)
 {
     iENTER;
     BYTE *cp, *limit;
@@ -1298,7 +1379,7 @@ iERR _ion_writer_text_append_escaped_string(ION_STREAM *poutput, ION_STRING *p_s
     while (cp < limit) {
         // this escapes <32, slash, double quotes AND utf8 sequences
         if (ION_WRITER_NEEDS_ESCAPE_ASCII(*cp) || *cp == quote_char) {
-            IONCHECK(_ion_writer_text_append_escape_sequence_string(poutput, cp, limit, &cp));
+            IONCHECK(_ion_writer_text_append_escape_sequence_string(poutput, down_convert, cp, limit, &cp));
         }
         else {
             ION_PUT(poutput, *cp);
@@ -1309,7 +1390,7 @@ iERR _ion_writer_text_append_escaped_string(ION_STREAM *poutput, ION_STRING *p_s
     iRETURN;
 }
 
-iERR _ion_writer_text_append_unicode_scalar(ION_STREAM *poutput, int unicode_scalar)
+iERR _ion_writer_text_append_unicode_scalar(ION_STREAM *poutput, int unicode_scalar, BOOL down_convert)
 {
     iENTER;
 
@@ -1319,14 +1400,14 @@ iERR _ion_writer_text_append_unicode_scalar(ION_STREAM *poutput, int unicode_sca
     else if (unicode_scalar < 128) {
         ION_PUT(poutput, (BYTE)unicode_scalar);
     }
-    else if (unicode_scalar < 0x256) {\
-        // handle with \xXX
+    else if (unicode_scalar < 0x256 && !down_convert) {\
+        // handle with \xXX for ion, and \uXX for down conversion to JSON.
         ION_PUT(poutput, '\\');
         ION_PUT(poutput, 'x');
         ION_PUT(poutput, _ion_hex_chars[((unicode_scalar >>  4) & 0xF)]);
         ION_PUT(poutput, _ion_hex_chars[( unicode_scalar        & 0xF)]);
     }
-    else if (unicode_scalar < 0x10000) {
+    else if (unicode_scalar < 0x10000 || down_convert) {
         // handle with \uXXXX
         ION_PUT(poutput, '\\');
         ION_PUT(poutput, 'u');

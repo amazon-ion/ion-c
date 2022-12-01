@@ -87,6 +87,7 @@ iERR ion_decimal_claim(ION_DECIMAL *value) {
             // The decNumber may have been allocated with an owner, meaning its memory will go out of scope when that
             // owner is closed. This copy extends that scope until ion_decimal_free.
             IONCHECK(_ion_decimal_number_alloc(NULL, ION_DECIMAL_AS_NUMBER(value)->digits, &copy));
+
             decNumberCopy(copy, ION_DECIMAL_AS_NUMBER(value));
             ION_DECIMAL_AS_NUMBER(value) = copy;
             value->type = ION_DECIMAL_TYPE_NUMBER;
@@ -184,7 +185,7 @@ void _ion_decimal_to_string_to_ion(char *p_string) {
     }
 }
 
-#define ION_DECIMAL_TO_STRING_HELPER_BUILDER(is_signed, is_infinite, is_nan, is_zero, digits, to_string) \
+#define ION_DECIMAL_TO_STRING_HELPER_BUILDER(is_signed, is_infinite, is_nan, is_zero, digits, to_string, as_float) \
     iENTER; \
     ASSERT(value); \
     BOOL is_negative = is_signed(value); \
@@ -199,24 +200,24 @@ void _ion_decimal_to_string_to_ion(char *p_string) {
     } \
     else { \
         to_string(value, p_string); \
-        _ion_decimal_to_string_to_ion(p_string); \
+        if (!as_float) _ion_decimal_to_string_to_ion(p_string); \
     } \
     iRETURN; \
 
-iERR _ion_decimal_to_string_quad_helper(const decQuad *value, char *p_string) {
+iERR _ion_decimal_to_string_quad_helper(const decQuad *value, char *p_string, BOOL as_float) {
     ION_DECIMAL_TO_STRING_HELPER_BUILDER(decQuadIsSigned, decQuadIsInfinite, decQuadIsNaN,
-                                         decQuadIsZero, decQuadDigits(value), decQuadToString);
+                                         decQuadIsZero, decQuadDigits(value), decQuadToString, as_float);
 }
 
 iERR _ion_decimal_to_string_number_helper(const decNumber *value, char *p_string) {
     ION_DECIMAL_TO_STRING_HELPER_BUILDER(decNumberIsNegative, decNumberIsInfinite, decNumberIsNaN,
-                                         decNumberIsZero, value->digits, decNumberToString);
+                                         decNumberIsZero, value->digits, decNumberToString, FALSE);
 }
 
 iERR ion_decimal_to_string(const ION_DECIMAL *value, char *p_string) {
     ION_DECIMAL_SWITCH(
         value,
-        IONCHECK(_ion_decimal_to_string_quad_helper(quad_value, p_string)),
+        IONCHECK(_ion_decimal_to_string_quad_helper(quad_value, p_string, FALSE)),
         IONCHECK(_ion_decimal_to_string_number_helper(num_value, p_string))
     );
 }
