@@ -89,6 +89,12 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
+      # This step should fix an issue with building on macos with gcc, and xcode 14.0,
+      # and should be removed once 14.1 is made default.
+      - name: Fix for XCode 14.0
+        if: runner.os == 'macOS'
+        run: |
+          echo "DEVELOPER_DIR=/Applications/Xcode_14.1.app" >> $GITHUB_ENV
       - name: Build
         run: |
           ./build-debug.sh
