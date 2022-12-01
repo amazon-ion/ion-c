@@ -44,7 +44,7 @@ extern "C" {
 
 iERR _ion_decimal_number_alloc(void *owner, SIZE decimal_digits, decNumber **p_number);
 iERR _ion_decimal_from_string_helper(const char *str, decContext *context, hOWNER owner, decQuad *p_quad, decNumber **p_num);
-iERR _ion_decimal_to_string_quad_helper(const decQuad *value, char *p_string);
+iERR _ion_decimal_to_string_quad_helper(const decQuad *value, char *p_string, BOOL as_float);
 iERR _ion_decimal_to_string_number_helper(const decNumber *value, char *p_string);
 
 #ifdef __cplusplus

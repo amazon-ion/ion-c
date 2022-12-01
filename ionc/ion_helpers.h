@@ -48,6 +48,7 @@ void _ion_writer_text_write_blob_make_base64_image(int triple, char *output);
 
 // escape sequence helpers
 char *_ion_writer_get_control_escape_string(int c);
+char *_ion_writer_get_control_escape_string_json(int c);
 
 //
 // helpers to convert some of the public types to char *'s

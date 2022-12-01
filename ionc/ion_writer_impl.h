@@ -184,6 +184,7 @@ typedef struct _ion_writer
 #define ION_TEXT_WRITER_TOP_PENDING_COMMA()    (TEXTWRITER(pwriter)->_stack_flags[TEXTWRITER(pwriter)->_top - 1] & ION_TEXT_WRITER_FLAG_PENDING_COMMA)
 
 #define ION_TEXT_WRITER_IS_PRETTY()            (pwriter->options.pretty_print)
+#define ION_TEXT_WRITER_IS_JSON()              (pwriter->options.json_downconvert)
 
 #define ION_TEXT_WRITER_APPEND_CHAR(c)         ION_PUT((pwriter->output), c)
 #define ION_TEXT_WRITER_APPEND_EOL()           ION_TEXT_WRITER_APPEND_CHAR('\n')
@@ -286,14 +287,14 @@ iERR _ion_writer_free_pending_pool( ION_WRITER *pwriter );
 //
 // text writer interfaces in ion_writer_text.c
 //
-iERR _ion_writer_text_append_symbol_string(ION_STREAM *poutput, ION_STRING *p_str, BOOL as_ascii, BOOL system_identifiers_need_quotes);
+iERR _ion_writer_text_append_symbol_string(ION_WRITER *pwriter, ION_STRING *p_str, BOOL system_identifiers_need_quotes);
 iERR _ion_writer_text_append_ascii_cstr(ION_STREAM *poutput, char *cp);
-iERR _ion_writer_text_append_escape_sequence_string(ION_STREAM  *poutput, BYTE *cp, BYTE *limit, BYTE **p_next);
+iERR _ion_writer_text_append_escape_sequence_string(ION_STREAM *poutput, BOOL down_convert, BYTE *cp, BYTE *limit, BYTE **p_next);
 iERR _ion_writer_text_append_escape_sequence_cstr_limit(ION_STREAM *poutput, char *cp, char *limit, char **p_next);
 iERR _ion_writer_text_append_escape_sequence_cstr(ION_STREAM *poutput, char *cp, char **p_next);
-iERR _ion_writer_text_append_escaped_string (ION_STREAM *poutput, ION_STRING *p_str, char quote_char);
+iERR _ion_writer_text_append_escaped_string (ION_STREAM *poutput, ION_STRING *p_str, char quote_char, BOOL down_convert);
 iERR _ion_writer_text_append_escaped_string_utf8(ION_STREAM *poutput, ION_STRING *p_str, char quote_char);
-iERR _ion_writer_text_append_unicode_scalar(ION_STREAM *poutput, int unicode_scalar);
+iERR _ion_writer_text_append_unicode_scalar(ION_STREAM *poutput, int unicode_scalar, BOOL down_convert);
 iERR _ion_writer_text_read_unicode_scalar(char *cp, int *p_chars_read, int *p_unicode_scalar);
 
 iERR _ion_writer_text_initialize(ION_WRITER *pwriter);
@@ -303,6 +304,7 @@ iERR _ion_writer_text_write_bool(ION_WRITER *pwriter, BOOL value);
 iERR _ion_writer_text_write_int64(ION_WRITER *pwriter, int64_t value);
 iERR _ion_writer_text_write_ion_int(ION_WRITER *pwriter, ION_INT *iint);
 iERR _ion_writer_text_write_double(ION_WRITER *pwriter, double value);
+iERR _ion_writer_text_write_double_json(ION_WRITER *pwriter, double value);
 iERR _ion_writer_text_write_decimal_quad(ION_WRITER *pwriter, decQuad *value);
 iERR _ion_writer_text_write_decimal_number(ION_WRITER *pwriter, decNumber *value);
 iERR _ion_writer_text_write_timestamp(ION_WRITER *pwriter, iTIMESTAMP value);

@@ -183,7 +183,10 @@ iERR ion_cli_open_writer_basic(IonCliIO *destination, ION_EVENT_OUTPUT_TYPE outp
     ION_SET_ERROR_CONTEXT(&destination->contents, NULL);
     writer_context->options.output_as_binary = output_format == OUTPUT_TYPE_BINARY;
     writer_context->options.pretty_print = output_format == OUTPUT_TYPE_TEXT_PRETTY
-                                           || output_format == OUTPUT_TYPE_EVENTS;
+                                           || output_format == OUTPUT_TYPE_EVENTS
+                                           || output_format == OUTPUT_TYPE_TEXT_PRETTY_JSON;
+    writer_context->options.json_downconvert = output_format == OUTPUT_TYPE_TEXT_UGLY_JSON
+                                           || output_format == OUTPUT_TYPE_TEXT_PRETTY_JSON;
     writer_context->output_location = destination->contents;
 
     switch (destination->type) {
