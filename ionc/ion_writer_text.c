@@ -639,6 +639,7 @@ iERR _ion_writer_text_write_double_json(ION_WRITER *pwriter, double value) {
 #  elif defined(__GNUC__)
    case FP_NORMAL:
    case FP_SUBNORMAL:
+#  endif
         // TODO this is a terrible way to convert this!
         // See: https://github.com/amzn/ion-c/issues/112
 
@@ -652,7 +653,6 @@ iERR _ion_writer_text_write_double_json(ION_WRITER *pwriter, double value) {
         for (mark = image; *mark == ' '; ) mark++; // strip leading spaces
         IONCHECK(_ion_writer_text_append_ascii_cstr(pwriter->output, mark));
         break;
-#  endif
    default:
       FAILWITH(IERR_UNRECOGNIZED_FLOAT);
    }
