@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['length_350',['length',['../struct__ion__string.html#a2a6a050275dbb04ffb8448e02d08d4cc',1,'_ion_string']]]
+  ['json_5fdownconvert_351',['json_downconvert',['../struct__ion__writer__options.html#a2d73ab48562a16e36d09238a0d532e57',1,'_ion_writer_options']]]
 ];

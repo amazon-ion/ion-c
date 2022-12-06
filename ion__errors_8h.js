@@ -6,5 +6,5 @@ var ion__errors_8h =
       [ "IERR_NOT_IMPL", "ion__errors_8h.html#ad1325f67d6a88124d501e0896452155bae3bf05d9a3456e3227ccb9b14c272107", null ],
       [ "IERR_MAX_ERROR_CODE", "ion__errors_8h.html#ad1325f67d6a88124d501e0896452155baa833b8fb9188c3277b20a3946012feb1", null ]
     ] ],
-    [ "ion_error_to_str", "ion__errors_8h.html#aa29ec5564752b15d028cfb708289d2ab", null ]
+    [ "ion_error_to_str", "ion__errors_8h.html#a84d6b3da72362925b1f4421068618775", null ]
 ];

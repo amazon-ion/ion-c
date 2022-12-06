@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['value_372',['value',['../struct__ion__string.html#a4fad66ce785bcb13de0bebcfe8fb0033',1,'_ion_string']]]
+  ['user_5fvalue_5fthreshold_373',['user_value_threshold',['../struct__ion__reader__options.html#a003535c15d2cf3892cb8fec635e0130a',1,'_ion_reader_options']]]
 ];

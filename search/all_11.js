@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['value_201',['value',['../struct__ion__string.html#a4fad66ce785bcb13de0bebcfe8fb0033',1,'_ion_string']]]
+  ['updateerror_200',['UPDATEERROR',['../ion__debug_8h.html#a9d11de338fb5756835b53a585de53310',1,'ion_debug.h']]],
+  ['user_5fvalue_5fthreshold_201',['user_value_threshold',['../struct__ion__reader__options.html#a003535c15d2cf3892cb8fec635e0130a',1,'_ion_reader_options']]]
 ];

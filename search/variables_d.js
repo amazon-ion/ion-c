@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['user_5fvalue_5fthreshold_371',['user_value_threshold',['../struct__ion__reader__options.html#a003535c15d2cf3892cb8fec635e0130a',1,'_ion_reader_options']]]
+  ['temp_5fbuffer_5fsize_371',['temp_buffer_size',['../struct__ion__writer__options.html#a24afb8d57ab98207b8cd354bffa1cff7',1,'_ion_writer_options']]],
+  ['tz_5foffset_372',['tz_offset',['../struct__ion__timestamp.html#ab5108e24a14f38c039ac35f8fddbd617',1,'_ion_timestamp']]]
 ];

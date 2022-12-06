@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['pcatalog_185',['pcatalog',['../struct__ion__reader__options.html#aa3454906a404ccb6702b155f3f9d377d',1,'_ion_reader_options::pcatalog()'],['../struct__ion__writer__options.html#a064d08706f80e6286d8f9a5cc178259e',1,'_ion_writer_options::pcatalog()']]],
-  ['precision_186',['precision',['../struct__ion__timestamp.html#a775d261c985ea1606181671c782590e2',1,'_ion_timestamp']]],
-  ['pretty_5fprint_187',['pretty_print',['../struct__ion__writer__options.html#a1c0f3576a9227ec7c5e0cfdca92a0b0c',1,'_ion_writer_options']]]
+  ['new_5fline_5fchar_184',['new_line_char',['../struct__ion__reader__options.html#a1f01b7eb82ea6f88f97ca3731132f779',1,'_ion_reader_options']]],
+  ['notify_185',['notify',['../struct__ion__reader__context__change__notifier.html#a299d4de464c4f1689983d9d72fb4377e',1,'_ion_reader_context_change_notifier']]]
 ];

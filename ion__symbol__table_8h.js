@@ -69,7 +69,7 @@ var ion__symbol__table_8h =
     [ "ion_symbol_table_set_max_sid", "ion__symbol__table_8h.html#ab03ac7a47c0247ab2a55efdbccf2a8f8", null ],
     [ "ion_symbol_table_set_name", "ion__symbol__table_8h.html#ab3da4566a23ec7813d7b07f670fa5020", null ],
     [ "ion_symbol_table_set_version", "ion__symbol__table_8h.html#ad23af72202a92b3872c4db6ac0d5c651", null ],
-    [ "ion_symbol_table_type_to_str", "ion__symbol__table_8h.html#a21b748bc9fb03e1774737b6ddd692a0a", null ],
+    [ "ion_symbol_table_type_to_str", "ion__symbol__table_8h.html#ad15af46ac3ee6e4b47a7d60dc4693a74", null ],
     [ "ion_symbol_table_unload", "ion__symbol__table_8h.html#aa7b65654ae51cd9652b89f7e6bf78d87", null ],
     [ "ION_SYMBOL_IMPORTS_BYTES", "ion__symbol__table_8h.html#a5a20e8eda18fe9b9bb0d3cc8cd4b7197", null ],
     [ "ION_SYMBOL_IMPORTS_STRING", "ion__symbol__table_8h.html#a3f34314cd42f3b7541ac997ea3e1cff6", null ],

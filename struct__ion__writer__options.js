@@ -8,6 +8,7 @@ var struct__ion__writer__options =
     [ "flush_every_value", "struct__ion__writer__options.html#a6995a43973df626abdd5c1c6e97347d4", null ],
     [ "indent_size", "struct__ion__writer__options.html#a6bcb71089493833ef6e1628f85c85a0e", null ],
     [ "indent_with_tabs", "struct__ion__writer__options.html#a1a305837b744d9f2f549a1f86bde901a", null ],
+    [ "json_downconvert", "struct__ion__writer__options.html#a2d73ab48562a16e36d09238a0d532e57", null ],
     [ "max_annotation_count", "struct__ion__writer__options.html#a668645bf92966762f6521231e8cdf682", null ],
     [ "max_container_depth", "struct__ion__writer__options.html#a5a7a8634a51b7a6107ba49f5ff0813af", null ],
     [ "output_as_binary", "struct__ion__writer__options.html#a67c9b19157dba159a92cbd631a255c0a", null ],
