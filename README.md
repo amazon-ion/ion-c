@@ -51,4 +51,4 @@ Use the provided scripts `build-release.sh` and `build-debug.sh`. Ensure that `c
 `cmake` can be installed using [Homebrew](https://brew.sh/): `brew install cmake`
 
 ## Using the Library
-Ion cookbook for C coming soon!
+A great way to get started is to use the [Ion cookbook](https://amazon-ion.github.io/ion-docs/guides/cookbook.html).
