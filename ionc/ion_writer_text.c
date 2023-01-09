@@ -730,11 +730,13 @@ iERR _ion_writer_text_write_timestamp(ION_WRITER *pwriter, iTIMESTAMP value)
         temp[output_length] = '\0';
 
         // and our helper does the rest
-        if (json_downconvert)
+        if (json_downconvert) {
            ION_PUT(pwriter->output, '"');
+        }
         IONCHECK(_ion_writer_text_append_ascii_cstr(pwriter->output, temp));
-        if (json_downconvert)
+        if (json_downconvert) {
            ION_PUT(pwriter->output, '"');
+        }
         IONCHECK(_ion_writer_text_close_value(pwriter));
     }
 
@@ -754,7 +756,7 @@ iERR _ion_writer_text_write_symbol_from_string(ION_WRITER *pwriter, ION_STRING *
         SUCCEED();
     }
     else {
-        char quote = ION_TEXT_WRITER_IS_JSON() ? '"':'\'';
+        char quote = down_convert ? '"':'\'';
         if (pstr->length < 0) FAILWITH(IERR_INVALID_ARG);
         poutput = pwriter->output;
 
@@ -1208,14 +1210,14 @@ iERR _ion_writer_text_append_symbol_string(ION_WRITER *pwriter, ION_STRING *p_st
 {
     iENTER;
     SIZE written;
-    char quote_char = (pwriter->options.json_downconvert) ? '"' : '\'';
+    char quote_char = ION_TEXT_WRITER_IS_JSON() ? '"' : '\'';
     ION_STREAM *poutput = pwriter->output;
 
     if (!poutput) FAILWITH(IERR_BAD_HANDLE);
     if (!p_str) FAILWITH(IERR_INVALID_ARG);
     if (p_str->length < 0) FAILWITH(IERR_INVALID_ARG);
 
-    if (_ion_symbol_needs_quotes(p_str, system_identifiers_need_quotes) || pwriter->options.json_downconvert) {
+    if (_ion_symbol_needs_quotes(p_str, system_identifiers_need_quotes) || ION_TEXT_WRITER_IS_JSON()) {
         ION_PUT(poutput, quote_char);
         if (pwriter->options.escape_all_non_ascii || ION_TEXT_WRITER_IS_JSON()) {
             IONCHECK(_ion_writer_text_append_escaped_string(poutput, p_str, quote_char, ION_TEXT_WRITER_IS_JSON()));
@@ -1259,10 +1261,12 @@ iERR _ion_writer_text_append_escape_sequence_string(ION_STREAM *poutput, BOOL do
 
     c = *cp;
     if (c < 32 || c == '\\' || c == '"' || c == '\'') {
-        if (!down_convert)
-            image = _ion_writer_get_control_escape_string(c);
-        else
+        if (down_convert) {
             image = _ion_writer_get_control_escape_string_json(c);
+        }
+        else {
+            image = _ion_writer_get_control_escape_string(c);
+        }
         IONCHECK(_ion_writer_text_append_ascii_cstr(poutput, image));
         cp++;
     }
