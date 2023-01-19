@@ -1,9 +1,9 @@
 # Amazon Ion C
-A C implementation of the [Ion data notation](http://amzn.github.io/ion-docs).
+A C implementation of the [Ion data notation](https://amazon-ion.github.io/ion-docs).
 
-[![Build Status](https://travis-ci.org/amzn/ion-c.svg?branch=master)](https://travis-ci.org/amzn/ion-c)
+[![Build Status](https://travis-ci.org/amazon-ion/ion-c.svg?branch=master)](https://travis-ci.org/amazon-ion/ion-c)
 [![Build status](https://ci.appveyor.com/api/projects/status/x6xfom3x3hs3y945/branch/master?svg=true)](https://ci.appveyor.com/project/tgregg/ion-c-3akm7/branch/master)
-<a title="docs" href="https://amzn.github.io/ion-c"><img src="https://img.shields.io/badge/docs-api-green.svg"/></a>
+<a title="docs" href="https://amazon-ion.github.io/ion-c"><img src="https://img.shields.io/badge/docs-api-green.svg"/></a>
 
 ## Setup
 This repository contains a [git submodule](https://git-scm.com/docs/git-submodule)
@@ -13,7 +13,7 @@ The easiest way to clone the `ion-c` repository and initialize its `ion-tests`
 submodule is to run the following command.
 
 ```
-$ git clone --recursive https://github.com/amzn/ion-c.git ion-c
+$ git clone --recursive https://github.com/amazon-ion/ion-c.git ion-c
 ```
 
 Alternatively, the submodule may be initialized independently from the clone

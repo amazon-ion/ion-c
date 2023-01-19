@@ -9,14 +9,14 @@ jobs:
       - name: Checkout ion-c
         uses: actions/checkout@master
         with:
-          repository: amzn/ion-c
+          repository: amazon-ion/ion-c
           ref: master
           path: ion-c
 
       - name: Checkout ion-test-driver
         uses: actions/checkout@master
         with:
-          repository: amzn/ion-test-driver
+          repository: amazon-ion/ion-test-driver
           ref: master
           path: ion-test-driver
 
@@ -36,7 +36,7 @@ jobs:
       - name: Run ion-test-driver
         run: python3 ion-test-driver/amazon/iontest/ion_test_driver.py -o output
           -i ion-c,${{ github.event.pull_request.head.repo.html_url }},${{ github.event.pull_request.head.sha }}
-          --replace ion-c,https://github.com/amzn/ion-c.git,$main
+          --replace ion-c,https://github.com/amazon-ion/ion-c.git,$main
 
       - name: Upload result
         uses: actions/upload-artifact@v2

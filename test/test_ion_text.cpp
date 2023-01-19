@@ -718,13 +718,13 @@ void test_partial_lob_read(const char *ion_text, ION_TYPE expected_tid, SIZE exp
     ION_ASSERT_OK(ion_reader_close(reader));
 }
 
-// regression test for https://github.com/amzn/ion-c/issues/188
+// regression test for https://github.com/amazon-ion/ion-c/issues/188
 TEST(IonTextClob, CanFullyReadClobUsingPartialReads) {
     test_partial_lob_read("{{ \"This is a CLOB of text.\" }}",
                        tid_CLOB, 23, "This is a CLOB of text.");
 }
 
-// regression test for https://github.com/amzn/ion-c/issues/188
+// regression test for https://github.com/amazon-ion/ion-c/issues/188
 TEST(IonTextBlob, CanFullyReadBlobUsingPartialReads) {
     test_partial_lob_read("{{ VGhpcyBpcyBhIEJMT0Igb2YgdGV4dC4= }}",
                        tid_BLOB, 23, "This is a BLOB of text.");
@@ -786,7 +786,7 @@ TEST(IonTextStruct, FailsOnFieldNameWithNoValueInMiddle) {
     ION_ASSERT_OK(ion_reader_close(reader));
 }
 
-// reproduction for amzn/ion-c#235
+// reproduction for amazon-ion/ion-c#235
 TEST(IonTextInt, BinaryLiterals) {
     const char *ion_text = "-0b100";
     hREADER  reader;
