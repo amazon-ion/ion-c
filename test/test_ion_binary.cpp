@@ -521,7 +521,7 @@ TEST(IonBinaryFloat, ReaderSupports32BitFloats) {
     int pos_inf_bits = 0x7F800000;
     float pos_inf = *((float *)&pos_inf_bits);
 
-    // See https://amzn.github.io/ion-docs/docs/binary.html#4-float
+    // See https://amazon-ion.github.io/ion-docs/docs/binary.html#4-float
     // "If L is 0, then the the value is 0e0 and representation is empty."
     test_ion_binary_reader_supports_32_bit_floats((BYTE *) "\xE0\x01\x00\xEA\x40", 5, 0.);
     // Positive 0 can also be written out with 4 bytes instead
@@ -658,7 +658,7 @@ TEST(IonBinaryFloat, WriterSupports32BitFloats) {
     float nan = *((float *)&nan_bits);
 
     // ion-c prefers to write positive zero as a zero-length float
-    // see: https://amzn.github.io/ion-docs/docs/binary.html#4-float
+    // see: https://amazon-ion.github.io/ion-docs/docs/binary.html#4-float
     test_ion_binary_writer_supports_32_bit_floats(0., "\xE0\x01\x00\xEA\x40", 5);
     test_ion_binary_writer_supports_32_bit_floats(-0., "\xE0\x01\x00\xEA\x44\x80\x00\x00\x00", 9);
     test_ion_binary_writer_supports_32_bit_floats(4.2, "\xE0\x01\x00\xEA\x44\x40\x86\x66\x66", 9);
@@ -695,7 +695,7 @@ void test_ion_binary_writer_supports_compact_floats(BOOL compact_floats, double 
 
 TEST(IonBinaryFloat, WriterSupportsCompactFloatsOption) {
     // ion-c prefers to write positive zero as a zero-length float, whether this option is enabled or not
-    // see: https://amzn.github.io/ion-docs/docs/binary.html#4-float
+    // see: https://amazon-ion.github.io/ion-docs/docs/binary.html#4-float
     test_ion_binary_writer_supports_compact_floats(TRUE, 0., "\xE0\x01\x00\xEA\x40", 5);
     test_ion_binary_writer_supports_compact_floats(FALSE, 0., "\xE0\x01\x00\xEA\x40", 5);
 

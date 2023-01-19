@@ -40,7 +40,7 @@ INSTANTIATE_TEST_CASE_P(IonTimestampParameterized, IonTimestamp, testing::Values
         std::tr1::make_tuple(std::string("2020-07-01T14:24:57+01:00"),  60, 1593609897, std::string("2020-07-01T13:24:57-00:00"))
 ));
 
-// regression for https://github.com/amzn/ion-c/issues/144
+// regression for https://github.com/amazon-ion/ion-c/issues/144
 TEST_P(IonTimestamp, ion_timestamp_to_time_t) {
     ION_TIMESTAMP timestamp;
     SIZE chars_used;

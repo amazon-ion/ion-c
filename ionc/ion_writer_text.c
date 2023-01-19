@@ -578,7 +578,7 @@ iERR _ion_writer_text_write_double(ION_WRITER *pwriter, double value)
 #endif
 
         // TODO this is a terrible way to convert this!
-        // See: https://github.com/amzn/ion-c/issues/112
+        // See: https://github.com/amazon-ion/ion-c/issues/112
         // For now:
         // "If an IEEE 754 double-precision number is converted to a decimal string with at least
         //  17 significant digits, and then converted back to double-precision representation,
@@ -641,7 +641,7 @@ iERR _ion_writer_text_write_double_json(ION_WRITER *pwriter, double value) {
    case FP_SUBNORMAL:
 #  endif
         // TODO this is a terrible way to convert this!
-        // See: https://github.com/amzn/ion-c/issues/112
+        // See: https://github.com/amazon-ion/ion-c/issues/112
 
         // The '*' in the format string indicates `DBL_DIG - 1` should be used for the precision.
         // The precision is the number of digits allowed to the *right* of the decimal point.
