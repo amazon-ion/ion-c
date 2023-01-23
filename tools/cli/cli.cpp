@@ -61,6 +61,7 @@ iERR ion_cli_command_process_traverse(IonEventWriterContext *writer_context, Ion
 }
 
 iERR ion_cli_close_reader(IonCliReaderContext *context, iERR err, IonEventResult *result) {
+    FN_DEF;
     ASSERT(context);
     ION_SET_ERROR_CONTEXT(&context->input_location, NULL);
     if (context->reader) {
@@ -236,6 +237,7 @@ iERR ion_cli_open_writer(IonCliCommonArgs *common_args, ION_CATALOG *catalog, IO
 
 iERR ion_cli_close_writer(IonEventWriterContext *context, ION_CLI_IO_TYPE output_type, ION_STRING *output, iERR err,
                           IonEventResult *result) {
+    FN_DEF;
     UPDATEERROR(ion_event_writer_close(context, result, err, output_type == IO_TYPE_MEMORY,
                                        (output == NULL) ? NULL : &output->value,
                                        (output == NULL) ? NULL : &output->length));

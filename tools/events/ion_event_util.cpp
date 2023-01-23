@@ -170,6 +170,7 @@ iERR ion_event_in_memory_writer_open(IonEventWriterContext *writer_context, ION_
 
 iERR ion_event_writer_close(IonEventWriterContext *writer_context, IonEventResult *result, iERR err, bool in_memory,
                             BYTE **bytes, SIZE *bytes_len) {
+    FN_DEF;
     ION_SET_ERROR_CONTEXT(&writer_context->output_location, NULL);
     if (writer_context->writer) {
         ION_NON_FATAL(ion_writer_close(writer_context->writer), "Failed to close writer.");

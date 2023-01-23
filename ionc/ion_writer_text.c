@@ -606,7 +606,7 @@ iERR _ion_writer_text_write_double(ION_WRITER *pwriter, double value)
 }
 
 iERR _ion_writer_text_write_double_json(ION_WRITER *pwriter, double value) {
-   iERR err = IERR_OK;
+   iENTER;
    char image[64], *mark;
    int fpc = FLOAT_CLASS(value);
 
