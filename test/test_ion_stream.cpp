@@ -99,7 +99,7 @@ TEST(IonStream, ContinuesOverPageBoundary) {
     ION_ASSERT_OK(ion_reader_close(reader));
     ION_ASSERT_OK(ion_stream_close(stream));
 
-    ASSERT_EQ(2, context.number_of_handler_invocations);
+    ASSERT_EQ(3, context.number_of_handler_invocations);
     ION_ASSERT_OK(ion_timestamp_parse(&expected, (char *)expected_str, (SIZE)strlen(expected_str), &chars_used, &g_IonEventDecimalContext));
     ION_ASSERT_OK(ion_timestamp_equals(&expected, &ts, &is_equal, &g_IonEventDecimalContext));
     ASSERT_TRUE(is_equal);
