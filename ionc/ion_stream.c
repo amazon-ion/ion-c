@@ -1798,36 +1798,35 @@ iERR _ion_stream_fread( ION_STREAM *stream, BYTE *dst, BYTE *end, SIZE *p_bytes_
         //
         user_stream = &(((ION_STREAM_USER_PAGED *)stream)->_user_stream);
         SIZE needed = (SIZE)(end - dst);
+        SIZE bytes_remaining = 0;
 
         // first check to see if we have any pending bytes, from a previous read
-        if (user_stream->curr == NULL || user_stream->limit == NULL
-         || ((bytes_read = (SIZE)(user_stream->limit - user_stream->curr)) < 1)
+        if (user_stream->curr != NULL && user_stream->limit != NULL
+         && ((bytes_remaining = (SIZE)(user_stream->limit - user_stream->curr)) > 0)
         ) {
-            // if we didn't have anything, call the handler to get more bytes
-            bytes_read = 0;
-            while (bytes_read < needed) {
-                err = (*(user_stream->handler))(user_stream);
-                if (err == IERR_OK) {
-                    local_bytes_read = (SIZE)(user_stream->limit - user_stream->curr);
-                    int to_copy = (local_bytes_read + bytes_read > needed) ? (needed - bytes_read) : local_bytes_read;
-                    if (to_copy > 0) {
-                        memcpy(dst, user_stream->curr, to_copy);
-                        dst += to_copy;
-                        user_stream->curr += to_copy;
-                        bytes_read += to_copy;
-                    } else { // No new data, so we break out.
-                        break;
-                    }
-                } else {
-                    // Break in the case of error, or EOF.
-                    break;
-                }
-            }
-        } else { // We have bytes from a previous read.
-            int to_copy = (bytes_read > needed) ? needed : bytes_read;
+            int to_copy = (bytes_remaining > needed) ? needed : bytes_remaining;
             memcpy(dst, user_stream->curr, to_copy);
             user_stream->curr += to_copy;
             bytes_read += to_copy;
+        }
+        // Next, if we still need more, call the handler to get more bytes
+        while (bytes_read < needed) {
+            err = (*(user_stream->handler))(user_stream);
+            if (err == IERR_OK) {
+                local_bytes_read = (SIZE)(user_stream->limit - user_stream->curr);
+                int to_copy = (local_bytes_read + bytes_read > needed) ? (needed - bytes_read) : local_bytes_read;
+                if (to_copy > 0) {
+                    memcpy(dst, user_stream->curr, to_copy);
+                    dst += to_copy;
+                    user_stream->curr += to_copy;
+                    bytes_read += to_copy;
+                } else { // No new data, so we break out.
+                    break;
+                }
+            } else {
+                // Break in the case of error, or EOF.
+                break;
+            }
         }
     }
     else {
