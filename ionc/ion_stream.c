@@ -1808,11 +1808,12 @@ iERR _ion_stream_fread( ION_STREAM *stream, BYTE *dst, BYTE *end, SIZE *p_bytes_
             memcpy(dst, user_stream->curr, to_copy);
             user_stream->curr += to_copy;
             bytes_read += to_copy;
+            dst += to_copy;
         }
         // Next, if we still need more, call the handler to get more bytes
         while (bytes_read < needed) {
             err = (*(user_stream->handler))(user_stream);
-            if (err == IERR_OK) {
+            if (err == IERR_OK  && (user_stream->curr != NULL && user_stream->limit != NULL)) {
                 local_bytes_read = (SIZE)(user_stream->limit - user_stream->curr);
                 int to_copy = (local_bytes_read + bytes_read > needed) ? (needed - bytes_read) : local_bytes_read;
                 if (to_copy > 0) {
