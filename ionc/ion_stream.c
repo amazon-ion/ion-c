@@ -1824,8 +1824,10 @@ iERR _ion_stream_fread( ION_STREAM *stream, BYTE *dst, BYTE *end, SIZE *p_bytes_
                 } else { // No new data, so we break out.
                     break;
                 }
+            } else if (err != IERR_EOF) {
+                bytes_read = READ_ERROR_LENGTH;
+                break;
             } else {
-                // Break in the case of error, or EOF.
                 break;
             }
         }
