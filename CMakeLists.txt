@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.6 FATAL_ERROR)
 
 project(IonC
-        VERSION 1.1.1
+        VERSION 1.1.2
         LANGUAGES CXX C)
 
 
