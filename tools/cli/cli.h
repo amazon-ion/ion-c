@@ -18,6 +18,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <ionc/ion_version.h>
 #include <ionc/ion_errors.h>
 #include "ion_event_equivalence.h"
 #include "ion_event_util.h"

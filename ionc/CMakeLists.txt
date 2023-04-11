@@ -24,7 +24,9 @@ set(libsrc
         ion_writer_text.c
         ion_decimal.c
         ion_float.c
-        ion_extractor.c)
+        ion_extractor.c
+        ion_version.c
+        )
 
 set(LIB_PUB_HEADERS 
     include/ionc/ion_catalog.h
@@ -44,6 +46,7 @@ set(LIB_PUB_HEADERS
     include/ionc/ion_symbol_table.h
     include/ionc/ion_timestamp.h
     include/ionc/ion_types.h
+    include/ionc/ion_version.h
     include/ionc/ion_writer.h)
 
 
@@ -64,8 +67,11 @@ target_include_directories(objlib
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../decNumber/include>
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_BINARY_DIR}
 
 )
+
+add_dependencies(objlib version)
 
 
 if (MSVC)

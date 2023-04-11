@@ -17,6 +17,16 @@ else()
     add_compile_options("$<$<CONFIG:DEBUG>:-O0;-g3;-ggdb3;-Wall>")
 endif()
 
+set(IONC_FULL_VERSION ${CMAKE_PROJECT_VERSION})
+find_program(GIT_EXECUTABLE "git")
+add_custom_target(
+   version
+   ${CMAKE_COMMAND} -D SRC=${CMAKE_SOURCE_DIR}/build_version.h.in
+                    -D DST=${CMAKE_BINARY_DIR}/build_version.h
+                    -D GIT_EXECUTABLE=${GIT_EXECUTABLE}
+                    -P ${CMAKE_SOURCE_DIR}/cmake/VersionHeader.cmake
+)
+
 include(GNUInstallDirs)
 
 # NOTE: DECNUMDIGITS must be set across all compilation units to at least DECQUAD_Pmax (34), so that the value is

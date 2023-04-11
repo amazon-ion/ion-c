@@ -34,5 +34,6 @@
 #include "ion_writer.h"
 #include "ion_catalog.h"
 #include "ion_debug.h"
+#include "ion_version.h"
 
 #endif
