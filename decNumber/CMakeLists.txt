@@ -31,6 +31,8 @@ target_include_directories(decNumber
 
 set_target_properties(decNumber
     PROPERTIES
+        VERSION "3.68"
+        SOVERSION "3.68"
         PUBLIC_HEADER "${DEC_PUB_HEADERS}")
 
 # ---
