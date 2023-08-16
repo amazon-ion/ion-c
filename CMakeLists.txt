@@ -29,20 +29,18 @@ add_custom_target(
 
 include(GNUInstallDirs)
 
+set(IONC_DECIMAL_NUM_DIGITS "34" CACHE STRING "Number of digits supported without added allocation")
+option(IONC_BUILD_TESTS "Enable or Disable building of ion-c tests" ON)
+
 # NOTE: DECNUMDIGITS must be set across all compilation units to at least DECQUAD_Pmax (34), so that the value is
 # guaranteed to be consistent between ionc and decNumber. This is required for conversions between decQuad and
 # decNumber. This is NOT the limit on decimal precision; ION_DECIMAL can handle arbitrarily large precision.
-add_definitions(-DDECNUMDIGITS=34)
-message(STATUS "Setting DECNUMBER max digits to 34")
+add_definitions(-DDECNUMDIGITS=${IONC_DECIMAL_NUM_DIGITS})
+message(STATUS "Setting DECNUMBER max digits to ${IONC_DECIMAL_NUM_DIGITS}")
 
 set(CMAKE_INSTALL_RPATH "$ORIGIN")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-add_subdirectory(decNumber)
-add_subdirectory(ionc)
-add_subdirectory(test)
-add_subdirectory(tools)
 
 export(PACKAGE IonC)
 
@@ -69,3 +67,15 @@ configure_file( "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"
 add_custom_target(uninstall
                   COMMAND ${CMAKE_COMMAND} -P
                   "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake" )
+
+
+add_subdirectory(decNumber)
+add_subdirectory(ionc)
+add_subdirectory(tools)
+if (IONC_BUILD_TESTS)
+   if (NOT TARGET gtest_main)
+      message("Using included google-test")
+      add_subdirectory(deps/google-test EXCLUDE_FROM_ALL)
+   endif()
+   add_subdirectory(test)
+endif()

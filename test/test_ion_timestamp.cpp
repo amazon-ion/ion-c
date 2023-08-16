@@ -13,6 +13,7 @@
  * permissions and limitations under the License.
  */
 
+#include <tuple>
 #include "ion_assert.h"
 #include "ion_helpers.h"
 #include "ion_event_util.h"
@@ -35,9 +36,9 @@ public:
 };
 
 INSTANTIATE_TEST_CASE_P(IonTimestampParameterized, IonTimestamp, testing::Values(
-        std::tr1::make_tuple(std::string("2020-07-01T14:24:57-01:00"), -60, 1593617097, std::string("2020-07-01T15:24:57-00:00")),
-        std::tr1::make_tuple(std::string("2020-07-01T14:24:57+00:00"),   0, 1593613497, std::string("2020-07-01T14:24:57-00:00")),
-        std::tr1::make_tuple(std::string("2020-07-01T14:24:57+01:00"),  60, 1593609897, std::string("2020-07-01T13:24:57-00:00"))
+        std::make_tuple(std::string("2020-07-01T14:24:57-01:00"), -60, 1593617097, std::string("2020-07-01T15:24:57-00:00")),
+        std::make_tuple(std::string("2020-07-01T14:24:57+00:00"),   0, 1593613497, std::string("2020-07-01T14:24:57-00:00")),
+        std::make_tuple(std::string("2020-07-01T14:24:57+01:00"),  60, 1593609897, std::string("2020-07-01T13:24:57-00:00"))
 ));
 
 // regression for https://github.com/amazon-ion/ion-c/issues/144
@@ -112,16 +113,16 @@ public:
 };
 
 INSTANTIATE_TEST_CASE_P(IonTimestampHighPrecisionParameterized, IonTimestampHighPrecision, testing::Values(
-        std::tr1::make_tuple(std::string("123E-10"), std::string(".0000000123")),
-        std::tr1::make_tuple(std::string("12.3E-9"), std::string(".0000000123")),
-        std::tr1::make_tuple(std::string("1.23E-8"), std::string(".0000000123")),
-        std::tr1::make_tuple(std::string("0.123E-7"), std::string(".0000000123")),
-        std::tr1::make_tuple(std::string("1E-8"), std::string(".00000001")),
-        std::tr1::make_tuple(std::string("0.1E-7"), std::string(".00000001")),
-        std::tr1::make_tuple(std::string("0E-10"), std::string(".0000000000")),
-        std::tr1::make_tuple(std::string("0.0E-9"), std::string(".0000000000")),
-        std::tr1::make_tuple(std::string("0.00000000000E1"), std::string(".0000000000")),
-        std::tr1::make_tuple(std::string("999999999999999999999999E-24"), std::string(".999999999999999999999999"))
+        std::make_tuple(std::string("123E-10"), std::string(".0000000123")),
+        std::make_tuple(std::string("12.3E-9"), std::string(".0000000123")),
+        std::make_tuple(std::string("1.23E-8"), std::string(".0000000123")),
+        std::make_tuple(std::string("0.123E-7"), std::string(".0000000123")),
+        std::make_tuple(std::string("1E-8"), std::string(".00000001")),
+        std::make_tuple(std::string("0.1E-7"), std::string(".00000001")),
+        std::make_tuple(std::string("0E-10"), std::string(".0000000000")),
+        std::make_tuple(std::string("0.0E-9"), std::string(".0000000000")),
+        std::make_tuple(std::string("0.00000000000E1"), std::string(".0000000000")),
+        std::make_tuple(std::string("999999999999999999999999E-24"), std::string(".999999999999999999999999"))
 ));
 
 TEST_P(IonTimestampHighPrecision, TextWriterCanWriteHighPrecisionFraction) {
