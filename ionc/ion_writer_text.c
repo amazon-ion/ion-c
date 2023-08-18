@@ -657,6 +657,8 @@ iERR _ion_writer_text_write_double_json(ION_WRITER *pwriter, double value) {
       FAILWITH(IERR_UNRECOGNIZED_FLOAT);
    }
 
+   IONCHECK(_ion_writer_text_close_value(pwriter));
+
 fail:
    return err;
 }
