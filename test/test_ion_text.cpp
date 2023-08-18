@@ -1420,6 +1420,7 @@ TEST(IonTextDownconvert, IntsFloatsAndDecimals) {
     IONJSON_CMP("1.5d0", "1.5");
     IONJSON_CMP("1d-5", "0.00001");
     IONJSON_CMP("1d+5", "1E+5");
+    IONJSON_CMP("[1d0, 1d0]", "[1,1]");
 }
 
 TEST(IonTextDownconvert, Lists) {
