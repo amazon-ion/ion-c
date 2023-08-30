@@ -17,6 +17,7 @@
 #include <iostream>
 #include <ionc/ion_errors.h>
 #include <ionc/ion.h>
+#include "ion_event_stream.h"
 #include "ion_helpers.h"
 #include "ion_event_util.h"
 #include "ion_event_stream_impl.h"
@@ -320,6 +321,9 @@ iERR ion_cli_command_process(IonCliCommonArgs *common_args, IonCliProcessArgs *p
     else if (common_args->output_format != OUTPUT_TYPE_NONE) {
         // Ion stream writers receive their catalogs and shared symbol table imports lists at construction.
         IONREPORT(ion_cli_open_writer(common_args, catalog, imports, &writer_context, result));
+        if (common_args->output_format == OUTPUT_TYPE_TEXT_PRETTY_JSON || common_args->output_format == OUTPUT_TYPE_TEXT_UGLY_JSON) {
+            IONREPORT(ion_writer_start_container(writer_context.writer, tid_LIST));
+        }
     }
     else {
         // TODO add "silent" support.
@@ -341,6 +345,9 @@ iERR ion_cli_command_process(IonCliCommonArgs *common_args, IonCliProcessArgs *p
 
     // Full traversal, no filtering.
     IONREPORT(ion_cli_command_process_standard(&writer_context, common_args, catalog, result));
+    if (common_args->output_format == OUTPUT_TYPE_TEXT_PRETTY_JSON || common_args->output_format == OUTPUT_TYPE_TEXT_UGLY_JSON) {
+        IONREPORT(ion_writer_finish_container(writer_context.writer));
+    }
 
 cleanup:
     UPDATEERROR(ion_cli_close_writer(&writer_context, common_args->output.type, output, err, result));

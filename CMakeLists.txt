@@ -17,6 +17,27 @@ else()
     add_compile_options("$<$<CONFIG:DEBUG>:-O0;-g3;-ggdb3;-Wall>")
 endif()
 
+## Build Type Settings
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+   add_compile_definitions(NDEBUG=1)
+elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
+   add_compile_options(
+      -g -fsanitize=address,undefined
+      -fsanitize-recover=address
+      -fno-omit-frame-pointer
+      -fno-optimize-sibling-calls
+   )
+   add_link_options(-fsanitize=address,undefined)
+   add_compile_definitions(DEBUG=1)
+elseif (CMAKE_BUILD_TYPE STREQUAL "Profiling")
+   add_compile_options(-O3 -fno-omit-frame-pointer -fno-optimize-sibling-calls -g)
+   add_compile_definitions(NDEBUG=1)
+   set(IONC_BENCHMARKING_ENABLED ON CACHE BOOL "Enable Benchmarking")
+   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -march=native")
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
+endif()
+
+## ion-c Build Version
 set(IONC_FULL_VERSION ${CMAKE_PROJECT_VERSION})
 find_program(GIT_EXECUTABLE "git")
 add_custom_target(
