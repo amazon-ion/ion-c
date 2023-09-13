@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.6 FATAL_ERROR)
-
 project(IonC
         VERSION 1.1.2
         LANGUAGES CXX C)
@@ -17,24 +16,37 @@ else()
     add_compile_options("$<$<CONFIG:DEBUG>:-O0;-g3;-ggdb3;-Wall>")
 endif()
 
+set(IONC_FORCE_SANITIZERS OFF CACHE BOOL "Force use of compiler sanitizers")
+
 ## Build Type Settings
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
    add_compile_definitions(NDEBUG=1)
 elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
-   add_compile_options(
-      -g -fsanitize=address,undefined
-      -fsanitize-recover=address
-      -fno-omit-frame-pointer
-      -fno-optimize-sibling-calls
-   )
-   add_link_options(-fsanitize=address,undefined)
+   include(CheckCXXCompilerFlag)
+   # check_cxx_compiler_flag doesn't just check compiler flags, it also attempts to link the program, which
+   # in this case, also requires sanitizer flags. So we have to abuse CMAKE_REQUIRED_LINK_OPTIONS since that's
+   # the only lever we're given afaict. This does not work with cmake prior to 3.14.
+   list(INSERT CMAKE_REQUIRED_LINK_OPTIONS 0 "-fsanitize=address,undefined")
+   check_cxx_compiler_flag("-g -fsanitize=address,undefined -fno-omit-frame-pointer" UBISAN_OK)
+   list(REMOVE_AT CMAKE_REQUIRED_LINK_OPTIONS 0)
+   if (UBISAN_OK OR IONC_FORCE_SANITIZERS)
+      add_compile_options(
+         -fsanitize=address,undefined
+         -fsanitize-recover=address
+      )
+      add_link_options(-fsanitize=address,undefined -fsanitize-recover=address)
+   endif()
+   add_compile_options(-g -fno-omit-frame-pointer -fno-optimize-sibling-calls)
    add_compile_definitions(DEBUG=1)
 elseif (CMAKE_BUILD_TYPE STREQUAL "Profiling")
-   add_compile_options(-O3 -fno-omit-frame-pointer -fno-optimize-sibling-calls -g)
+   add_compile_options(
+      -O3 -march=native
+      -fno-omit-frame-pointer
+      -fno-optimize-sibling-calls
+      -g
+   )
    add_compile_definitions(NDEBUG=1)
    set(IONC_BENCHMARKING_ENABLED ON CACHE BOOL "Enable Benchmarking")
-   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -march=native")
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
 endif()
 
 ## ion-c Build Version

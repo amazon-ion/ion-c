@@ -9,6 +9,13 @@ if (TRACK_MEMORY)
 endif()
 
 add_executable(IonCBench ${SOURCES})
+set_property(TARGET IonCBench
+   PROPERTY CXX_STANDARD 17
+)
+set_property(TARGET IonCBench
+   PROPERTY CXX_STANDARD_REQUIRED ON
+)
+target_compile_features(IonCBench PRIVATE cxx_std_17)
 target_include_directories(IonCBench PRIVATE ${libcbor_BINARY_DIR} ../../cli/argtable/)
 target_link_libraries(IonCBench
    benchmark::benchmark
