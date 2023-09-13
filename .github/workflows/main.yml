@@ -51,10 +51,11 @@ jobs:
       - name: Install ${{ matrix.compiler.cc }}
         run: yum install ${{ matrix.compiler.packages }} -y
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           submodules: recursive
           fetch-tags: true
+          fetch-depth: 50 # we need to be able to fetch the tag that is nearest to the current commit.
       - name: Create git config # Fixes an issue where git refuses to work due to dubious permissions.
         run: git config --system --add safe.directory $GITHUB_WORKSPACE
       - name: Build Debug
@@ -95,10 +96,11 @@ jobs:
       ASAN_OPTIONS: "halt_on_error=0"
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           submodules: recursive
           fetch-tags: true
+          fetch-depth: 50
       - name: Create git config # Fixes an issue where git refuses to work due to dubious permissions.
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
       # This step should fix an issue with building on macos with gcc, and xcode 14.0,
