@@ -67,7 +67,7 @@ jobs:
     #    uses a compiled language
 
     - name: Create git config
-      run: git config --system --add safe.directory $GITHUB_WORKSPACE
+      run: git config --add safe.directory $GITHUB_WORKSPACE
     - name: Build
       run: ./build-release.sh
 
