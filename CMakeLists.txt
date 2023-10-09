@@ -17,6 +17,7 @@ else()
 endif()
 
 set(IONC_FORCE_SANITIZERS OFF CACHE BOOL "Force use of compiler sanitizers")
+set(IONC_ENABLE_VERBOSE_DEBUG OFF CACHE BOOL "Enable verbose logging for ion-c")
 
 ## Build Type Settings
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -37,7 +38,9 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
       add_link_options(-fsanitize=address,undefined -fsanitize-recover=address)
    endif()
    add_compile_options(-g -fno-omit-frame-pointer -fno-optimize-sibling-calls)
-   add_compile_definitions(DEBUG=1)
+   if (IONC_ENABLE_VERBOSE_DEBUG)
+       add_compile_definitions(DEBUG=1)
+   endif()
 elseif (CMAKE_BUILD_TYPE STREQUAL "Profiling")
    add_compile_options(
       -O3 -march=native
