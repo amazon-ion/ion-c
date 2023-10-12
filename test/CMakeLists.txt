@@ -33,7 +33,6 @@ add_executable(all_tests
     test_ion_reader_seek.cpp
 )
 
-# add_subdirectory(googletest EXCLUDE_FROM_ALL)
 set_property(TARGET all_tests PROPERTY CXX_STANDARD 98)
 
 

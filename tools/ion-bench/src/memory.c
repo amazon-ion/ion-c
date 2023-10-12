@@ -12,7 +12,7 @@
 
 #include "memory.h"
 
-// This is not threadsafe.. we should not be executing benchmarks using
+// This is not threadsafe. We should not be executing benchmarks using
 // multiple threads. This should only be included in a build where we
 // want to track memory usage. Which should be handled by our CMake
 // config.
