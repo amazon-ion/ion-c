@@ -1,3 +1,8 @@
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+if (NOT CMAKE_CXX_FLAGS OR CMAKE_CXX_STANDARD LESS 14)
+   set(CMAKE_CXX_STANDARD 14)
+endif()
 
 # Avoid macro definition collisions between ionc and googletest.
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DGTEST_DONT_DEFINE_SUCCEED=1 -DGTEST_DONT_DEFINE_FAIL=1")
@@ -7,8 +12,6 @@ if (MSVC)
     # Prevent googletest from linking against different versions of the C Runtime Library on
     # Windows.
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    # Prevent deprecation errors for std::tr1 in googletest
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING")
 endif()
 
 add_executable(all_tests
@@ -30,13 +33,12 @@ add_executable(all_tests
     test_ion_reader_seek.cpp
 )
 
-add_subdirectory(googletest EXCLUDE_FROM_ALL)
+set_property(TARGET all_tests PROPERTY CXX_STANDARD 98)
 
 
 target_include_directories(all_tests
         PRIVATE
             .
-            googletest/googletest/include/gtest
             ../tools/cli
             ../tools/events
             ../tools/events/inc

@@ -465,7 +465,7 @@ void ion_print_full_help_message() {
 iERR ion_print_help_or_version(int help_count, int version_count) {
     iENTER;
     if (version_count) {
-        std::cout << ION_CLI_VERSION << std::endl;
+        std::cout << ion_version_full() << std::endl;
         SUCCEED()
     } else if (help_count) {
         ion_print_full_help_message();

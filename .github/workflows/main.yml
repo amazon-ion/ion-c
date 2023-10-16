@@ -8,101 +8,117 @@ on:
 
 jobs:
   test_amazon_linux:
-    name: ${{ format('Test ({0}, {1})', matrix.container-image, matrix.compiler.cc)}}
+    name: ${{ format('Test ({0}, {1})', matrix.image, matrix.compiler.cc)}}
     strategy:
       # Run all jobs, even if one fails.  This makes it easier to gather debugging info for various platforms.
       fail-fast: false
       matrix:
-        container-image: ['amazonlinux:1', 'amazonlinux:2']
-        compiler:
-          - { cc: 'gcc', cxx: 'g++', debug_cflags: '', debug_cxxflags: '', debug_ldflags: '' }
-          - { cc: 'clang', cxx: 'clang++', debug_cflags: '', debug_cxxflags: '', debug_ldflags: '' }
+        image: ['amazonlinux:1', 'amazonlinux:2']
+        toolchain: [ "gcc", "clang" ]
+        include:
+          - image: amazonlinux:2
+            toolchain: gcc
+            compiler: { cc: 'gcc', cxx: 'g++', packages: 'gcc gcc-c++' }
+          - image: amazonlinux:2
+            toolchain: clang
+            compiler: { cc: 'clang', cxx: 'clang++', packages: 'clang gcc10-c++ compiler-rt' }
+          # amazonlinux:1's 'gcc'/'gcc-c++' packages install 4.8.5 which do not support C++14 which is needed
+          # by our googletest version. The clang package installs 3.6.2, which supports C++14, but does not support
+          # the sanitizers we want to use to capture issues during unit testing.
+          - image: amazonlinux:1
+            toolchain: gcc
+            compiler: { cc: 'gcc', cxx: 'g++', packages: "gcc72 gcc72-c++" }
+          # Need to set the target for clang, since the default target it is configured with differs from the gcc target installed that it depends on.
+          - image: amazonlinux:1
+            toolchain: clang
+            compiler: { cc: 'clang', cxx: 'clang++', packages: 'clang6.0', cxxflags: "-target x86_64-amazon-linux", cflags: "-target x86_64-amazon-linux" }
     runs-on: ubuntu-latest
-    container: ${{ format('docker://{0}', matrix.container-image) }}
+    container: ${{ matrix.image }}
     env:
       CC: ${{ matrix.compiler.cc }}
       CXX: ${{ matrix.compiler.cxx }}
-      DEBUG_CFLAGS: ${{ matrix.compiler.debug_cflags }}
-      DEBUG_CXXFLAGS: ${{ matrix.compiler.debug_cxxflags }}
-      DEBUG_LDFLAGS: ${{ matrix.compiler.debug_ldflags }}
+      CFLAGS: ${{ matrix.compiler.cflags }}
+      CXXFLAGS: ${{ matrix.compiler.cxxflags }}
+      LDFLAGS: ${{ matrix.compiler.ldflags }}
+      UBSAN_OPTIONS: "print_stacktrace=1"
+      ASAN_OPTIONS: "halt_on_error=0"
     steps:
-      - name: Install `which`
-        run: yum install which -y
-      - name: Install `git`
-        # Amazon Linux needs a newer version of git installed for actions/checkout@v2
-        run: yum install git -y
-      - name: Install `make`
-        run: yum install make -y
-      - name: Install `cmake3`
+      # Amazon Linux needs a newer version of git installed for actions/checkout@v2
+      - name: Install Dependencies
         run: |
-          yum install cmake3 -y
+          yum install which git make cmake3 -y
           ln -s `which cmake3` /usr/bin/cmake
-      - name: Install `clang`
-        if: matrix.compiler.cc == 'clang'
-        run: yum install clang -y
-      - name: Install `gcc`
-        if: matrix.compiler.cc == 'gcc'
-        run: yum install gcc -y
-      - name: Install `g++`
-        run: yum install gcc-c++ -y
+      - name: Install ${{ matrix.compiler.cc }}
+        run: yum install ${{ matrix.compiler.packages }} -y
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: recursive
-      - name: Build
-        run: |
-          ./build-debug.sh
-          ./build-release.sh
-      - name: Test
-        run: |
-          ./build/debug/test/all_tests
-          ./build/release/test/all_tests
+          fetch-tags: true
+          fetch-depth: 50 # we need to be able to fetch the tag that is nearest to the current commit.
+      - name: Create git config # Fixes an issue where git refuses to work due to dubious permissions.
+        run: git config --system --add safe.directory $GITHUB_WORKSPACE
+      - name: Build Debug
+        run: ./build-debug.sh
+      - name: Test Debug
+        run: ./build/debug/test/all_tests
+      - name: Build Release
+        env: 
+          CMAKE_FLAGS: -DIONC_BENCHMARKING_ENABLED=on
+        run: ./build-release.sh
+      - name: Test Release
+        run: ./build/release/test/all_tests
 
   test_ubuntu_and_mac:
-    name: ${{ format('Test ({0}, {1})', matrix.os, matrix.compiler.cc)}}
+    name: ${{ format('Test ({0}, {1})', matrix.image, matrix.toolchain)}}
     strategy:
       # Run all jobs, even if one fails.  This makes it easier to gather debugging info for various platforms.
       fail-fast: false
       matrix:
-        os: ['macos-latest', 'ubuntu-latest']
-        compiler:
-          - { cc: 'gcc', cxx: 'g++', debug_cflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_cxxflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_ldflags: '-fsanitize=address,undefined' }
-          - { cc: 'clang', cxx: 'clang++', debug_cflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_cxxflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_ldflags: ''  }
-        # gcc just redirects to clang on the macos vm; replace with a specific gcc alias
-        exclude:
-          - os: 'macos-latest'
-            compiler: { cc: 'gcc', cxx: 'g++'}
+        image: ['macos-latest', 'ubuntu-latest']
+        toolchain: ['gcc', 'clang']
         include:
-          - os: 'macos-latest'
-            compiler: { cc: 'gcc-11', cxx: 'g++-11', debug_cflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_cxxflags: '-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls', debug_ldflags: '-fsanitize=address,undefined' }
-    runs-on: ${{ matrix.os }}
+          - toolchain: clang
+            compiler: { cc: 'clang', cxx: 'clang++' }
+          - toolchain: gcc
+            compiler: { cc: 'gcc', cxx: 'g++' }
+          - image: 'macos-latest'
+            toolchain: gcc
+            compiler: { cc: 'gcc-11', cxx: 'g++-11' }
+    runs-on: ${{ matrix.image }}
     env:
       CC: ${{ matrix.compiler.cc }}
       CXX: ${{ matrix.compiler.cxx }}
-      DEBUG_CFLAGS: ${{ matrix.compiler.debug_cflags }}
-      DEBUG_CXXFLAGS: ${{ matrix.compiler.debug_cxxflags }}
-      DEBUG_LDFLAGS: ${{ matrix.compiler.debug_ldflags }}
+      CFLAGS: ${{ matrix.compiler.cflags }}
+      CXXFLAGS: ${{ matrix.compiler.cxxflags }}
+      LDFLAGS: ${{ matrix.compiler.ldflags }}
       UBSAN_OPTIONS: "print_stacktrace=1"
       ASAN_OPTIONS: "halt_on_error=0"
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: recursive
+          fetch-tags: true
+          fetch-depth: 50
+      - name: Create git config # Fixes an issue where git refuses to work due to dubious permissions.
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
       # This step should fix an issue with building on macos with gcc, and xcode 14.0,
       # and should be removed once 14.1 is made default.
       - name: Fix for XCode 14.0
         if: runner.os == 'macOS'
         run: |
           echo "DEVELOPER_DIR=/Applications/Xcode_14.1.app" >> $GITHUB_ENV
-      - name: Build
-        run: |
-          ./build-debug.sh
-          ./build-release.sh
-      - name: Test
-        run: |
-          ./build/debug/test/all_tests
-          ./build/release/test/all_tests
+      - name: Build Debug
+        id: build_debug
+        run: ./build-debug.sh
+      - name: Test Debug
+        run: ./build/debug/test/all_tests
+      - name: Build Release
+        id: build_release
+        run: ./build-release.sh
+      - name: Test Release
+        run: ./build/release/test/all_tests
 
   documentation:
     name: Generate Documentation

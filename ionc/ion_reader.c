@@ -95,6 +95,16 @@ iERR ion_reader_reset_stream_with_length(hREADER   *p_hreader
     ion_stream_open_handler_in(fn_input_handler, handler_state, &pstream);
     (*p_hreader)->istream = pstream;
 
+    // We need to free any digit space that has been allocated without an
+    // owner before resetting everything to zero below with the memset.
+    ION_INT *iint = &(*p_hreader)->_int_helper._as_ion_int;
+    if (iint && NULL == iint->_owner) {
+        if (iint->_digits) {
+            ion_xfree(iint->_digits);
+            iint->_digits = NULL;
+        }
+    }
+
     memset(&((*p_hreader)->_int_helper), 0, sizeof((*p_hreader)->_int_helper));
 
     if (length >= 0) {
@@ -1792,6 +1802,15 @@ iERR _ion_reader_close_helper(ION_READER *preader)
     }
 
     IONCHECK(_ion_reader_free_local_symbol_table(preader));
+
+    // Free any un-owned digit space before releasing the reader.
+    ION_INT *iint = &preader->_int_helper._as_ion_int;
+    if (iint && NULL == iint->_owner) {
+        if (iint->_digits) {
+            ion_xfree(iint->_digits);
+            iint->_digits = NULL;
+        }
+    }
 
     ion_free_owner(preader);
     SUCCEED();

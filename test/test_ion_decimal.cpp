@@ -277,7 +277,7 @@ TEST(IonBinaryDecimal, ReaderAlwaysPreservesUpTo34Digits) {
 
 TEST(IonDecimal, WriteAllValues) {
     const char *text_decimal = "1.1999999999999999555910790149937383830547332763671875 -1d+123";
-    ION_DECIMAL ion_decimal;
+    ION_DECIMAL ion_decimal = {};
 
     ION_DECIMAL_READER_INIT;
     ION_DECIMAL_WRITER_INIT(FALSE);

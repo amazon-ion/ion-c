@@ -2,16 +2,16 @@
 
 set -x
 
-DEFAULT_CFLAGS="-fsanitize=address,undefined -fsanitize-recover=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"
-DEFAULT_CXXFLAGS="${DEFAULT_CFLAGS}"
-DEFAULT_LDFLAGS="-fsanitize=address,undefined"
-
 export LD="$CXX"
+
+if ! [ -x "$(command -v cmake)" ]; then
+  echo 'Error: cmake is not installed.' >&2
+  exit 1
+fi
 
 mkdir -p build/debug && cd build/debug
 cmake \
   -DCMAKE_BUILD_TYPE=Debug \
-  -DCMAKE_C_FLAGS_DEBUG="${DEBUG_CFLAGS-${DEFAULT_CFLAGS}}" \
-  -DCMAKE_CXX_FLAGS_DEBUG="${DEBUG_CXXFLAGS-${DEFAULT_CXXFLAGS}}" \
+  ${CMAKE_FLAGS} \
   ../..
-make clean && make LDFLAGS="${DEBUG_LDFLAGS-${DEFAULT_LDFLAGS}}" -j"$(nproc || sysctl -n hw.ncpu)"
+make clean && make -j"$(nproc || sysctl -n hw.ncpu)"

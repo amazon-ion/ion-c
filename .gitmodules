@@ -1,7 +1,21 @@
 [submodule "ion-tests"]
 	path = ion-tests
 	url = https://github.com/amazon-ion/ion-tests.git
-[submodule "googletest"]
-	path = test/googletest
+[submodule "tools/ion-bench/deps/libcbor"]
+	path = tools/ion-bench/deps/libcbor
+	url = https://github.com/PJK/libcbor.git
+[submodule "tools/ion-bench/deps/json-c"]
+	path = tools/ion-bench/deps/json-c
+	url = https://github.com/json-c/json-c.git
+[submodule "tools/ion-bench/deps/msgpack-c"]
+	path = tools/ion-bench/deps/msgpack-c
+	url = https://github.com/msgpack/msgpack-c.git
+[submodule "tools/ion-bench/deps/yyjson"]
+	path = tools/ion-bench/deps/yyjson
+	url = https://github.com/ibireme/yyjson.git
+[submodule "tools/ion-bench/deps/google-benchmark"]
+	path = tools/ion-bench/deps/google-benchmark
+	url = https://github.com/google/benchmark.git
+[submodule "deps/google-test"]
+	path = deps/google-test
 	url = https://github.com/google/googletest.git
-	ignore = untracked
