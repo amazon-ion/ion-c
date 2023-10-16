@@ -1409,6 +1409,7 @@ TEST(IonTextDownconvert, IntsFloatsAndDecimals) {
     IONJSON_CMP("1.5e0", "1.5");
     IONJSON_CMP("1e-5", "1e-05");
     IONJSON_CMP("0.1",  "0.1");
+    IONJSON_CMP("[1.0e0, 1.0e0]", "[1,1]");
 
     // Decimals
     // Decimal formatting does not follow the same pattern as float formatting.
@@ -1419,6 +1420,7 @@ TEST(IonTextDownconvert, IntsFloatsAndDecimals) {
     IONJSON_CMP("1.5d0", "1.5");
     IONJSON_CMP("1d-5", "0.00001");
     IONJSON_CMP("1d+5", "1E+5");
+    IONJSON_CMP("[1d0, 1d0]", "[1,1]");
 }
 
 TEST(IonTextDownconvert, Lists) {
@@ -1464,4 +1466,41 @@ TEST(IonTextDownconvert, BlobsAndClobs) {
     IONJSON_CMP("{{ \" \\n \" }}", "\" \\n \"");   // Line Feed
     IONJSON_CMP("{{ \" \\r \" }}", "\" \\r \"");   // Carriage Return
     IONJSON_CMP("{{ \" \\t \" }}", "\" \\t \"");   // Tab
+}
+
+TEST(IonTextDownconvert, Annotations) {
+   // This test validates that annotations are not included when converting to JSON.
+   // It also validates a fix where annotations were still being added to the writer's
+   // annotation list when performing JSON downconverion. Since the annotations were
+   // not written, the annotation list was not cleared, resulting in the writer potentially
+   // reaching the max annotation limit. In this test we write 2 values with 8 annotations,
+   // and validate that both values are serialized correctly, and without annotations.
+   const char *ion_text = "a::a::a::a::a::a::a::a::'hello'";
+   const char *json_expected = "\"hello\" \"hello\"";
+   char json_text[1024];
+   iERR err = IERR_OK;
+   hREADER reader = NULL;
+   hWRITER writer = NULL;
+   ION_WRITER_OPTIONS woptions = {0};
+   ION_READER_OPTIONS roptions = {0};
+
+   woptions.json_downconvert = TRUE;
+   memset((void*)json_text, 0, 1024);
+
+   IONCHECK(ion_writer_open_buffer(&writer, (BYTE*)json_text, sizeof(json_text), &woptions));
+
+   IONCHECK(ion_reader_open_buffer(&reader, (BYTE*)ion_text, strlen(ion_text), &roptions));
+   IONCHECK(ion_writer_write_all_values(writer, reader));
+   IONCHECK(ion_reader_close(reader));
+
+   IONCHECK(ion_reader_open_buffer(&reader, (BYTE*)ion_text, strlen(ion_text), &roptions));
+   IONCHECK(ion_writer_write_all_values(writer, reader));
+
+   EXPECT_STREQ(json_text, json_expected);
+fail:
+   if (writer != NULL)
+      ion_writer_close(writer);
+   if (reader != NULL)
+      ion_reader_close(reader);
+   EXPECT_EQ(err, IERR_OK);
 }

@@ -1096,6 +1096,10 @@ iERR ion_writer_add_annotation(hWRITER hwriter, iSTRING annotation)
     if (!annotation || !annotation->value) FAILWITH(IERR_INVALID_ARG);
     if (annotation->length < 0)  FAILWITH(IERR_INVALID_ARG);
 
+    if (ION_TEXT_WRITER_IS_JSON()) {
+        SUCCEED();
+    }
+
     annotation_prev = pwriter->annotation_curr;
 
     IONCHECK(_ion_writer_add_annotation_helper(pwriter, annotation));
@@ -1114,6 +1118,10 @@ iERR _ion_writer_add_annotation_helper(ION_WRITER *pwriter, ION_STRING *annotati
     ASSERT(annotation);
     ASSERT(!ION_STRING_IS_NULL(annotation));
     ASSERT(annotation->length >= 0);
+
+    if (ION_TEXT_WRITER_IS_JSON()) {
+        SUCCEED();
+    }
 
     if (!pwriter->annotations) {
         int final_max_annotation_count = (pwriter->options.max_annotation_count > DEFAULT_ANNOTATION_LIMIT)
