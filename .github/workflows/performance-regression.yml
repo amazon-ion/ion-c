@@ -12,12 +12,6 @@ jobs:
       CC: 'clang'
       CXX: 'clang++'
     steps:
-      - name: Install Dependencies
-        run: |
-          apt-get update
-          apt-get install git cmake clang-14 python3-pip -y
-          [[ -e /usr/bin/cmake ]] || ln -s `which cmake3` /usr/bin/cmake
-
       - name: Get Data Generator
         uses: actions/checkout@v2
         with:
