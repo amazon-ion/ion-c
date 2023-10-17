@@ -2,6 +2,8 @@ name: Performance Regression Detection
 on:
   pull_request:
     branches: [ master ]
+    paths:
+      - 'ionc/*'
 jobs:
   detect-regression:
     name: Detect Regression
@@ -13,7 +15,7 @@ jobs:
       CXX: 'clang++'
     steps:
       - name: Get Data Generator
-        uses: actions/checkout@v2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           repository: amazon-ion/ion-data-generator
           ref: main
@@ -30,16 +32,12 @@ jobs:
           mkdir -p testData
           # Generate approximately 200KB of data for each dataset, so that we can expect similar orders of magnitude for
           # our threshold.
-          java -jar $jar_file generate -S 200000 --input-ion-schema $schema_dir/realWorldDataSchema01.isl testData/realWorldDataSchema01.10n
-          java -jar $jar_file generate -S 200000 --input-ion-schema $schema_dir/realWorldDataSchema02.isl testData/realWorldDataSchema02.10n
-          java -jar $jar_file generate -S 200000 --input-ion-schema $schema_dir/realWorldDataSchema03.isl testData/realWorldDataSchema03.10n
-
-          java -jar $jar_file generate -S 200000 --input-ion-schema $schema_dir/nestedList.isl testData/nestedList.10n
-          java -jar $jar_file generate -S 200000 --input-ion-schema $schema_dir/nestedStruct.isl testData/nestedStruct.10n
-          java -jar $jar_file generate -S 200000 --input-ion-schema $schema_dir/sexp.isl testData/sexp.10n
+          for test_name in realWorldDataSchema01 realWorldDataSchema02 realWorldDataSchema03 nestedList nestedStruct sexp; do
+            java -jar $jar_file generate -S 200000 --input-ion-schema $schema_dir/${test_name}.isl testData/${test_name}.10n
+          done
 
       - name: Fetch PR Candidate
-        uses: actions/checkout@v3
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           submodules: recursive
           path: candidate
@@ -53,7 +51,7 @@ jobs:
           make clean && make IonCBench
 
       - name: Fetch PR Baseline
-        uses: actions/checkout@v3
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           ref: ${{ github.base_ref }}
           submodules: recursive
