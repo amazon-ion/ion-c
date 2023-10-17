@@ -43,6 +43,8 @@ jobs:
         with:
           submodules: recursive
           path: candidate
+          fetch-tags: true
+          fetch-depth: 50
 
       - name: Build PR Candidate
         run: |
@@ -56,6 +58,8 @@ jobs:
           ref: ${{ github.base_ref }}
           submodules: recursive
           path: baseline
+          fetch-tags: true
+          fetch-depth: 50
 
       - name: Build PR Baseline
         run: |
