@@ -1,0 +1,142 @@
+name: Performance Regression Detection
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'ionc/*'
+jobs:
+  detect-regression:
+    name: Detect Regression
+    runs-on: ubuntu-latest
+    strategy:
+     fail-fast: true
+    env:
+      CC: 'clang'
+      CXX: 'clang++'
+    steps:
+      - name: Get Data Generator
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          repository: amazon-ion/ion-data-generator
+          ref: main
+          path: ion-data-generator
+
+      - name: Build Ion Data Generator
+        run: cd ion-data-generator && mvn clean install
+
+      - name: Generate Data
+        env:
+          jar_file: ion-data-generator/target/ion-data-generator-1.0-SNAPSHOT.jar
+          schema_dir: ion-data-generator/tst/com/amazon/ion/workflow
+        run: |
+          mkdir -p testData
+          # Generate approximately 200KB of data for each dataset, so that we can expect similar orders of magnitude for
+          # our threshold.
+          for test_name in realWorldDataSchema01 realWorldDataSchema02 realWorldDataSchema03 nestedList nestedStruct sexp; do
+            java -jar $jar_file generate -S 200000 --input-ion-schema $schema_dir/${test_name}.isl testData/${test_name}.10n
+          done
+
+      - name: Fetch PR Candidate
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          submodules: recursive
+          path: candidate
+          fetch-tags: true
+          fetch-depth: 50
+
+      - name: Build PR Candidate
+        run: |
+          mkdir -p candidate/build/profiling && cd candidate/build/profiling
+          cmake -DCMAKE_BUILD_TYPE=Profiling -DIONC_BUILD_TESTS=OFF ../..
+          make clean && make IonCBench
+
+      - name: Fetch PR Baseline
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          ref: ${{ github.base_ref }}
+          submodules: recursive
+          path: baseline
+          fetch-tags: true
+          fetch-depth: 50
+
+      - name: Build PR Baseline
+        run: |
+          mkdir -p baseline/build/profiling && cd baseline/build/profiling
+          cmake -DCMAKE_BUILD_TYPE=Profiling -DIONC_BUILD_TESTS=OFF ../..
+          make clean && make IonCBench
+
+      # This step runs benchmarks for the current ion-c repo.
+      - name: 'Benchmark: Baseline'
+        env:
+          cli_path: baseline/build/profiling/tools/ion-bench/src/IonCBench
+        run: |
+          $cli_path -b deserialize_all -l ion-c-binary \
+                    --benchmark_context=uname="`uname -srm`" \
+                    --benchmark_context=proc="`cat /proc/cpuinfo | fgrep 'model name' | head -n 1 | cut -d: -f2 | cut -d' ' -f2-`" \
+                    --benchmark_repetitions=20 \
+                    --benchmark_out_format=json \
+                    --benchmark_out='./baseline.json' \
+                    --benchmark_min_warmup_time=5 \
+                    -d testData/nestedStruct.10n \
+                    -d testData/nestedList.10n \
+                    -d testData/sexp.10n \
+                    -d testData/realWorldDataSchema01.10n \
+                    -d testData/realWorldDataSchema02.10n \
+                    -d testData/realWorldDataSchema03.10n
+      # This step runs benchmarks on each of the generated datsets for the new revision. It does this through
+      # the 'compare.py' script provided by google-benchmark, which will compare the results of the benchmarks to
+      # the results of the baseline benchmarks from the previous step.
+      #
+      # The compare script uses the defined 'alpha' environment variable to perform a null-hypothesis test,
+      # which is used to determine whether the two sets of benchmark times come from the same distribution.
+      - name: 'Benchmark: PR Candidate'
+        env:
+          compare: candidate/tools/ion-bench/deps/google-benchmark/tools/compare.py
+          cli_path: candidate/build/profiling/tools/ion-bench/src/IonCBench
+          alpha: 0.03
+        run: |
+          pip install -r candidate/tools/ion-bench/deps/google-benchmark/tools/requirements.txt
+          $compare -a -d ./results.json --alpha $alpha benchmarks \
+            ./baseline.json \
+            $cli_path -b deserialize_all -l ion-c-binary \
+                    --benchmark_context=uname="`uname -srm`" \
+                    --benchmark_context=proc="`cat /proc/cpuinfo | fgrep 'model name' | head -n 1 | cut -d: -f2 | cut -d' ' -f2-`" \
+                    --benchmark_repetitions=20 \
+                    --benchmark_out_format=json \
+                    --benchmark_out='./candidate.json' \
+                    --benchmark_min_warmup_time=5 \
+                    -d testData/nestedStruct.10n \
+                    -d testData/nestedList.10n \
+                    -d testData/sexp.10n \
+                    -d testData/realWorldDataSchema01.10n \
+                    -d testData/realWorldDataSchema02.10n \
+                    -d testData/realWorldDataSchema03.10n
+
+      # Upload the results.json for further review.
+      - name: 'Upload Results'
+        uses: actions/upload-artifact@v2
+        with:
+          name: results.json
+          path: ./results.json
+
+      # This step compares the 2 benchmark runs and attempts to determine whether the runs are significantly
+      # different enough to warrant a failure to at least get someone to look at the results.
+      #
+      # Currently, this check looks at the generated comparison of the MEAN of each benchmarks' CPU time. We
+      # do this for now, rather than use the null-hypothesis results, until we get a better understanding of
+      # how the timings will be in GHA.
+      - name: 'Check Results'
+        env:
+          # Threshold Percentage, currently 5%.
+          threshold_perc: 5
+        run: |
+          echo "Printing Results"
+          RESULTS=$(cat results.json | jq '.[] | select(.run_type == "aggregate" and (.name | endswith("_mean"))) | {name:.name,cpu_time_perc_diff:(.measurements[0].cpu*100)}|select(.cpu_time_perc_diff > '"${threshold_perc}"')')
+          if [[ -z "$RESULTS" ]]; then
+            echo "No sizeable difference identified"
+          else
+            echo "CPU Time differences greater than ${threshold_perc}%"
+            echo "$RESULTS" | jq -r '"\(.name) = \(.cpu_time_perc_diff)"'
+            exit 1
+          fi
+
