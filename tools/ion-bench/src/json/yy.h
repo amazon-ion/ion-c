@@ -132,6 +132,7 @@ class YYJson : public Library {
       void load_data(uint8_t *input, size_t in_size) override {
          yyjson_read_err err;
          auto doc = yyjson_read_opts((char *)input, in_size, 0, NULL, &err);
+         _tape.clear();
 
          if (doc != nullptr) {
             auto val = yyjson_doc_get_root(doc);

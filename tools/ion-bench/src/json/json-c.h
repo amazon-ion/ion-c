@@ -130,6 +130,7 @@ namespace jsonc {
 
          void load_data(uint8_t *input, size_t size) override {
             enum json_tokener_error jerr;
+            _tape.clear();
 
             json_tokener *tok = json_tokener_new();
             json_object *doc = json_tokener_parse_ex(tok, (const char *)input, size);

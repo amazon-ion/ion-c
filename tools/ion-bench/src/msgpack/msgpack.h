@@ -122,6 +122,7 @@ namespace msgpack {
             msgpack_unpacked result;
             msgpack_unpack_return ret;
             size_t offset = 0;
+            _tape.clear();
 
             msgpack_unpacked_init(&result);
 

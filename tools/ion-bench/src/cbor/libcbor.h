@@ -150,6 +150,7 @@ namespace libcbor {
          void load_data(uint8_t *input, size_t in_size) override {
             struct cbor_load_result result;
             cbor_item_t *item = cbor_load(input, in_size, &result);
+            _tape.clear();
 
             if (result.error.code != CBOR_ERR_NONE) {
                printf("ERROR loading cbor data: %d\n", result.error.code);

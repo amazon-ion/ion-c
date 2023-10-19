@@ -158,6 +158,7 @@ class IonC : public Library {
 
       BufferReader<format> reader(input, in_size);
       auto err = reader.next();
+      _tape.clear();
 
       int depth = 0;
       while (reader.current_type() != tid_EOF || reader.depth() > 0) {
@@ -257,7 +258,6 @@ class IonC : public Library {
       }
       writer.flush();
       stats.serde_bytes += writer.bytes_written();
-      // printf("Bytes written: %d\n", writer.bytes_written());
       writer.close();
       return stats;
    }

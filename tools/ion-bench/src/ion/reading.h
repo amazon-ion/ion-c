@@ -48,8 +48,8 @@ namespace ion {
 
          std::optional<std::string> field_name() const {
             ION_STRING ionstr = {0};
-            ion_reader_get_field_name(_reader, &ionstr);
-            if (ionstr.length > 0) {
+            iERR err = ion_reader_get_field_name(_reader, &ionstr);
+            if (err == IERR_OK) {
                std::string value((char *)ionstr.value, ionstr.length);
                return std::make_optional(value);
             }
