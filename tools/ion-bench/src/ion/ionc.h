@@ -227,7 +227,6 @@ class IonC : public Library {
       BufferWriter<format> writer(buffer, len, pretty);
       int depth = 0;
 
-      // printf("Starting Offset: %d\n", writer.bytes_written());
       for (auto &val : this->_tape) {
          // indent(depth * 3); print_iondata(val);
          if (val.field_name.has_value()) {
