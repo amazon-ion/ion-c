@@ -158,6 +158,7 @@ class IonC : public Library {
 
       BufferReader<format> reader(input, in_size);
       auto err = reader.next();
+      _tape.clear();
 
       int depth = 0;
       while (reader.current_type() != tid_EOF || reader.depth() > 0) {
@@ -226,6 +227,7 @@ class IonC : public Library {
       BufferWriter<format> writer(buffer, len, pretty);
       int depth = 0;
 
+      // printf("Starting Offset: %d\n", writer.bytes_written());
       for (auto &val : this->_tape) {
          // indent(depth * 3); print_iondata(val);
          if (val.field_name.has_value()) {
@@ -257,7 +259,6 @@ class IonC : public Library {
       }
       writer.flush();
       stats.serde_bytes += writer.bytes_written();
-      // printf("Bytes written: %d\n", writer.bytes_written());
       writer.close();
       return stats;
    }
