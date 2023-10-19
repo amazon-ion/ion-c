@@ -75,7 +75,20 @@ jobs:
                     --benchmark_context=proc="`cat /proc/cpuinfo | fgrep 'model name' | head -n 1 | cut -d: -f2 | cut -d' ' -f2-`" \
                     --benchmark_repetitions=20 \
                     --benchmark_out_format=json \
-                    --benchmark_out='./baseline.json' \
+                    --benchmark_out='./baseline.deserialize.json' \
+                    --benchmark_min_warmup_time=5 \
+                    -d testData/nestedStruct.10n \
+                    -d testData/nestedList.10n \
+                    -d testData/sexp.10n \
+                    -d testData/realWorldDataSchema01.10n \
+                    -d testData/realWorldDataSchema02.10n \
+                    -d testData/realWorldDataSchema03.10n
+          $cli_path -b serialize_all -l ion-c-binary \
+                    --benchmark_context=uname="`uname -srm`" \
+                    --benchmark_context=proc="`cat /proc/cpuinfo | fgrep 'model name' | head -n 1 | cut -d: -f2 | cut -d' ' -f2-`" \
+                    --benchmark_repetitions=20 \
+                    --benchmark_out_format=json \
+                    --benchmark_out='./baseline.serialize.json' \
                     --benchmark_min_warmup_time=5 \
                     -d testData/nestedStruct.10n \
                     -d testData/nestedList.10n \
@@ -96,14 +109,30 @@ jobs:
           alpha: 0.03
         run: |
           pip install -r candidate/tools/ion-bench/deps/google-benchmark/tools/requirements.txt
-          $compare -a -d ./results.json --alpha $alpha benchmarks \
-            ./baseline.json \
+          $compare -a -d ./results.deserialize.json --alpha $alpha benchmarks \
+            ./baseline.deserialize.json \
             $cli_path -b deserialize_all -l ion-c-binary \
                     --benchmark_context=uname="`uname -srm`" \
                     --benchmark_context=proc="`cat /proc/cpuinfo | fgrep 'model name' | head -n 1 | cut -d: -f2 | cut -d' ' -f2-`" \
                     --benchmark_repetitions=20 \
                     --benchmark_out_format=json \
-                    --benchmark_out='./candidate.json' \
+                    --benchmark_out='./candidate.deserialize.json' \
+                    --benchmark_min_warmup_time=5 \
+                    -d testData/nestedStruct.10n \
+                    -d testData/nestedList.10n \
+                    -d testData/sexp.10n \
+                    -d testData/realWorldDataSchema01.10n \
+                    -d testData/realWorldDataSchema02.10n \
+                    -d testData/realWorldDataSchema03.10n
+
+          $compare -a -d ./results.serialize.json --alpha $alpha benchmarks \
+            ./baseline.serialize.json \
+            $cli_path -b serialize_all -l ion-c-binary \
+                    --benchmark_context=uname="`uname -srm`" \
+                    --benchmark_context=proc="`cat /proc/cpuinfo | fgrep 'model name' | head -n 1 | cut -d: -f2 | cut -d' ' -f2-`" \
+                    --benchmark_repetitions=20 \
+                    --benchmark_out_format=json \
+                    --benchmark_out='./candidate.serialize.json' \
                     --benchmark_min_warmup_time=5 \
                     -d testData/nestedStruct.10n \
                     -d testData/nestedList.10n \
@@ -114,10 +143,14 @@ jobs:
 
       # Upload the results.json for further review.
       - name: 'Upload Results'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32
         with:
-          name: results.json
-          path: ./results.json
+          name: results
+          path: |
+            ./results.*.json
+            ./baseline.*.json
+            ./candidate.*.json
+        if: ${{ !env.ACT }}
 
       # This step compares the 2 benchmark runs and attempts to determine whether the runs are significantly
       # different enough to warrant a failure to at least get someone to look at the results.
@@ -130,13 +163,30 @@ jobs:
           # Threshold Percentage, currently 5%.
           threshold_perc: 5
         run: |
-          echo "Printing Results"
-          RESULTS=$(cat results.json | jq '.[] | select(.run_type == "aggregate" and (.name | endswith("_mean"))) | {name:.name,cpu_time_perc_diff:(.measurements[0].cpu*100)}|select(.cpu_time_perc_diff > '"${threshold_perc}"')')
-          if [[ -z "$RESULTS" ]]; then
-            echo "No sizeable difference identified"
-          else
-            echo "CPU Time differences greater than ${threshold_perc}%"
-            echo "$RESULTS" | jq -r '"\(.name) = \(.cpu_time_perc_diff)"'
+          function test_threshold() {
+            RESULT_JSON="$1"
+            RESULTS=$(cat $RESULT_JSON | jq '.[] | select(.run_type == "aggregate" and .aggregate_name == "mean") | {name:.name,cpu_time_perc_diff:(.measurements[0].cpu*100)}|select(.cpu_time_perc_diff > '"${threshold_perc}"')')
+            if [[ -z "$RESULTS" ]]; then
+              echo "No sizeable difference identified"
+            else
+              echo "   CPU Time differences greater than ${threshold_perc}%"
+              echo "$RESULTS" | jq -r '"      \(.name) = \(.cpu_time_perc_diff)"'
+              return 1
+            fi
+            return 0
+          }
+
+          echo "Reviewing deserialization results.."
+          if ! test_threshold "./results.deserialize.json"; then
+            TEST_READ=1
+          fi
+
+          echo "Reviewing serialization results.."
+          if ! test_threshold "./results.serialize.json"; then
+            TEST_WRITE=1
+          fi
+
+          if [ "$TEST_READ" = "1" ] || [ "$TEST_WRITE" = "1" ]; then
             exit 1
           fi
 
