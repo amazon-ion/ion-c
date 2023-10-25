@@ -17,5 +17,6 @@ var dir_69352b7938b8b9127ebed1d4a26ec06b =
     [ "ion_symbol_table.h", "ion__symbol__table_8h.html", "ion__symbol__table_8h" ],
     [ "ion_timestamp.h", "ion__timestamp_8h.html", "ion__timestamp_8h" ],
     [ "ion_types.h", "ion__types_8h.html", "ion__types_8h" ],
+    [ "ion_version.h", "ion__version_8h_source.html", null ],
     [ "ion_writer.h", "ion__writer_8h.html", "ion__writer_8h" ]
 ];
