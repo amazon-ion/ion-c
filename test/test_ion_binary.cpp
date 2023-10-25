@@ -417,7 +417,7 @@ TEST(IonBinaryInt, ReaderRejectsNegativeZeroMixedIntTwoByte) {
     test_ion_binary_write_from_reader_rejects_negative_zero_int((BYTE *)"\xE0\x01\x00\xEA\x31\x00", 6);
 }
 
-void test_ion_binary_reader_threshold_for_int64_as_big_int(BYTE *data, size_t len, char *actual_value) {
+void test_ion_binary_reader_threshold_for_int64_as_big_int(BYTE *data, size_t len, const char *actual_value) {
     hREADER reader;
     ION_TYPE type;
     int64_t value;
@@ -478,7 +478,7 @@ TEST(IonBinaryReader, ReaderNegativeThresholdForInt64) {
     // -2 ** 64
     test_ion_binary_reader_threshold_for_int64_as_big_int((BYTE *)"\xE0\x01\x00\xEA\x38\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 13, "-18446744073709551615");
     // -2 ** 63 fits as two's complement representation
-    test_ion_binary_reader_threshold_for_int64_as_int64((BYTE *)"\xE0\x01\x00\xEA\x38\x80\x00\x00\x00\x00\x00\x00\x00", 13, -9223372036854775808);
+    test_ion_binary_reader_threshold_for_int64_as_int64((BYTE *)"\xE0\x01\x00\xEA\x38\x80\x00\x00\x00\x00\x00\x00\x00", 13, 0x8000000000000000 /* -9223372036854775808 */);
 }
 
 void test_ion_binary_reader_requires_timestamp_fraction_less_than_one(BYTE *data, size_t len) {

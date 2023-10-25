@@ -227,7 +227,7 @@ iERR write(BufferWriter<F> &writer, const IonData &val) {
       WRITE_ION_TYPE(writer, tid_SYMBOL_INT, Symbol, val);
       WRITE_ION_TYPE(writer, tid_TIMESTAMP_INT, std::shared_ptr<ION_TIMESTAMP>, val);
       default:
-         printf("Attempt to write unknown type: %d\n", val.tpe);
+         printf("Attempt to write unknown type: %ld\n", val.tpe);
          break;
    }
    return err;

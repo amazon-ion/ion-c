@@ -29,7 +29,7 @@ namespace ion {
    };
 
    inline void print_iondata(const IonData &data) {
-      printf("[IONDATA] tpe:0x%.4X field_name:%s",
+      printf("[IONDATA] tpe:0x%.4lX field_name:%s",
             data.tpe,
             data.field_name.value_or("none").c_str()
       );
