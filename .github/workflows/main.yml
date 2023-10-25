@@ -126,6 +126,8 @@ jobs:
       - test_ubuntu_and_mac
       - test_amazon_linux
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Install Doxygen
         run: sudo apt-get install doxygen -y
