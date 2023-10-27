@@ -119,7 +119,7 @@ int main(int argc, char **argv)
     
 fail:// this is iRETURN expanded so I can set a break point on it
     if (g_ionizer_debug) {
-        fprintf(stderr, "\nionizer finished, returning err [%d] = \"%s\", %d\n", err, ion_error_to_str(err), (intptr_t)t);
+        fprintf(stderr, "\nionizer finished, returning err [%d] = \"%s\", %ld\n", err, ion_error_to_str(err), (intptr_t)t);
     }
 
     if (g_ion_debug_timer) {

@@ -385,7 +385,7 @@ static void merge(void* data, int esize, int i, int j, int k, arg_comparefn* com
     mpos = 0;
 
     /* Allocate storage for the merged elements. */
-    m = (char*)xmalloc(esize * ((k - i) + 1));
+    m = (char*)xmalloc((size_t)esize * (size_t)((k - i) + 1));
 
     /* Continue while either division has elements to merge. */
     while (ipos <= j || jpos <= k) {
@@ -422,7 +422,7 @@ static void merge(void* data, int esize, int i, int j, int k, arg_comparefn* com
     }
 
     /* Prepare to pass back the merged data. */
-    memcpy(&a[i * esize], m, esize * ((k - i) + 1));
+    memcpy(&a[i * esize], m, (size_t)esize * (size_t)((k - i) + 1));
     xfree(m);
 }
 

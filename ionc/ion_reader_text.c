@@ -814,7 +814,7 @@ iERR _ion_reader_text_step_out(ION_READER *preader)
             break;
         default: {
             char error_message[ION_ERROR_MESSAGE_MAX_LENGTH];
-            snprintf(error_message, ION_ERROR_MESSAGE_MAX_LENGTH, "Unable to step out of unrecognized container type %s", text->_current_container);
+            snprintf(error_message, ION_ERROR_MESSAGE_MAX_LENGTH, "Unable to step out of unrecognized container type %p", text->_current_container);
             FAILWITHMSG(IERR_INVALID_STATE, error_message);
         }
     }
@@ -1231,7 +1231,7 @@ iERR _ion_reader_text_get_value_position(ION_READER *preader, int64_t *p_offset,
     if (preader->_eof) {
         offset = -1;
         line = -1;
-        p_col_offset = -1;
+        p_col_offset = (int32_t *)-1;
     }
     else {
         if (text->_annotation_start >= 0) {

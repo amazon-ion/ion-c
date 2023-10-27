@@ -159,6 +159,10 @@
   #define READ read
 #endif
 
+// Helpers for storing int file descriptors in ION_STREAM's FILE* _fp field. 
+#define FD_TO_FILEP(x) ((FILE *)(size_t)(x))
+#define FILEP_TO_FD(x) ((int)(size_t)(x))
+
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -343,7 +347,7 @@ iERR ion_stream_open_fd_in( int fd_in, ION_STREAM **pp_stream )
   }
 
   IONCHECK(_ion_stream_open_helper(flags, g_Ion_Stream_Default_Page_Size, &stream));
-  stream->_fp = (FILE *)fd_in;
+  stream->_fp = FD_TO_FILEP(fd_in);
   IONCHECK(_ion_stream_fetch_position(stream, 0));
   
   *pp_stream = stream;
@@ -366,7 +370,7 @@ iERR ion_stream_open_fd_out( int fd_out, ION_STREAM **pp_stream )
   }
 
   IONCHECK(_ion_stream_open_helper(flags, g_Ion_Stream_Default_Page_Size, &stream));
-  stream->_fp = (FILE *)fd_out;
+  stream->_fp = FD_TO_FILEP(fd_out);
   IONCHECK(_ion_stream_fetch_position(stream, 0));
   
   *pp_stream = stream;
@@ -389,7 +393,7 @@ iERR ion_stream_open_fd_rw( int fd, BOOL cache_all, ION_STREAM **pp_stream )
   }
 
   IONCHECK(_ion_stream_open_helper(flags, g_Ion_Stream_Default_Page_Size, &stream));
-  stream->_fp = (FILE *)fd;
+  stream->_fp = FD_TO_FILEP(fd);
   IONCHECK(_ion_stream_fetch_position(stream, 0));
   
   *pp_stream = stream;
@@ -1213,7 +1217,7 @@ iERR _ion_stream_flush_helper(ION_STREAM *stream)
         }
       }
       else if (_ion_stream_is_fd_backed(stream)) {
-        written = (SIZE)WRITE( (int)stream->_fp, stream->_dirty_start, stream->_dirty_length );
+        written = (SIZE)WRITE( FILEP_TO_FD(stream->_fp), stream->_dirty_start, stream->_dirty_length );
         if (written != stream->_dirty_length) {
           FAILWITH( IERR_WRITE_ERROR );
         }
@@ -1605,7 +1609,7 @@ iERR _ion_stream_fseek( ION_STREAM *stream, POSITION target_position )
         // short cut when we have a random access file backing the stream
 		if (_ion_stream_is_fd_backed(stream)) {
 			// TODO : should we validate this cast to long somehow?
-	        if (LSEEK((int)stream->_fp, (long)target_position, SEEK_SET)) {
+	        if (LSEEK(FILEP_TO_FD(stream->_fp), (long)target_position, SEEK_SET)) {
 		        FAILWITH(IERR_SEEK_ERROR);
 			}
 		}
@@ -1840,7 +1844,7 @@ iERR _ion_stream_fread( ION_STREAM *stream, BYTE *dst, BYTE *end, SIZE *p_bytes_
         //
         local_bytes_read = (SIZE)(end - dst);
         if (_ion_stream_is_fd_backed(stream)) {
-            bytes_read = (SIZE)READ((int)stream->_fp, dst, local_bytes_read);
+            bytes_read = (SIZE)READ(FILEP_TO_FD(stream->_fp), dst, local_bytes_read);
             if (bytes_read < 0) {
                 bytes_read = READ_ERROR_LENGTH;
             }
@@ -1999,7 +2003,7 @@ void _ion_stream_page_release(ION_STREAM_PAGED *paged, ION_PAGE *page )
   page_id = page->_page_id;
   test_page = _ion_index_find(&(paged->_index), &page_id);
   if (test_page == page) {
-    _ion_index_delete(&(paged->_index), &page_id, &test_page);
+    _ion_index_delete(&(paged->_index), &page_id, (void**)&test_page);
     ASSERT(test_page == page);
   }
 

@@ -164,23 +164,23 @@ TEST(IonStream, WriteToUserStream) {
 
     ION_ASSERT_OK(ion_writer_start_container(writer, tid_STRUCT));
     ION_STRING fieldNameString;
-    ion_string_assign_cstr(&fieldNameString, "str_col1", strlen("str_col1"));
+    ion_string_assign_cstr(&fieldNameString, (char *)"str_col1", strlen("str_col1"));
     ION_ASSERT_OK(ion_writer_write_field_name(writer, &fieldNameString));
 
     ION_STRING value_string;
-    ion_string_assign_cstr(&value_string, "str_val1", strlen("str_val1"));
+    ion_string_assign_cstr(&value_string, (char *)"str_val1", strlen("str_val1"));
     ION_ASSERT_OK(ion_writer_write_string(writer, &value_string));
 
-    ion_string_assign_cstr(&fieldNameString, "str_col2", strlen("str_col2"));
+    ion_string_assign_cstr(&fieldNameString, (char *)"str_col2", strlen("str_col2"));
     ION_ASSERT_OK(ion_writer_write_field_name(writer, &fieldNameString));
 
-    ion_string_assign_cstr(&value_string, "str_val1", strlen("str_val1"));
+    ion_string_assign_cstr(&value_string, (char *)"str_val1", strlen("str_val1"));
     ION_ASSERT_OK(ion_writer_write_string(writer, &value_string));
 
-    ion_string_assign_cstr(&fieldNameString, "str_col3", strlen("str_col3"));
+    ion_string_assign_cstr(&fieldNameString, (char *)"str_col3", strlen("str_col3"));
     ION_ASSERT_OK(ion_writer_write_field_name(writer, &fieldNameString));
 
-    ion_string_assign_cstr(&value_string, "str_val1", strlen("str_val1"));
+    ion_string_assign_cstr(&value_string, (char *)"str_val1", strlen("str_val1"));
     ION_ASSERT_OK(ion_writer_write_string(writer, &value_string));
 
     ION_ASSERT_OK(ion_writer_finish_container(writer));
