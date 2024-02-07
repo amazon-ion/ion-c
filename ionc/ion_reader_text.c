@@ -1330,6 +1330,9 @@ iERR _ion_reader_text_read_bool(ION_READER *preader, BOOL *p_value)
     else if (text->_value_sub_type == IST_BOOL_FALSE) {
         *p_value = FALSE;
     }
+    else if ((text->_value_sub_type->flags & FCF_IS_NULL) != 0) {
+       FAILWITH(IERR_NULL_VALUE)
+    }
     else {
         FAILWITH(IERR_INVALID_STATE);
     }
