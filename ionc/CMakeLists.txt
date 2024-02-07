@@ -67,8 +67,7 @@ target_include_directories(objlib
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../decNumber/include>
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}
-            ${CMAKE_BINARY_DIR}
-
+            ${CMAKE_CURRENT_BINARY_DIR}/../
 )
 
 add_dependencies(objlib version)
