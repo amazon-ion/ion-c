@@ -57,10 +57,10 @@ set(IONC_FULL_VERSION ${CMAKE_PROJECT_VERSION})
 find_program(GIT_EXECUTABLE "git")
 add_custom_target(
    version
-   ${CMAKE_COMMAND} -D SRC=${CMAKE_SOURCE_DIR}/build_version.h.in
-                    -D DST=${CMAKE_BINARY_DIR}/build_version.h
+   ${CMAKE_COMMAND} -D SRC=${CMAKE_CURRENT_SOURCE_DIR}/build_version.h.in
+                    -D DST=${CMAKE_CURRENT_BINARY_DIR}/build_version.h
                     -D GIT_EXECUTABLE=${GIT_EXECUTABLE}
-                    -P ${CMAKE_SOURCE_DIR}/cmake/VersionHeader.cmake
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VersionHeader.cmake
 )
 
 include(GNUInstallDirs)

@@ -5,6 +5,7 @@ if (GIT_EXECUTABLE)
       OUTPUT_VARIABLE GIT_DESCRIBE_OUTPUT
       RESULT_VARIABLE GIT_DESCRIBE_ERROR
       OUTPUT_STRIP_TRAILING_WHITESPACE
+      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
    )
    if (NOT GIT_DESCRIBE_ERROR)
       # Describe output will be in the form v<version>-<commits>-g<hash>[-dirty]
