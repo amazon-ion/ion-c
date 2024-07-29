@@ -103,12 +103,6 @@ jobs:
           fetch-depth: 50
       - name: Create git config # Fixes an issue where git refuses to work due to dubious permissions.
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
-      # This step should fix an issue with building on macos with gcc, and xcode 14.0,
-      # and should be removed once 14.1 is made default.
-      - name: Fix for XCode 14.0
-        if: runner.os == 'macOS'
-        run: |
-          echo "DEVELOPER_DIR=/Applications/Xcode_14.1.app" >> $GITHUB_ENV
       - name: Build Debug
         id: build_debug
         run: ./build-debug.sh
