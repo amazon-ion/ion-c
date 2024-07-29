@@ -90,7 +90,7 @@ extern "C" {
 /** DEPRECATED - use the accessor functions below. */
 GLOBAL BOOL g_ion_debug_tracing INITTO(FALSE);
 
-ION_API_EXPORT BOOL ion_debug_has_tracing();
+ION_API_EXPORT BOOL ion_debug_has_tracing(void);
 ION_API_EXPORT void ion_debug_set_tracing(BOOL state);
 
 #ifdef __cplusplus
