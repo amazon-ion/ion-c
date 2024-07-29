@@ -18,7 +18,7 @@
 
 #include <ionc/ion_debug.h>
 
-BOOL ion_debug_has_tracing()
+BOOL ion_debug_has_tracing(void)
 {
 	return g_ion_debug_tracing;
 }
