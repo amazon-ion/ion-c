@@ -18,6 +18,6 @@ var ion__debug_8h =
     [ "SUCCEED", "ion__debug_8h.html#a75adcdf89f69b0b615e395daafc315af", null ],
     [ "UPDATEERROR", "ion__debug_8h.html#a9d11de338fb5756835b53a585de53310", null ],
     [ "INITTO", "ion__debug_8h.html#a746629fffc074a45ba921ca61681b44a", null ],
-    [ "ion_debug_has_tracing", "ion__debug_8h.html#a37881919fe94de911af04ce300b1fc88", null ],
+    [ "ion_debug_has_tracing", "ion__debug_8h.html#a8c7212a1559bd9c6fa3bb37ecff3942e", null ],
     [ "ion_debug_set_tracing", "ion__debug_8h.html#aa53065990bdc46de996446ae113e4bcd", null ]
 ];
