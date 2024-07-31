@@ -1754,7 +1754,7 @@ iERR _ion_reader_read_lob_bytes_helper(ION_READER *preader, BOOL accept_partial,
 
     ASSERT(preader);
     ASSERT(p_buf);
-    ASSERT(buf_max);
+    ASSERT(buf_max >= 0);
     ASSERT(p_length);
 
     switch(preader->type) {
