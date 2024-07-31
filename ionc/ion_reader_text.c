@@ -1950,7 +1950,7 @@ iERR _ion_reader_text_read_lob_bytes(ION_READER *preader, BOOL accept_partial, B
 
     ASSERT(preader);
     ASSERT(p_buf);
-    ASSERT(buf_max);
+    ASSERT(buf_max >= 0);
     ASSERT(p_length);
 
     if (text->_state == IPS_ERROR 

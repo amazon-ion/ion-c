@@ -633,6 +633,27 @@ TEST(IonBinaryBlob, CanFullyReadBlobUsingPartialReads) {
             29, tid_BLOB, 23, "This is a BLOB of text.");
 }
 
+// Simple test to ensure that if we supply a buffer size of 0 to ion_reader_read_lob_bytes, we don't assert. If the user
+// is reading values via the LOB size, and does not specifically handle 0-lengthed LOBs the reader shouldn't fail.
+TEST(IonBinaryBlob, CanReadZeroLengthBlobWithLobLength) {
+    hREADER reader;
+    ION_TYPE type;
+    const char *buffer = "\xE0\x01\x00\xEA\xA0";
+    char bytes[1]; // Shouldn't write any..
+
+    SIZE lob_size, bytes_read;
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE*)buffer, 5, NULL));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_BLOB, type);
+    ION_ASSERT_OK(ion_reader_get_lob_size(reader, &lob_size));
+    ASSERT_EQ(0, lob_size);
+    ION_ASSERT_OK(ion_reader_read_lob_bytes(reader, (BYTE*)bytes, lob_size, &bytes_read));
+    ASSERT_EQ(0, bytes_read);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
 void test_ion_binary_writer_supports_32_bit_floats(float value, const char *expected, SIZE expected_len) {
     hWRITER writer = NULL;
     ION_STREAM *ion_stream = NULL;
