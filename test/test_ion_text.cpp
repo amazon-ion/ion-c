@@ -657,6 +657,25 @@ TEST(IonTextBlob, CanReadBlob) {
                        tid_BLOB, 23, "This is a BLOB of text.");
 }
 
+TEST(IonTextBlob, CanReadZeroLength) {
+    hREADER reader;
+    ION_TYPE type;
+    const char *buffer = "{{}}";
+    char bytes[1]; // Shouldn't write any..
+
+    SIZE lob_size, bytes_read;
+    ION_ASSERT_OK(ion_reader_open_buffer(&reader, (BYTE*)buffer, 4, NULL));
+
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_BLOB, type);
+    ION_ASSERT_OK(ion_reader_get_lob_size(reader, &lob_size));
+    ASSERT_EQ(0, lob_size);
+    ION_ASSERT_OK(ion_reader_read_lob_bytes(reader, (BYTE*)bytes, lob_size, &bytes_read));
+    ASSERT_EQ(0, bytes_read);
+
+    ION_ASSERT_OK(ion_reader_close(reader));
+}
+
 void test_text_list(const char *ion_text) {
     ION_TYPE expected_tid = tid_LIST;
 
