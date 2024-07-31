@@ -635,7 +635,7 @@ TEST(IonBinaryBlob, CanFullyReadBlobUsingPartialReads) {
 
 // Simple test to ensure that if we supply a buffer size of 0 to ion_reader_read_lob_bytes, we don't assert. If the user
 // is reading values via the LOB size, and does not specifically handle 0-lengthed LOBs the reader shouldn't fail.
-TEST(IonBinaryBlob, CanReadZeroLengthBlobWithLobLength) {
+TEST(IonBinaryBlob, CanReadZeroLength) {
     hREADER reader;
     ION_TYPE type;
     const char *buffer = "\xE0\x01\x00\xEA\xA0";
