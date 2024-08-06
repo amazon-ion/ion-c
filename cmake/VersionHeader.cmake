@@ -1,4 +1,3 @@
-set(IONC_FULL_VERSION "${CMAKE_PROJECT_VERSION}")
 if (GIT_EXECUTABLE)
    execute_process(
       COMMAND ${GIT_EXECUTABLE} describe --long --tags --dirty --match "v*"
