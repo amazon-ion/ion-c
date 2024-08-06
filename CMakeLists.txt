@@ -53,13 +53,14 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Profiling")
 endif()
 
 ## ion-c Build Version
-set(IONC_FULL_VERSION ${CMAKE_PROJECT_VERSION})
+set(IONC_FULL_VERSION "v${CMAKE_PROJECT_VERSION}-0-g000000")
 find_program(GIT_EXECUTABLE "git")
 add_custom_target(
    version
    ${CMAKE_COMMAND} -D SRC=${CMAKE_CURRENT_SOURCE_DIR}/build_version.h.in
                     -D DST=${CMAKE_CURRENT_BINARY_DIR}/build_version.h
                     -D GIT_EXECUTABLE=${GIT_EXECUTABLE}
+                    -D IONC_FULL_VERSION=${IONC_FULL_VERSION}
                     -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VersionHeader.cmake
 )
 
