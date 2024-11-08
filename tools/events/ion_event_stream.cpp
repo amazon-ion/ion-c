@@ -1266,7 +1266,7 @@ size_t ion_event_stream_length(IonEventStream *stream, size_t index) {
     // NOTE: this will break if embedded streams themselves contain embedded streams. This should be explicitly
     // disallowed, as nested embedded streams are not a useful concept.
     size_t end_index = index;
-    while (stream->size() - end_index > 0 && stream->at(end_index++)->event_type != STREAM_END);
+    while (end_index < stream->size() && stream->at(end_index++)->event_type != STREAM_END);
     return  end_index - index;
 }
 
