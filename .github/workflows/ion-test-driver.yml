@@ -44,7 +44,7 @@ jobs:
           --replace ion-c,https://github.com/amazon-ion/ion-c.git,$main
 
       - name: Upload result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ion-test-driver-result.ion
           path: output/results/ion-test-driver-results.ion
@@ -59,7 +59,7 @@ jobs:
           ion-c,$main ion-c,$cur output/results/ion-test-driver-results.ion
 
       - name: Upload analysis report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: analysis-report.ion
           path: result.ion
