@@ -109,7 +109,7 @@ GLOBAL BOOL _debug_on           INITTO(TRUE);
                                   (xb) = (*(xh)->_curr++);                      \
                                 }                                               \
                                 else {                                          \
-                                  IONCHECK(ion_stream_read_byte((xh), &(xb)));  \
+                                  IONCHECK(ion_stream_read_byte((xh), (int *)&(xb)));  \
                                 } while(FALSE)
 
 // macro for read_byte
