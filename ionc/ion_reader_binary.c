@@ -370,7 +370,9 @@ iERR _ion_reader_binary_step_out(ION_READER *preader)
 
     if (curr_pos <= next_start) {
         // if we're at EOF then we should be spot on (curr_pos == next_start)
-        ASSERT(preader->_eof ? (curr_pos == next_start) : (curr_pos <= next_start));  
+        if (preader->_eof && curr_pos < next_start) {
+            FAILWITH(IERR_UNEXPECTED_EOF);
+        }
         to_skip = next_start - curr_pos;
         while (to_skip > 0) {
             if (to_skip > MAX_SIZE) {
