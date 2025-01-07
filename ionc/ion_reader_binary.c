@@ -149,6 +149,9 @@ begin:
         value_start = ion_stream_get_position(preader->istream); // the field name isn't part of the value
         ION_GET(preader->istream, type_desc_byte);               // read the TID byte
         if (type_desc_byte == EOF) {
+            if (preader->_depth > 0 && value_start < binary->_local_end) {
+                FAILWITH(IERR_EOF);
+            }
             goto at_eof;
         }
         

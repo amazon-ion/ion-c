@@ -636,12 +636,20 @@ TEST(IonBinaryBlob, CanFullyReadBlobUsingPartialReads) {
 TEST(IonContainers, IncompleteContainerIsError) {
     hREADER reader = NULL;
     ION_TYPE type;
-    ION_ASSERT_OK(ion_test_new_reader((BYTE*)"\xE0\x01\x00\xEA\xB6", 5, &reader));
+
+    // runs same steps against text to prove consistency
+    ION_ASSERT_OK(ion_test_new_reader((BYTE*)"[", 1, &reader));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
     ASSERT_EQ(tid_LIST, type);
     ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_FAIL(ion_reader_next(reader, &type));
+    ION_ASSERT_FAIL(ion_reader_step_out(reader));
+
+    ION_ASSERT_OK(ion_test_new_reader((BYTE*)"\xE0\x01\x00\xEA\xB2", 5, &reader));
     ION_ASSERT_OK(ion_reader_next(reader, &type));
-    ASSERT_EQ(tid_EOF, type);
+    ASSERT_EQ(tid_LIST, type);
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_FAIL(ion_reader_next(reader, &type));
     ION_ASSERT_FAIL(ion_reader_step_out(reader));
 }
 
