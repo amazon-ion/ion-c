@@ -633,6 +633,26 @@ TEST(IonBinaryBlob, CanFullyReadBlobUsingPartialReads) {
             29, tid_BLOB, 23, "This is a BLOB of text.");
 }
 
+TEST(IonContainers, IncompleteContainerIsError) {
+    hREADER reader = NULL;
+    ION_TYPE type;
+
+    // runs same steps against text to prove consistency
+    ION_ASSERT_OK(ion_test_new_reader((BYTE*)"[", 1, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_LIST, type);
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_FAIL(ion_reader_next(reader, &type));
+    ION_ASSERT_FAIL(ion_reader_step_out(reader));
+
+    ION_ASSERT_OK(ion_test_new_reader((BYTE*)"\xE0\x01\x00\xEA\xB2", 5, &reader));
+    ION_ASSERT_OK(ion_reader_next(reader, &type));
+    ASSERT_EQ(tid_LIST, type);
+    ION_ASSERT_OK(ion_reader_step_in(reader));
+    ION_ASSERT_FAIL(ion_reader_next(reader, &type));
+    ION_ASSERT_FAIL(ion_reader_step_out(reader));
+}
+
 // Simple test to ensure that if we supply a buffer size of 0 to ion_reader_read_lob_bytes, we don't assert. If the user
 // is reading values via the LOB size, and does not specifically handle 0-lengthed LOBs the reader shouldn't fail.
 TEST(IonBinaryBlob, CanReadZeroLength) {
