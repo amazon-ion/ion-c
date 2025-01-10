@@ -18,10 +18,10 @@ jobs:
         include:
           - image: amazonlinux:2023
             toolchain: gcc
-            compiler: { cc: 'gcc', cxx: 'g++', packages: 'gcc gcc-c++' }
+            compiler: { cc: 'gcc', cxx: 'g++', packages: 'gcc gcc-c++', cflags: '', cxxflags: '', ldflags: '' }
           - image: amazonlinux:2023
             toolchain: clang
-            compiler: { cc: 'clang', cxx: 'clang++', packages: 'clang' }
+            compiler: { cc: 'clang', cxx: 'clang++', packages: 'clang', cflags: '', cxxflags: '', ldflags: '' }
     runs-on: ubuntu-latest
     container: ${{ matrix.image }}
     env:
@@ -37,21 +37,21 @@ jobs:
       ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
-      # Amazon Linux needs a newer version of git installed for actions/checkout@v2
+      # Amazon Linux needs a newer version of git installed for actions/checkout
       - name: Install Dependencies
         run: |
           yum install which git make cmake3 -y
-          if [ ! -e /usr/bin/cmake ]; then ln -s `which cmake3` /usr/bin/cmake; fi
+          if [ ! -e '/usr/bin/cmake' ]; then ln -s "$(which cmake3)" /usr/bin/cmake; fi
       - name: Install ${{ matrix.compiler.cc }}
         run: yum install ${{ matrix.compiler.packages }} -y
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-tags: true
           fetch-depth: 50 # we need to be able to fetch the tag that is nearest to the current commit.
       - name: Create git config # Fixes an issue where git refuses to work due to dubious permissions.
-        run: git config --system --add safe.directory $GITHUB_WORKSPACE
+        run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build Debug
         run: ./build-debug.sh
       - name: Test Debug
@@ -73,12 +73,12 @@ jobs:
         toolchain: ['gcc', 'clang']
         include:
           - toolchain: clang
-            compiler: { cc: 'clang', cxx: 'clang++' }
+            compiler: { cc: 'clang', cxx: 'clang++', cflags: '', cxxflags: '', ldflags: '' }
           - toolchain: gcc
-            compiler: { cc: 'gcc', cxx: 'g++' }
+            compiler: { cc: 'gcc', cxx: 'g++', cflags: '', cxxflags: '', ldflags: '' }
           - image: 'macos-latest'
             toolchain: gcc
-            compiler: { cc: 'gcc-14', cxx: 'g++-14' }
+            compiler: { cc: 'gcc-14', cxx: 'g++-14', cflags: '', cxxflags: '', ldflags: '' }
     runs-on: ${{ matrix.image }}
     env:
       CC: ${{ matrix.compiler.cc }}
@@ -90,13 +90,13 @@ jobs:
       ASAN_OPTIONS: "halt_on_error=0"
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-tags: true
           fetch-depth: 50
       - name: Create git config # Fixes an issue where git refuses to work due to dubious permissions.
-        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build Debug
         id: build_debug
         run: ./build-debug.sh
@@ -120,7 +120,7 @@ jobs:
       - name: Install Doxygen
         run: sudo apt-get install doxygen -y
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Run Doxygen
