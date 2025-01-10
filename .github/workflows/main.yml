@@ -16,22 +16,12 @@ jobs:
         image: ['amazonlinux:2023']
         toolchain: [ "gcc", "clang" ]
         include:
-          - image: amazonlinux:2
+          - image: amazonlinux:2023
             toolchain: gcc
             compiler: { cc: 'gcc', cxx: 'g++', packages: 'gcc gcc-c++' }
-          - image: amazonlinux:2
+          - image: amazonlinux:2023
             toolchain: clang
-            compiler: { cc: 'clang', cxx: 'clang++', packages: 'clang gcc10-c++ compiler-rt' }
-          # amazonlinux:1's 'gcc'/'gcc-c++' packages install 4.8.5 which do not support C++14 which is needed
-          # by our googletest version. The clang package installs 3.6.2, which supports C++14, but does not support
-          # the sanitizers we want to use to capture issues during unit testing.
-          - image: amazonlinux:1
-            toolchain: gcc
-            compiler: { cc: 'gcc', cxx: 'g++', packages: "gcc72 gcc72-c++" }
-          # Need to set the target for clang, since the default target it is configured with differs from the gcc target installed that it depends on.
-          - image: amazonlinux:1
-            toolchain: clang
-            compiler: { cc: 'clang', cxx: 'clang++', packages: 'clang6.0', cxxflags: "-target x86_64-amazon-linux", cflags: "-target x86_64-amazon-linux" }
+            compiler: { cc: 'clang', cxx: 'clang++', packages: 'clang' }
     runs-on: ubuntu-latest
     container: ${{ matrix.image }}
     env:
@@ -51,7 +41,7 @@ jobs:
       - name: Install Dependencies
         run: |
           yum install which git make cmake3 -y
-          ln -s `which cmake3` /usr/bin/cmake
+          if [ ! -e /usr/bin/cmake ]; then ln -s `which cmake3` /usr/bin/cmake; fi
       - name: Install ${{ matrix.compiler.cc }}
         run: yum install ${{ matrix.compiler.packages }} -y
       - name: Checkout Code
