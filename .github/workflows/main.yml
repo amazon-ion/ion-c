@@ -13,25 +13,15 @@ jobs:
       # Run all jobs, even if one fails.  This makes it easier to gather debugging info for various platforms.
       fail-fast: false
       matrix:
-        image: ['amazonlinux:1', 'amazonlinux:2']
+        image: ['amazonlinux:2023']
         toolchain: [ "gcc", "clang" ]
         include:
-          - image: amazonlinux:2
+          - image: amazonlinux:2023
             toolchain: gcc
-            compiler: { cc: 'gcc', cxx: 'g++', packages: 'gcc gcc-c++' }
-          - image: amazonlinux:2
+            compiler: { cc: 'gcc', cxx: 'g++', packages: 'gcc gcc-c++', cflags: '', cxxflags: '', ldflags: '' }
+          - image: amazonlinux:2023
             toolchain: clang
-            compiler: { cc: 'clang', cxx: 'clang++', packages: 'clang gcc10-c++ compiler-rt' }
-          # amazonlinux:1's 'gcc'/'gcc-c++' packages install 4.8.5 which do not support C++14 which is needed
-          # by our googletest version. The clang package installs 3.6.2, which supports C++14, but does not support
-          # the sanitizers we want to use to capture issues during unit testing.
-          - image: amazonlinux:1
-            toolchain: gcc
-            compiler: { cc: 'gcc', cxx: 'g++', packages: "gcc72 gcc72-c++" }
-          # Need to set the target for clang, since the default target it is configured with differs from the gcc target installed that it depends on.
-          - image: amazonlinux:1
-            toolchain: clang
-            compiler: { cc: 'clang', cxx: 'clang++', packages: 'clang6.0', cxxflags: "-target x86_64-amazon-linux", cflags: "-target x86_64-amazon-linux" }
+            compiler: { cc: 'clang', cxx: 'clang++', packages: 'clang', cflags: '', cxxflags: '', ldflags: '' }
     runs-on: ubuntu-latest
     container: ${{ matrix.image }}
     env:
@@ -47,21 +37,21 @@ jobs:
       ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
-      # Amazon Linux needs a newer version of git installed for actions/checkout@v2
+      # Amazon Linux needs a newer version of git installed for actions/checkout
       - name: Install Dependencies
         run: |
           yum install which git make cmake3 -y
-          ln -s `which cmake3` /usr/bin/cmake
+          if [ ! -e '/usr/bin/cmake' ]; then ln -s "$(which cmake3)" /usr/bin/cmake; fi
       - name: Install ${{ matrix.compiler.cc }}
         run: yum install ${{ matrix.compiler.packages }} -y
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-tags: true
           fetch-depth: 50 # we need to be able to fetch the tag that is nearest to the current commit.
       - name: Create git config # Fixes an issue where git refuses to work due to dubious permissions.
-        run: git config --system --add safe.directory $GITHUB_WORKSPACE
+        run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build Debug
         run: ./build-debug.sh
       - name: Test Debug
@@ -83,12 +73,12 @@ jobs:
         toolchain: ['gcc', 'clang']
         include:
           - toolchain: clang
-            compiler: { cc: 'clang', cxx: 'clang++' }
+            compiler: { cc: 'clang', cxx: 'clang++', cflags: '', cxxflags: '', ldflags: '' }
           - toolchain: gcc
-            compiler: { cc: 'gcc', cxx: 'g++' }
+            compiler: { cc: 'gcc', cxx: 'g++', cflags: '', cxxflags: '', ldflags: '' }
           - image: 'macos-latest'
             toolchain: gcc
-            compiler: { cc: 'gcc-14', cxx: 'g++-14' }
+            compiler: { cc: 'gcc-14', cxx: 'g++-14', cflags: '', cxxflags: '', ldflags: '' }
     runs-on: ${{ matrix.image }}
     env:
       CC: ${{ matrix.compiler.cc }}
@@ -100,13 +90,13 @@ jobs:
       ASAN_OPTIONS: "halt_on_error=0"
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-tags: true
           fetch-depth: 50
       - name: Create git config # Fixes an issue where git refuses to work due to dubious permissions.
-        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Build Debug
         id: build_debug
         run: ./build-debug.sh
@@ -130,7 +120,7 @@ jobs:
       - name: Install Doxygen
         run: sudo apt-get install doxygen -y
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Run Doxygen
