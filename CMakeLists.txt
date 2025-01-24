@@ -3,7 +3,6 @@ project(IonC
         VERSION 1.1.3
         LANGUAGES CXX C)
 
-
 # we default to 'Release' build type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -112,6 +111,9 @@ add_subdirectory(tools)
 if (IONC_BUILD_TESTS)
    if (NOT TARGET gtest_main)
       message("Using included google-test")
+      # Prevent googletest from linking against different versions of the C Runtime Library on
+      # Windows.
+      set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
       add_subdirectory(deps/google-test EXCLUDE_FROM_ALL)
    endif()
    add_subdirectory(test)
