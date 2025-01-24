@@ -291,11 +291,11 @@ TEST(IonStream, SeekOnUserStreamReadsAllData) {
     POSITION offset = 0;
 
     ION_READ_STATE ion_read_file = {
-        .in = ION_DATA,
-        .in_size = sizeof(ION_DATA),
-        .read_offset = 0,
-        .block_size = block_size,
-        .num_calls = 0,
+        /* .in           = */ ION_DATA,
+        /* .in_size      = */ sizeof(ION_DATA),
+        /* .read_offset  = */ 0,
+        /* .block_size   = */ block_size,
+        /* .num_calls    = */ 0,
     };
 
     ion_reader_open_stream(&reader, &ion_read_file, seek_on_userstream_handler, NULL);
