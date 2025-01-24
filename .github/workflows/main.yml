@@ -108,6 +108,26 @@ jobs:
       - name: Test Release
         run: ./build/release/test/all_tests
 
+  test_windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-tags: true
+          fetch-depth: 50
+      - name: Build Debug
+        run: |
+          mkdir build64 & pushd build64
+          cmake -G "Visual Studio 17 2022" -A x64 -S . -B "build64"
+          cmake --build build64 --config Debug
+      - name: Test debug
+        run: 'build64\test\Debug\all_tests.exe'
+      - name: Build Release
+        run: |
+          cmake --build build64 --config Release
+
   documentation:
     name: Generate Documentation
     needs:
