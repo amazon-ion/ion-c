@@ -109,7 +109,7 @@ jobs:
         run: ./build/release/test/all_tests
 
   test_windows:
-    name: "Test (windows-latest)"
+    name: "Test (windows-latest, msvc)"
     runs-on: windows-latest
     steps:
       - name: Checkout Code
