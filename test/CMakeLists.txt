@@ -33,9 +33,6 @@ add_executable(all_tests
     test_ion_reader_seek.cpp
 )
 
-set_property(TARGET all_tests PROPERTY CXX_STANDARD 98)
-
-
 target_include_directories(all_tests
         PRIVATE
             .
