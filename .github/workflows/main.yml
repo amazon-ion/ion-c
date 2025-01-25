@@ -123,11 +123,13 @@ jobs:
           mkdir build64
           cmake -G "Visual Studio 17 2022" -A x64 -S . -B "build64"
           cmake --build build64 --config Debug
-      - name: Test debug
+      - name: Test Debug
         run: 'build64\test\Debug\all_tests.exe'
       - name: Build Release
         run: |
           cmake --build build64 --config Release
+      - name: Test Release
+        run: 'build64\test\Release\all_tests.exe'
 
   documentation:
     name: Generate Documentation
