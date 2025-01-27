@@ -117,7 +117,6 @@ jobs:
         with:
           submodules: recursive
           fetch-tags: true
-          fetch-depth: 50
       - name: Build Debug
         run: |
           mkdir build64
