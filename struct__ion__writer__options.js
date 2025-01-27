@@ -11,7 +11,6 @@ var struct__ion__writer__options =
     [ "json_downconvert", "struct__ion__writer__options.html#a2d73ab48562a16e36d09238a0d532e57", null ],
     [ "max_annotation_count", "struct__ion__writer__options.html#a668645bf92966762f6521231e8cdf682", null ],
     [ "max_container_depth", "struct__ion__writer__options.html#a5a7a8634a51b7a6107ba49f5ff0813af", null ],
-    [ "output_as_binary", "struct__ion__writer__options.html#a67c9b19157dba159a92cbd631a255c0a", null ],
     [ "pcatalog", "struct__ion__writer__options.html#a064d08706f80e6286d8f9a5cc178259e", null ],
     [ "pretty_print", "struct__ion__writer__options.html#a1c0f3576a9227ec7c5e0cfdca92a0b0c", null ],
     [ "small_containers_in_line", "struct__ion__writer__options.html#a57199174381586e010d891a88d748f5b", null ],

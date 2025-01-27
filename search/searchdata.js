@@ -9,7 +9,7 @@ var indexSectionsWithContent =
   6: "i",
   7: "i",
   8: "dgitu",
-  9: "d"
+  9: "dl"
 };
 
 var indexSectionNames =
