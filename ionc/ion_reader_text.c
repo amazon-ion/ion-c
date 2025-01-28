@@ -1259,7 +1259,6 @@ iERR _ion_reader_text_get_value_position(ION_READER *preader, int64_t *p_offset,
 iERR _ion_reader_text_get_value_length(ION_READER *preader, SIZE *p_length)
 {
     iENTER;
-    ION_TEXT_READER  *text = &preader->typed_reader.text;
     SIZE              length;
 
     ASSERT(preader && preader->type == ion_type_text_reader);
@@ -1417,7 +1416,6 @@ iERR _ion_reader_text_read_mixed_int_helper(ION_READER *preader)
 iERR _ion_reader_text_read_int32(ION_READER *preader, int32_t *p_value)
 {
     iENTER;
-    ION_TEXT_READER *text = &preader->typed_reader.text;
     int64_t          value64;
 
     IONCHECK(_ion_reader_text_read_int64(preader, &value64));
@@ -1691,7 +1689,6 @@ iERR _ion_reader_text_get_string_length(ION_READER *preader, SIZE *p_length)
 {
     iENTER;
     ION_TEXT_READER *text = &preader->typed_reader.text;
-    BYTE             terminator = '"';
     BOOL             eos_encountered;
 
     ASSERT(preader);
@@ -1785,7 +1782,6 @@ iERR _ion_reader_text_load_string_in_value_buffer(ION_READER *preader)
 {
     iENTER;
     ION_TEXT_READER *text = &preader->typed_reader.text;
-    BYTE             terminator = '"';
     BOOL             eos_encountered;
 
     ASSERT(preader);
