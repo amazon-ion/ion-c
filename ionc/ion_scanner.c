@@ -1387,7 +1387,7 @@ just_another_char: // yes this is evil
 iERR _ion_scanner_read_cached_bytes(ION_SCANNER *scanner, BYTE *buf, SIZE len, SIZE *p_bytes_written)
 {
     iENTER;
-    BYTE *pb = buf, *sb = scanner->_pending_bytes_pos;
+    BYTE *pb = buf;
 
     ASSERT(buf);
     ASSERT(len > 0);

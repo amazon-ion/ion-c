@@ -553,7 +553,8 @@ TEST_P(BinaryAndTextTest, ManuallyWritingImportWithNoNameIsIgnored) {
 }
 
 TEST_P(BinaryAndTextTest, ManuallyWritingAmbiguousImportFails) {
-    ION_SYMBOL_TEST_DECLARE_WRITER;
+    hWRITER writer;
+    ION_STREAM *stream;
 
     ION_STRING foo;
     ION_ASSERT_OK(ion_string_from_cstr("foo", &foo));
@@ -662,7 +663,8 @@ TEST_P(BinaryAndTextTest, ManuallyWriteSymbolTableAppendWithImportsSucceeds) {
 
 TEST_P(BinaryAndTextTest, SymbolTableGettersWithManualLSTInProgressReturnsPreviousSymbolTable) {
     // Test that the previous LST remains in scope until the end of the next LST struct.
-    ION_SYMBOL_TEST_DECLARE_WRITER;
+    hWRITER writer;
+    ION_STREAM *stream;
     ION_STRING sym1;
     ION_SYMBOL_TABLE *symbol_table_1, *symbol_table_2;
 
@@ -689,7 +691,8 @@ TEST_P(BinaryAndTextTest, SymbolTableGettersWithManualLSTInProgressReturnsPrevio
 
 TEST_P(BinaryAndTextTest, SymbolTableSetterWithManualLSTInProgressFails) {
     // Tests that an error is raised if the user tries to set the symbol table while manually writing one.
-    ION_SYMBOL_TEST_DECLARE_WRITER;
+    hWRITER writer;
+    ION_STREAM *stream;
     ION_SYMBOL_TABLE *symbol_table;
 
     ION_ASSERT_OK(ion_symbol_table_open(&symbol_table, NULL));
@@ -859,7 +862,8 @@ TEST_P(BinaryAndTextTest, WritingSymbolTokensWithUnknownTextFromCatalog) {
 
 TEST_P(BinaryAndTextTest, WritingInvalidIonSymbolFails) {
     // Tests that an invalid ION_SYMBOL (undefined text, import location, and local SID) raises an error.
-    ION_SYMBOL_TEST_DECLARE_WRITER;
+    hWRITER writer;
+    ION_STREAM *stream;
     ION_WRITER_OPTIONS writer_options;
     ION_SYMBOL symbol;
     memset(&symbol, 0, sizeof(ION_SYMBOL));
