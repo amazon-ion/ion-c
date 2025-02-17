@@ -245,7 +245,7 @@ iERR testCallback(hREADER reader, ION_EXTRACTOR_PATH_DESCRIPTOR *matched_path,
     ASSERTION_CONTEXT *assertion_context = (ASSERTION_CONTEXT *)user_context;
     assertion_context->assertion(reader, matched_path, assertion_context->path, control);
     assertion_context->num_matches++;
-    iRETURN;
+    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 /**
@@ -254,7 +254,7 @@ iERR testCallback(hREADER reader, ION_EXTRACTOR_PATH_DESCRIPTOR *matched_path,
 iERR testCallbackBasic(hREADER reader, ION_EXTRACTOR_PATH_DESCRIPTOR *matched_path,
                        void *user_context, ION_EXTRACTOR_CONTROL *control) {
     iENTER;
-    iRETURN;
+    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 /**

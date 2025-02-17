@@ -43,7 +43,7 @@ iERR ion_test_writer_get_bytes(hWRITER writer, ION_STREAM *ion_stream, BYTE **ou
     if (*len != (SIZE)pos) {
         UPDATEERROR(IERR_EOF);
     }
-    iRETURN;
+    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 iERR ion_test_writer_write_symbol_sid(ION_WRITER *writer, SID sid) {

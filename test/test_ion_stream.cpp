@@ -46,7 +46,7 @@ iERR ion_test_input_stream_handler(_ion_user_stream *stream) {
     else {
         stream->limit = stream->curr + remaining;
     }
-    iRETURN;
+    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 iERR ion_test_new_paged_input_stream(ION_STREAM **p_stream, _test_in_memory_paged_stream_context *context) {
@@ -107,7 +107,6 @@ TEST(IonStream, ContinuesOverPageBoundary) {
 }
 
 TEST(IonStream, BufferTooSmall) {
-    iENTER;
     hWRITER writer = NULL;
     uint8_t buf[2]; // This buffer is too small to hold the output.
     ION_WRITER_OPTIONS options = { 0 };
@@ -134,7 +133,7 @@ iERR grow_buffer_if_necessary(_ion_user_stream *stream) {
         context->data = stream->curr;
         stream->curr += context->data_len;
     }
-    iRETURN;
+    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 TEST(IonStream, WriteToUserStream) {
