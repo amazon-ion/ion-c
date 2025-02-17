@@ -267,7 +267,7 @@ cleanup:
     if (fstream) {
         fclose(fstream);
     }
-    iRETURN;
+    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 void write_ion_event_result(IonEventResult *result, ION_CATALOG *catalog, std::string test_name) {
@@ -315,7 +315,7 @@ cleanup:
             free(written);
         }
     }
-    iRETURN;
+    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 #define ION_TEST_VECTOR_START \
@@ -345,7 +345,7 @@ TEST_P(GoodBasicVector, GoodBasic) {
 }
 
 #ifdef ION_PLATFORM_WINDOWS
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     TestVectors,
     GoodBasicVector,
     ::testing::Combine(
@@ -355,7 +355,7 @@ INSTANTIATE_TEST_CASE_P(
     )
 );
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         GoodBasicVector,
         ::testing::Combine(
@@ -395,7 +395,7 @@ INSTANTIATE_TEST_CASE_P(
     )
 );
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         GoodEquivsVector,
         ::testing::Combine(
@@ -438,7 +438,7 @@ INSTANTIATE_TEST_CASE_P(
     )
 );
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         GoodTimestampEquivTimelineVector,
         ::testing::Combine(
@@ -467,18 +467,7 @@ TEST_P(GoodNonequivsVector, GoodNonequivs) {
     ION_TEST_VECTOR_COMPLETE;
 }
 
-#ifdef ION_PLATFORM_WINDOWS
-INSTANTIATE_TEST_CASE_P(
-    TestVectors,
-    GoodNonequivsVector,
-    ::testing::Combine(
-        ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_GOOD_NONEQUIVS)),
-        ::testing::Values(READ, ROUNDTRIP_TEXT, ROUNDTRIP_BINARY),
-        ::testing::Values(STREAM, BUFFER)
-    )
-);
-#else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         GoodNonequivsVector,
         ::testing::Combine(
@@ -486,11 +475,10 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::Values(READ, ROUNDTRIP_TEXT, ROUNDTRIP_BINARY),
                 ::testing::Values(STREAM, BUFFER)
         )
-#if ION_TEST_VECTOR_VERBOSE_NAMES
+#if ION_TEST_VECTOR_VERBOSE_NAMES && !defined(ION_PLATFORM_WINDOWS)
         , GoodVectorToString()
 #endif
 );
-#endif
 
 /**
  * Exercises bad vectors. Bad vectors must fail to parse in order to succeed the test.
@@ -501,28 +489,17 @@ TEST_P(BadVector, Bad) {
     EXPECT_NE(IERR_OK, status) << test_name << " FAILED" << std::endl;
 }
 
-#ifdef ION_PLATFORM_WINDOWS
-INSTANTIATE_TEST_CASE_P(
-    TestVectors,
-    BadVector,
-    ::testing::Combine(
-        ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_BAD)),
-        ::testing::Values(STREAM, BUFFER)
-    )
-);
-#else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         BadVector,
         ::testing::Combine(
                 ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_BAD)),
                 ::testing::Values(STREAM, BUFFER)
         )
-#if ION_TEST_VECTOR_VERBOSE_NAMES
+#if ION_TEST_VECTOR_VERBOSE_NAMES && !defined(ION_PLATFORM_WINDOWS)
         , BadVectorToString()
 #endif
 );
-#endif
 
 // TODO the current bad/ vectors only test the reader. Additional bad/ tests could be created which test the writer.
 // This could be done by serializing a stream of IonEvents that are expected to produce an error when written as an

@@ -34,7 +34,8 @@ public:
 };
 
 
-INSTANTIATE_TEST_CASE_P(IonReaderSeek, TextAndBinary, ::testing::Bool());
+/* INSTANTIATE_TEST_CASE_P(IonReaderSeek, TextAndBinary, ::testing::Bool()); */
+INSTANTIATE_TEST_SUITE_P(IonReaderSeek, TextAndBinary, ::testing::Bool());
 
 
 TEST_P(TextAndBinary, SeekToTopLevelScalar) {
