@@ -467,6 +467,7 @@ TEST_P(GoodNonequivsVector, GoodNonequivs) {
     ION_TEST_VECTOR_COMPLETE;
 }
 
+#ifdef ION_PLATFORM_WINDOWS
 INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         GoodNonequivsVector,
@@ -475,10 +476,21 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(READ, ROUNDTRIP_TEXT, ROUNDTRIP_BINARY),
                 ::testing::Values(STREAM, BUFFER)
         )
-#if ION_TEST_VECTOR_VERBOSE_NAMES && !defined(ION_PLATFORM_WINDOWS)
+);
+#else
+INSTANTIATE_TEST_SUITE_P(
+        TestVectors,
+        GoodNonequivsVector,
+        ::testing::Combine(
+                ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_GOOD_NONEQUIVS)),
+                ::testing::Values(READ, ROUNDTRIP_TEXT, ROUNDTRIP_BINARY),
+                ::testing::Values(STREAM, BUFFER)
+        )
+#if ION_TEST_VECTOR_VERBOSE_NAMES
         , GoodVectorToString()
 #endif
 );
+#endif
 
 /**
  * Exercises bad vectors. Bad vectors must fail to parse in order to succeed the test.
