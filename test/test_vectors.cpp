@@ -501,6 +501,7 @@ TEST_P(BadVector, Bad) {
     EXPECT_NE(IERR_OK, status) << test_name << " FAILED" << std::endl;
 }
 
+#ifdef ION_PLATFORM_WINDOWS
 INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         BadVector,
@@ -508,10 +509,20 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_BAD)),
                 ::testing::Values(STREAM, BUFFER)
         )
-#if ION_TEST_VECTOR_VERBOSE_NAMES && !defined(ION_PLATFORM_WINDOWS)
+);
+#else
+INSTANTIATE_TEST_SUITE_P(
+        TestVectors,
+        BadVector,
+        ::testing::Combine(
+                ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_BAD)),
+                ::testing::Values(STREAM, BUFFER)
+        )
+#if ION_TEST_VECTOR_VERBOSE_NAMES
         , BadVectorToString()
 #endif
 );
+#endif
 
 // TODO the current bad/ vectors only test the reader. Additional bad/ tests could be created which test the writer.
 // This could be done by serializing a stream of IonEvents that are expected to produce an error when written as an
