@@ -267,7 +267,7 @@ cleanup:
     if (fstream) {
         fclose(fstream);
     }
-    iRETURN;
+    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 void write_ion_event_result(IonEventResult *result, ION_CATALOG *catalog, std::string test_name) {
@@ -315,7 +315,7 @@ cleanup:
             free(written);
         }
     }
-    iRETURN;
+    RETURN(__location_name__, __line__, __count__++, err);
 }
 
 #define ION_TEST_VECTOR_START \
@@ -345,7 +345,7 @@ TEST_P(GoodBasicVector, GoodBasic) {
 }
 
 #ifdef ION_PLATFORM_WINDOWS
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     TestVectors,
     GoodBasicVector,
     ::testing::Combine(
@@ -355,7 +355,7 @@ INSTANTIATE_TEST_CASE_P(
     )
 );
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         GoodBasicVector,
         ::testing::Combine(
@@ -395,7 +395,7 @@ INSTANTIATE_TEST_CASE_P(
     )
 );
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         GoodEquivsVector,
         ::testing::Combine(
@@ -438,7 +438,7 @@ INSTANTIATE_TEST_CASE_P(
     )
 );
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         GoodTimestampEquivTimelineVector,
         ::testing::Combine(
@@ -468,17 +468,17 @@ TEST_P(GoodNonequivsVector, GoodNonequivs) {
 }
 
 #ifdef ION_PLATFORM_WINDOWS
-INSTANTIATE_TEST_CASE_P(
-    TestVectors,
-    GoodNonequivsVector,
-    ::testing::Combine(
-        ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_GOOD_NONEQUIVS)),
-        ::testing::Values(READ, ROUNDTRIP_TEXT, ROUNDTRIP_BINARY),
-        ::testing::Values(STREAM, BUFFER)
-    )
+INSTANTIATE_TEST_SUITE_P(
+        TestVectors,
+        GoodNonequivsVector,
+        ::testing::Combine(
+                ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_GOOD_NONEQUIVS)),
+                ::testing::Values(READ, ROUNDTRIP_TEXT, ROUNDTRIP_BINARY),
+                ::testing::Values(STREAM, BUFFER)
+        )
 );
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         GoodNonequivsVector,
         ::testing::Combine(
@@ -502,16 +502,16 @@ TEST_P(BadVector, Bad) {
 }
 
 #ifdef ION_PLATFORM_WINDOWS
-INSTANTIATE_TEST_CASE_P(
-    TestVectors,
-    BadVector,
-    ::testing::Combine(
-        ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_BAD)),
-        ::testing::Values(STREAM, BUFFER)
-    )
+INSTANTIATE_TEST_SUITE_P(
+        TestVectors,
+        BadVector,
+        ::testing::Combine(
+                ::testing::ValuesIn(gather(FILETYPE_ALL, CLASSIFICATION_BAD)),
+                ::testing::Values(STREAM, BUFFER)
+        )
 );
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestVectors,
         BadVector,
         ::testing::Combine(

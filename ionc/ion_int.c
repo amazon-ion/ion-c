@@ -1234,7 +1234,6 @@ BOOL _ion_int_is_zero_bytes(const II_DIGIT *digits, SIZE len)
 
 SIZE _ion_int_highest_bit_set_helper(const ION_INT *iint)
 {
-    iENTER;
     II_DIGIT *digits, msd;
     SIZE    ii, len, bits = 0;
 
@@ -1712,7 +1711,6 @@ iERR _ion_int_sub_digit(II_DIGIT *digits
     II_DIGIT      digit;
     II_LONG_DIGIT temp, lvalue = (II_LONG_DIGIT)value;
     int           ii;
-    BOOL          carry = FALSE;
 
     ASSERT( digits );
     ASSERT( (value < II_BASE) && (value >= 0) );

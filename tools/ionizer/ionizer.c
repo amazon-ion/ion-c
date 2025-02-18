@@ -35,7 +35,6 @@ int main(int argc, char **argv)
     FSTREAM_READER_STATE    *preader_state = NULL;
     FSTREAM_WRITER_STATE    *pwriter_state = NULL;
     ION_STRING               temp;
-    char                    *name = NULL;
     ION_TYPE                 t = (ION_TYPE)999;
     int32_t                  symbol_table_count = 0;
     int                      ii, non_argc = 0;

@@ -22,7 +22,7 @@
 #define ION_ASSERT_FAIL(x) ASSERT_FALSE(IERR_OK == (x))
 
 #define INSTANTIATE_TEST_CASE_BOOLEAN_PARAM(instantiation_name) \
-    INSTANTIATE_TEST_CASE_P(instantiation_name, BinaryAndTextTest, ::testing::Bool())
+   INSTANTIATE_TEST_SUITE_P(instantiation_name, BinaryAndTextTest, ::testing::Bool())
 
 /**
  * Parameterized test fixture for tests that should be run for both text and binary.

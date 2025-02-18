@@ -262,7 +262,7 @@ iERR _ion_catalog_find_best_match_helper(ION_CATALOG *pcatalog, ION_STRING *name
 {
     iENTER;
     ION_SYMBOL_TABLE       **ppsymtab, *psymtab, *best = NULL;
-    ION_STRING               symtab_name, best_name, system_name;
+    ION_STRING               symtab_name, system_name;
     int32_t                  symtab_version, best_version, system_version;
     ION_COLLECTION_CURSOR    symtab_cursor;
 

@@ -35,7 +35,7 @@ public:
     }
 };
 
-INSTANTIATE_TEST_CASE_P(IonTimestampParameterized, IonTimestamp, testing::Values(
+INSTANTIATE_TEST_SUITE_P(IonTimestampParameterized, IonTimestamp, testing::Values(
         std::make_tuple(std::string("2020-07-01T14:24:57-01:00"), -60, 1593617097, std::string("2020-07-01T15:24:57-00:00")),
         std::make_tuple(std::string("2020-07-01T14:24:57+00:00"),   0, 1593613497, std::string("2020-07-01T14:24:57-00:00")),
         std::make_tuple(std::string("2020-07-01T14:24:57+01:00"),  60, 1593609897, std::string("2020-07-01T13:24:57-00:00"))
@@ -112,7 +112,7 @@ public:
     }
 };
 
-INSTANTIATE_TEST_CASE_P(IonTimestampHighPrecisionParameterized, IonTimestampHighPrecision, testing::Values(
+INSTANTIATE_TEST_SUITE_P(IonTimestampHighPrecisionParameterized, IonTimestampHighPrecision, testing::Values(
         std::make_tuple(std::string("123E-10"), std::string(".0000000123")),
         std::make_tuple(std::string("12.3E-9"), std::string(".0000000123")),
         std::make_tuple(std::string("1.23E-8"), std::string(".0000000123")),
@@ -138,7 +138,7 @@ TEST_P(IonTimestampHighPrecision, TextWriterCanWriteHighPrecisionFraction) {
     to_string[chars_used] = '\0';
 
     char expected[ION_TIMESTAMP_STRING_LENGTH + 1];
-    chars_used = sprintf(expected, "2007-01-01T12:59:59%s-00:00", expected_expanded_notation.c_str());
+    chars_used = snprintf(expected, ION_TIMESTAMP_STRING_LENGTH + 1, "2007-01-01T12:59:59%s-00:00", expected_expanded_notation.c_str());
     expected[chars_used] = '\0';
 
     ASSERT_STREQ(expected, to_string);
@@ -153,7 +153,7 @@ public:
     }
 };
 
-INSTANTIATE_TEST_CASE_P(IonTimestampOutOfRangeFractionParameterized, IonTimestampOutOfRangeFraction, testing::Values(
+INSTANTIATE_TEST_SUITE_P(IonTimestampOutOfRangeFractionParameterized, IonTimestampOutOfRangeFraction, testing::Values(
         "1E10",
         "10000000000E-1",
         "-1E-10",

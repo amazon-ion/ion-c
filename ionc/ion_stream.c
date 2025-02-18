@@ -1191,7 +1191,6 @@ iERR _ion_stream_open_helper(ION_STREAM_FLAG flags, SIZE page_size, ION_STREAM *
 iERR _ion_stream_flush_helper(ION_STREAM *stream)
 {
   iENTER;
-  POSITION position;
   SIZE     written, available;
   struct _ion_user_stream  *user_stream;
 
@@ -1540,7 +1539,6 @@ done:
 iERR _ion_stream_fetch_fill_page( ION_STREAM *stream, ION_PAGE *page, POSITION target_position )
 {
     iENTER;
-    ION_STREAM_PAGED *paged = PAGED_STREAM(stream);
     POSITION          page_read_position;
     BYTE             *dst, *end;
     SIZE              end_buf_offset, bytes_needed_user, bytes_needed_buffer, local_bytes_read;
@@ -1598,7 +1596,6 @@ iERR _ion_stream_fetch_fill_page( ION_STREAM *stream, ION_PAGE *page, POSITION t
 iERR _ion_stream_fseek( ION_STREAM *stream, POSITION target_position )
 {
     iENTER;
-    ION_STREAM_PAGED *paged = PAGED_STREAM(stream);
 
     ASSERT(stream);
     ASSERT(_ion_stream_is_paged(stream));
@@ -1766,7 +1763,6 @@ iERR _ion_stream_read_for_seek( ION_STREAM *stream, POSITION target_position )
 iERR _ion_stream_fread( ION_STREAM *stream, BYTE *dst, BYTE *end, SIZE *p_bytes_read)
 {
     iENTER;
-    ION_STREAM_PAGED *paged = PAGED_STREAM(stream);
     struct _ion_user_stream *user_stream = NULL;
     SIZE              local_bytes_read = 0, bytes_read = 0;
 
@@ -1870,7 +1866,6 @@ iERR _ion_stream_fread( ION_STREAM *stream, BYTE *dst, BYTE *end, SIZE *p_bytes_
 iERR _ion_stream_console_read( ION_STREAM *stream, BYTE *buf, BYTE *end, SIZE *p_bytes_read)
 {
     iENTER;
-    ION_STREAM_PAGED *paged = PAGED_STREAM(stream);
     BYTE             *dst = buf;
     int               c;
     SIZE              bytes_read;
