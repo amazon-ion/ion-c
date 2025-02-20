@@ -114,7 +114,7 @@ jobs:
             ./baseline.deserialize.json \
             "$cli_path" -b deserialize_all -l ion-c-binary \
                     --benchmark_context=uname="$(uname -srm)" \
-                    --benchmark_context=proc="$(grep -F 'model name' /cpu/procinfo | head -n 1 | cut -d: -f2 | cut -d' ' -f2-)" \
+                    --benchmark_context=proc="$(grep -F 'model name' /proc/cpuinfo | head -n 1 | cut -d: -f2 | cut -d' ' -f2-)" \
                     --benchmark_repetitions=20 \
                     --benchmark_out_format=json \
                     --benchmark_out='./candidate.deserialize.json' \
