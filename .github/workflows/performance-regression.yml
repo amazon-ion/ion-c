@@ -4,6 +4,7 @@ on:
     branches: [ master ]
     paths:
       - 'ionc/**'
+      - '.github/workflows/performance-regression.yml'
 jobs:
   detect-regression:
     name: Detect Regression
