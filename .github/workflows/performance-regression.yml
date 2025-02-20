@@ -33,7 +33,7 @@ jobs:
           # Generate approximately 200KB of data for each dataset, so that we can expect similar orders of magnitude for
           # our threshold.
           for test_name in realWorldDataSchema01 realWorldDataSchema02 realWorldDataSchema03 nestedList nestedStruct sexp; do
-            java -jar $jar_file generate -S 200000 --input-ion-schema $schema_dir/${test_name}.isl testData/${test_name}.10n
+            java -jar "$jar_file" generate -S 200000 --input-ion-schema "$schema_dir/${test_name}.isl" "testData/${test_name}.10n"
           done
 
       - name: Fetch PR Candidate
@@ -70,9 +70,9 @@ jobs:
         env:
           cli_path: baseline/build/profiling/tools/ion-bench/src/IonCBench
         run: |
-          $cli_path -b deserialize_all -l ion-c-binary \
-                    --benchmark_context=uname="`uname -srm`" \
-                    --benchmark_context=proc="`cat /proc/cpuinfo | fgrep 'model name' | head -n 1 | cut -d: -f2 | cut -d' ' -f2-`" \
+          "$cli_path" -b deserialize_all -l ion-c-binary \
+                    --benchmark_context=uname="$(uname -srm)" \
+                    --benchmark_context=proc="$(grep -F 'model name' /proc/cpuinfo | head -n 1 | cut -d: -f2 | cut -d' ' -f2-)" \
                     --benchmark_repetitions=20 \
                     --benchmark_out_format=json \
                     --benchmark_out='./baseline.deserialize.json' \
@@ -83,9 +83,9 @@ jobs:
                     -d testData/realWorldDataSchema01.10n \
                     -d testData/realWorldDataSchema02.10n \
                     -d testData/realWorldDataSchema03.10n
-          $cli_path -b serialize_all -l ion-c-binary \
-                    --benchmark_context=uname="`uname -srm`" \
-                    --benchmark_context=proc="`cat /proc/cpuinfo | fgrep 'model name' | head -n 1 | cut -d: -f2 | cut -d' ' -f2-`" \
+          "$cli_path" -b serialize_all -l ion-c-binary \
+                    --benchmark_context=uname="$(uname -srm)" \
+                    --benchmark_context=proc="$(grep -F 'model name' /proc/cpuinfo | head -n 1 | cut -d: -f2 | cut -d' ' -f2-)" \
                     --benchmark_repetitions=20 \
                     --benchmark_out_format=json \
                     --benchmark_out='./baseline.serialize.json' \
@@ -109,11 +109,11 @@ jobs:
           alpha: 0.03
         run: |
           pip install -r candidate/tools/ion-bench/deps/google-benchmark/tools/requirements.txt
-          $compare -a -d ./results.deserialize.json --alpha $alpha benchmarks \
+          "$compare" -a -d ./results.deserialize.json --alpha "$alpha" benchmarks \
             ./baseline.deserialize.json \
-            $cli_path -b deserialize_all -l ion-c-binary \
-                    --benchmark_context=uname="`uname -srm`" \
-                    --benchmark_context=proc="`cat /proc/cpuinfo | fgrep 'model name' | head -n 1 | cut -d: -f2 | cut -d' ' -f2-`" \
+            "$cli_path" -b deserialize_all -l ion-c-binary \
+                    --benchmark_context=uname="$(uname -srm)" \
+                    --benchmark_context=proc="$(grep -F 'model name' /cpu/procinfo | head -n 1 | cut -d: -f2 | cut -d' ' -f2-)" \
                     --benchmark_repetitions=20 \
                     --benchmark_out_format=json \
                     --benchmark_out='./candidate.deserialize.json' \
@@ -125,11 +125,11 @@ jobs:
                     -d testData/realWorldDataSchema02.10n \
                     -d testData/realWorldDataSchema03.10n
 
-          $compare -a -d ./results.serialize.json --alpha $alpha benchmarks \
+          "$compare" -a -d ./results.serialize.json --alpha "$alpha" benchmarks \
             ./baseline.serialize.json \
-            $cli_path -b serialize_all -l ion-c-binary \
-                    --benchmark_context=uname="`uname -srm`" \
-                    --benchmark_context=proc="`cat /proc/cpuinfo | fgrep 'model name' | head -n 1 | cut -d: -f2 | cut -d' ' -f2-`" \
+            "$cli_path" -b serialize_all -l ion-c-binary \
+                    --benchmark_context=uname="$(uname -srm)" \
+                    --benchmark_context=proc="$(grep -F 'model name' /proc/cpuinfo | head -n 1 | cut -d: -f2 | cut -d' ' -f2-)" \
                     --benchmark_repetitions=20 \
                     --benchmark_out_format=json \
                     --benchmark_out='./candidate.serialize.json' \
@@ -143,7 +143,7 @@ jobs:
 
       # Upload the results.json for further review.
       - name: 'Upload Results'
-        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
         with:
           name: results
           path: |
@@ -165,7 +165,7 @@ jobs:
         run: |
           function test_threshold() {
             RESULT_JSON="$1"
-            RESULTS=$(cat $RESULT_JSON | jq '.[] | select(.run_type == "aggregate" and .aggregate_name == "mean") | {name:.name,cpu_time_perc_diff:(.measurements[0].cpu*100)}|select(.cpu_time_perc_diff > '"${threshold_perc}"')')
+            RESULTS=$(jq '.[] | select(.run_type == "aggregate" and .aggregate_name == "mean") | {name:.name,cpu_time_perc_diff:(.measurements[0].cpu*100)}|select(.cpu_time_perc_diff > '"${threshold_perc}"')' "$RESULT_JSON" )
             if [[ -z "$RESULTS" ]]; then
               echo "No sizeable difference identified"
             else
