@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <decNumber/decNumber.h>
 
 #if defined(_MSC_VER)
@@ -35,6 +36,42 @@
 #endif
 
 #define LOCAL_INT_CHAR_BUFFER_LENGTH   257
+
+// Helper function to format floating point numbers in a locale-independent way
+// Always uses "." as decimal point regardless of system locale
+static iERR _ion_writer_vsnprintf_double(char *buffer, size_t buffer_size, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    int snprintf_result = vsnprintf(buffer, buffer_size, format, args);
+
+    va_end(args);
+
+    // Check for formatting errors
+    if (snprintf_result < 0) {
+        return IERR_INVALID_STATE;  // Formatting error
+    }
+
+    // Post-process: replace any comma decimal separators with periods
+    // Note: it is tempting to try to optimize this by only checking if a non-standard
+    // locale is used. However, that approach has thread-safety issues because the
+    // global locale could have been changed between when we check it and when it
+    // is used to format the float.
+    char *cp = buffer;
+    while (*cp) {
+        if (*cp == ',') {
+            *cp = '.';  // Convert comma decimal separator to period
+            break; // No float will contain more than one decimal point
+        } else if (*cp == '.') {
+            // The decimal point already uses the correct character
+            break; // No float will contain more than one decimal point
+        }
+        cp++;
+    }
+
+    return IERR_OK;
+}
 
 iERR _ion_writer_text_initialize(ION_WRITER *pwriter)
 {
@@ -585,7 +622,8 @@ iERR _ion_writer_text_write_double(ION_WRITER *pwriter, double value)
         //  the final result must match the original number."
         // (https://en.wikipedia.org/wiki/Double-precision_floating-point_format)
         // Leaving room for '.', '+'/'-', and 'e', we get 17 + 1 + 1 +1 = 20
-        sprintf(image, "%.20g", value);
+        // Use locale-independent formatting to ensure '.' decimal point
+        IONCHECK(_ion_writer_vsnprintf_double(image, sizeof(image), "%.20g", value));
         assert(strlen(image) < sizeof(image));
 
         mark = strchr(image, 'e');
@@ -648,7 +686,8 @@ iERR _ion_writer_text_write_double_json(ION_WRITER *pwriter, double value) {
         // DBL_DIG contains the number of decimal digits that are guaranteed to be preserved
         // in a text to double roundtrip without change due to rounding or overflow. We subtract
         // one, since the precision is digits right of the decimal point, and DBL_DIG is total digits.
-        snprintf(image, sizeof(image), "%.*g", DBL_DIG - 1, value);
+        // Use locale-independent formatting to ensure '.' decimal point
+        IONCHECK(_ion_writer_vsnprintf_double(image, sizeof(image), "%.*g", DBL_DIG - 1, value));
 
         for (mark = image; *mark == ' '; ) mark++; // strip leading spaces
         IONCHECK(_ion_writer_text_append_ascii_cstr(pwriter->output, mark));
