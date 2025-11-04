@@ -17,6 +17,16 @@
 // these are non-public routines used by the text writer
 //
 
+// Feature test macros for locale functions on Unix systems - must be defined before includes
+#if defined(__GLIBC__) || (defined(__GNUC__) && defined(_GNU_SOURCE)) || defined(__APPLE__)
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE  // for newlocale, vsnprintf_l on Linux
+#endif
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700  // for POSIX locale functions
+#endif
+#endif
+
 #include "ion_internal.h"
 #include "ion_decimal_impl.h"
 #include <float.h>
@@ -30,8 +40,8 @@
 
 #if defined(_MSC_VER)
 #include <stdlib.h>  // for _create_locale, _snprintf_l
-#elif defined(__GLIBC__) || defined(__APPLE__) || (defined(__GNUC__) && defined(_GNU_SOURCE))
-#include <xlocale.h>  // for newlocale, snprintf_l on some systems
+#elif defined(__APPLE__)
+#include <xlocale.h>  // for vsnprintf_l, newlocale on macOS
 #endif
 
 #if defined(_MSC_VER)
@@ -109,8 +119,8 @@ static int _ion_writer_vsnprintf_double_c_locale(char *buffer, size_t buffer_siz
             // Fallback to temporary global locale change if locale creation fails
             result = _ion_writer_vsnprintf_with_temp_locale(buffer, buffer_size, format, args);
         }
-#elif defined(__GLIBC__) || defined(__APPLE__) || (defined(__GNUC__) && defined(_GNU_SOURCE))
-        // GNU/Linux and macOS: Use vsnprintf_l with the C locale
+#elif defined(__GLIBC__) || defined(__APPLE__)
+        // GNU/Linux with glibc and macOS: Use vsnprintf_l with the C locale
         static locale_t c_locale = (locale_t)0;
         static int locale_initialized = 0;
 
