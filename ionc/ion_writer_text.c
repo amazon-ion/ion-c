@@ -24,7 +24,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <locale.h>
+#include <stdarg.h>
 #include <decNumber/decNumber.h>
+
+#if defined(_MSC_VER)
+#include <stdlib.h>  // for _create_locale, _snprintf_l
+#elif defined(__GLIBC__) || defined(__APPLE__) || (defined(__GNUC__) && defined(_GNU_SOURCE))
+#include <xlocale.h>  // for newlocale, snprintf_l on some systems
+#endif
 
 #if defined(_MSC_VER)
 #define FLOAT_CLASS(x) _fpclass(x)
@@ -35,6 +43,102 @@
 #endif
 
 #define LOCAL_INT_CHAR_BUFFER_LENGTH   257
+
+// Flag to disable platform-specific locale functions and force fallback behavior
+static int _ion_writer_platform_specific_locale_disabled = 0;
+
+// Helper function to temporarily change global locale to "C" for formatting
+static int _ion_writer_vsnprintf_with_temp_locale(char *buffer, size_t buffer_size, const char *format, va_list args)
+{
+    char *old_locale = setlocale(LC_NUMERIC, NULL);
+    char saved_locale_buffer[256];
+    char *saved_locale = NULL;
+    int result;
+
+    // Save the current locale if it's not already "C"
+    if (old_locale && strcmp(old_locale, "C") != 0) {
+        // Use a fixed buffer to avoid malloc/free issues
+        size_t locale_len = strlen(old_locale);
+        if (locale_len < sizeof(saved_locale_buffer)) {
+            strcpy(saved_locale_buffer, old_locale);
+            saved_locale = saved_locale_buffer;
+        }
+
+        // Temporarily switch to "C" locale for formatting
+        setlocale(LC_NUMERIC, "C");
+    }
+
+    // Format the number
+    result = vsnprintf(buffer, buffer_size, format, args);
+
+    // Restore the original locale if we changed it
+    if (saved_locale) {
+        setlocale(LC_NUMERIC, saved_locale);
+    }
+
+    return result;
+}
+
+// Helper function to format floating point numbers in a locale-independent way
+// Always uses "." as decimal point regardless of system locale
+// Signature matches vsnprintf to support variadic arguments
+static int _ion_writer_vsnprintf_double_c_locale(char *buffer, size_t buffer_size, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    int result;
+
+    // Check if fallback is forced
+    if (_ion_writer_platform_specific_locale_disabled) {
+        result = _ion_writer_vsnprintf_with_temp_locale(buffer, buffer_size, format, args);
+    } else {
+#if defined(_MSC_VER)
+        // Windows: Use _vsnprintf_l with the C locale
+        static _locale_t c_locale = NULL;
+        static int locale_initialized = 0;
+
+        if (!locale_initialized) {
+            c_locale = _create_locale(LC_NUMERIC, "C");
+            locale_initialized = 1;
+        }
+
+        if (c_locale) {
+            result = _vsnprintf_l(buffer, buffer_size, format, c_locale, args);
+        } else {
+            // Fallback to temporary global locale change if locale creation fails
+            result = _ion_writer_vsnprintf_with_temp_locale(buffer, buffer_size, format, args);
+        }
+#elif defined(__GLIBC__) || defined(__APPLE__) || (defined(__GNUC__) && defined(_GNU_SOURCE))
+        // GNU/Linux and macOS: Use vsnprintf_l with the C locale
+        static locale_t c_locale = (locale_t)0;
+        static int locale_initialized = 0;
+
+        if (!locale_initialized) {
+            c_locale = newlocale(LC_NUMERIC_MASK, "C", (locale_t)0);
+            locale_initialized = 1;
+        }
+
+        if (c_locale != (locale_t)0) {
+            result = vsnprintf_l(buffer, buffer_size, c_locale, format, args);
+        } else {
+            // Fallback to temporary global locale change if locale creation fails
+            result = _ion_writer_vsnprintf_with_temp_locale(buffer, buffer_size, format, args);
+        }
+#else
+        // For other platforms: use temporary global locale switching
+        result = _ion_writer_vsnprintf_with_temp_locale(buffer, buffer_size, format, args);
+#endif
+    }
+
+    va_end(args);
+    return result;
+}
+
+// When non-zero, forces use of temporary global locale switching instead of platform-specific functions
+void _ion_writer_text_set_platform_specific_locale_disabled(int is_disabled) {
+    _ion_writer_platform_specific_locale_disabled = is_disabled;
+}
 
 iERR _ion_writer_text_initialize(ION_WRITER *pwriter)
 {
@@ -585,7 +689,8 @@ iERR _ion_writer_text_write_double(ION_WRITER *pwriter, double value)
         //  the final result must match the original number."
         // (https://en.wikipedia.org/wiki/Double-precision_floating-point_format)
         // Leaving room for '.', '+'/'-', and 'e', we get 17 + 1 + 1 +1 = 20
-        sprintf(image, "%.20g", value);
+        // Use locale-independent formatting to ensure '.' decimal point
+        _ion_writer_vsnprintf_double_c_locale(image, sizeof(image), "%.20g", value);
         assert(strlen(image) < sizeof(image));
 
         mark = strchr(image, 'e');
@@ -648,7 +753,8 @@ iERR _ion_writer_text_write_double_json(ION_WRITER *pwriter, double value) {
         // DBL_DIG contains the number of decimal digits that are guaranteed to be preserved
         // in a text to double roundtrip without change due to rounding or overflow. We subtract
         // one, since the precision is digits right of the decimal point, and DBL_DIG is total digits.
-        snprintf(image, sizeof(image), "%.*g", DBL_DIG - 1, value);
+        // Use locale-independent formatting to ensure '.' decimal point
+        _ion_writer_vsnprintf_double_c_locale(image, sizeof(image), "%.*g", DBL_DIG - 1, value);
 
         for (mark = image; *mark == ' '; ) mark++; // strip leading spaces
         IONCHECK(_ion_writer_text_append_ascii_cstr(pwriter->output, mark));
