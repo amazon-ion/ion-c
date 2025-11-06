@@ -228,9 +228,18 @@ SIZE debug_pattern_size = sizeof(debug_pattern);
 void *debug_malloc(SIZE size, const char *file, int line) 
 {
     BYTE   *ptr, *psize, *head, *user, *tail;
-    SIZE  adjusted_size = size + 2*debug_pattern_size * 2 + sizeof(SIZE);
+    SIZE overhead = 2 * debug_pattern_size * 2 + sizeof(SIZE);
+    SIZE adjusted_size = 0;
 
     assert( debug_pattern_size == 8 ); // just to make sure we're getting the right value and know what's actually happening
+
+    // Check for integer overflow in the adjusted_size calculation
+    // SIZE is int32_t, so we need to ensure size + overhead doesn't exceed INT32_MAX
+    if (size < 0 || size > (MAX_SIZE - overhead)) {
+       return NULL; // Allocation request too large or invalid
+    }
+
+    adjusted_size = size + overhead;
 
     ptr = (BYTE *)malloc(adjusted_size);
 

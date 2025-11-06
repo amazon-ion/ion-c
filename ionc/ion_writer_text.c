@@ -1275,6 +1275,10 @@ iERR _ion_writer_text_append_escape_sequence_string(ION_STREAM *poutput, BOOL do
     else {
         len = (SIZE)(limit - cp);
         if (len > 4) len = 4;
+
+        // Initialize the entire buffer to prevent memory disclosure
+        memset(unicode_buffer, 0, sizeof(unicode_buffer));
+
         for (ii=0; ii<len; ii++) {
             unicode_buffer[ii] = cp[ii];
         }
@@ -1305,6 +1309,10 @@ iERR _ion_writer_text_append_escape_sequence_cstr_limit(ION_STREAM *poutput, cha
     else {
         len = (SIZE)(limit - cp);
         if (len > 4) len = 4;
+
+        // Initialize the entire buffer to prevent memory disclosure
+        memset(temp_buffer, 0, sizeof(temp_buffer));
+
         strncpy(temp_buffer, cp, len);
         IONCHECK(_ion_writer_text_read_unicode_scalar(temp_buffer, &ilen, &unicode_scalar));
         len = ilen;
