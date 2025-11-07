@@ -40,7 +40,7 @@ jobs:
       # Amazon Linux needs a newer version of git installed for actions/checkout
       - name: Install Dependencies
         run: |
-          yum install which git make cmake3 -y
+          yum install which git make cmake3 libasan libubsan -y
           if [ ! -e '/usr/bin/cmake' ]; then ln -s "$(which cmake3)" /usr/bin/cmake; fi
       - name: Install ${{ matrix.compiler.cc }}
         run: yum install ${{ matrix.compiler.packages }} -y
