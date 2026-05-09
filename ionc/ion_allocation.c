@@ -119,15 +119,15 @@ void *_ion_alloc_with_owner_helper(ION_ALLOCATION_CHAIN *powner, SIZE request_le
         // check for space in blocks that are "in progress", starting with the
         // owner block, we only need to do this if we aren't already directed
         // to allocate a new block by force_new_block
-        next_ptr = pblock->position + length;
-        if (next_ptr > pblock->limit) {
+        SIZE remaining = (SIZE)(pblock->limit - pblock->position);
+        if (length < 0 || length > remaining) {
             pblock = powner->head;
             if (pblock == NULL) {
                 force_new_block = TRUE;
             }
             else {
-                next_ptr = pblock->position + length;
-                if (next_ptr > pblock->limit) {
+                remaining = (SIZE)(pblock->limit - pblock->position);
+                if (length > remaining) {
                     force_new_block = TRUE;
                 }
             }
@@ -159,9 +159,10 @@ void *_ion_alloc_with_owner_helper(ION_ALLOCATION_CHAIN *powner, SIZE request_le
             pblock->next = powner->head;
             powner->head = pblock;
         }
-        next_ptr = pblock->position + length;
-        assert(next_ptr <= pblock->limit); // we better have room at this point
+        assert(length <= (SIZE)(pblock->limit - pblock->position));
     }
+
+    next_ptr = pblock->position + length;
 
     // if we have a block here, there's enough room in it
     // save the current position ptr for our caller, and move
@@ -175,16 +176,22 @@ void *_ion_alloc_with_owner_helper(ION_ALLOCATION_CHAIN *powner, SIZE request_le
 ION_ALLOCATION_CHAIN *_ion_alloc_block(SIZE min_needed)
 {
     ION_ALLOCATION_CHAIN *new_block;
-    SIZE                  alloc_size = min_needed + ALIGN_SIZE(sizeof(ION_ALLOCATION_CHAIN)); // subtract out the block[1]
+    size_t                header_size = ALIGN_SIZE(sizeof(ION_ALLOCATION_CHAIN));
+    size_t                alloc_size;
+
+    if (min_needed <= 0) return NULL;
+
+    alloc_size = (size_t)min_needed + header_size;
+    if (alloc_size < (size_t)min_needed) return NULL;
+    if (alloc_size > (size_t)MAX_SIZE) return NULL;
 
     if (alloc_size < DEFAULT_BLOCK_SIZE) alloc_size = DEFAULT_BLOCK_SIZE;
 
-    new_block = (ION_ALLOCATION_CHAIN *)ion_xalloc(alloc_size);    
-    
-    // see if we suceeded
+    new_block = (ION_ALLOCATION_CHAIN *)ion_xalloc((SIZE)alloc_size);
+
     if (!new_block) return NULL;
 
-    new_block->size     = alloc_size;
+    new_block->size     = (SIZE)alloc_size;
     new_block->next     = NULL;
     new_block->head     = NULL;
 

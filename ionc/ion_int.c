@@ -116,9 +116,7 @@ iERR ion_int_is_null(ION_INT *iint, BOOL *p_is_null)
     }
 
     is_null = _ion_int_is_null_helper(iint);
-    if (*p_is_null) {
-        *p_is_null = is_null;
-    }
+    *p_is_null = is_null;
     SUCCEED();
 
     iRETURN;
@@ -299,6 +297,9 @@ iERR _ion_int_from_chars_helper(ION_INT *iint, const char *str, SIZE len)
     }
     
     decimal_digits = (SIZE)(end - cp); // since these live within a string whose length is of type SIZE
+    if (decimal_digits > MAX_SIZE / 4) {
+        FAILWITH(IERR_INVALID_ARG);
+    }
     if (*cp == '0') {
         if (decimal_digits > 1 && *(cp+1) == '0') {
             // only 1 leading zero
@@ -306,7 +307,7 @@ iERR _ion_int_from_chars_helper(ION_INT *iint, const char *str, SIZE len)
         }
         decimal_digits--; // we don't count the leading zero for this, it doesn't add bits
     }
-    
+
     bits = (SIZE)((II_BITS_PER_DEC_DIGIT * decimal_digits) + 1);
     ii_length = (SIZE)(((double)(bits - 1) / II_BITS_PER_II_DIGIT) + 1);
     IONCHECK(_ion_int_extend_digits(iint, ii_length, TRUE));
@@ -497,6 +498,13 @@ iERR ion_int_from_bytes(ION_INT *iint, BYTE *buf, SIZE limit)
     if (limit < 0) {
         FAILWITH(IERR_INVALID_ARG);
     }
+    if (limit == 0) {
+        IONCHECK(_ion_int_zero(iint));
+        SUCCEED();
+    }
+    if ((int64_t)limit * 8 > MAX_SIZE) {
+        FAILWITH(IERR_INVALID_ARG);
+    }
 
     may_overflow = FALSE;
     byte = buf[0] & II_BYTE_MASK;
@@ -523,7 +531,7 @@ iERR ion_int_from_bytes(ION_INT *iint, BYTE *buf, SIZE limit)
             if (buf[byte_idx]) break;
         }
     }
-  
+
     // check for zero
     byte_count = limit - byte_idx;
     if (byte_count == 0) {
@@ -578,15 +586,22 @@ iERR ion_int_from_abs_bytes(ION_INT *iint, BYTE *buf, SIZE limit, BOOL is_negati
     if (limit < 0) {
         FAILWITH(IERR_INVALID_ARG);
     }
+    if (limit == 0) {
+        IONCHECK(_ion_int_zero(iint));
+        SUCCEED();
+    }
+    if ((int64_t)limit * 8 > MAX_SIZE) {
+        FAILWITH(IERR_INVALID_ARG);
+    }
 
     may_overflow = FALSE;
     byte = buf[0] & II_BYTE_MASK;
-    
+
     // find first non-zero byte (i.e. where are the bits that we want)
     for (byte_idx = 0; byte_idx < limit; byte_idx++) {
         if (buf[byte_idx]) break;
     }
-  
+
     // check for zero
     byte_count = limit - byte_idx;
     if (byte_count == 0) {
@@ -595,10 +610,10 @@ iERR ion_int_from_abs_bytes(ION_INT *iint, BYTE *buf, SIZE limit, BOOL is_negati
     }
 
     // make sure we have enough space in the iint
-    bits = byte_count * 8;
+    bits = (SIZE)((int64_t)byte_count * 8);
     ii_length = (SIZE)(((bits - 1) / II_BITS_PER_II_DIGIT)+1);
     IONCHECK(_ion_int_extend_digits(iint, ii_length, TRUE));
-    
+
     is_zero = _ion_int_from_bytes_helper(iint, buf, byte_idx, limit, FALSE, FALSE);
 
     if (is_zero) {
@@ -1162,6 +1177,9 @@ iERR _ion_int_extend_digits(ION_INT *iint, SIZE digits_needed, BOOL zero_fill)
     ASSERT(iint);
 
     if (iint->_len < digits_needed) {
+        if (digits_needed > MAX_SIZE / (SIZE)sizeof(II_DIGIT)) {
+            FAILWITH(IERR_INVALID_ARG);
+        }
         // realloc
         len = digits_needed * sizeof(II_DIGIT);
         temp = _ion_int_realloc_helper(iint->_digits, iint->_len*sizeof(II_DIGIT), iint->_owner, len);
@@ -1248,7 +1266,9 @@ SIZE _ion_int_highest_bit_set_helper(const ION_INT *iint)
     // if there are any bits set
     if (ii<len) {
         // first compute how many whole digits there are
-        bits = (len - ii - 1) * II_BITS_PER_II_DIGIT;  // the extra -1 since we'll count the bits in the most significan digit below
+        int64_t bits64 = (int64_t)(len - ii - 1) * II_BITS_PER_II_DIGIT;
+        if (bits64 > MAX_SIZE) return MAX_SIZE;
+        bits = (SIZE)bits64;
         // now we see how many are actually set in the
         // most significat digit (which we broke on above)
         while (msd) { // as long as any bit is set, shift it over and count 1 more
@@ -1461,13 +1481,16 @@ BOOL _ion_int_is_high_bytes_high_bit_set_helper(const ION_INT *iint, SIZE abs_by
     // extract the high order bit or the high order byte to
     // see if it is set of not (if it is we'll need an extra
     // byte for the signed representation)
-    highbit = abs_byte_count * 8;
+    int64_t highbit64 = (int64_t)abs_byte_count * 8;
+    if (highbit64 > MAX_SIZE) return FALSE;
+    highbit = (SIZE)highbit64;
 
     // if the highbit is reified in our digits we need to
     // actually look at it, in some cases the highbit(s)
     // will be off the end of our digit bits (off the left,
     // or most sigificant bit, side) and therefore 0.
-    if (highbit < (iint->_len * (SIZE)II_BITS_PER_II_DIGIT)) {
+    int64_t total_digit_bits = (int64_t)iint->_len * II_BITS_PER_II_DIGIT;
+    if (highbit < total_digit_bits) {
         digitidx = iint->_len - (((highbit - 1) / II_BITS_PER_II_DIGIT) + 1); // here digitidx 1 is low order digit
         digit = iint->_digits[digitidx]; // array element 0 is high order digit, so invert
         bitidx = (highbit % II_BITS_PER_II_DIGIT);

@@ -248,7 +248,11 @@ iERR _ion_binary_read_ion_int_helper(ION_STREAM *pstream, int32_t len, BOOL is_n
     II_DIGIT *digits;
 
     ASSERT(len > 0);
-    bits = len * II_BITS_PER_BYTE;
+    int64_t bits64 = (int64_t)len * II_BITS_PER_BYTE;
+    if (bits64 > MAX_SIZE) {
+        FAILWITH(IERR_INVALID_ARG);
+    }
+    bits = (int)bits64;
     digit_count = II_DIGIT_COUNT_FROM_BITS(bits);
     IONCHECK(_ion_int_extend_digits(p_value, digit_count, TRUE));
     digits = p_value->_digits;
