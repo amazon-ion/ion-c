@@ -97,6 +97,9 @@ iERR _ion_index_make_room(ION_INDEX *index, int32_t expected_new)
     // key count <= bucket * (_grow_density_percent/100)
     // bucket count = ( key count * 100 ) / _grow_density_percent
     new_key_threshold  = index->_key_count + expected_new;
+    if (new_key_threshold < index->_key_count || new_key_threshold > MAX_SIZE / 128) {
+        FAILWITH(IERR_NO_MEMORY);
+    }
     new_key_threshold *= 128; // _grow_density_percent really is whole percent
     new_key_threshold /= index->_density_target_percent_128x;
 
@@ -271,6 +274,9 @@ iERR _ion_index_grow_array(void **p_array, int32_t old_count, int32_t new_count,
     void *new_array;
     void *old_array = *p_array;
 
+    if (new_count <= 0 || new_count > MAX_SIZE / entry_size) {
+        FAILWITH(IERR_NO_MEMORY);
+    }
     new_size = new_count * entry_size;
     new_array = ion_alloc_with_owner(owner, new_size);
     if (!new_array) FAILWITH(IERR_NO_MEMORY);

@@ -108,6 +108,26 @@ jobs:
       - name: Test Release
         run: ./build/release/test/all_tests
 
+  test_release_sanitizers:
+    name: "Test (ubuntu-latest, clang, release + sanitizers)"
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+      UBSAN_OPTIONS: "print_stacktrace=1:halt_on_error=1"
+      ASAN_OPTIONS: "halt_on_error=1:detect_leaks=0"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-tags: true
+          fetch-depth: 50
+      - name: Build ReleaseSan
+        run: ./build-release-sanitizers.sh
+      - name: Test ReleaseSan
+        run: ./build/release-san/test/all_tests
+
   test_windows:
     name: "Test (windows-latest, msvc)"
     runs-on: windows-latest

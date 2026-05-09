@@ -136,6 +136,9 @@ begin:
     // read the field sid if we are in a structure
     if (binary->_in_struct) {
         IONCHECK(ion_binary_read_var_uint_32(preader->istream, &field_sid));
+        if (field_sid > (uint32_t)MAX_SIZE) {
+            FAILWITH(IERR_INVALID_BINARY);
+        }
         binary->_value_field_id = field_sid;
     }
     else {
@@ -1097,7 +1100,11 @@ iERR _ion_binary_read_mixed_int_helper(ION_READER *preader)
     len = binary->_value_len;
     IONCHECK(_ion_binary_reader_fits_container(preader, len));
 
-    bits = len * II_BITS_PER_BYTE; // hex digits would be the larger than decimal
+    int64_t bits64 = (int64_t)len * II_BITS_PER_BYTE;
+    if (bits64 > MAX_SIZE) {
+        FAILWITH(IERR_INVALID_ARG);
+    }
+    bits = (int)bits64;
 
     if (bits <= II_INT64_BIT_THRESHOLD) {
         preader->_int_helper._is_ion_int = FALSE;
@@ -1669,6 +1676,9 @@ iERR _ion_reader_binary_local_read_length(ION_READER *preader, int tid, int *p_l
         FAILWITHMSG(IERR_INVALID_STATE, "unrecognized type encountered");
     }
 
+    if (len > (uint32_t)MAX_SIZE) {
+        FAILWITH(IERR_INVALID_BINARY);
+    }
     *p_length = (int)len;
     SUCCEED();
 

@@ -40,6 +40,20 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
    if (IONC_ENABLE_VERBOSE_DEBUG)
        add_compile_definitions(DEBUG=1)
    endif()
+elseif (CMAKE_BUILD_TYPE STREQUAL "ReleaseSan")
+   add_compile_definitions(NDEBUG=1)
+   include(CheckCXXCompilerFlag)
+   list(INSERT CMAKE_REQUIRED_LINK_OPTIONS 0 "-fsanitize=address,undefined")
+   check_cxx_compiler_flag("-g -fsanitize=address,undefined -fno-omit-frame-pointer" UBISAN_OK)
+   list(REMOVE_AT CMAKE_REQUIRED_LINK_OPTIONS 0)
+   if (UBISAN_OK OR IONC_FORCE_SANITIZERS)
+      add_compile_options(
+         -fsanitize=address,undefined
+         -fsanitize-recover=address
+      )
+      add_link_options(-fsanitize=address,undefined -fsanitize-recover=address)
+   endif()
+   add_compile_options(-O1 -g -fno-omit-frame-pointer -fno-optimize-sibling-calls)
 elseif (CMAKE_BUILD_TYPE STREQUAL "Profiling")
    add_compile_options(
       -O3 -march=native

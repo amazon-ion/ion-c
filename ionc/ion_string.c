@@ -86,6 +86,7 @@ int   ion_string_get_length(ION_STRING *str)
 // was: char *ion_str_dup_chars(ION_STRING *pionstring)
 char *ion_string_strdup(ION_STRING *pionstring)
 {
+    if (pionstring->length < 0 || pionstring->length >= MAX_SIZE) return NULL;
     char *str = ion_xalloc(pionstring->length + 1);
     if (!str) return NULL;
 

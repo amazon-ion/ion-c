@@ -1277,6 +1277,10 @@ iERR _ion_symbol_table_local_incorporate_symbols(ION_SYMBOL_TABLE *symtab, ION_S
         FAILWITH(IERR_INVALID_SYMBOL_TABLE);
     }
 
+    // can't import so many symbols that we overflow int for symbol table size
+    if (import_max_id > MAX_SIZE - symtab->max_id) {
+        FAILWITH(IERR_INVALID_SYMBOL_TABLE);
+    }
     symtab->max_id += import_max_id;
     symtab->min_local_id = symtab->max_id + 1;
 
@@ -2200,6 +2204,9 @@ iERR _ion_symbol_table_index_insert_helper(ION_SYMBOL_TABLE *symtab, ION_SYMBOL 
     if (adjusted_sid > symtab->by_id_max) {
         // the +1 is because sid's are 1 based (so we're losing the 0th slot, and need 1 extra entry)
         old_count = (symtab->by_id_max + 1);
+        if (old_count > MAX_SIZE / DEFAULT_SYMBOL_TABLE_SID_MULTIPLIER) {
+            FAILWITH(IERR_NO_MEMORY);
+        }
         new_count =  old_count * DEFAULT_SYMBOL_TABLE_SID_MULTIPLIER;
         if (new_count < DEFAULT_SYMBOL_TABLE_SIZE) new_count = DEFAULT_SYMBOL_TABLE_SIZE;
         IONCHECK(_ion_index_grow_array((void **)&symtab->by_id, old_count, new_count, sizeof(symtab->by_id[0]), TRUE, symtab->owner));
