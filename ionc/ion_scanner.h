@@ -439,7 +439,8 @@ iERR _ion_scanner_skip_blob                         (ION_SCANNER *scanner);
 iERR _ion_scanner_skip_sexp                         (ION_SCANNER *scanner);
 iERR _ion_scanner_skip_list                         (ION_SCANNER *scanner);
 iERR _ion_scanner_skip_struct                       (ION_SCANNER *scanner);
-iERR _ion_scanner_skip_container                    (ION_SCANNER *scanner, int close_char);
+#define ION_SCANNER_MAX_SKIP_DEPTH 512
+iERR _ion_scanner_skip_container                    (ION_SCANNER *scanner, int close_char, int depth);
 
 iERR _ion_scanner_read_cached_bytes                 (ION_SCANNER *scanner, BYTE *buf, SIZE len, SIZE *p_bytes_written);
 
