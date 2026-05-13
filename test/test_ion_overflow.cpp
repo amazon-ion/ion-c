@@ -465,7 +465,7 @@ TEST(IonInteger, FromCharsHandlesNullLiterals) {
 }
 
 TEST(IonTextReader, DeeplyNestedContainersDoNotCrash) {
-    // _ion_scanner_skip_container recurses with no depth limit.
+    // _ion_scanner_skip_container should not recurse without a depth limit.
     // Nesting deeper than ION_SCANNER_MAX_SKIP_DEPTH should return an
     // error rather than exhausting the stack.
     //
