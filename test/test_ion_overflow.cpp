@@ -435,7 +435,7 @@ TEST(IonBinaryReader, RejectsOversizedSymbolTableString) {
 
 TEST(IonInteger, FromCharsHandlesNullLiterals) {
     // _ion_int_from_chars_helper uses strncmp on non-NUL-terminated strings
-    // and has broken || logic. After the fix, "null" and "null.int" should
+    // and had broken || logic. After the fix, "null" and "null.int" should
     // be accepted, "n" alone should be rejected, and no OOB read should occur.
 
     ION_INT *iint = NULL;
