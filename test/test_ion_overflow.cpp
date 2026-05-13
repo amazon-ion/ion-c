@@ -474,10 +474,10 @@ TEST(IonTextReader, DeeplyNestedContainersDoNotCrash) {
     // the inner deeply-nested list. This triggers _ion_scanner_skip_container.
     const int DEPTH = 1000;
     std::string ion_text;
-    ion_text += '[';
+    ion_text += '[  ';
     ion_text += std::string(DEPTH, '[');
     ion_text += std::string(DEPTH, ']');
-    ion_text += ']';
+    ion_text += '  ]';
 
     hREADER reader = NULL;
     ION_TYPE type;
