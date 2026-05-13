@@ -432,3 +432,116 @@ TEST(IonBinaryReader, RejectsOversizedSymbolTableString) {
 
     ion_reader_close(reader);
 }
+
+TEST(IonInteger, FromCharsHandlesNullLiterals) {
+    // _ion_int_from_chars_helper uses strncmp on non-NUL-terminated strings
+    // and had broken || logic. After the fix, "null" and "null.int" should
+    // be accepted, "n" alone should be rejected, and no OOB read should occur.
+
+    ION_INT *iint = NULL;
+    ION_ASSERT_OK(ion_int_alloc(NULL, &iint));
+
+    // "null" (length 4) should succeed and produce a null int
+    iERR err = ion_int_from_chars(iint, "null", 4);
+    ASSERT_EQ(IERR_OK, err);
+
+    // "null.int" (length 8) should succeed
+    err = ion_int_from_chars(iint, "null.int", 8);
+    ASSERT_EQ(IERR_OK, err);
+
+    // "n" (length 1) should fail with IERR_INVALID_SYNTAX, not OOB read
+    err = ion_int_from_chars(iint, "n", 1);
+    ASSERT_EQ(IERR_INVALID_SYNTAX, err);
+
+    // "nu" (length 2) should fail
+    err = ion_int_from_chars(iint, "nu", 2);
+    ASSERT_EQ(IERR_INVALID_SYNTAX, err);
+
+    // "null.in" (length 7) should fail — not a complete literal
+    err = ion_int_from_chars(iint, "null.in", 7);
+    ASSERT_EQ(IERR_INVALID_SYNTAX, err);
+
+    ion_int_free(iint);
+}
+
+TEST(IonTextReader, DeeplyNestedContainersDoNotCrash) {
+    // _ion_scanner_skip_container should not recurse without a depth limit.
+    // Nesting deeper than ION_SCANNER_MAX_SKIP_DEPTH should return an
+    // error rather than exhausting the stack.
+    //
+    // Format: [  [[[...1000 brackets...]]]  ]
+    // We step into the outer list, then call next() which must skip
+    // the inner deeply-nested list. This triggers _ion_scanner_skip_container.
+    const int DEPTH = 1000;
+    std::string ion_text;
+    ion_text += '[  ';
+    ion_text += std::string(DEPTH, '[');
+    ion_text += std::string(DEPTH, ']');
+    ion_text += '  ]';
+
+    hREADER reader = NULL;
+    ION_TYPE type;
+    iERR err;
+
+    err = ion_reader_open_buffer(&reader, (BYTE *)ion_text.c_str(), (SIZE)ion_text.size(), NULL);
+    ASSERT_EQ(IERR_OK, err);
+
+    err = ion_reader_next(reader, &type);
+    ASSERT_EQ(IERR_OK, err);
+    ASSERT_EQ((ION_TYPE)tid_LIST, type);
+
+    err = ion_reader_step_in(reader);
+    ASSERT_EQ(IERR_OK, err);
+
+    // This next() must skip the deeply nested inner list.
+    // It should fail with an error rather than recursing unboundedly.
+    err = ion_reader_next(reader, &type);
+    if (err == IERR_OK) {
+        // If first next succeeds (returns the inner list), calling next again
+        // will skip it via the scanner's skip_container.
+        err = ion_reader_next(reader, &type);
+    }
+    ASSERT_NE(IERR_OK, err);
+
+    ion_reader_close(reader);
+}
+
+TEST(IonTextReader, Base64DecodeDoesNotOverflowBuffer) {
+    // _ion_scanner_read_as_base64 had a post-decrement underflow when
+    // buf_max % 3 == 2. The 'remaining' counter wrapped to -1 and the
+    // decode loop wrote past the caller's buffer.
+    //
+    // Text Ion blob: {{ AQID }} which is base64 for bytes 0x01 0x02 0x03
+    // We read with buf_max=2 so the 3-byte decode hits the boundary.
+
+    const char *ion_text = "{{ AQID }}";
+    SIZE ion_text_len = (SIZE)strlen(ion_text);
+
+    hREADER reader = NULL;
+    ION_TYPE type;
+    iERR err;
+
+    err = ion_reader_open_buffer(&reader, (BYTE *)ion_text, ion_text_len, NULL);
+    ASSERT_EQ(IERR_OK, err);
+
+    err = ion_reader_next(reader, &type);
+    ASSERT_EQ(IERR_OK, err);
+    ASSERT_EQ((ION_TYPE)tid_BLOB, type);
+
+    // Read with buf_max=2 (% 3 == 2) to trigger the boundary condition.
+    // The function should write at most 2 bytes and not corrupt memory.
+    BYTE read_buf[64];
+    memset(read_buf, 0xCC, sizeof(read_buf));
+    SIZE bytes_read = 0;
+
+    err = ion_reader_read_lob_partial_bytes(reader, read_buf, 2, &bytes_read);
+    ASSERT_EQ(IERR_OK, err);
+    ASSERT_LE(bytes_read, 2);
+
+    // Verify no write past the 2-byte boundary
+    for (int i = 2; i < 64; i++) {
+        ASSERT_EQ(0xCC, read_buf[i]) << "Buffer overwrite at offset " << i;
+    }
+
+    ion_reader_close(reader);
+}

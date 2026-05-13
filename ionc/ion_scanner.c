@@ -1288,7 +1288,7 @@ iERR _ion_scanner_skip_sexp(ION_SCANNER *scanner)
 {
     iENTER;
 
-    IONCHECK(_ion_scanner_skip_container(scanner, ')'));
+    IONCHECK(_ion_scanner_skip_container(scanner, ')', 0));
 
     iRETURN;
 }
@@ -1297,7 +1297,7 @@ iERR _ion_scanner_skip_list(ION_SCANNER *scanner)
 {
     iENTER;
 
-    IONCHECK(_ion_scanner_skip_container(scanner, ']'));
+    IONCHECK(_ion_scanner_skip_container(scanner, ']', 0));
 
     iRETURN;
 }
@@ -1306,15 +1306,19 @@ iERR _ion_scanner_skip_struct(ION_SCANNER *scanner)
 {
     iENTER;
 
-    IONCHECK(_ion_scanner_skip_container(scanner, '}'));
+    IONCHECK(_ion_scanner_skip_container(scanner, '}', 0));
 
     iRETURN;
 }
 
-iERR _ion_scanner_skip_container(ION_SCANNER *scanner, int close_char)
+iERR _ion_scanner_skip_container(ION_SCANNER *scanner, int close_char, int depth)
 {
     iENTER;
     int c;
+
+    if (depth >= ION_SCANNER_MAX_SKIP_DEPTH) {
+        FAILWITH(IERR_UNEXPECTED_EOF);
+    }
 
     for (;;) {
         IONCHECK(_ion_scanner_read_past_whitespace(scanner, &c));
@@ -1362,14 +1366,14 @@ just_another_char: // yes this is evil
                         IONCHECK(_ion_scanner_skip_single_quoted_string(scanner));
                     }
                 }
-                IONCHECK(_ion_scanner_skip_container(scanner, '}'));
+                IONCHECK(_ion_scanner_skip_container(scanner, '}', depth + 1));
             }
             break;
         case '[':
-            IONCHECK(_ion_scanner_skip_container(scanner, ']'));
+            IONCHECK(_ion_scanner_skip_container(scanner, ']', depth + 1));
             break;
         case '(':
-            IONCHECK(_ion_scanner_skip_container(scanner, ')'));
+            IONCHECK(_ion_scanner_skip_container(scanner, ')', depth + 1));
             break;
         case EOF:
             FAILWITH(IERR_UNEXPECTED_EOF);
@@ -2098,9 +2102,11 @@ iERR _ion_scanner_read_as_base64(ION_SCANNER *scanner, BYTE *buf, SIZE len, SIZE
         // are present or not, that is the value is high bit justified.
 
         // we first move as many as we can into the caller buffer
-        while (output_length-- && remaining--) {
+        while (output_length > 0 && remaining > 0) {
             *dst++ = (b64_block & 0xff0000) >> 16;
             b64_block <<= 8;
+            output_length--;
+            remaining--;
         }
 
         // and if there's anything left we move it into the scanners temp

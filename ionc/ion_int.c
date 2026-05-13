@@ -274,14 +274,17 @@ iERR _ion_int_from_chars_helper(ION_INT *iint, const char *str, SIZE len)
     if (cp >= end) FAILWITH(IERR_INVALID_SYNTAX);
 
     switch(*cp) {
-    case 'n':
-        if (strncmp(cp, "null", 5) ||  strncmp(cp, "null.int", 9)) {
-            FAILWITH(IERR_INVALID_SYNTAX);
+    case 'n': {
+        SIZE remaining = (SIZE)(end - cp);
+        if ((remaining == 4 && memcmp(cp, "null", 4) == 0)
+            || (remaining == 8 && memcmp(cp, "null.int", 8) == 0)) {
+            iint->_signum = 0;
+            iint->_len = 0;
+            iint->_digits = NULL;
+            SUCCEED();
         }
-        iint->_signum = 0;
-        iint->_len = 0;
-        iint->_digits = NULL;
-        SUCCEED();
+        FAILWITH(IERR_INVALID_SYNTAX);
+    }
     case II_MINUS:
         signum = -1;
         // fall through to plus, then to default
