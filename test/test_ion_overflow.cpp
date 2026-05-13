@@ -507,9 +507,9 @@ TEST(IonTextReader, DeeplyNestedContainersDoNotCrash) {
 }
 
 TEST(IonTextReader, Base64DecodeDoesNotOverflowBuffer) {
-    // _ion_scanner_read_as_base64 has a post-decrement underflow when
-    // buf_max % 3 == 2. The 'remaining' counter wraps to -1 and the
-    // decode loop writes past the caller's buffer.
+    // _ion_scanner_read_as_base64 had a post-decrement underflow when
+    // buf_max % 3 == 2. The 'remaining' counter wrapped to -1 and the
+    // decode loop wrote past the caller's buffer.
     //
     // Text Ion blob: {{ AQID }} which is base64 for bytes 0x01 0x02 0x03
     // We read with buf_max=2 so the 3-byte decode hits the boundary.
