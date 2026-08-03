@@ -264,6 +264,8 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
     }
     _ion_writer_initialize_option_defaults(&(pwriter->options));
 
+    IONCHECK(_ion_writer_validate_options(&(pwriter->options)));
+
     // initialize decimal context
     if (pwriter->options.decimal_context == NULL) {
         decContextDefault(&pwriter->deccontext, DEC_INIT_DECQUAD);
@@ -344,9 +346,9 @@ void _ion_writer_initialize_option_defaults(ION_WRITER_OPTIONS *p_options)
         p_options->temp_buffer_size = ION_WRITER_TEMP_BUFFER_DEFAULT;
     }
 
-    // the max container depth defaults to 10
+    // the max container depth defaults to DEFAULT_MAX_CONTAINER_DEPTH
     if (!p_options->max_container_depth) {
-        p_options->max_container_depth = DEFAULT_WRITER_STACK_DEPTH;
+        p_options->max_container_depth = DEFAULT_MAX_CONTAINER_DEPTH;
     }
 
     // the max number of annotations on 1 value, defaults to 10
@@ -360,6 +362,27 @@ void _ion_writer_initialize_option_defaults(ION_WRITER_OPTIONS *p_options)
     }
 
     return;
+}
+
+iERR _ion_writer_validate_options(ION_WRITER_OPTIONS* p_options)
+{
+    iENTER;
+    char *msg;
+    ASSERT(p_options != NULL);
+
+    // the max container depth defaults to DEFAULT_MAX_CONTAINER_DEPTH
+    if (p_options->max_container_depth < MIN_WRITER_STACK_DEPTH) {
+        msg = "max container depth below min of " STR(MIN_WRITER_STACK_DEPTH);
+        FAILWITHMSG(IERR_INVALID_ARG, msg);
+    }
+
+    // the max number of annotations on 1 value, defaults to 10
+    if (p_options->max_annotation_count < MIN_ANNOTATION_LIMIT) {
+        msg = "max annotation count below min of " STR(MIN_ANNOTATION_LIMIT);
+        FAILWITHMSG(IERR_INVALID_ARG, msg);
+    }
+
+    iRETURN;
 }
 
 
@@ -2288,6 +2311,9 @@ iERR ion_writer_start_container(hWRITER hwriter, ION_TYPE container_type)
     IONCHECK(_ion_writer_transition_to_symtab_intercept_state(pwriter, container_type));
     if (pwriter->_current_symtab_intercept_state != iWSIS_NONE) {
         // A symbol table is being intercepted. Don't write the start of the container, but record the depth.
+        if (pwriter->depth >= pwriter->options.max_container_depth) {
+            FAILWITHMSG(IERR_STACK_OVERFLOW, "Container nesting exceeds max_container_depth.");
+        }
         pwriter->depth++;
         SUCCEED();
     }
@@ -2302,6 +2328,10 @@ iERR _ion_writer_start_container_helper(ION_WRITER *pwriter, ION_TYPE container_
 
     ASSERT(pwriter);
     ASSERT(container_type == tid_STRUCT || container_type == tid_LIST || container_type == tid_SEXP);
+
+    if (pwriter->depth >= pwriter->options.max_container_depth) {
+        FAILWITHMSG(IERR_STACK_OVERFLOW, "Container nesting exceeds max_container_depth.");
+    }
 
     switch (pwriter->type) {
     case ion_type_text_writer:

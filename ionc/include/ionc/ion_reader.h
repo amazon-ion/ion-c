@@ -56,7 +56,7 @@ typedef struct _ion_reader_context_change_notifier {
  * All fields in the structure are defaulted to 0, except for the following:
  *
  * #define DEFAULT_ANNOTATION_LIMIT         10
- * #define DEFAULT_WRITER_STACK_DEPTH       10
+ * #define DEFAULT_MAX_CONTAINER_DEPTH    1000
  * #define DEFAULT_CHUNK_THRESHOLD     DEFAULT_BLOCK_SIZE
  * #define DEFAULT_SYMBOL_THRESHOLD        512
  *
@@ -80,7 +80,9 @@ typedef struct _ion_reader_options
      */
     int  new_line_char;
 
-    /** The max container depth defaults to 10
+    /** The maximum container nesting depth this reader will descend to. Defaults to 1000.
+     *  Stepping in beyond this depth fails with IERR_STACK_OVERFLOW. May not be set
+     *  below 2.
      *
      */
     SIZE max_container_depth;
