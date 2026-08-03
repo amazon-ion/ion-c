@@ -474,16 +474,22 @@ TEST(IonTextReader, DeeplyNestedContainersDoNotCrash) {
     // the inner deeply-nested list. This triggers _ion_scanner_skip_container.
     const int DEPTH = 1000;
     std::string ion_text;
-    ion_text += '[  ';
+    ion_text += "[  ";
     ion_text += std::string(DEPTH, '[');
     ion_text += std::string(DEPTH, ']');
-    ion_text += '  ]';
+    ion_text += "  ]";
 
     hREADER reader = NULL;
     ION_TYPE type;
     iERR err;
 
-    err = ion_reader_open_buffer(&reader, (BYTE *)ion_text.c_str(), (SIZE)ion_text.size(), NULL);
+    // Raise max_container_depth above DEPTH so this exercises the scanner's skip-depth
+    // guard rather than tripping the reader's own container depth limit first.
+    ION_READER_OPTIONS options;
+    memset(&options, 0, sizeof(options));
+    options.max_container_depth = DEPTH + 10;
+
+    err = ion_reader_open_buffer(&reader, (BYTE *)ion_text.c_str(), (SIZE)ion_text.size(), &options);
     ASSERT_EQ(IERR_OK, err);
 
     err = ion_reader_next(reader, &type);
@@ -504,6 +510,161 @@ TEST(IonTextReader, DeeplyNestedContainersDoNotCrash) {
     ASSERT_NE(IERR_OK, err);
 
     ion_reader_close(reader);
+}
+
+TEST(IonContainerDepth, ReaderRejectsNestingBeyondMaxContainerDepth) {
+    const int LIMIT = 20;
+    std::string ion_text = std::string(LIMIT + 5, '[') + std::string(LIMIT + 5, ']');
+
+    ION_READER_OPTIONS options;
+    memset(&options, 0, sizeof(options));
+    options.max_container_depth = LIMIT;
+
+    hREADER reader = NULL;
+    ION_TYPE type;
+    ASSERT_EQ(IERR_OK, ion_reader_open_buffer(&reader, (BYTE *)ion_text.c_str(),
+                                              (SIZE)ion_text.size(), &options));
+
+    // Descends to exactly LIMIT, then refuses.
+    int depth = 0;
+    iERR err;
+    for (;;) {
+        err = ion_reader_next(reader, &type);
+        if (err != IERR_OK) break;
+        if (type == tid_EOF) break;
+        err = ion_reader_step_in(reader);
+        if (err != IERR_OK) break;
+        depth++;
+    }
+    ASSERT_EQ(IERR_STACK_OVERFLOW, err);
+    ASSERT_EQ(LIMIT, depth);
+
+    ion_reader_close(reader);
+}
+
+TEST(IonContainerDepth, ReaderDefaultDepthAcceptsModeratelyNestedData) {
+    // The default was formerly 10, which is below the depth used by ion-tests
+    // vectors such as good/equivs/lists.ion (23 deep).
+    const int DEPTH = 100;
+    std::string ion_text = std::string(DEPTH, '[') + std::string(DEPTH, ']');
+
+    hREADER reader = NULL;
+    ION_TYPE type;
+    ASSERT_EQ(IERR_OK, ion_reader_open_buffer(&reader, (BYTE *)ion_text.c_str(),
+                                              (SIZE)ion_text.size(), NULL));
+    for (int i = 0; i < DEPTH; i++) {
+        ASSERT_EQ(IERR_OK, ion_reader_next(reader, &type));
+        ASSERT_EQ((ION_TYPE)tid_LIST, type);
+        ASSERT_EQ(IERR_OK, ion_reader_step_in(reader));
+    }
+    ion_reader_close(reader);
+}
+
+TEST(IonContainerDepth, WriterRejectsNestingBeyondMaxContainerDepth) {
+    // Covers both writers: the text writer previously failed at 80 containers with
+    // IERR_NO_MEMORY due to temp buffer exhaustion, regardless of this option.
+    const BOOL binary_flags[] = {TRUE, FALSE};
+    for (int i = 0; i < 2; i++) {
+        const int LIMIT = 500;
+        hWRITER writer = NULL;
+        ION_STREAM *stream = NULL;
+        ION_WRITER_OPTIONS options;
+        memset(&options, 0, sizeof(options));
+        options.output_as_binary = binary_flags[i];
+        options.max_container_depth = LIMIT;
+
+        ASSERT_EQ(IERR_OK, ion_stream_open_memory_only(&stream));
+        ASSERT_EQ(IERR_OK, ion_writer_open(&writer, stream, &options));
+
+        int opened = 0;
+        iERR err = IERR_OK;
+        for (int j = 0; j < LIMIT + 5; j++) {
+            err = ion_writer_start_container(writer, tid_LIST);
+            if (err != IERR_OK) break;
+            opened++;
+        }
+        ASSERT_EQ(IERR_STACK_OVERFLOW, err) << "output_as_binary=" << binary_flags[i];
+        ASSERT_EQ(LIMIT, opened) << "output_as_binary=" << binary_flags[i];
+
+        ion_writer_close(writer);
+        ion_stream_close(stream);
+    }
+}
+
+TEST(IonContainerDepth, TextWriterDepthIsIndependentOfAnnotationCount) {
+    // The temp buffer was sized from max_annotation_count, so it silently governed
+    // nesting depth: 10 annotations allowed 80 containers, 100 allowed 320.
+    const int annotation_counts[] = {10, 100};
+    for (int i = 0; i < 2; i++) {
+        const int DEPTH = 400;
+        hWRITER writer = NULL;
+        ION_STREAM *stream = NULL;
+        ION_WRITER_OPTIONS options;
+        memset(&options, 0, sizeof(options));
+        options.output_as_binary = FALSE;
+        options.max_container_depth = DEPTH;
+        options.max_annotation_count = annotation_counts[i];
+
+        ASSERT_EQ(IERR_OK, ion_stream_open_memory_only(&stream));
+        ASSERT_EQ(IERR_OK, ion_writer_open(&writer, stream, &options));
+
+        for (int j = 0; j < DEPTH; j++) {
+            ASSERT_EQ(IERR_OK, ion_writer_start_container(writer, tid_LIST))
+                << "failed at depth " << j << " with max_annotation_count="
+                << annotation_counts[i];
+        }
+        ion_writer_close(writer);
+        ion_stream_close(stream);
+    }
+}
+
+TEST(IonContainerDepth, WriteAllValuesDoesNotExhaustTheStack) {
+    // ion_writer_write_all_values recurses per container. A high max_container_depth
+    // must not be taken as permission to recurse past ION_MAX_RECURSION_DEPTH; this
+    // previously segfaulted.
+    const int DEPTH = 60000;
+    std::string ion_text = std::string(DEPTH, '[') + std::string(DEPTH, ']');
+
+    hREADER reader = NULL;
+    ION_READER_OPTIONS r_options;
+    memset(&r_options, 0, sizeof(r_options));
+    r_options.max_container_depth = DEPTH + 10;
+    ASSERT_EQ(IERR_OK, ion_reader_open_buffer(&reader, (BYTE *)ion_text.c_str(),
+                                              (SIZE)ion_text.size(), &r_options));
+
+    hWRITER writer = NULL;
+    ION_STREAM *stream = NULL;
+    ION_WRITER_OPTIONS w_options;
+    memset(&w_options, 0, sizeof(w_options));
+    w_options.output_as_binary = TRUE;
+    w_options.max_container_depth = DEPTH + 10;
+    ASSERT_EQ(IERR_OK, ion_stream_open_memory_only(&stream));
+    ASSERT_EQ(IERR_OK, ion_writer_open(&writer, stream, &w_options));
+
+    ASSERT_EQ(IERR_STACK_OVERFLOW, ion_writer_write_all_values(writer, reader));
+
+    ion_writer_close(writer);
+    ion_stream_close(stream);
+    ion_reader_close(reader);
+}
+
+TEST(IonContainerDepth, OptionsBelowMinimumAreRejected) {
+    ION_READER_OPTIONS r_options;
+    memset(&r_options, 0, sizeof(r_options));
+    r_options.max_container_depth = 1;
+    hREADER reader = NULL;
+    const char *text = "[]";
+    ASSERT_EQ(IERR_INVALID_ARG, ion_reader_open_buffer(&reader, (BYTE *)text, 2, &r_options));
+
+    // The writer previously performed no options validation at all.
+    ION_WRITER_OPTIONS w_options;
+    memset(&w_options, 0, sizeof(w_options));
+    w_options.max_container_depth = 1;
+    hWRITER writer = NULL;
+    ION_STREAM *stream = NULL;
+    ASSERT_EQ(IERR_OK, ion_stream_open_memory_only(&stream));
+    ASSERT_EQ(IERR_INVALID_ARG, ion_writer_open(&writer, stream, &w_options));
+    ion_stream_close(stream);
 }
 
 TEST(IonTextReader, Base64DecodeDoesNotOverflowBuffer) {
