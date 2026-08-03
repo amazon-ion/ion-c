@@ -287,8 +287,20 @@ iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRI
         writer_type = ion_type_text_writer;
     }
 
-    // calculate annotations size by writer option's max_annotation_count field
-    SIZE temp_buffer_size = pwriter->options.max_annotation_count * sizeof(ION_SYMBOL) + ION_WRITER_TEMP_BUFFER_DEFAULT;
+    // The temp buffer is a bump allocator with no free, and the text writer's container
+    // stack is allocated from it, doubling as it grows without reclaiming the old array.
+    // Reserve enough for the full configured depth plus the doubling waste (bounded by
+    // 2x the final size), or the stack would exhaust the buffer with a misleading
+    // IERR_NO_MEMORY long before max_container_depth was reached.
+    SIZE stack_entry_size = (SIZE)(sizeof(ION_TYPE) + sizeof(BYTE) + 2 * sizeof(void *));
+    int64_t stack_reserve = 2 * (int64_t)pwriter->options.max_container_depth * stack_entry_size;
+    int64_t temp_buffer_size_64 = (int64_t)pwriter->options.max_annotation_count * (int64_t)sizeof(ION_SYMBOL)
+                                + (int64_t)pwriter->options.temp_buffer_size
+                                + stack_reserve;
+    if (temp_buffer_size_64 > MAX_SIZE) {
+        FAILWITHMSG(IERR_INVALID_ARG, "max_container_depth requires too large a temp buffer.");
+    }
+    SIZE temp_buffer_size = (SIZE)temp_buffer_size_64;
     IONCHECK(ion_temp_buffer_init(pwriter, &pwriter->temp_buffer, temp_buffer_size));
 
     // allocate a temp pool we can reset from time to time
