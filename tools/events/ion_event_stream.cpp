@@ -446,6 +446,11 @@ iERR _ion_event_stream_read_all_recursive(hREADER hreader, IonEventStream *strea
     iENTER;
     ION_SET_ERROR_CONTEXT(&stream->location, NULL);
     ION_TYPE t;
+    // Mutually recursive with ion_event_stream_read, one C stack frame per container.
+    // Without this the CLI segfaults on deeply nested input rather than reporting an error.
+    if (depth >= ION_EVENT_CONTAINER_DEPTH_MAX) {
+        IONFAILSTATE(IERR_STACK_OVERFLOW, "Container nesting exceeds ION_EVENT_CONTAINER_DEPTH_MAX.");
+    }
     for (;;) {
         IONCREAD(ion_reader_next(hreader, &t));
         if (t == tid_EOF) {

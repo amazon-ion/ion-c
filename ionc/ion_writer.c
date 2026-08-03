@@ -2737,6 +2737,14 @@ iERR _ion_writer_write_all_values_helper(ION_WRITER *pwriter, ION_READER *preade
     ASSERT(pwriter);
     ASSERT(preader);
 
+    // This helper is mutually recursive with _ion_writer_write_one_value_helper, one C
+    // stack frame per container. max_container_depth cannot bound it, since a caller may
+    // legitimately configure a depth far beyond what the stack can hold, so the recursion
+    // needs its own ceiling. preader->_depth already tracks the nesting level.
+    if (preader->_depth >= ION_MAX_RECURSION_DEPTH) {
+        FAILWITHMSG(IERR_STACK_OVERFLOW, "Container nesting exceeds ION_MAX_RECURSION_DEPTH.");
+    }
+
     // Temporarily configure the reader to notify the writer of symbol table context changes.
     preader->context_change_notifier.context = pwriter;
     preader->context_change_notifier.notify = &_ion_writer_add_imported_tables_helper_fn;
