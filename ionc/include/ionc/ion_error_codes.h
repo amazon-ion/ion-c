@@ -92,6 +92,11 @@
     ERROR_CODE( IERR_INVALID_LEADING_ZEROS,     52 )
     ERROR_CODE( IERR_INVALID_LOB_TERMINATOR,    53 )
 
+    /** Container nesting exceeded the configured `max_container_depth`, or exceeded
+     * ION_MAX_RECURSION_DEPTH within one of the library's recursive helpers.
+     */
+    ERROR_CODE( IERR_STACK_OVERFLOW,            54 )
+
 
 // if it was defined we undefine it now
 #undef ERROR_CODE
