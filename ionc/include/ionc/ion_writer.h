@@ -63,7 +63,9 @@ typedef struct _ion_writer_options
      */
     BOOL flush_every_value;
 
-    /** The max container depth defaults to 10
+    /** The maximum container nesting depth this writer will accept. Defaults to 1000.
+     *  Starting a container beyond this depth fails with IERR_STACK_OVERFLOW. May not
+     *  be set below 2.
      *
      */
     SIZE max_container_depth;

@@ -55,9 +55,10 @@
 #endif
 
 /**
- * Default maximum length of any path. DEFAULT_WRITER_STACK_DEPTH is chosen as the default because this is the default
- * maximum depth to which readers can descend. Unless the reader is configured with a higher `max_container_depth`,
- * attempting to match paths longer than this will fail.
+ * Default maximum length of any path. This bounds the depth to which `ion_extractor_match` will
+ * recurse, and sizes fixed-length arrays in the extractor (see ION_EXTRACTOR._path_components),
+ * so it is deliberately kept small and is independent of the reader's `max_container_depth`.
+ * A reader may descend deeper than this; paths simply cannot match below this depth.
  * NOTE: this is a constant that may not be redefined by the user.
  */
 #define ION_EXTRACTOR_MAX_PATH_LENGTH_DEFAULT DEFAULT_WRITER_STACK_DEPTH

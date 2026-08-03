@@ -353,9 +353,9 @@ void _ion_reader_initialize_option_defaults(ION_READER_OPTIONS* p_options)
         p_options->new_line_char = '\n';
     }
 
-    // the max container depth defaults to 10
+    // the max container depth defaults to DEFAULT_MAX_CONTAINER_DEPTH
     if (!p_options->max_container_depth) {
-        p_options->max_container_depth = DEFAULT_WRITER_STACK_DEPTH;
+        p_options->max_container_depth = DEFAULT_MAX_CONTAINER_DEPTH;
     }
 
     // the max number of annotations on 1 value, defaults to 10
@@ -601,6 +601,10 @@ iERR _ion_reader_step_in_helper(ION_READER *preader)
     iENTER;
 
     ASSERT(preader);
+
+    if (preader->_depth >= preader->options.max_container_depth) {
+        FAILWITHMSG(IERR_STACK_OVERFLOW, "Container nesting exceeds max_container_depth.");
+    }
 
     switch(preader->type) {
     case ion_type_text_reader:

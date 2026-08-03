@@ -207,6 +207,7 @@ iERR _ion_writer_open_buffer_helper(ION_WRITER **p_pwriter, BYTE *buffer, SIZE b
 iERR _ion_writer_open_stream_helper(ION_WRITER **p_pwriter, ION_STREAM p_stream, void *handler_state, ION_WRITER_OPTIONS *p_options);
 iERR _ion_writer_open_helper(ION_WRITER **p_pwriter, ION_STREAM *stream, ION_WRITER_OPTIONS *p_options);
 void _ion_writer_initialize_option_defaults(ION_WRITER_OPTIONS *p_options);
+iERR _ion_writer_validate_options(ION_WRITER_OPTIONS *p_options);
 iERR _ion_writer_initialize(ION_WRITER *pwriter, ION_OBJ_TYPE writer_type);
 
 iERR _ion_writer_get_depth_helper(ION_WRITER *pwriter, SIZE *p_depth);
