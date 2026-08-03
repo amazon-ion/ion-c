@@ -107,6 +107,12 @@ iERR _ion_writer_text_grow_stack(ION_WRITER *pwriter)
 {
     iENTER;
 
+    // Never grow past the configured depth; _ion_writer_start_container_helper rejects
+    // anything deeper with IERR_STACK_OVERFLOW, so a larger stack could never be used.
+    if (TEXTWRITER(pwriter)->_stack_size >= pwriter->options.max_container_depth) {
+        FAILWITHMSG(IERR_STACK_OVERFLOW, "Container nesting exceeds max_container_depth.");
+    }
+
     int       old_type_size = TEXTWRITER(pwriter)->_stack_size * sizeof(*(TEXTWRITER(pwriter)->_stack_parent_type));
     int       old_flag_size = TEXTWRITER(pwriter)->_stack_size * sizeof(*(TEXTWRITER(pwriter)->_stack_flags));
     int       new_type_size = 2 * old_type_size;
