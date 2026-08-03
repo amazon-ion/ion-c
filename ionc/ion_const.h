@@ -27,6 +27,17 @@ extern "C" {
 #define DEFAULT_ANNOTATION_LIMIT         10
 #define DEFAULT_WRITER_STACK_DEPTH       10
 
+    // default limit on container nesting for readers and writers. Deeper nesting
+    // is rejected with IERR_STACK_OVERFLOW. Distinct from DEFAULT_WRITER_STACK_DEPTH,
+    // which also sizes fixed extractor arrays and must stay small.
+#define DEFAULT_MAX_CONTAINER_DEPTH     1000
+
+    // Independent ceiling for the library's recursive reader/writer consumers, which
+    // consume a C stack frame per level and so cannot be bounded by a user-supplied
+    // option. Measured overflow is above 50000 frames on an 8MB stack; this leaves
+    // a wide margin while permitting far deeper nesting than DEFAULT_MAX_CONTAINER_DEPTH.
+#define ION_MAX_RECURSION_DEPTH         5000
+
 //#define DEFAULT_CHUNK_THRESHOLD     DEFAULT_BLOCK_SIZE // TODO - get the right size here!
     // default block size is (currently) 64k, it has been 256k and 128mb
     // so the current user alloc limit now would be 16k (it was 2k before this)
