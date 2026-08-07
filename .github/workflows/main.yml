@@ -76,9 +76,17 @@ jobs:
             compiler: { cc: 'clang', cxx: 'clang++', cflags: '', cxxflags: '', ldflags: '' }
           - toolchain: gcc
             compiler: { cc: 'gcc', cxx: 'g++', cflags: '', cxxflags: '', ldflags: '' }
-          - image: 'macos-latest'
+          # Homebrew GCC cannot parse the Apple-Clang-only constructs in the newer
+          # macOS SDK headers (e.g. mach/message.h) shipped on macos-latest, so pin
+          # the macOS GCC job to an older runner whose SDK it can still parse.
+          - image: 'macos-15'
             toolchain: gcc
             compiler: { cc: 'gcc-14', cxx: 'g++-14', cflags: '', cxxflags: '', ldflags: '' }
+        exclude:
+          # macOS GCC runs on macos-15 (added via the include above) rather than
+          # the default macos-latest image.
+          - image: 'macos-latest'
+            toolchain: gcc
     runs-on: ${{ matrix.image }}
     env:
       CC: ${{ matrix.compiler.cc }}
@@ -140,7 +148,10 @@ jobs:
       - name: Build Debug
         run: |
           mkdir build64
-          cmake -G "Visual Studio 17 2022" -A x64 -S . -B "build64"
+          # Let CMake auto-detect the Visual Studio generator installed on the
+          # runner instead of hard-coding one, so the job keeps working as GitHub
+          # rolls the windows-latest image forward to newer Visual Studio versions.
+          cmake -A x64 -S . -B "build64"
           cmake --build build64 --config Debug
       - name: Test Debug
         run: 'build64\test\Debug\all_tests.exe'
