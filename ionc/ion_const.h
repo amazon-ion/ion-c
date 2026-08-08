@@ -34,9 +34,11 @@ extern "C" {
 
     // Independent ceiling for the library's recursive reader/writer consumers, which
     // consume a C stack frame per level and so cannot be bounded by a user-supplied
-    // option. Measured overflow is above 50000 frames on an 8MB stack; this leaves
-    // a wide margin while permitting far deeper nesting than DEFAULT_MAX_CONTAINER_DEPTH.
-#define ION_MAX_RECURSION_DEPTH         5000
+    // option. This must fit the smallest stack we support: Windows defaults to a 1MB
+    // main-thread stack (vs. ~8MB on Linux/macOS), and a debug build's larger frames
+    // overflowed it well below 5000 levels. Matching DEFAULT_MAX_CONTAINER_DEPTH keeps
+    // the guard portable while still admitting any default-configured nesting.
+#define ION_MAX_RECURSION_DEPTH         DEFAULT_MAX_CONTAINER_DEPTH
 
 //#define DEFAULT_CHUNK_THRESHOLD     DEFAULT_BLOCK_SIZE // TODO - get the right size here!
     // default block size is (currently) 64k, it has been 256k and 128mb
