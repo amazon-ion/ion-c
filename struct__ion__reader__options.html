@@ -136,7 +136,7 @@ Data Fields</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Reader configuration data, could be supplied by user during reader creation time. All fields in the structure are defaulted to 0, except for the following:</p>
-<p>#define DEFAULT_ANNOTATION_LIMIT 10 #define DEFAULT_WRITER_STACK_DEPTH 10 #define DEFAULT_CHUNK_THRESHOLD DEFAULT_BLOCK_SIZE #define DEFAULT_SYMBOL_THRESHOLD 512</p>
+<p>#define DEFAULT_ANNOTATION_LIMIT 10 #define DEFAULT_MAX_CONTAINER_DEPTH 1000 #define DEFAULT_CHUNK_THRESHOLD DEFAULT_BLOCK_SIZE #define DEFAULT_SYMBOL_THRESHOLD 512</p>
 <p>Some field also has a range limit: #define MIN_ANNOTATION_LIMIT 1 #define MIN_WRITER_STACK_DEPTH 2 #define MIN_SYMBOL_THRESHOLD 32 #define MIN_CHUNK_THRESHOLD 32 #define MIN_ION_ALLOCATION_BLOCK_SIZE 32 </p>
 </div><h2 class="groupheader">Field Documentation</h2>
 <a id="a602751ed35ce2bf08ebdbe3b8e038755" name="a602751ed35ce2bf08ebdbe3b8e038755"></a>
@@ -242,7 +242,7 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>The max container depth defaults to 10 </p>
+<p>The maximum container nesting depth this reader will descend to. Defaults to 1000. Stepping in beyond this depth fails with IERR_STACK_OVERFLOW. May not be set below 2. </p>
 
 </div>
 </div>

@@ -286,7 +286,7 @@ ION_API_EXPORT iERR&#160;</td><td class="memItemRight" valign="bottom"><b>ion_re
       </table>
 </div><div class="memdoc">
 <p>Reader configuration data, could be supplied by user during reader creation time. All fields in the structure are defaulted to 0, except for the following:</p>
-<p>#define DEFAULT_ANNOTATION_LIMIT 10 #define DEFAULT_WRITER_STACK_DEPTH 10 #define DEFAULT_CHUNK_THRESHOLD DEFAULT_BLOCK_SIZE #define DEFAULT_SYMBOL_THRESHOLD 512</p>
+<p>#define DEFAULT_ANNOTATION_LIMIT 10 #define DEFAULT_MAX_CONTAINER_DEPTH 1000 #define DEFAULT_CHUNK_THRESHOLD DEFAULT_BLOCK_SIZE #define DEFAULT_SYMBOL_THRESHOLD 512</p>
 <p>Some field also has a range limit: #define MIN_ANNOTATION_LIMIT 1 #define MIN_WRITER_STACK_DEPTH 2 #define MIN_SYMBOL_THRESHOLD 32 #define MIN_CHUNK_THRESHOLD 32 #define MIN_ION_ALLOCATION_BLOCK_SIZE 32 </p>
 
 </div>

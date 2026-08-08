@@ -242,7 +242,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Default maximum length of any path. DEFAULT_WRITER_STACK_DEPTH is chosen as the default because this is the default maximum depth to which readers can descend. Unless the reader is configured with a higher <code>max_container_depth</code>, attempting to match paths longer than this will fail. NOTE: this is a constant that may not be redefined by the user. </p>
+<p>Default maximum length of any path. This bounds the depth to which <code>ion_extractor_match</code> will recurse, and sizes fixed-length arrays in the extractor (see ION_EXTRACTOR._path_components), so it is deliberately kept small and is independent of the reader's <code>max_container_depth</code>. A reader may descend deeper than this; paths simply cannot match below this depth. NOTE: this is a constant that may not be redefined by the user. </p>
 
 </div>
 </div>
